@@ -8,7 +8,7 @@ import '../services/market_price_helpers.dart';
 import '../widgets/shimmer.dart';
 import 'admin_dashboard_screen.dart'
     show AdminThemeScope, AdminPalette, AdminRadii;
-import 'admin_filter_controls.dart' show AdminPillDropdown;
+import 'admin_filter_controls.dart' show AdminPillDropdown, adminActionColor;
 
 // ============================================================
 // The top of the Admin Analytics Dashboard: the Overview summary strip,
@@ -63,7 +63,7 @@ class AdminOverviewItem {
   });
 }
 
-/// The Overview: each figure on its own lightly tinted card, side by side
+/// The Overview: each figure on its own white card, side by side
 /// and equal in width and height. Wraps to two per row, then one, on
 /// narrower windows.
 class AdminOverviewStrip extends StatelessWidget {
@@ -110,31 +110,36 @@ class AdminOverviewStrip extends StatelessWidget {
   }
 
   Widget _card(AdminPalette c, AdminOverviewItem item) {
-    final tint = item.attention ? c.amber : c.green;
-    final radius = BorderRadius.circular(14);
+    final radius = BorderRadius.circular(AdminRadii.card);
     // Material + InkWell, so a clickable card shows the pointer, a hover
     // tint and a ripple inside its own rounded shape.
-    // Lightly tinted on the light theme; plain charcoal on the black-and-
-    // white dark theme, where the icon box alone carries the colour.
+    // White with a light grey border, as every card; the icon box carries
+    // the colour. One needing attention keeps a faint amber, a warning.
     return Material(
-      color: c.isDark
-          ? c.surface
-          : Color.alphaBlend(tint.withValues(alpha: 0.06), c.surface),
+      color: item.attention && !c.isDark
+          ? Color.alphaBlend(c.amber.withValues(alpha: 0.06), c.surface)
+          : c.surface,
       shape: RoundedRectangleBorder(
         borderRadius: radius,
         side: item.selected
-            ? BorderSide(color: tint, width: 1.5)
+            ? BorderSide(
+                color: item.attention ? c.amber : adminActionColor(c),
+                width: 1.5,
+              )
             : BorderSide(
-                color: c.isDark
-                    ? c.border
-                    : Color.alphaBlend(tint.withValues(alpha: 0.16), c.border),
+                color: item.attention && !c.isDark
+                    ? Color.alphaBlend(
+                        c.amber.withValues(alpha: 0.16),
+                        c.border,
+                      )
+                    : c.border,
               ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: item.onTap,
-        hoverColor: tint.withValues(alpha: 0.07),
-        splashColor: tint.withValues(alpha: 0.12),
+        hoverColor: c.surfaceAlt,
+        splashColor: c.border,
         child: _OverviewSegment(item: item),
       ),
     );
@@ -167,13 +172,15 @@ class _OverviewSegment extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: item.attention ? c.amberBg : c.greenBg,
+              // Neutral, with the icon in dark green; amber when it needs
+              // attention.
+              color: item.attention ? c.amberBg : c.surfaceAlt,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               item.icon,
               size: 22,
-              color: item.attention ? c.amber : c.green,
+              color: item.attention ? c.amber : adminActionColor(c),
             ),
           ),
           const SizedBox(width: 14),
@@ -255,6 +262,8 @@ class AdminPeriodDropdown extends StatelessWidget {
   // The portal's dropdown: the same size and look as every other.
   @override
   Widget build(BuildContext context) => AdminPillDropdown<int>(
+    // Room for "Last 12 Months" and no more.
+    width: 184,
     value: months,
     icon: Icons.date_range_outlined,
     items: [
@@ -293,12 +302,15 @@ class AdminChartCard extends StatelessWidget {
     this.bodyHeight = 264,
   });
 
+  /// The space inside every chart card, on all four sides.
+  static const double padding = 24;
+
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(AdminRadii.card),
@@ -392,12 +404,23 @@ class AdminCardHeader extends StatelessWidget {
 
 class AdminChartEmpty extends StatelessWidget {
   final IconData icon;
+
+  /// A short heading over [message] ("No data to display"), if any.
+  final String? title;
   final String message;
-  const AdminChartEmpty({super.key, required this.icon, required this.message});
+  const AdminChartEmpty({
+    super.key,
+    required this.icon,
+    this.title,
+    required this.message,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
+    final heading = title;
+    // In the middle of the space it is given, the icon, the heading and the
+    // line under it.
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -406,12 +429,24 @@ class AdminChartEmpty extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: c.greenBg,
+              color: c.surfaceAlt,
               borderRadius: BorderRadius.circular(AdminRadii.card),
             ),
-            child: Icon(icon, size: 26, color: c.green),
+            child: Icon(icon, size: 26, color: c.textSecondary),
           ),
           const SizedBox(height: 12),
+          if (heading != null) ...[
+            Text(
+              heading,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: c.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 320),
             child: Text(
@@ -656,7 +691,7 @@ class AdminChartCardSkeleton extends StatelessWidget {
     );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AdminChartCard.padding),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(AdminRadii.card),

@@ -16,7 +16,7 @@ Future<void> showAdminSuspendAccounts(BuildContext context) {
   // A dialog sits outside the page's AdminThemeScope: hand the palette in.
   final palette =
       context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-      AdminPalette.light;
+      AdminPalette.fallback(context);
   return showDialog<void>(
     context: context,
     builder: (_) => AdminThemeScope(

@@ -245,8 +245,9 @@ class AdminAnnounceButton extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: () => showAdminAnnouncementDialog(context),
+        // 40 across, the height of the search beside it.
         child: Container(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: c.surfaceAlt,
@@ -449,8 +450,9 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
           ),
         ),
       ],
+      // 40 across, the height of the search beside it.
       child: Container(
-        padding: const EdgeInsets.all(7),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(shape: BoxShape.circle, color: c.surfaceAlt),
         child: Stack(
           clipBehavior: Clip.none,
@@ -514,10 +516,10 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: c.greenBg,
+                color: c.surfaceAlt,
                 shape: BoxShape.circle,
               ),
-              child: Icon(item.icon, size: 16, color: c.green),
+              child: Icon(item.icon, size: 16, color: adminActionColor(c)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -560,7 +562,7 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: c.green,
+                      color: adminActionColor(c),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -807,6 +809,7 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
       ),
     );
     Widget schedule(String hint, DateTime? value, bool start) => Expanded(
+      // A date selector: the portal's pill, as every dropdown.
       child: OutlinedButton.icon(
         onPressed: _sending ? null : () => _pick(start: start),
         icon: const Icon(Icons.event_outlined, size: 16),
@@ -814,11 +817,7 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
           value == null ? hint : when.format(value),
           overflow: TextOverflow.ellipsis,
         ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: scheme.onSurface,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-          textStyle: const TextStyle(fontFamily: 'Montserrat', fontSize: 12.5),
-        ),
+        style: adminPillControlStyle(AdminPalette.fallback(context)),
       ),
     );
 

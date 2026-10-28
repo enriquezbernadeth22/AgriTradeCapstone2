@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
@@ -42,7 +44,7 @@ Color adminOnControlColor(AdminPalette c) => c.surface;
 
 /// Corner radius of every menu and popup in the portal — the same rounded
 /// card the mobile app's popups use.
-const double kAdminPopupRadius = 20;
+const double kAdminPopupRadius = 16;
 
 /// What is typed in the header's search box while a page with a table is
 /// open. That page filters its rows by it — there is one search in the
@@ -97,32 +99,36 @@ const double kAdminControlWidth = 200;
 const double kAdminControlHeight = 40;
 
 /// The inside of a text input (a search box), for inside [AdminInputGlow]:
-/// no fill and no outline of its own — the glow plate around it is the
-/// field, exactly like the Admin login's fields.
+/// no fill and no outline of its own — the plate around it is the field.
 ///
 /// [fixedHeight]: for a control already [kAdminControlHeight] tall, which
 /// centres its text itself (no padding above and below to throw it off).
+///
+/// [inset]: the space at the start (before the icon) and at the end — the
+/// same on every control, so the pill's round ends never crowd it.
 InputDecoration adminFieldDecoration(
   AdminPalette c, {
   String? hint,
   IconData? icon,
   bool fixedHeight = false,
+  double inset = 16,
+  double iconSize = 16,
 }) => InputDecoration(
   hintText: hint,
   hintStyle: TextStyle(color: c.textMuted, fontSize: 13),
   prefixIcon: icon == null
       ? null
       : Padding(
-          padding: const EdgeInsets.only(left: 14, right: 8),
-          child: Icon(icon, size: 18, color: adminControlColor(c)),
+          padding: EdgeInsets.only(left: inset, right: 8),
+          child: Icon(icon, size: iconSize, color: adminControlColor(c)),
         ),
-  prefixIconConstraints: const BoxConstraints(minHeight: 18),
+  prefixIconConstraints: BoxConstraints(minHeight: iconSize),
   filled: false,
   isDense: true,
   contentPadding: EdgeInsets.fromLTRB(
-    icon == null ? 16 : 0,
+    icon == null ? inset + 2 : 0,
     fixedHeight ? 0 : 12,
-    14,
+    inset,
     fixedHeight ? 0 : 12,
   ),
   border: InputBorder.none,
@@ -147,7 +153,7 @@ class AdminGreyMenu extends StatelessWidget {
         context
             .dependOnInheritedWidgetOfExactType<AdminThemeScope>()
             ?.palette ??
-        AdminPalette.light;
+        AdminPalette.fallback(context);
     return Theme(
       data: Theme.of(context).copyWith(
         focusColor: c.surfaceAlt,
@@ -160,10 +166,12 @@ class AdminGreyMenu extends StatelessWidget {
   }
 }
 
-/// The Admin Portal's text inputs, in the Admin login's look: a white pill
-/// on a soft shadow, with no outline, that glows a soft grey while it is
-/// being typed in (black and white, like every dropdown). Wraps a
-/// TextField whose decoration is [adminFieldDecoration].
+/// The plate behind every search, dropdown and date/year picker in the
+/// Admin Portal: a white pill with a light grey border, which turns a
+/// darker grey while it is being typed in. Its icon (16) is a little
+/// smaller than its text, with the same space at both ends
+/// ([adminFieldDecoration]). Wraps a TextField whose decoration is
+/// [adminFieldDecoration].
 class AdminInputGlow extends StatefulWidget {
   final Widget child;
   final BorderRadius? borderRadius;
@@ -184,41 +192,20 @@ class _AdminInputGlowState extends State<AdminInputGlow> {
         context
             .dependOnInheritedWidgetOfExactType<AdminThemeScope>()
             ?.palette ??
-        AdminPalette.light;
+        AdminPalette.fallback(context);
     return Focus(
       // Only watches the field inside; never takes focus itself.
       canRequestFocus: false,
       skipTraversal: true,
       onFocusChange: (focused) => setState(() => _focused = focused),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius:
               widget.borderRadius ?? BorderRadius.circular(AdminRadii.pill),
-          border: c.isDark ? Border.all(color: c.border) : null,
-          boxShadow: _focused
-              ? [
-                  BoxShadow(
-                    color: adminControlColor(c).withValues(alpha: 0.14),
-                    blurRadius: 12,
-                    spreadRadius: 0.5,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: c.isDark ? 0.25 : 0.08,
-                    ),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+          // One width either way, so nothing inside shifts on focus.
+          border: Border.all(color: _focused ? c.textSecondary : c.border),
         ),
         child: widget.child,
       ),
@@ -226,7 +213,26 @@ class _AdminInputGlowState extends State<AdminInputGlow> {
   }
 }
 
-/// A pill-shaped search box.
+/// A date (or date range) selector that is a button, such as the Audit
+/// Log's "Date range": the same white pill as the portal's dropdowns, with
+/// their height, padding and 16px icon.
+ButtonStyle adminPillControlStyle(AdminPalette c) => OutlinedButton.styleFrom(
+  shape: const StadiumBorder(),
+  backgroundColor: c.surface,
+  foregroundColor: c.textPrimary,
+  side: BorderSide(color: c.border),
+  minimumSize: const Size(0, kAdminControlHeight),
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  iconSize: 16,
+  textStyle: const TextStyle(
+    fontFamily: kAdminFontFamily,
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+  ),
+);
+
+/// The portal's search box (on an [AdminInputGlow] plate).
 class AdminPillSearch extends StatelessWidget {
   final String hint;
   final ValueChanged<String> onChanged;
@@ -246,7 +252,7 @@ class AdminPillSearch extends StatelessWidget {
       width: width,
       height: kAdminControlHeight,
       child: AdminInputGlow(
-        // The field in the middle of the pill, level with the dropdowns'.
+        // The field in the middle of the plate, level with the dropdowns'.
         child: Center(
           child: TextField(
             style: TextStyle(color: c.textPrimary, fontSize: 13),
@@ -264,10 +270,11 @@ class AdminPillSearch extends StatelessWidget {
   }
 }
 
-/// A pill-shaped dropdown. The chosen option always stays on one line
-/// (shortened with "…" if it cannot fit) instead of wrapping and being cut
-/// off. Its menu is a rounded card that opens just under the pill, so the
-/// pill that was clicked stays in view while choosing.
+/// The portal's dropdown (on an [AdminInputGlow] plate). The chosen option
+/// always stays on one line (shortened with "…" if it cannot fit) instead
+/// of wrapping and being cut off. Its menu is a rounded card that opens
+/// just under it, so the dropdown that was clicked stays in view while
+/// choosing.
 class AdminPillDropdown<T> extends StatelessWidget {
   final T value;
   final List<DropdownMenuItem<T>> items;
@@ -349,8 +356,14 @@ class AdminPillDropdown<T> extends StatelessWidget {
           // look), so a dropdown beside a search box matches it.
           child: AdminInputGlow(
             child: InputDecorator(
+              // The whole height of the plate, its contents in the middle.
+              expands: true,
               textAlignVertical: TextAlignVertical.center,
-              decoration: adminFieldDecoration(c, icon: icon),
+              decoration: adminFieldDecoration(
+                c,
+                icon: icon,
+                fixedHeight: true,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -383,7 +396,8 @@ class AdminPillDropdown<T> extends StatelessWidget {
   }
 }
 
-/// A pill-shaped toggle between a few choices.
+/// A pill-shaped toggle between a few choices — a compact option, so a
+/// pill; the chosen one dark green.
 class AdminPillToggle<T> extends StatelessWidget {
   final T value;
   final List<({T value, String label})> options;
@@ -399,17 +413,20 @@ class AdminPillToggle<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
+    // As tall as the portal's other controls, the labels in the middle.
     return Container(
+      height: kAdminControlHeight,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: c.surfaceAlt,
         borderRadius: BorderRadius.circular(AdminRadii.pill),
-        // No outline, as the portal's fields; only on the dark theme,
-        // where the track would not show without one.
+        // No outline on the light theme; only on the dark one, where the
+        // track would not show without one.
         border: c.isDark ? Border.all(color: c.border) : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final option in options)
             MouseRegion(
@@ -418,12 +435,12 @@ class AdminPillToggle<T> extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onChanged(option.value),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: option.value == value ? c.green : Colors.transparent,
+                    color: option.value == value
+                        ? adminActionColor(c)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(AdminRadii.pill),
                   ),
                   child: Text(
@@ -446,8 +463,7 @@ class AdminPillToggle<T> extends StatelessWidget {
 }
 
 /// The decoration of a text field several lines tall, in a dialog: the
-/// portal's field colours with a rounded corner — a pill would crowd text
-/// that runs over more than one line.
+/// portal's field colours and corners, with its label at the top.
 InputDecoration adminMultilineDecoration(
   BuildContext context, {
   String? labelText,
@@ -455,7 +471,7 @@ InputDecoration adminMultilineDecoration(
 }) {
   final theme = Theme.of(context).inputDecorationTheme;
   OutlineInputBorder border(InputBorder? from) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(AdminRadii.control),
     borderSide: from?.borderSide ?? const BorderSide(),
   );
   return InputDecoration(
@@ -476,28 +492,85 @@ Color adminActionOf(BuildContext context) =>
     ).filledButtonTheme.style?.backgroundColor?.resolve(const {}) ??
     Theme.of(context).colorScheme.primary;
 
-/// The portal's "loading" sign while data is being fetched: the same thin
-/// moving bar the mobile app shows while a conversation's messages load
-/// (see ChatMessagesLoadingBar), in the portal's dark green. Used wherever
-/// a page or popup is waiting for its data.
-class AdminLoadingBar extends StatelessWidget {
+/// The portal's "loading" sign while data is being fetched, wherever a page
+/// or popup is waiting for its data: a thin bar in the portal's dark green
+/// that fills as the wait goes on — quickly at first (about half in the
+/// first second), then slower (about 85% at three seconds, a usual fetch),
+/// then creeping on toward 92% for a slow one; it never reaches the end on
+/// its own, as only the data arriving ends the wait, and then the page
+/// shows instead. Nothing waits on it: a fetch that is done sooner simply
+/// replaces it sooner. It fades in over its first moment, so a quick load
+/// shows no flash of it. With animations turned off it stands still,
+/// half full.
+class AdminLoadingBar extends StatefulWidget {
   final double width;
   const AdminLoadingBar({super.key, this.width = 220});
+
+  // How far the bar fills after [seconds] of waiting: 1 − e^(−t/τ), eased
+  // toward [_ceiling].
+  static double filledAfter(double seconds) =>
+      _ceiling * (1 - math.exp(-seconds / _pace));
+
+  // Never full while waiting; and how quickly it gets there.
+  static const double _ceiling = 0.92;
+  static const double _pace = 1.3;
+
+  // Long enough for any wait; the bar stands at its ceiling after it.
+  static const Duration _longest = Duration(minutes: 2);
+
+  @override
+  State<AdminLoadingBar> createState() => _AdminLoadingBarState();
+}
+
+class _AdminLoadingBarState extends State<AdminLoadingBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _wait = AnimationController(
+    vsync: this,
+    duration: AdminLoadingBar._longest,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _wait.stop();
+    } else if (!_wait.isAnimating && !_wait.isCompleted) {
+      _wait.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _wait.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final color = adminActionOf(context);
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     return Semantics(
       label: 'Loading',
       child: SizedBox(
-        width: width,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            minHeight: 3,
-            color: color,
-            backgroundColor: color.withValues(alpha: 0.12),
-          ),
+        width: widget.width,
+        child: AnimatedBuilder(
+          animation: _wait,
+          builder: (context, _) {
+            final seconds =
+                _wait.value * AdminLoadingBar._longest.inMilliseconds / 1000;
+            return Opacity(
+              opacity: still ? 1 : (seconds / 0.15).clamp(0.0, 1.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: still ? 0.5 : AdminLoadingBar.filledAfter(seconds),
+                  minHeight: 3,
+                  color: color,
+                  backgroundColor: color.withValues(alpha: 0.12),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -641,7 +714,7 @@ class AdminTablePager extends StatelessWidget {
   Widget build(BuildContext context) {
     final c =
         context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-        AdminPalette.light;
+        AdminPalette.fallback(context);
     final action = adminActionColor(c);
     // Five numbers, the open page in the middle where it can be.
     var first = page - 2;
@@ -730,11 +803,12 @@ class AdminTablePager extends StatelessWidget {
   }
 }
 
-/// The background of a table row: a faint green when its box is ticked.
+/// The background of a table row: a light neutral grey when its box is
+/// ticked.
 WidgetStateProperty<Color?> adminTableRowColor(AdminPalette c) =>
     WidgetStateProperty.resolveWith(
       (states) => states.contains(WidgetState.selected)
-          ? adminActionColor(c).withValues(alpha: c.isDark ? 0.18 : 0.07)
+          ? c.surfaceAlt
           : Colors.transparent,
     );
 
@@ -944,11 +1018,10 @@ class AdminTabbedTable<T> extends StatelessWidget {
                       horizontal: 7,
                       vertical: 3,
                     ),
+                    // A counter, so a pill; neutral on a tab not open.
                     decoration: BoxDecoration(
-                      color: open
-                          ? onAction.withValues(alpha: 0.22)
-                          : action.withValues(alpha: c.isDark ? 0.28 : 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      color: open ? onAction.withValues(alpha: 0.22) : c.border,
+                      borderRadius: BorderRadius.circular(AdminRadii.pill),
                     ),
                     child: Text(
                       adminTabCountLabel(tab.count!),
@@ -1285,10 +1358,12 @@ class AdminMonthPill extends StatelessWidget {
           onTap: () => _open(context, c),
           child: AdminInputGlow(
             child: InputDecorator(
+              expands: true,
               textAlignVertical: TextAlignVertical.center,
               decoration: adminFieldDecoration(
                 c,
                 icon: Icons.calendar_month_outlined,
+                fixedHeight: true,
               ),
               child: Row(
                 children: [
@@ -1545,10 +1620,12 @@ class AdminYearPill extends StatelessWidget {
             onTap: () => _open(context, c),
             child: AdminInputGlow(
               child: InputDecorator(
+                expands: true,
                 textAlignVertical: TextAlignVertical.center,
                 decoration: adminFieldDecoration(
                   c,
                   icon: Icons.calendar_today_outlined,
+                  fixedHeight: true,
                 ),
                 child: Row(
                   children: [

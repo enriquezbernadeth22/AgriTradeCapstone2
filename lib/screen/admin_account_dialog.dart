@@ -134,12 +134,20 @@ class _AccountDialog extends StatelessWidget {
                   AlertDialog(
                     title: const Text('User Account'),
                     content: SizedBox(width: 520, child: content),
+                    // Close on its own is the secondary button; beside
+                    // other actions, text alone.
                     actions: [
                       ...more,
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
+                      if (more.isEmpty)
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Close'),
+                        )
+                      else
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Close'),
+                        ),
                     ],
                   );
 
@@ -486,7 +494,7 @@ class _ModerationHistoryDialog extends StatelessWidget {
           title: Text('$name — Moderation History'),
           content: SizedBox(width: 520, child: content),
           actions: [
-            TextButton(
+            OutlinedButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Close'),
             ),

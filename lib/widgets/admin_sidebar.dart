@@ -22,8 +22,10 @@ class AdminSidebarColors {
   // The open page's tab, and its icon and text.
   final Color activeBackground;
   final Color activeForeground;
-  // The open submenu item's text and marker.
+  // The open submenu item's marker.
   final Color accent;
+  // The open submenu item's background.
+  final Color subSelectedBackground;
   // The line between the sidebar and the page.
   final Color edge;
   final bool lightWordmark;
@@ -34,22 +36,45 @@ class AdminSidebarColors {
     required this.activeBackground,
     required this.activeForeground,
     required this.accent,
+    required this.subSelectedBackground,
     required this.edge,
     required this.lightWordmark,
   });
 
-  // White, with the app's main dark green — the same as the portal's
-  // buttons — for the text, icons and the open page's tab.
+  // White, with near-black text and icons (the portal's text colour), and
+  // the app's dark green — the same as the portal's main buttons — only
+  // for the open page's tab and the open submenu item's marker. The open
+  // submenu item sits on the portal's neutral grey, not a green tint.
   static const light = AdminSidebarColors._(
     background: Colors.white,
-    foreground: AppTheme.dark,
+    foreground: Color(0xFF1C1F23),
     activeBackground: AppTheme.dark,
     activeForeground: Colors.white,
     accent: AppTheme.dark,
+    subSelectedBackground: Color(0xFFF1F3F5),
     // Separates the white sidebar from the near-white page beside it.
     edge: Color(0xFFE2E5E9),
     lightWordmark: false,
   );
+
+  // Dark Mode: charcoal with light text and icons; the open page's tab a
+  // green deep enough for white text on it, the marker a lighter green.
+  static const dark = AdminSidebarColors._(
+    background: Color(0xFF16181B),
+    foreground: Color(0xFFE6E8EB),
+    activeBackground: Color(0xFF2F7D45),
+    activeForeground: Colors.white,
+    accent: Color(0xFF5DBB74),
+    subSelectedBackground: Color(0xFF24282D),
+    edge: Color(0xFF30353B),
+    lightWordmark: true,
+  );
+
+  /// The colours for the portal's theme at [context]: light or dark.
+  static AdminSidebarColors of(BuildContext context) =>
+      Theme.of(context).colorScheme.brightness == Brightness.dark
+      ? dark
+      : light;
 }
 
 /// The Admin Portal's navigation: a white column with the AgriTrade+ logo
@@ -144,7 +169,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
   Widget build(BuildContext context) {
     final collapsed = widget.collapsed;
     final entries = widget.entries;
-    final colors = AdminSidebarColors.light;
+    final colors = AdminSidebarColors.of(context);
     return Material(
       color: colors.background,
       shape: Border(right: BorderSide(color: colors.edge)),
@@ -192,7 +217,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
   List<Widget> _entry(int i) {
     final entry = widget.entries[i];
     final selected = i == widget.selectedIndex;
-    final colors = AdminSidebarColors.light;
+    final colors = AdminSidebarColors.of(context);
     final hasChildren = entry.children.isNotEmpty && !widget.collapsed;
     if (!hasChildren) {
       return [
@@ -255,7 +280,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
   // the logo on the rail while it is hovered.
   Widget _brand() {
     final collapsed = widget.collapsed;
-    final colors = AdminSidebarColors.light;
+    final colors = AdminSidebarColors.of(context);
     final onToggle = widget.onToggleCollapsed;
     final logo = Image.asset(
       'assets/images/logo.png',
@@ -500,8 +525,10 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.montserrat(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: widget.selected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                     color: color,
                   ),
                 ),
@@ -537,7 +564,7 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
           );
 
     Widget item = Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 2),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
@@ -593,8 +620,8 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
 }
 
 /// One submenu row: smaller text, indented to line up under its parent's
-/// label. The open one is semi-bold on a soft highlight, with a solid green
-/// marker in front of it.
+/// label. The open one is semi-bold on the portal's neutral grey, with a
+/// solid green marker in front of it.
 class _AdminSidebarSubItem extends StatefulWidget {
   final String label;
   final AdminSidebarColors colors;
@@ -635,13 +662,13 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            height: 30,
+            height: 32,
             margin: const EdgeInsets.only(left: 40, bottom: 2),
             padding: const EdgeInsets.only(left: 10, right: 10),
             decoration: BoxDecoration(
-              color: colors.accent.withValues(
-                alpha: selected ? 0.14 : (_hovered ? 0.07 : 0),
-              ),
+              color: selected
+                  ? colors.subSelectedBackground
+                  : colors.foreground.withValues(alpha: _hovered ? 0.05 : 0),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -665,12 +692,12 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.montserrat(
-                      fontSize: 11.5,
+                      fontSize: 13,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       color: selected
-                          ? colors.accent
+                          ? colors.foreground
                           : colors.foreground.withValues(
-                              alpha: _hovered ? 0.92 : 0.75,
+                              alpha: _hovered ? 0.92 : 0.72,
                             ),
                     ),
                   ),

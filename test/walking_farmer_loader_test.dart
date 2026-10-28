@@ -42,6 +42,58 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('the percentage counts up from 0% to 100% at the handoff', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
+    expect(find.text('0%'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1500));
+    final midway = int.parse(
+      tester
+          .widgetList<Text>(find.textContaining('%'))
+          .single
+          .data!
+          .replaceAll('%', ''),
+    );
+    expect(midway, inExclusiveRange(0, 100));
+    await tester.pump(WalkingFarmerLoader.crossing);
+    expect(find.text('100%'), findsOneWidget);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('the name, the tagline and the loading line', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      find.text('Smart Agricultural Trading, Made Simple.'),
+      findsOneWidget,
+    );
+    expect(find.text('Loading AgriTrade+…'), findsOneWidget);
+    expect(find.textContaining('dashboard'), findsNothing);
+    await tester.pumpAndSettle();
+  });
+
+  for (final size in [const Size(844, 390), const Size(1366, 480)]) {
+    testWidgets('all of it shows on a short screen, $size', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tester.takeException(), isNull);
+      final screen = Offset.zero & size;
+      for (final text in [
+        'Smart Agricultural Trading, Made Simple.',
+        'Loading AgriTrade+…',
+      ]) {
+        final box = tester.getRect(find.text(text));
+        expect(screen.contains(box.topLeft), isTrue, reason: text);
+        expect(screen.contains(box.bottomRight), isTrue, reason: text);
+      }
+      await tester.pumpAndSettle();
+    });
+  }
+
   testWidgets('stands still with animations off', (tester) async {
     await tester.pumpWidget(
       const MediaQuery(

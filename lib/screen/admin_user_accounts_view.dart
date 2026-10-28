@@ -249,7 +249,7 @@ Future<bool> adminSetAccountsSuspended(
   // A dialog sits outside the page's AdminThemeScope: hand the palette in.
   final palette =
       context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-      AdminPalette.light;
+      AdminPalette.fallback(context);
   final reportCount = targets.length == 1 ? reports[targets.single.uid] : null;
 
   final reasonController = TextEditingController();
@@ -286,13 +286,13 @@ Future<bool> adminSetAccountsSuspended(
                       horizontal: 14,
                       vertical: 8,
                     ),
+                    // As the Export Report's options: white, outlined in
+                    // near-black when chosen.
                     decoration: BoxDecoration(
-                      color: selected ? c.greenBg : c.surfaceAlt,
+                      color: c.surface,
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: selected
-                            ? c.green.withValues(alpha: 0.6)
-                            : c.border,
+                        color: selected ? c.textPrimary : c.border,
                       ),
                     ),
                     child: Text(
@@ -300,7 +300,7 @@ Future<bool> adminSetAccountsSuspended(
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
-                        color: selected ? c.green : c.textSecondary,
+                        color: selected ? c.textPrimary : c.textSecondary,
                       ),
                     ),
                   ),

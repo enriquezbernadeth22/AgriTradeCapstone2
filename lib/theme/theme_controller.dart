@@ -12,7 +12,8 @@ enum AppearanceMode { light, dark, system }
 /// without leaving the screen the person is on. Until the person flips the
 /// switch, the app is dark exactly when the phone is ([AppearanceMode.system]).
 ///
-/// The Admin Portal (the website) is always light.
+/// The Admin Portal (the website) has its own switch, kept per browser
+/// (adminDarkMode in admin_dashboard_screen.dart).
 class ThemeController extends ValueNotifier<AppearanceMode>
     with WidgetsBindingObserver {
   ThemeController._() : super(AppearanceMode.system);

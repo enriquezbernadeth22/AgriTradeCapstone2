@@ -736,9 +736,8 @@ class _FilterBar extends StatelessWidget {
                       : '${DateFormat('MMM d').format(dateRange!.start)} – ${DateFormat('MMM d').format(dateRange!.end)}',
                   style: TextStyle(color: c.textPrimary, fontSize: 13),
                 ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: c.border),
-                ),
+                // A date selector: the same pill as the dropdowns beside it.
+                style: adminPillControlStyle(c),
               ),
               if (hasFilters)
                 TextButton.icon(

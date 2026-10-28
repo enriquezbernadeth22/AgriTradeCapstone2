@@ -646,7 +646,7 @@ class _FarmerListDetailDialogState extends State<_FarmerListDetailDialog>
                   'Could not load this farmer\'s details. Please try again.',
                 ),
                 actions: [
-                  TextButton(
+                  OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Close'),
                   ),
@@ -670,7 +670,7 @@ class _FarmerListDetailDialogState extends State<_FarmerListDetailDialog>
                   'This farmer\'s account could not be found. It may have been removed.',
                 ),
                 actions: [
-                  TextButton(
+                  OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Close'),
                   ),

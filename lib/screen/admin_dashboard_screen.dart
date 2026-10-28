@@ -105,7 +105,13 @@ class AdminPalette {
   });
 
   // The portal's only theme. [isDark] stays on the palette (always false)
-  // so the widgets that read it keep working.
+  // so the widgets that read it keep working, and a dark palette can be
+  // added beside this one: every colour the portal draws is one of these.
+  //
+  // Neutral first: off-white page, white cards and inputs, near-black and
+  // grey text, light grey borders. Green is the accent (buttons, the open
+  // page, selected controls, the brand) and a status (success), never a
+  // general background.
   static const light = AdminPalette(
     isDark: false,
     bg: Color(0xFFF8F9FA),
@@ -113,7 +119,7 @@ class AdminPalette {
     surface: Colors.white,
     surfaceAlt: Color(0xFFF1F3F5),
     border: Color(0xFFE2E5E9),
-    textPrimary: Color(0xFF17241A),
+    textPrimary: Color(0xFF1C1F23),
     textSecondary: Color(0xFF676D78),
     textMuted: Color(0xFFA0A5AF),
     iconInactive: Color(0xFF52575F),
@@ -126,31 +132,131 @@ class AdminPalette {
     blue: Color(0xFF2563EB),
     blueBg: Color(0x202563EB),
   );
+
+  // Dark Mode: the same roles in near-black and charcoal greys, light text,
+  // and a lighter green (the dark one would not show), still only for the
+  // accent and success.
+  static const dark = AdminPalette(
+    isDark: true,
+    bg: Color(0xFF111315),
+    sidebarBg: Color(0xFF16181B),
+    surface: Color(0xFF1A1D21),
+    surfaceAlt: Color(0xFF24282D),
+    border: Color(0xFF30353B),
+    textPrimary: Color(0xFFF1F3F5),
+    textSecondary: Color(0xFFA3A9B1),
+    textMuted: Color(0xFF6E747C),
+    iconInactive: Color(0xB3FFFFFF),
+    green: Color(0xFF5DBB74),
+    greenBg: Color(0x295DBB74),
+    red: Color(0xFFF87171),
+    redBg: Color(0x29F87171),
+    amber: Color(0xFFFBBF24),
+    amberBg: Color(0x29FBBF24),
+    blue: Color(0xFF60A5FA),
+    blueBg: Color(0x2960A5FA),
+  );
+
+  /// The palette for [context] when no AdminThemeScope is above it — a
+  /// dialog sits outside the page — from the portal's theme there.
+  static AdminPalette fallback(BuildContext context) =>
+      Theme.of(context).colorScheme.brightness == Brightness.dark
+      ? dark
+      : light;
 }
 
 /// Standardized corner radii for the admin area — theme-invariant (same in
 /// light/dark), so it's a plain constants holder rather than a field on
-/// [AdminPalette]. Replaces the previously scattered 9-20px literals across
-/// individual widgets with exactly two values: [card] for content
-/// containers (stat cards, chart cards, section panels) and [control] for
-/// smaller interactive elements (buttons, badges, nav tiles, inputs).
+/// [AdminPalette]: [card] for content containers (cards, tables, panels,
+/// modals), [control] for what is clicked or typed in (buttons, inputs,
+/// search, dropdowns, date pickers), and [pill] for the small things only.
 class AdminRadii {
   AdminRadii._();
-  static const double card = 12;
-  static const double control = 8;
+  static const double card = 16;
+  static const double control = 10;
 
-  /// Buttons, toggles and chips are pill-shaped everywhere in the portal
-  /// except the sidebar, whose items are tabs.
+  /// Status badges, small filter chips, counters and compact options to
+  /// pick from (PDF / Excel, a date preset) — nothing bigger.
   static const double pill = 999;
 }
 
-/// The portal's buttons are slim pills, about 36 high — in proportion with
-/// the mobile app's small buttons.
+/// The portal's buttons: rounded rectangles about 40 high, the same as
+/// its inputs and dropdowns ([kAdminControlHeight]), so a toolbar lines up.
 const EdgeInsets adminButtonPadding = EdgeInsets.symmetric(
   horizontal: 16,
-  vertical: 8,
+  vertical: 10,
 );
-const Size adminButtonMinimumSize = Size(0, 36);
+const Size adminButtonMinimumSize = Size(0, 40);
+
+/// Every button's shape.
+const OutlinedBorder adminButtonShape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(AdminRadii.control)),
+);
+
+/// Dark Mode in the Admin Portal: off until the Admin turns it on with the
+/// button in the header ([AdminThemeToggle]), then kept on this browser.
+final ValueNotifier<bool> adminDarkMode = ValueNotifier<bool>(false);
+
+const String _adminDarkModeKey = 'admin_dark_mode';
+
+/// Puts back this browser's Dark Mode choice.
+Future<void> loadAdminDarkMode() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    adminDarkMode.value = prefs.getBool(_adminDarkModeKey) ?? false;
+  } catch (_) {
+    // Light, then.
+  }
+}
+
+/// Turns Dark Mode on or off, and keeps the choice on this browser.
+Future<void> setAdminDarkMode(bool dark) async {
+  adminDarkMode.value = dark;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_adminDarkModeKey, dark);
+  } catch (_) {
+    // Not remembered next time; the switch itself still works.
+  }
+}
+
+/// The header's Dark Mode switch, beside Announce and in its look: a moon
+/// while the portal is light, a sun while it is dark.
+class AdminThemeToggle extends StatelessWidget {
+  const AdminThemeToggle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AdminThemeScope.of(context).palette;
+    final dark = c.isDark;
+    final label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => setAdminDarkMode(!dark),
+          // 40 across, the height of the search beside it.
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: c.surfaceAlt,
+            ),
+            child: Icon(
+              dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: c.textSecondary,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Provides the current [AdminPalette] to the whole admin subtree, so any
 /// descendant widget can read `AdminThemeScope.of(context).palette`
@@ -243,6 +349,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    loadAdminDarkMode();
     final uid = FirebaseAuth.instance.currentUser?.uid;
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user == null) {
@@ -442,196 +549,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The portal has one theme: light.
-    const palette = AdminPalette.light;
-
-    return AdminThemeScope(
-      palette: palette,
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme.copyWith(
-            brightness: palette.isDark ? Brightness.dark : Brightness.light,
-            primary: palette.green,
-            surface: palette.surface,
-            onSurface: palette.textPrimary,
-          ),
-          scaffoldBackgroundColor: palette.bg,
-          // Montserrat with its real weights (see kAdminFontFamily), so
-          // that bold text is bold in a browser too.
-          textTheme: Theme.of(
-            context,
-          ).textTheme.apply(fontFamily: kAdminFontFamily),
-          primaryTextTheme: Theme.of(
-            context,
-          ).primaryTextTheme.apply(fontFamily: kAdminFontFamily),
-          // System messages: the app's dark green, white-text bar, as a
-          // compact box centred at the bottom instead of a bar across the
-          // whole window (a narrow window keeps the full-width one).
-          snackBarTheme: Theme.of(context).snackBarTheme.copyWith(
-            width: MediaQuery.sizeOf(context).width >= 520 ? 460 : null,
-            contentTextStyle: Theme.of(context).snackBarTheme.contentTextStyle
-                ?.copyWith(fontFamily: kAdminFontFamily),
-          ),
-          // Every button in the portal is pill-shaped (the sidebar's items
-          // are tabs, not buttons). Elevated buttons already are, from the
-          // app's own theme; this covers the rest, dialogs included.
-          // …and, in every dialog, the same colours and font: the main
-          // button dark green with white text, the others dark green text.
-          // …all of them slim (about 36 high, see adminButtonPadding), like
-          // the mobile app's.
-          outlinedButtonTheme: OutlinedButtonThemeData(
-            style: OutlinedButton.styleFrom(
-              shape: const StadiumBorder(),
-              foregroundColor: adminActionColor(palette),
-              side: BorderSide(color: palette.border),
-              padding: adminButtonPadding,
-              minimumSize: adminButtonMinimumSize,
-              textStyle: GoogleFonts.montserrat(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
+    // Light, or dark once the Admin switches Dark Mode on (adminDarkMode).
+    return ValueListenableBuilder<bool>(
+      valueListenable: adminDarkMode,
+      builder: (context, dark, _) {
+        final palette = dark ? AdminPalette.dark : AdminPalette.light;
+        return AdminThemeScope(
+          palette: palette,
+          child: Theme(
+            data: adminThemeData(context, palette),
+            child: Scaffold(
+              backgroundColor: palette.bg,
+              body: _AdminShell(pages: _pages, onLogout: _logout),
             ),
           ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              shape: const StadiumBorder(),
-              foregroundColor: adminActionColor(palette),
-              textStyle: GoogleFonts.montserrat(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          filledButtonTheme: FilledButtonThemeData(
-            style: FilledButton.styleFrom(
-              shape: const StadiumBorder(),
-              backgroundColor: adminActionColor(palette),
-              foregroundColor: adminOnActionColor(palette),
-              padding: adminButtonPadding,
-              minimumSize: adminButtonMinimumSize,
-              textStyle: GoogleFonts.montserrat(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              shape: const StadiumBorder(),
-              elevation: 0,
-              backgroundColor: adminActionColor(palette),
-              foregroundColor: adminOnActionColor(palette),
-              padding: adminButtonPadding,
-              minimumSize: adminButtonMinimumSize,
-              textStyle: GoogleFonts.montserrat(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          cardTheme: CardThemeData(
-            color: palette.surface,
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: palette.border),
-            ),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: palette.surfaceAlt,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 13,
-            ),
-            // Pill-shaped, like the buttons. A field tall enough for
-            // several lines keeps a rounded corner instead (see
-            // adminMultilineBorder), where a pill would crowd the text.
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AdminRadii.pill),
-              borderSide: BorderSide(color: palette.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AdminRadii.pill),
-              borderSide: BorderSide(color: palette.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AdminRadii.pill),
-              borderSide: BorderSide(color: palette.green, width: 1.5),
-            ),
-          ),
-          // Tick boxes (a table's row selection): dark green when ticked.
-          checkboxTheme: CheckboxThemeData(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(5),
-            ),
-            // A ticked box keeps an outline in the tick's colour, so the
-            // select-all box still shows on the dark green table header.
-            side: WidgetStateBorderSide.resolveWith(
-              (states) => BorderSide(
-                color: states.contains(WidgetState.selected)
-                    ? adminOnActionColor(palette)
-                    : palette.textMuted,
-                width: 1.4,
-              ),
-            ),
-            fillColor: WidgetStateProperty.resolveWith(
-              (states) => states.contains(WidgetState.selected)
-                  ? adminActionColor(palette)
-                  : Colors.transparent,
-            ),
-            checkColor: WidgetStatePropertyAll(adminOnActionColor(palette)),
-          ),
-          // Any other progress sign in the portal: the same dark green.
-          progressIndicatorTheme: ProgressIndicatorThemeData(
-            color: adminActionColor(palette),
-            linearTrackColor: palette.surfaceAlt,
-            circularTrackColor: Colors.transparent,
-          ),
-          // Menus and dialogs: the mobile app's popup card — rounded,
-          // thin border, soft shadow, over a lightly dimmed page.
-          popupMenuTheme: PopupMenuThemeData(
-            color: palette.surface,
-            surfaceTintColor: Colors.transparent,
-            elevation: 10,
-            shadowColor: Colors.black.withValues(alpha: 0.25),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(kAdminPopupRadius),
-              side: BorderSide(color: palette.border),
-            ),
-            textStyle: GoogleFonts.montserrat(
-              color: palette.textPrimary,
-              fontSize: 13,
-            ),
-          ),
-          dialogTheme: DialogThemeData(
-            backgroundColor: palette.surface,
-            surfaceTintColor: Colors.transparent,
-            elevation: 12,
-            shadowColor: Colors.black.withValues(alpha: 0.25),
-            barrierColor: agriBarrierColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(kAdminPopupRadius),
-              side: BorderSide(color: palette.border),
-            ),
-            titleTextStyle: GoogleFonts.montserrat(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: palette.isDark ? palette.textPrimary : AppTheme.dark,
-            ),
-            contentTextStyle: GoogleFonts.montserrat(
-              fontSize: 13,
-              height: 1.45,
-              color: palette.textPrimary,
-            ),
-          ),
-        ),
-        child: Scaffold(
-          backgroundColor: palette.bg,
-          body: _AdminShell(pages: _pages, onLogout: _logout),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -1024,13 +957,13 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
           height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: c.greenBg,
+            color: c.surfaceAlt,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             '${today.day}',
             style: TextStyle(
-              color: c.green,
+              color: adminActionColor(c),
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1081,7 +1014,7 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
         Text(
           'ADMIN DASHBOARD',
           style: TextStyle(
-            color: c.green,
+            color: adminActionColor(c),
             fontSize: 11.5,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
@@ -1098,7 +1031,7 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: c.textPrimary,
-                  fontSize: 27,
+                  fontSize: 26,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1283,7 +1216,7 @@ class _AdminUtilityBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: c.textPrimary,
                   ),
@@ -1335,11 +1268,10 @@ class _AdminUtilityBar extends StatelessWidget {
               InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: onGoHome,
+                // No inset on the left: the trail starts on the same line as
+                // the page title under it.
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Text(trail[i], style: style(false)),
                 ),
               )
@@ -1360,7 +1292,7 @@ class _AdminUtilityBar extends StatelessWidget {
         );
 
   // The same bar on every page: where the Admin is on the left, then the
-  // search, Announce and the notification bell on the right (the Admin
+  // search, Announce, Dark Mode and the bell on the right (the Admin
   // account is at the bottom of the sidebar). The page's title is on its
   // own line under it.
   Widget _header(AdminPalette c, int page) {
@@ -1417,6 +1349,8 @@ class _AdminUtilityBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           const AdminAnnounceButton(),
+          const SizedBox(width: 8),
+          const AdminThemeToggle(),
           const SizedBox(width: 8),
           const AdminNotificationBell(),
         ],
@@ -1511,13 +1445,13 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
       final url = (profile?.photoUrl ?? '').trim();
       return CircleAvatar(
         radius: radius,
-        backgroundColor: c.greenBg,
+        backgroundColor: c.surfaceAlt,
         foregroundImage: url.isEmpty ? null : NetworkImage(url),
         onForegroundImageError: url.isEmpty ? null : (_, _) {},
         child: Text(
           initials.isEmpty ? 'AD' : initials,
           style: TextStyle(
-            color: c.green,
+            color: c.textPrimary,
             fontWeight: FontWeight.bold,
             fontSize: radius * 0.66,
           ),
@@ -1662,7 +1596,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
               : const EdgeInsets.fromLTRB(8, 0, 6, 0),
           alignment: collapsed ? Alignment.center : null,
           decoration: BoxDecoration(
-            color: AppTheme.dark.withValues(alpha: _hovered ? 0.08 : 0),
+            color: c.textPrimary.withValues(alpha: _hovered ? 0.08 : 0),
             borderRadius: BorderRadius.circular(12),
           ),
           child: collapsed
@@ -1838,11 +1772,12 @@ class AdminStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A status, so a small pill.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderRadius: BorderRadius.circular(AdminRadii.pill),
       ),
       child: Text(
         text,
@@ -1888,20 +1823,21 @@ class AdminQuickActionButton extends StatelessWidget {
           foregroundColor: adminOnActionColor(c),
           padding: adminButtonPadding,
           minimumSize: adminButtonMinimumSize,
-          shape: const StadiumBorder(),
+          shape: adminButtonShape,
           elevation: 0,
         ),
       );
     }
+    // Secondary: white, a grey border, near-black text.
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: c.surface,
         foregroundColor: c.textPrimary,
         side: BorderSide(color: c.border),
-        padding: EdgeInsets.fromLTRB(12, 8, opensOptions ? 8 : 14, 8),
+        padding: EdgeInsets.fromLTRB(12, 10, opensOptions ? 8 : 14, 10),
         minimumSize: adminButtonMinimumSize,
-        shape: const StadiumBorder(),
+        shape: adminButtonShape,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1912,7 +1848,7 @@ class AdminQuickActionButton extends StatelessWidget {
             label,
             style: TextStyle(
               color: c.textPrimary,
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1949,18 +1885,17 @@ class AdminEmptyState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28),
       child: Center(
-        // The mobile app's empty state (AgriEmptyState, as on its Orders
-        // page): a small dark-green icon on a pale-green circle, a bold
-        // title and a line under it.
+        // A small grey icon on a light grey circle, a bold title and a
+        // line under it — neutral, as nothing here is an action.
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: c.greenBg,
+                color: c.surfaceAlt,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 22, color: adminActionColor(c)),
+              child: Icon(icon, size: 22, color: c.textSecondary),
             ),
             const SizedBox(height: 10),
             Text(
@@ -6108,4 +6043,190 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
       ],
     );
   }
+}
+
+/// The Admin Portal's Material theme over [context]'s: the buttons, inputs,
+/// tick boxes, menus and dialogs of every page and popup in it, in
+/// [palette]'s colours.
+ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
+  return Theme.of(context).copyWith(
+    colorScheme: Theme.of(context).colorScheme.copyWith(
+      brightness: palette.isDark ? Brightness.dark : Brightness.light,
+      primary: palette.green,
+      surface: palette.surface,
+      onSurface: palette.textPrimary,
+    ),
+    scaffoldBackgroundColor: palette.bg,
+    // Montserrat with its real weights (see kAdminFontFamily), so
+    // that bold text is bold in a browser too.
+    textTheme: Theme.of(context).textTheme.apply(fontFamily: kAdminFontFamily),
+    primaryTextTheme: Theme.of(
+      context,
+    ).primaryTextTheme.apply(fontFamily: kAdminFontFamily),
+    // System messages: the app's dark green, white-text bar, as a
+    // compact box centred at the bottom instead of a bar across the
+    // whole window (a narrow window keeps the full-width one).
+    snackBarTheme: Theme.of(context).snackBarTheme.copyWith(
+      width: MediaQuery.sizeOf(context).width >= 520 ? 460 : null,
+      contentTextStyle: Theme.of(
+        context,
+      ).snackBarTheme.contentTextStyle?.copyWith(fontFamily: kAdminFontFamily),
+    ),
+    // Hover, focus and press on anything clickable — menu items,
+    // list rows, icon buttons: neutral grey, never a green tint.
+    hoverColor: palette.surfaceAlt,
+    focusColor: palette.surfaceAlt,
+    highlightColor: palette.surfaceAlt,
+    splashColor: palette.border,
+    // Every button in the portal, dialogs included: a rounded
+    // rectangle about 40 high (adminButtonShape, adminButtonPadding),
+    // 13.5px semibold. Primary — dark green, white text; secondary
+    // (outlined) — white, grey border, near-black text; tertiary
+    // (text) — near-black text alone. Red is for destructive ones,
+    // set where they are.
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: adminButtonShape,
+        backgroundColor: palette.surface,
+        foregroundColor: palette.textPrimary,
+        side: BorderSide(color: palette.border),
+        padding: adminButtonPadding,
+        minimumSize: adminButtonMinimumSize,
+        textStyle: GoogleFonts.montserrat(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: adminButtonShape,
+        foregroundColor: palette.textPrimary,
+        textStyle: GoogleFonts.montserrat(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: adminButtonShape,
+        backgroundColor: adminActionColor(palette),
+        foregroundColor: adminOnActionColor(palette),
+        padding: adminButtonPadding,
+        minimumSize: adminButtonMinimumSize,
+        textStyle: GoogleFonts.montserrat(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        shape: adminButtonShape,
+        elevation: 0,
+        backgroundColor: adminActionColor(palette),
+        foregroundColor: adminOnActionColor(palette),
+        padding: adminButtonPadding,
+        minimumSize: adminButtonMinimumSize,
+        textStyle: GoogleFonts.montserrat(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: palette.surface,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AdminRadii.card),
+        side: BorderSide(color: palette.border),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: palette.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      // White, a light grey border, a rounded rectangle — the same
+      // as the search fields and dropdowns; darker grey when typed
+      // in.
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderSide: BorderSide(color: palette.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderSide: BorderSide(color: palette.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderSide: BorderSide(color: palette.textSecondary, width: 1.2),
+      ),
+    ),
+    // Tick boxes (a table's row selection): square with a slight
+    // rounding, dark green when ticked.
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      // A ticked box keeps an outline in the tick's colour, so the
+      // select-all box still shows on the dark green table header.
+      side: WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.selected)
+              ? adminOnActionColor(palette)
+              : palette.textMuted,
+          width: 1.4,
+        ),
+      ),
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? adminActionColor(palette)
+            : Colors.transparent,
+      ),
+      checkColor: WidgetStatePropertyAll(adminOnActionColor(palette)),
+    ),
+    // Any other progress sign in the portal: the same dark green.
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: adminActionColor(palette),
+      linearTrackColor: palette.surfaceAlt,
+      circularTrackColor: Colors.transparent,
+    ),
+    // Menus and dialogs: the mobile app's popup card — rounded,
+    // thin border, soft shadow, over a lightly dimmed page.
+    popupMenuTheme: PopupMenuThemeData(
+      color: palette.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: 0.25),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kAdminPopupRadius),
+        side: BorderSide(color: palette.border),
+      ),
+      textStyle: GoogleFonts.montserrat(
+        color: palette.textPrimary,
+        fontSize: 13,
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: palette.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: 0.25),
+      barrierColor: agriBarrierColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kAdminPopupRadius),
+        side: BorderSide(color: palette.border),
+      ),
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: palette.textPrimary,
+      ),
+      contentTextStyle: GoogleFonts.montserrat(
+        fontSize: 13,
+        height: 1.45,
+        color: palette.textPrimary,
+      ),
+    ),
+  );
 }

@@ -88,13 +88,14 @@ class AdminTopProductsCard extends StatelessWidget {
           height: 26,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isTop ? adminGreenAt(c, 1) : c.greenBg,
+            // The first dark green, the rest neutral.
+            color: isTop ? adminGreenAt(c, 1) : c.surfaceAlt,
             shape: BoxShape.circle,
           ),
           child: Text(
             '${index + 1}',
             style: TextStyle(
-              color: isTop ? Colors.white : c.green,
+              color: isTop ? Colors.white : c.textSecondary,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -581,16 +582,17 @@ class AdminCommoditySearchField extends StatelessWidget {
         ),
         onSelected: onSelected,
         fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-          // The Admin login's field look (AdminInputGlow).
+          // The portal's field plate (AdminInputGlow).
           return AdminInputGlow(
-            // The field in the middle of the pill, level with the
-            // dropdowns'.
+            // The field in the middle of the plate, its icon and text on
+            // one line, level with the dropdowns'.
             child: Center(
               child: Semantics(
                 label: semanticLabel,
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
+                  textAlignVertical: TextAlignVertical.center,
                   onChanged: onQueryChanged,
                   onSubmitted: (_) => onSubmitted(),
                   // Select the current name on focus, so typing replaces it.
@@ -599,6 +601,8 @@ class AdminCommoditySearchField extends StatelessWidget {
                     extentOffset: controller.text.length,
                   ),
                   style: TextStyle(color: c.textPrimary, fontSize: 13),
+                  // The icon a little smaller than the text, with the same
+                  // space at both ends.
                   decoration: adminFieldDecoration(
                     c,
                     hint: hint,
@@ -720,7 +724,11 @@ class AdminDemandByBarangayCard extends StatelessWidget {
                 ),
                 child: Text(
                   'Open heatmap',
-                  style: TextStyle(color: c.green, fontSize: 12),
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -986,7 +994,11 @@ class AdminVerificationStatusCard extends StatelessWidget {
                 ),
                 child: Text(
                   'Review',
-                  style: TextStyle(color: c.green, fontSize: 12),
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

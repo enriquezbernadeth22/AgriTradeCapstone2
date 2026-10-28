@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../data/legal_policies.dart';
 import '../theme/app_theme.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette, AdminThemeScope;
+import 'admin_filter_controls.dart' show adminActionColor;
 import 'admin_help_center.dart' show showAdminHelpCenter;
 
 // The Admin menu's information popups: Terms & Privacy, Help & Support
@@ -160,7 +161,7 @@ class _TermsPrivacyDialog extends StatelessWidget {
                       child: Text(
                         'Terms & Privacy',
                         style: TextStyle(
-                          color: AppTheme.dark,
+                          color: adminActionColor(c),
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -172,9 +173,9 @@ class _TermsPrivacyDialog extends StatelessWidget {
               TabBar(
                 isScrollable: width < 520,
                 tabAlignment: width < 520 ? TabAlignment.start : null,
-                labelColor: AppTheme.dark,
+                labelColor: adminActionColor(c),
                 unselectedLabelColor: c.textSecondary,
-                indicatorColor: AppTheme.dark,
+                indicatorColor: adminActionColor(c),
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: c.border,
                 labelPadding: const EdgeInsets.symmetric(horizontal: 14),
@@ -292,8 +293,8 @@ class _PolicyViewState extends State<_PolicyView> {
         children: [
           Text(
             doc.title,
-            style: const TextStyle(
-              color: AppTheme.dark,
+            style: TextStyle(
+              color: adminActionColor(c),
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -330,8 +331,8 @@ class _PolicyViewState extends State<_PolicyView> {
               padding: const EdgeInsets.only(top: 16, bottom: 6),
               child: Text(
                 section.heading,
-                style: const TextStyle(
-                  color: AppTheme.dark,
+                style: TextStyle(
+                  color: adminActionColor(c),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -350,8 +351,8 @@ class _PolicyViewState extends State<_PolicyView> {
                       child: Container(
                         width: 5,
                         height: 5,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.dark,
+                        decoration: BoxDecoration(
+                          color: adminActionColor(c),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -410,10 +411,10 @@ Future<void> showAdminAbout(BuildContext context) {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: c.greenBg,
+                color: c.surfaceAlt,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 19, color: AppTheme.dark),
+              child: Icon(icon, size: 19, color: adminActionColor(c)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -422,8 +423,8 @@ Future<void> showAdminAbout(BuildContext context) {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: AppTheme.dark,
+                    style: TextStyle(
+                      color: adminActionColor(c),
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                     ),

@@ -880,11 +880,11 @@ class _ReportTable extends StatelessWidget {
                     icon: Icon(
                       Icons.visibility_outlined,
                       size: 16,
-                      color: c.green,
+                      color: c.textPrimary,
                     ),
                     label: Text(
                       'View Report',
-                      style: TextStyle(color: c.green, fontSize: 12.5),
+                      style: TextStyle(color: c.textPrimary, fontSize: 12.5),
                     ),
                     onPressed: () => showAdminReportDialog(
                       context,
@@ -976,10 +976,10 @@ class _ViolationsTable extends StatelessWidget {
                 ),
                 DataCell(
                   TextButton.icon(
-                    icon: Icon(Icons.history, size: 16, color: c.green),
+                    icon: Icon(Icons.history, size: 16, color: c.textPrimary),
                     label: Text(
                       'View History',
-                      style: TextStyle(color: c.green, fontSize: 12.5),
+                      style: TextStyle(color: c.textPrimary, fontSize: 12.5),
                     ),
                     // This account's reports and violations; each opens
                     // its source report.
@@ -1749,7 +1749,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
               'Could not load this report. Please try again.',
             ),
             actions: [
-              TextButton(
+              OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Close'),
               ),
@@ -1772,7 +1772,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
               'This report could not be found. It may have been removed.',
             ),
             actions: [
-              TextButton(
+              OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Close'),
               ),

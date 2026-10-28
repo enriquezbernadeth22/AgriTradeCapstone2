@@ -9,7 +9,6 @@ import 'package:intl/intl.dart';
 import '../services/admin_session_service.dart';
 import '../services/auth_service.dart';
 import '../services/cloudinary_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/change_email_dialog.dart';
 import '../widgets/change_password_dialog.dart';
 import '../widgets/login_form_fields.dart';
@@ -87,15 +86,15 @@ Future<void> showAdminManageAccount(BuildContext context) {
   );
 }
 
-// The dialog's text colours: the portal palette's titles, and its grey
-// for notes and headings (AdminPalette.light textPrimary/textSecondary).
-const Color _ink = Color(0xFF17241A);
-const Color _note = Color(0xFF676D78);
-
-// The dialog's buttons (Change, View, Manage, the pencil, Close): a dark
-// green that still reads as green at text size, where the app's main dark
-// green (AppTheme.dark) looks almost black.
-const Color _action = Color(0xFF1B5E20);
+// The dialog's colours, from the portal's palette (light or dark): its
+// text colour for titles, its grey for notes and headings, and its green
+// for the pencil and the photo badge.
+Color _inkOf(BuildContext context) =>
+    AdminPalette.fallback(context).textPrimary;
+Color _noteOf(BuildContext context) =>
+    AdminPalette.fallback(context).textSecondary;
+Color _actionOf(BuildContext context) =>
+    adminActionColor(AdminPalette.fallback(context));
 
 class _ManageAccount extends StatefulWidget {
   const _ManageAccount();
@@ -129,10 +128,10 @@ class _ManageAccountState extends State<_ManageAccount> {
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      title: const Text(
+      title: Text(
         'Manage Account',
         style: TextStyle(
-          color: _ink,
+          color: _inkOf(context),
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
@@ -171,16 +170,19 @@ class _ManageAccountState extends State<_ManageAccount> {
                                   name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: _ink,
+                                  style: TextStyle(
+                                    color: _inkOf(context),
                                     fontSize: 15.5,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
+                                Text(
                                   'Administrator',
-                                  style: TextStyle(color: _note, fontSize: 13),
+                                  style: TextStyle(
+                                    color: _noteOf(context),
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -190,10 +192,10 @@ class _ManageAccountState extends State<_ManageAccount> {
                             onPressed: profile == null
                                 ? null
                                 : () => _editProfile(profile),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.edit_outlined,
                               size: 18,
-                              color: _action,
+                              color: _actionOf(context),
                             ),
                           ),
                         ],
@@ -204,7 +206,7 @@ class _ManageAccountState extends State<_ManageAccount> {
                         '$name · $email · Administrator',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _ink, fontSize: 13),
+                        style: TextStyle(color: _inkOf(context), fontSize: 13),
                       ),
                     ],
                   );
@@ -274,10 +276,6 @@ class _ManageAccountState extends State<_ManageAccount> {
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _action,
-            side: const BorderSide(color: _action),
-          ),
           child: const Text('Close'),
         ),
       ],
@@ -296,8 +294,8 @@ class _Heading extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
-          color: _note,
+        style: TextStyle(
+          color: _noteOf(context),
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
@@ -319,10 +317,14 @@ class _ProfileAvatar extends StatelessWidget {
     final url = (photoUrl ?? '').trim();
     final avatar = CircleAvatar(
       radius: 22,
-      backgroundColor: const Color(0xFFF1F2F4),
+      backgroundColor: AdminPalette.fallback(context).surfaceAlt,
       foregroundImage: url.isEmpty ? null : NetworkImage(url),
       onForegroundImageError: url.isEmpty ? null : (_, _) {},
-      child: const Icon(Icons.person_outline_rounded, color: _ink, size: 22),
+      child: Icon(
+        Icons.person_outline_rounded,
+        color: _inkOf(context),
+        size: 22,
+      ),
     );
     if (onTap == null) return avatar;
     return Tooltip(
@@ -341,7 +343,7 @@ class _ProfileAvatar extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
-                    color: _action,
+                    color: _actionOf(context),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),
@@ -383,7 +385,7 @@ class _SettingRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: _ink),
+          Icon(icon, size: 19, color: _inkOf(context)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -391,8 +393,8 @@ class _SettingRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: _ink,
+                  style: TextStyle(
+                    color: _inkOf(context),
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -402,7 +404,7 @@ class _SettingRow extends StatelessWidget {
                   note,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: _note, fontSize: 12),
+                  style: TextStyle(color: _noteOf(context), fontSize: 12),
                 ),
               ],
             ),
@@ -415,7 +417,8 @@ class _SettingRow extends StatelessWidget {
   }
 }
 
-/// A text-only action in the app's dark green, underlined while hovered.
+/// A text-only (tertiary) action in near-black, as every one in the portal,
+/// underlined while hovered.
 class _TextAction extends StatefulWidget {
   final String label;
   final VoidCallback onPressed;
@@ -444,13 +447,13 @@ class _TextActionState extends State<_TextAction> {
             child: Text(
               widget.label,
               style: TextStyle(
-                color: _action,
+                color: AdminPalette.fallback(context).textPrimary,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
                 decoration: _hovered
                     ? TextDecoration.underline
                     : TextDecoration.none,
-                decorationColor: _action,
+                decorationColor: AdminPalette.fallback(context).textPrimary,
               ),
             ),
           ),
@@ -597,12 +600,12 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
               children: [
                 CircleAvatar(
                   radius: 34,
-                  backgroundColor: const Color(0xFFF1F3F5),
+                  backgroundColor: AdminPalette.fallback(context).surfaceAlt,
                   foregroundImage: image,
                   onForegroundImageError: image == null ? null : (_, _) {},
-                  child: const Icon(
+                  child: Icon(
                     Icons.person_outline_rounded,
-                    color: _ink,
+                    color: _inkOf(context),
                     size: 32,
                   ),
                 ),
@@ -630,11 +633,14 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             ),
                         ],
                       ),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(left: 6),
                         child: Text(
                           'JPG or PNG, up to 5 MB.',
-                          style: TextStyle(color: _note, fontSize: 12),
+                          style: TextStyle(
+                            color: _noteOf(context),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -704,7 +710,7 @@ class _LoginProtectionDialog extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 19, color: AppTheme.dark),
+              Icon(icon, size: 19, color: _actionOf(context)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -712,8 +718,8 @@ class _LoginProtectionDialog extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: _ink,
+                      style: TextStyle(
+                        color: _inkOf(context),
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -721,7 +727,7 @@ class _LoginProtectionDialog extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       note,
-                      style: const TextStyle(color: _note, fontSize: 12),
+                      style: TextStyle(color: _noteOf(context), fontSize: 12),
                     ),
                   ],
                 ),
@@ -730,7 +736,7 @@ class _LoginProtectionDialog extends StatelessWidget {
               Text(
                 on ? 'On' : 'Off',
                 style: TextStyle(
-                  color: on ? AppTheme.dark : _note,
+                  color: on ? _actionOf(context) : _noteOf(context),
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -747,9 +753,9 @@ class _LoginProtectionDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Besides your password, these protect logins to this account:',
-              style: TextStyle(color: _note, fontSize: 13),
+              style: TextStyle(color: _noteOf(context), fontSize: 13),
             ),
             const SizedBox(height: 8),
             item(
@@ -776,7 +782,7 @@ class _LoginProtectionDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        FilledButton(
+        OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
         ),
@@ -795,7 +801,7 @@ Future<void> showAdminActiveSessions(BuildContext context) {
   // A dialog sits outside the page's AdminThemeScope: hand the palette in.
   final palette =
       context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-      AdminPalette.light;
+      AdminPalette.fallback(context);
   return showDialog<void>(
     context: context,
     builder: (_) => AdminThemeScope(
@@ -1081,10 +1087,14 @@ class _ActiveSessionsDialogState extends State<_ActiveSessionsDialog> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: muted ? c.surface : c.greenBg,
+              color: muted ? c.surface : c.surfaceAlt,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 20, color: muted ? c.textMuted : c.green),
+            child: Icon(
+              icon,
+              size: 20,
+              color: muted ? c.textMuted : adminActionColor(c),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

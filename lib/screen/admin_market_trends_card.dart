@@ -399,11 +399,9 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
                     horizontal: 16,
                     vertical: 14,
                   ),
+                  // Neutral; the word's own colour says the change.
                   decoration: BoxDecoration(
-                    color: Color.alphaBlend(
-                      c.green.withValues(alpha: c.isDark ? 0.08 : 0.05),
-                      c.surface,
-                    ),
+                    color: c.surfaceAlt,
                     borderRadius: BorderRadius.circular(AdminRadii.card),
                     border: Border.all(color: c.border),
                   ),

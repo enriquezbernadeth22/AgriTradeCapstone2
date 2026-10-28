@@ -190,7 +190,7 @@ void main() {
     final field = find.byType(AdminCommoditySearchField);
     final info = find.byIcon(Icons.info_outline);
     for (final control in [pills.first, pills.last, field]) {
-      expect(tester.getSize(control).height, 44);
+      expect(tester.getSize(control).height, kAdminControlHeight);
       expect(
         tester.getCenter(control).dy,
         closeTo(tester.getCenter(pills.first).dy, 0.5),

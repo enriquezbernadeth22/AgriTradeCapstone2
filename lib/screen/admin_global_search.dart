@@ -229,7 +229,11 @@ class _AdminGlobalSearchState extends State<AdminGlobalSearch> {
                             ),
                             child: Row(
                               children: [
-                                Icon(hit.icon, size: 18, color: c.green),
+                                Icon(
+                                  hit.icon,
+                                  size: 18,
+                                  color: c.textSecondary,
+                                ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(

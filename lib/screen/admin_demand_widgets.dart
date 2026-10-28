@@ -3,9 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../services/market_price_helpers.dart';
-import '../theme/app_theme.dart';
 import 'admin_dashboard_screen.dart'
     show AdminThemeScope, AdminPalette, AdminRadii;
+import 'admin_filter_controls.dart' show adminActionColor, adminOnActionColor;
 
 // ============================================================
 // The Demand Heatmap's colour scale, its legend, and the two panels beside
@@ -170,7 +170,7 @@ class _DemandPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: c.green),
+              Icon(icon, size: 18, color: adminActionColor(c)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -220,14 +220,15 @@ Widget _rankBadge(AdminPalette c, int rank, {required bool strong}) =>
       width: 22,
       height: 22,
       alignment: Alignment.center,
+      // The first dark green, the rest neutral.
       decoration: BoxDecoration(
-        color: strong ? c.green : c.greenBg,
+        color: strong ? adminActionColor(c) : c.surfaceAlt,
         shape: BoxShape.circle,
       ),
       child: Text(
         '$rank',
         style: TextStyle(
-          color: strong ? (c.isDark ? AppTheme.dark : Colors.white) : c.green,
+          color: strong ? adminOnActionColor(c) : c.textSecondary,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
@@ -292,7 +293,7 @@ class AdminDemandAreasPanel extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Material(
-                    color: selected ? c.greenBg : Colors.transparent,
+                    color: selected ? c.surfaceAlt : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),

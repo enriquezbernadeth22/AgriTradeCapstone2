@@ -779,7 +779,7 @@ void _showDocumentDialog(BuildContext context, String document) {
       title: const Text('Agricultural Certification'),
       content: imageWidget,
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Close'),
         ),
@@ -1073,7 +1073,7 @@ class _FarmerVerificationDetailDialogState
                   'Could not load this farmer\'s details. Please try again.',
                 ),
                 actions: [
-                  TextButton(
+                  OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Close'),
                   ),
@@ -1097,7 +1097,7 @@ class _FarmerVerificationDetailDialogState
                   'This farmer\'s account could not be found. It may have been removed.',
                 ),
                 actions: [
-                  TextButton(
+                  OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Close'),
                   ),

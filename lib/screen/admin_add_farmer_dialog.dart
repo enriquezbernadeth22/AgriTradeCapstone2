@@ -517,7 +517,7 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                     hint: const Text('Choose a barangay'),
                     borderRadius: BorderRadius.circular(16),
                     decoration: adminFieldDecoration(
-                      AdminPalette.light,
+                      AdminPalette.fallback(context),
                       icon: Icons.location_on_outlined,
                     ),
                     items: [
@@ -799,7 +799,7 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
           title: const Text('Farmer not added'),
           content: SizedBox(width: 440, child: Text(message, style: note)),
           actions: [
-            FilledButton(
+            OutlinedButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Close'),
             ),
@@ -872,7 +872,7 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
           child: const Text('Cancel request'),
         ),
         _copyLogin(context, sent),
-        FilledButton(
+        OutlinedButton(
           onPressed: _cancelling
               ? null
               : () => Navigator.of(context).pop(false),

@@ -3,10 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/audit_report_service.dart';
 import '../widgets/busy_indicator.dart';
-import 'admin_dashboard_screen.dart' show AdminPalette;
+import 'admin_dashboard_screen.dart' show AdminPalette, adminButtonShape;
 import 'admin_filter_controls.dart';
 import 'export_options_dialog.dart' show ReportFormat;
-import '../theme/app_colors.dart';
 
 /// Which Audit Log entries go into the report.
 enum AuditExportScope { allMatching, onScreen, selected }
@@ -188,7 +187,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                   Text(
                     'Export Audit Log',
                     style: TextStyle(
-                      color: c.isDark ? c.textPrimary : AppColors.brand,
+                      color: c.textPrimary,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -269,7 +268,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                           _link(
                             c,
                             'Select All',
-                            c.green,
+                            c.textPrimary,
                             () => setState(
                               () => _parts.addAll(AuditReportPart.values),
                             ),
@@ -362,7 +361,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: c.greenBg,
+                          color: c.surfaceAlt,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Column(
@@ -372,7 +371,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                               children: [
                                 // Drawn by the browser, so it keeps turning
                                 // while the file is built.
-                                BusySpinner(color: c.green),
+                                BusySpinner(color: c.textPrimary),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -387,7 +386,10 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            BusyBar(color: c.green, trackColor: c.surface),
+                            BusyBar(
+                              color: c.textPrimary,
+                              trackColor: c.surface,
+                            ),
                           ],
                         ),
                       ),
@@ -403,7 +405,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                       const SizedBox(height: 12),
                       Text(
                         _success!,
-                        style: TextStyle(color: c.green, fontSize: 12.5),
+                        style: TextStyle(color: c.textPrimary, fontSize: 12.5),
                       ),
                     ],
                     if (_parts.isEmpty) ...[
@@ -427,11 +429,11 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                         ? null
                         : () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
-                      foregroundColor: c.textSecondary,
-                      shape: const StadiumBorder(),
+                      foregroundColor: c.textPrimary,
+                      shape: adminButtonShape,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                     ),
                     child: Text(_success == null ? 'Cancel' : 'Close'),
@@ -448,10 +450,10 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                       disabledForegroundColor: _exporting
                           ? onPrimary
                           : c.textMuted,
-                      shape: const StadiumBorder(),
+                      shape: adminButtonShape,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 26,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                       textStyle: const TextStyle(
                         fontFamily: 'Montserrat',
@@ -529,22 +531,28 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
         borderRadius: BorderRadius.circular(999),
         child: Container(
           padding: EdgeInsets.fromLTRB(icon != null ? 12 : 16, 9, 16, 9),
+          // As the Export Report's options: white, outlined in near-black
+          // when chosen.
           decoration: BoxDecoration(
-            color: selected ? c.greenBg : c.surfaceAlt,
+            color: c.surface,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: selected ? c.green : c.border),
+            border: Border.all(color: selected ? c.textPrimary : c.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 16, color: selected ? c.green : c.textMuted),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected ? c.textPrimary : c.textMuted,
+                ),
                 const SizedBox(width: 6),
               ],
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? c.green : c.textSecondary,
+                  color: selected ? c.textPrimary : c.textSecondary,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -574,9 +582,9 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           decoration: BoxDecoration(
-            color: selected ? c.greenBg : Colors.transparent,
+            color: c.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? c.green : c.border),
+            border: Border.all(color: selected ? c.textPrimary : c.border),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +594,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                     ? Icons.radio_button_checked_rounded
                     : Icons.radio_button_unchecked_rounded,
                 size: 18,
-                color: selected ? c.green : c.textMuted,
+                color: selected ? c.textPrimary : c.textMuted,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -637,11 +645,11 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
               child: Checkbox(
                 value: value,
                 onChanged: (checked) => onChanged(checked ?? false),
-                activeColor: c.green,
-                checkColor: c.isDark ? AppColors.textStrong : Colors.white,
+                activeColor: c.textPrimary,
+                checkColor: c.surface,
                 side: BorderSide(color: c.textMuted, width: 1.4),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../services/admin_faq.dart';
-import '../theme/app_theme.dart';
 import 'admin_dashboard_screen.dart'
     show AdminEmptyState, AdminPalette, AdminStatusBadge, AdminThemeScope;
 import 'admin_filter_controls.dart';
@@ -16,7 +15,7 @@ import 'admin_filter_controls.dart';
 
 AdminPalette _paletteOf(BuildContext context) =>
     context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-    AdminPalette.light;
+    AdminPalette.fallback(context);
 
 IconData _categoryIcon(AdminFaqCategory category) => switch (category) {
   AdminFaqCategory.account => Icons.lock_person_outlined,
@@ -157,12 +156,12 @@ class _HelpCenterDialogState extends State<_HelpCenterDialog> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: c.greenBg,
+            color: c.surfaceAlt,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.support_agent_outlined,
-            color: AppTheme.dark,
+            color: adminActionColor(c),
             size: 22,
           ),
         ),
@@ -171,10 +170,10 @@ class _HelpCenterDialogState extends State<_HelpCenterDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Help & Support',
                 style: TextStyle(
-                  color: AppTheme.dark,
+                  color: adminActionColor(c),
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
@@ -191,7 +190,6 @@ class _HelpCenterDialogState extends State<_HelpCenterDialog> {
           onPressed: () => showAdminFaqManager(context),
           icon: const Icon(Icons.edit_note_rounded, size: 18),
           label: const Text('Manage FAQs'),
-          style: TextButton.styleFrom(foregroundColor: AppTheme.dark),
         ),
       ],
     ),
@@ -282,13 +280,13 @@ class _HelpCenterDialogState extends State<_HelpCenterDialog> {
                     Icon(
                       _categoryIcon(category),
                       size: 18,
-                      color: AppTheme.dark,
+                      color: adminActionColor(c),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       category.label,
-                      style: const TextStyle(
-                        color: AppTheme.dark,
+                      style: TextStyle(
+                        color: adminActionColor(c),
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -398,7 +396,7 @@ class AdminSupportContacts extends StatelessWidget {
                       ? Icons.mail_outline_rounded
                       : Icons.phone_outlined,
                   size: 15,
-                  color: AppTheme.dark,
+                  color: adminActionColor(c),
                 ),
                 const SizedBox(width: 6),
                 Flexible(
@@ -489,7 +487,7 @@ class _FaqTile extends StatelessWidget {
           ),
         ),
         trailing: null,
-        iconColor: AppTheme.dark,
+        iconColor: adminActionColor(c),
         collapsedIconColor: c.textSecondary,
         shape: const Border(),
         collapsedShape: const Border(),
@@ -719,11 +717,11 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
                   padding: const EdgeInsets.fromLTRB(24, 18, 14, 2),
                   child: Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Manage FAQs',
                           style: TextStyle(
-                            color: AppTheme.dark,
+                            color: adminActionColor(c),
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
@@ -883,7 +881,6 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
           ),
           TextButton(
             onPressed: busy ? null : () => _togglePublished(faq),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.dark),
             child: Text(faq.published ? 'Unpublish' : 'Publish'),
           ),
           IconButton(

@@ -54,6 +54,10 @@ class AdminYearCompare extends StatelessWidget {
     this.height = kAdminControlHeight,
   });
 
+  /// Each year calendar's width: room for the calendar icon, a whole year
+  /// and the arrow.
+  static const double yearWidth = 120;
+
   YearPair _ordered(int chosen, {required bool first}) {
     final previous = earlier ?? later;
     var a = first ? chosen : previous;
@@ -76,7 +80,7 @@ class AdminYearCompare extends StatelessWidget {
       year: value,
       firstYear: firstYear,
       lastYear: lastYear,
-      width: 128,
+      width: yearWidth,
       height: height,
       semanticLabel: first ? 'Earlier year' : 'Later year',
       onChanged: (y) => onChanged(_ordered(y, first: first)),
@@ -319,8 +323,9 @@ class AdminMarketDemandCard extends StatefulWidget {
   /// The later year's bars: dark green.
   static const Color laterColor = Color(0xFF2E7D32);
 
-  /// The year calendars', search's and ⓘ's height.
-  static const double controlHeight = 44;
+  /// The year calendars', search's and ⓘ's height: the portal's, so they
+  /// line up with every other toolbar.
+  static const double controlHeight = kAdminControlHeight;
 
   @override
   State<AdminMarketDemandCard> createState() => _AdminMarketDemandCardState();
@@ -353,9 +358,20 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
   Object? _seriesKey;
   ({List<int>? earlier, List<int> later})? _series;
 
-  // Below this header width the controls (about 500 wide) go under the
-  // title.
-  static const double _stackBelow = 740;
+  // The controls' widths (see _controls): a year calendar, the gap after
+  // it, the search, and the room the title keeps beside them.
+  static const double _searchWidth = 180;
+  static const double _minTitleWidth = 220;
+
+  // How wide the controls are with one year calendar or two ("vs").
+  static double _controlsWidth({required bool comparing}) =>
+      (comparing
+          ? AdminYearCompare.yearWidth * 2 + 8 * 2 + 16
+          : AdminYearCompare.yearWidth) +
+      10 +
+      _searchWidth +
+      10 +
+      AdminMarketDemandCard.controlHeight;
 
   static const List<String> _monthNames = [
     'January',
@@ -508,19 +524,25 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
 
         return LayoutBuilder(
           builder: (context, box) {
-            // Beside the title, the controls can make the header taller
-            // than the card next to it (whose controls are
-            // kAdminControlHeight): the body gives that back so the two
-            // stay level.
-            final beside = box.maxWidth - 40 >= _stackBelow;
+            // The controls sit top-right beside the title while they fit
+            // with room for it; under it otherwise. Either way the header
+            // can be taller than the card next to it (a title and one
+            // kAdminControlHeight control): the body gives that back so
+            // the two stay level.
+            final beside =
+                box.maxWidth - 2 * AdminChartCard.padding >=
+                _controlsWidth(comparing: earlier != null) +
+                    12 +
+                    _minTitleWidth;
             final heading = _headingHeight(context);
-            final extra = beside
-                ? math.max(
-                    0.0,
-                    AdminMarketDemandCard.controlHeight -
-                        math.max(heading, kAdminControlHeight),
-                  )
-                : 0.0;
+            const control = AdminMarketDemandCard.controlHeight;
+            final header = beside
+                ? math.max(heading, control)
+                : heading + 10 + control;
+            final extra = math.max(
+              0.0,
+              header - math.max(heading, kAdminControlHeight),
+            );
             return AdminChartCard(
               title: 'Market Demand',
               subtitle: 'Compare monthly product demand across selected years.',
@@ -534,7 +556,8 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
                 earlier,
                 later,
               ),
-              trailingStackBelow: _stackBelow,
+              // The header follows the choice made above.
+              trailingStackBelow: beside ? 0 : double.infinity,
               child: _body(
                 c,
                 now,
@@ -566,6 +589,7 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
     if (noMatch) {
       return AdminChartEmpty(
         icon: Icons.search_off_rounded,
+        title: 'No data to display',
         message:
             'No product matches “$query”. Check the spelling or search for '
             'another product.',
@@ -574,6 +598,7 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
     if (product == null) {
       return AdminChartEmpty(
         icon: Icons.manage_search_rounded,
+        title: 'No data to display',
         message: names.isEmpty
             ? 'No supported products to show yet.'
             : 'Search for a product to compare its completed orders month '
@@ -622,6 +647,7 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
           child: totalA == 0 && totalB == 0
               ? AdminChartEmpty(
                   icon: Icons.bar_chart_rounded,
+                  title: 'No data to display',
                   message: earlier == null
                       ? 'No completed orders of $product in $later yet, so '
                             'there is no demand to show.'
@@ -734,7 +760,9 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
                     )
                   : TextButton.icon(
                       onPressed: _retry,
-                      style: TextButton.styleFrom(foregroundColor: c.green),
+                      style: TextButton.styleFrom(
+                        foregroundColor: c.textPrimary,
+                      ),
                       icon: const Icon(Icons.refresh_rounded, size: 18),
                       label: const Text(
                         'Retry',
@@ -806,7 +834,7 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
           commodities: names,
           selected: product,
           hint: 'Search product',
-          width: 180,
+          width: _searchWidth,
           height: height,
           semanticLabel: 'Search product for Market Demand',
           onQueryChanged: _typed,
@@ -818,7 +846,9 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
             });
           },
         ),
-        // How demand is counted: opened on a click, not on hover.
+        // How demand is counted: opened on a click, not on hover. The
+        // icon alone, with a hover; as tall as the controls beside it, so
+        // the three sit on one line.
         SizedBox.square(
           dimension: height,
           child: IconButton(
@@ -842,7 +872,7 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
                     'of Laurel, Batangas.',
               ],
             ),
-            icon: Icon(Icons.info_outline, size: 20, color: c.textSecondary),
+            icon: Icon(Icons.info_outline, size: 18, color: c.textSecondary),
           ),
         ),
       ],

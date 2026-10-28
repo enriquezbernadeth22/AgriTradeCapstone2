@@ -20,7 +20,7 @@ Future<DateTimeRange?> showAdminDateRangePicker(
   final c =
       palette ??
       context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-      AdminPalette.light;
+      AdminPalette.fallback(context);
   return showDialog<DateTimeRange>(
     context: context,
     builder: (_) => AdminDateRangeDialog(
@@ -45,7 +45,7 @@ Future<DateTime?> showAdminDatePicker(
   final c =
       palette ??
       context.getInheritedWidgetOfExactType<AdminThemeScope>()?.palette ??
-      AdminPalette.light;
+      AdminPalette.fallback(context);
   final picked = await showDialog<DateTimeRange>(
     context: context,
     builder: (_) => AdminDateRangeDialog(
@@ -305,10 +305,10 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: c.textPrimary,
                       side: BorderSide(color: c.border),
-                      shape: const StadiumBorder(),
+                      shape: adminButtonShape,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                     ),
                     child: Text(
@@ -328,10 +328,10 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
                       backgroundColor: action,
                       foregroundColor: c.isDark ? c.bg : Colors.white,
                       disabledBackgroundColor: c.border,
-                      shape: const StadiumBorder(),
+                      shape: adminButtonShape,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 22,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                     ),
                     child: Text(

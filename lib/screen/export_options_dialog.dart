@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/pdf_report_service.dart' show ReportPaper;
 import '../services/report_export_service.dart';
 import '../widgets/busy_indicator.dart';
-import 'admin_dashboard_screen.dart' show AdminPalette;
+import 'admin_dashboard_screen.dart' show AdminPalette, adminButtonShape;
 import 'admin_filter_controls.dart';
 
 enum ReportFormat { pdf, excel, csv, png }
@@ -425,7 +425,15 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                   borderRadius: BorderRadius.circular(
                                     kAdminPopupRadius,
                                   ),
-                                  decoration: adminFieldDecoration(c),
+                                  // About 40 high, as every dropdown.
+                                  decoration: adminFieldDecoration(c).copyWith(
+                                    contentPadding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      8,
+                                      16,
+                                      8,
+                                    ),
+                                  ),
                                   items: [
                                     const DropdownMenuItem(
                                       value: null,
@@ -598,13 +606,14 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                               onPressed: _exporting
                                   ? null
                                   : () => Navigator.of(context).pop(),
-                              // The buttons are the only green in the dialog.
+                              // Tertiary: near-black text alone; the
+                              // main button is the dialog's only green.
                               style: TextButton.styleFrom(
-                                foregroundColor: primary,
-                                shape: const StadiumBorder(),
+                                foregroundColor: c.textPrimary,
+                                shape: adminButtonShape,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 18,
-                                  vertical: 12,
+                                  vertical: 10,
                                 ),
                               ),
                               child: const Text('Cancel'),
@@ -623,10 +632,10 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                 disabledForegroundColor: _exporting
                                     ? onPrimary
                                     : c.textMuted,
-                                shape: const StadiumBorder(),
+                                shape: adminButtonShape,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 26,
-                                  vertical: 12,
+                                  vertical: 10,
                                 ),
                                 textStyle: const TextStyle(
                                   fontFamily: 'Montserrat',
@@ -814,8 +823,9 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
           child: Row(
             mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
             children: [
-              // Round: black with a small white tick when ticked, an empty
-              // grey ring when not.
+              // Square with a slight rounding, as every tick box in the
+              // portal: black with a small white tick when ticked, an
+              // empty grey outline when not.
               SizedBox(
                 width: 22,
                 height: 22,
@@ -826,14 +836,14 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                     height: 18,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(4),
                       color: value ? c.textPrimary : Colors.transparent,
                       border: value
                           ? null
                           : Border.all(color: c.textMuted, width: 1.4),
                     ),
                     child: value
-                        ? Icon(Icons.check_rounded, size: 11, color: c.surface)
+                        ? Icon(Icons.check_rounded, size: 12, color: c.surface)
                         : null,
                   ),
                 ),
