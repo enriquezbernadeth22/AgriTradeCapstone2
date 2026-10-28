@@ -32,8 +32,8 @@ void main() {
   );
   tearDown(() => CommodityRegistry.instance.applyAdminRecords(const []));
 
-  test('the years start at the first completed order: this year alone '
-      'until there are two, then one pair more each year', () {
+  test('the years start at the first completed order and run to this '
+      'year; this year alone before there is one', () {
     Map<String, dynamic> completed(int year, {String status = 'completed'}) => {
       'status': status,
       'completedAt': Timestamp.fromDate(DateTime(year, 3, 10)),
@@ -47,16 +47,11 @@ void main() {
       completed(2025, status: 'cancelled'),
     ], october2026);
     expect(only2026, [2026]);
-    expect(PriceTrendService.yearPairs(only2026), isEmpty);
 
     final to2028 = PriceTrendService.yearsOnRecord([
       completed(2026),
     ], DateTime(2028, 1));
     expect(to2028, [2026, 2027, 2028]);
-    expect(PriceTrendService.yearPairs(to2028), [
-      (previous: 2026, current: 2027),
-      (previous: 2027, current: 2028),
-    ]);
   });
 
   group('Price Trend', () {

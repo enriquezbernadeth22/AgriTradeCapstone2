@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/pdf_report_service.dart' show ReportPaper;
 import '../services/report_export_service.dart';
 import '../widgets/busy_indicator.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette;
@@ -86,6 +87,7 @@ const _prefsKeyFormat = 'export_last_format';
 const _prefsKeyGroups = 'export_last_groups';
 const _prefsKeyPreset = 'export_last_preset';
 const _prefsKeyOrientation = 'export_last_orientation';
+const _prefsKeyPaper = 'export_last_paper';
 const _prefsKeyIncludeTables = 'export_last_include_tables';
 
 class ExportOptionsDialog extends StatefulWidget {
@@ -104,6 +106,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   DateRangePreset _preset = DateRangePreset.last30Days;
   DateTimeRange? _customRange;
   bool _landscape = false;
+  ReportPaper _paper = ReportPaper.a4;
   bool _includeDataTables = true;
 
   bool _loadingPrefs = true;
@@ -144,6 +147,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       final groupNames = prefs.getStringList(_prefsKeyGroups);
       final presetName = prefs.getString(_prefsKeyPreset);
       final orientationLandscape = prefs.getBool(_prefsKeyOrientation);
+      final paperName = prefs.getString(_prefsKeyPaper);
       final includeTables = prefs.getBool(_prefsKeyIncludeTables);
 
       if (!mounted) return;
@@ -166,6 +170,10 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
           orElse: () => DateRangePreset.last30Days,
         );
         if (orientationLandscape != null) _landscape = orientationLandscape;
+        _paper = ReportPaper.values.firstWhere(
+          (p) => p.name == paperName,
+          orElse: () => ReportPaper.a4,
+        );
         if (includeTables != null) _includeDataTables = includeTables;
         _loadingPrefs = false;
       });
@@ -184,6 +192,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       );
       await prefs.setString(_prefsKeyPreset, _preset.name);
       await prefs.setBool(_prefsKeyOrientation, _landscape);
+      await prefs.setString(_prefsKeyPaper, _paper.name);
       await prefs.setBool(_prefsKeyIncludeTables, _includeDataTables);
     } catch (_) {
       // Not remembering the choice next time is a fine failure mode —
@@ -259,6 +268,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
         range: _resolveRange(),
         reportTitle: _reportTitle,
         landscape: _landscape,
+        paper: _paper,
         includeDataTables: _includeDataTables,
         notes: '',
         onProgress: (step) {
@@ -292,7 +302,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
 
     return Dialog(
       backgroundColor: c.surface,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kAdminPopupRadius),
         side: BorderSide(color: c.border),
@@ -304,312 +314,334 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                 padding: const EdgeInsets.all(48),
                 child: const Center(child: AdminLoadingBar()),
               )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
-                    child: Text(
-                      'Export Report',
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
+            // Never scrolls: the form fits a laptop screen as it is, and on
+            // a window too short for it the whole of it shrinks to fit.
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: SizedBox(
+                  width: 460,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+                        child: Text(
+                          'Export Report',
+                          style: TextStyle(
+                            color: c.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  // Scrolls only when the window is too short for it all;
-                  // the buttons below stay in view either way.
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(22, 4, 22, 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _label(c, 'File Format'),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final format in kOfferedReportFormats)
-                                _choice(
-                                  c,
-                                  label: format == ReportFormat.pdf
-                                      ? 'PDF'
-                                      : 'Excel',
-                                  selected: _format == format,
-                                  onTap: () => setState(() => _format = format),
-                                ),
-                            ],
-                          ),
-
-                          _label(
-                            c,
-                            'Report Content',
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _link(
-                                  c,
-                                  'Select All',
-                                  c.textPrimary,
-                                  () => setState(
-                                    () => _groups.addAll(ReportGroup.values),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                _link(
-                                  c,
-                                  'Clear All',
-                                  c.textSecondary,
-                                  () => setState(_groups.clear),
-                                ),
-                              ],
-                            ),
-                          ),
-                          for (final group in ReportGroup.values)
-                            _check(
-                              c,
-                              label: group.label,
-                              value: _groups.contains(group),
-                              onChanged: (checked) => setState(() {
-                                if (checked) {
-                                  _groups.add(group);
-                                } else {
-                                  _groups.remove(group);
-                                }
-                              }),
-                            ),
-
-                          _label(c, 'Commodity'),
-                          AdminInputGlow(
-                            child: DropdownButtonFormField<String?>(
-                              key: ValueKey(
-                                '$_commodity-${_availableCommodities.length}',
-                              ),
-                              initialValue:
-                                  _availableCommodities.contains(_commodity)
-                                  ? _commodity
-                                  : null,
-                              isExpanded: true,
-                              isDense: true,
-                              menuMaxHeight: 320,
-                              style: TextStyle(
-                                fontFamily: kAdminFontFamily,
-                                color: c.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              icon: Icon(
-                                Icons.expand_more_rounded,
-                                size: 18,
-                                color: c.textSecondary,
-                              ),
-                              dropdownColor: c.surface,
-                              borderRadius: BorderRadius.circular(
-                                kAdminPopupRadius,
-                              ),
-                              decoration: adminFieldDecoration(c),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text('All Commodities'),
-                                ),
-                                for (final name in _availableCommodities)
-                                  DropdownMenuItem(
-                                    value: name,
-                                    child: Text(name),
-                                  ),
-                              ],
-                              onChanged: (value) =>
-                                  setState(() => _commodity = value),
-                            ),
-                          ),
-
-                          _label(c, 'Date Range'),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final preset in kOfferedDatePresets)
-                                _choice(
-                                  c,
-                                  label: _presetLabel(preset),
-                                  selected: _preset == preset,
-                                  onTap: () => setState(() => _preset = preset),
-                                ),
-                              _choice(
-                                c,
-                                label:
-                                    _preset == DateRangePreset.custom &&
-                                        _customRange != null
-                                    ? '${DateFormat('MMM d').format(_customRange!.start)} – ${DateFormat('MMM d, y').format(_customRange!.end)}'
-                                    : 'Custom',
-                                selected: _preset == DateRangePreset.custom,
-                                onTap: _pickCustomRange,
-                              ),
-                            ],
-                          ),
-
-                          if (_format == ReportFormat.pdf) ...[
-                            _label(c, 'PDF Options'),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 0, 22, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _label(c, 'File Format'),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
                               children: [
-                                _choice(
-                                  c,
-                                  label: 'Portrait',
-                                  selected: !_landscape,
-                                  radio: true,
-                                  onTap: () =>
-                                      setState(() => _landscape = false),
-                                ),
-                                _choice(
-                                  c,
-                                  label: 'Landscape',
-                                  selected: _landscape,
-                                  radio: true,
-                                  onTap: () =>
-                                      setState(() => _landscape = true),
-                                ),
+                                for (final format in kOfferedReportFormats)
+                                  _choice(
+                                    c,
+                                    label: format == ReportFormat.pdf
+                                        ? 'PDF'
+                                        : 'Excel',
+                                    selected: _format == format,
+                                    onTap: () =>
+                                        setState(() => _format = format),
+                                  ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            _check(
-                              c,
-                              label: 'Include data tables',
-                              value: _includeDataTables,
-                              onChanged: (checked) =>
-                                  setState(() => _includeDataTables = checked),
-                            ),
-                          ],
 
-                          if (_exporting) ...[
-                            const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(
-                                14,
-                                12,
-                                14,
-                                12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: c.surfaceAlt,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                            _label(
+                              c,
+                              'Report Content',
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Row(
-                                    children: [
-                                      // Drawn by the browser, so it keeps
-                                      // turning while the file is built.
-                                      BusySpinner(color: c.textPrimary),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          _step,
-                                          style: TextStyle(
-                                            color: c.textPrimary,
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  BusyBar(
-                                    color: c.textPrimary,
-                                    trackColor: c.surface,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Please keep this window open. A report '
-                                    'with charts can take a little while.',
-                                    style: TextStyle(
-                                      color: c.textSecondary,
-                                      fontSize: 11.5,
+                                  _link(
+                                    c,
+                                    'Select All',
+                                    c.textPrimary,
+                                    () => setState(
+                                      () => _groups.addAll(ReportGroup.values),
                                     ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  _link(
+                                    c,
+                                    'Clear All',
+                                    c.textSecondary,
+                                    () => setState(_groups.clear),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                          if (_error != null) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              _error!,
-                              style: TextStyle(color: c.red, fontSize: 12.5),
-                            ),
-                          ],
-                          if (_successMessage != null) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              _successMessage!,
-                              style: TextStyle(
-                                color: c.textPrimary,
-                                fontSize: 12.5,
+                            for (final group in ReportGroup.values)
+                              _check(
+                                c,
+                                label: group.label,
+                                value: _groups.contains(group),
+                                onChanged: (checked) => setState(() {
+                                  if (checked) {
+                                    _groups.add(group);
+                                  } else {
+                                    _groups.remove(group);
+                                  }
+                                }),
+                              ),
+
+                            _label(c, 'Commodity'),
+                            AdminInputGlow(
+                              child: AdminGreyMenu(
+                                child: DropdownButtonFormField<String?>(
+                                  key: ValueKey(
+                                    '$_commodity-${_availableCommodities.length}',
+                                  ),
+                                  initialValue:
+                                      _availableCommodities.contains(_commodity)
+                                      ? _commodity
+                                      : null,
+                                  isExpanded: true,
+                                  isDense: true,
+                                  menuMaxHeight: 320,
+                                  style: TextStyle(
+                                    fontFamily: kAdminFontFamily,
+                                    color: c.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  icon: Icon(
+                                    Icons.expand_more_rounded,
+                                    size: 18,
+                                    color: c.textSecondary,
+                                  ),
+                                  dropdownColor: c.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    kAdminPopupRadius,
+                                  ),
+                                  decoration: adminFieldDecoration(c),
+                                  items: [
+                                    const DropdownMenuItem(
+                                      value: null,
+                                      child: Text('All Commodities'),
+                                    ),
+                                    for (final name in _availableCommodities)
+                                      DropdownMenuItem(
+                                        value: name,
+                                        child: Text(name),
+                                      ),
+                                  ],
+                                  onChanged: (value) =>
+                                      setState(() => _commodity = value),
+                                ),
                               ),
                             ),
+
+                            _label(c, 'Date Range'),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final preset in kOfferedDatePresets)
+                                  _choice(
+                                    c,
+                                    label: _presetLabel(preset),
+                                    selected: _preset == preset,
+                                    onTap: () =>
+                                        setState(() => _preset = preset),
+                                  ),
+                                _choice(
+                                  c,
+                                  label:
+                                      _preset == DateRangePreset.custom &&
+                                          _customRange != null
+                                      ? '${DateFormat('MMM d').format(_customRange!.start)} – ${DateFormat('MMM d, y').format(_customRange!.end)}'
+                                      : 'Custom',
+                                  selected: _preset == DateRangePreset.custom,
+                                  onTap: _pickCustomRange,
+                                ),
+                              ],
+                            ),
+
+                            if (_format == ReportFormat.pdf) ...[
+                              // The paper beside the heading, so choosing
+                              // it takes no room of its own.
+                              _label(
+                                c,
+                                'PDF Options',
+                                trailing: _paperPicker(c),
+                              ),
+                              // The page and the tables on one row; the
+                              // tables under them if the row is too narrow.
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  _choice(
+                                    c,
+                                    label: 'Portrait',
+                                    selected: !_landscape,
+                                    radio: true,
+                                    onTap: () =>
+                                        setState(() => _landscape = false),
+                                  ),
+                                  _choice(
+                                    c,
+                                    label: 'Landscape',
+                                    selected: _landscape,
+                                    radio: true,
+                                    onTap: () =>
+                                        setState(() => _landscape = true),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: _check(
+                                      c,
+                                      label: 'Include data tables',
+                                      value: _includeDataTables,
+                                      expand: false,
+                                      onChanged: (checked) => setState(
+                                        () => _includeDataTables = checked,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            if (_exporting) ...[
+                              const SizedBox(height: 14),
+                              Container(
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  12,
+                                  14,
+                                  12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: c.surfaceAlt,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        // Drawn by the browser, so it keeps
+                                        // turning while the file is built.
+                                        BusySpinner(color: c.textPrimary),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            _step,
+                                            style: TextStyle(
+                                              color: c.textPrimary,
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    BusyBar(
+                                      color: c.textPrimary,
+                                      trackColor: c.surface,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Please keep this window open. A report '
+                                      'with charts can take a little while.',
+                                      style: TextStyle(
+                                        color: c.textSecondary,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (_error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                _error!,
+                                style: TextStyle(color: c.red, fontSize: 12.5),
+                              ),
+                            ],
+                            if (_successMessage != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                _successMessage!,
+                                style: TextStyle(
+                                  color: c.textPrimary,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: _exporting
-                              ? null
-                              : () => Navigator.of(context).pop(),
-                          // The buttons are the only green in the dialog.
-                          style: TextButton.styleFrom(
-                            foregroundColor: primary,
-                            shape: const StadiumBorder(),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 10, 22, 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: _exporting
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              // The buttons are the only green in the dialog.
+                              style: TextButton.styleFrom(
+                                foregroundColor: primary,
+                                shape: const StadiumBorder(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 12,
+                                ),
+                              ),
+                              child: const Text('Cancel'),
                             ),
-                          ),
-                          child: const Text('Cancel'),
+                            const SizedBox(width: 8),
+                            FilledButton(
+                              onPressed: canExport ? _export : null,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: primary,
+                                foregroundColor: onPrimary,
+                                // Stays green while exporting, so its
+                                // "Exporting…" can be read.
+                                disabledBackgroundColor: _exporting
+                                    ? primary.withValues(alpha: 0.75)
+                                    : c.surfaceAlt,
+                                disabledForegroundColor: _exporting
+                                    ? onPrimary
+                                    : c.textMuted,
+                                shape: const StadiumBorder(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 26,
+                                  vertical: 12,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              child: Text(_exporting ? 'Exporting…' : 'Export'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: canExport ? _export : null,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: onPrimary,
-                            // Stays green while exporting, so its
-                            // "Exporting…" can be read.
-                            disabledBackgroundColor: _exporting
-                                ? primary.withValues(alpha: 0.75)
-                                : c.surfaceAlt,
-                            disabledForegroundColor: _exporting
-                                ? onPrimary
-                                : c.textMuted,
-                            shape: const StadiumBorder(),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 26,
-                              vertical: 12,
-                            ),
-                            textStyle: const TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          child: Text(_exporting ? 'Exporting…' : 'Export'),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
       ),
     );
@@ -617,7 +649,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
 
   // A section's heading, with room above it.
   Widget _label(AdminPalette c, String text, {Widget? trailing}) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 8),
+    padding: const EdgeInsets.only(top: 12, bottom: 6),
     child: Row(
       children: [
         Expanded(
@@ -666,7 +698,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: EdgeInsets.fromLTRB(radio ? 12 : 16, 9, 16, 9),
+        padding: EdgeInsets.fromLTRB(radio ? 12 : 16, 8, 16, 8),
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: BorderRadius.circular(999),
@@ -699,42 +731,117 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
     );
   }
 
+  // "Paper: A4 ▾", opening the sizes to choose from: in black and white,
+  // the one chosen in bold.
+  Widget _paperPicker(AdminPalette c) {
+    final text = TextStyle(
+      fontFamily: kAdminFontFamily,
+      color: c.textPrimary,
+      fontSize: 12.5,
+      fontWeight: FontWeight.w600,
+    );
+    return AdminGreyMenu(
+      child: PopupMenuButton<ReportPaper>(
+        tooltip: 'Paper size',
+        initialValue: _paper,
+        color: c.surface,
+        position: PopupMenuPosition.under,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kAdminPopupRadius),
+          side: BorderSide(color: c.border),
+        ),
+        onSelected: (paper) => setState(() => _paper = paper),
+        itemBuilder: (context) => [
+          for (final paper in ReportPaper.values)
+            PopupMenuItem(
+              value: paper,
+              height: 40,
+              child: Text(
+                paper.description,
+                style: text.copyWith(
+                  fontSize: 13,
+                  fontWeight: paper == _paper
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+        // No taller than the heading beside it.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Paper: ',
+                style: text.copyWith(
+                  color: c.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(_paper.label, style: text),
+              Icon(Icons.expand_more_rounded, size: 16, color: c.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // A round tick box and its label. [expand]: the label takes the rest of
+  // the row; false sizes it to the label, for a row it shares.
   Widget _check(
     AdminPalette c, {
     required String label,
     required bool value,
     required ValueChanged<bool> onChanged,
+    bool expand = true,
   }) {
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 22,
-              height: 22,
-              // Round, black with a white tick when ticked.
-              child: Checkbox(
-                value: value,
-                onChanged: (checked) => onChanged(checked ?? false),
-                activeColor: c.textPrimary,
-                checkColor: c.surface,
-                side: BorderSide(color: c.textMuted, width: 1.4),
-                shape: const CircleBorder(),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
+    final text = Text(
+      label,
+      style: TextStyle(color: c.textPrimary, fontSize: 13),
+    );
+    return Semantics(
+      checked: value,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              // Round: black with a small white tick when ticked, an empty
+              // grey ring when not.
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    width: 18,
+                    height: 18,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value ? c.textPrimary : Colors.transparent,
+                      border: value
+                          ? null
+                          : Border.all(color: c.textMuted, width: 1.4),
+                    ),
+                    child: value
+                        ? Icon(Icons.check_rounded, size: 11, color: c.surface)
+                        : null,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(color: c.textPrimary, fontSize: 13),
-              ),
-            ),
-          ],
+              const SizedBox(width: 10),
+              expand ? Expanded(child: text) : text,
+            ],
+          ),
         ),
       ),
     );

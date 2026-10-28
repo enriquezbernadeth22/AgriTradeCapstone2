@@ -482,6 +482,10 @@ void main() {
     expect(find.text('Price Trend'), findsOneWidget);
     final chart = tester.widget<LineChart>(find.byType(LineChart));
     expect(chart.data.lineBarsData, hasLength(2));
+    // The same year calendars as Market Demand: last year vs this year.
+    final pills = tester.widgetList<AdminYearPill>(find.byType(AdminYearPill));
+    expect([for (final p in pills) p.year], [year - 1, year]);
+    expect(find.text('vs'), findsOneWidget);
     // (50 + 55) / 2 = 52.50 against 60.00.
     expect(find.text('up 14.3%'), findsOneWidget);
     expect(
@@ -491,6 +495,30 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Price Trend: any two years on record, picked on the year '
+      'calendars', (tester) async {
+    await _show(
+      tester,
+      AdminPriceTrendSection(
+        commodity: 'Tomato',
+        products: const [],
+        completedOrders: [
+          _sale('Tomato', 2024, 2, 10, 40),
+          _sale('Tomato', 2025, 2, 10, 50),
+          _sale('Tomato', 2026, 2, 10, 60),
+        ],
+        historical: const [],
+        now: october,
+      ),
+    );
+    await tester.pumpAndSettle();
+    // 2025 vs 2026 to start; the earlier calendar set to 2024.
+    await pickYear(tester, 0, 2024);
+    expect(find.textContaining('2024 · avg ₱40.00/kg'), findsOneWidget);
+    expect(find.textContaining('2026 · avg ₱60.00/kg'), findsOneWidget);
+    expect(find.text('up 50.0%'), findsOneWidget);
   });
 
   testWidgets('Price Trend offers no year before the first completed order: '
@@ -530,9 +558,10 @@ void main() {
       AdminYearComparisonChart.currentColor(AdminPalette.light),
     );
     expect(find.textContaining('2025'), findsNothing);
-    expect(find.text('2026'), findsOneWidget); // the year pill
+    // One year calendar, as on Market Demand, set to 2026.
+    expect(tester.widget<AdminYearPill>(find.byType(AdminYearPill)).year, 2026);
+    expect(find.text('vs'), findsNothing);
     expect(find.textContaining('2026 · avg ₱62.00/kg'), findsOneWidget);
-    expect(find.textContaining(' vs '), findsNothing);
     expect(find.textContaining('up '), findsNothing);
     expect(find.textContaining('0 imported records'), findsOneWidget);
   });

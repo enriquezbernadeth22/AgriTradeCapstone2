@@ -115,13 +115,6 @@ class PriceTrendService {
     return [for (var year = first; year <= now.year; year++) year];
   }
 
-  /// The year pairs to choose from, oldest first: each of [years] against
-  /// the one before it. None while there is one year.
-  static List<({int previous, int current})> yearPairs(List<int> years) => [
-    for (var i = 1; i < years.length; i++)
-      (previous: years[i - 1], current: years[i]),
-  ];
-
   /// Every price on record for [commodity], in the unit most of them use
   /// (also returned). [referenceHistory] is the commodity's
   /// `market_prices/{id}/history` entries.

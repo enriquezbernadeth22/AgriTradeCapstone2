@@ -991,17 +991,19 @@ class _FaqEditorDialogState extends State<_FaqEditorDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<AdminFaqCategory>(
-                initialValue: _category,
-                borderRadius: BorderRadius.circular(kAdminPopupRadius),
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: [
-                  for (final cat in AdminFaqCategory.values)
-                    DropdownMenuItem(value: cat, child: Text(cat.label)),
-                ],
-                onChanged: _saving
-                    ? null
-                    : (v) => setState(() => _category = v ?? _category),
+              AdminGreyMenu(
+                child: DropdownButtonFormField<AdminFaqCategory>(
+                  initialValue: _category,
+                  borderRadius: BorderRadius.circular(kAdminPopupRadius),
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: [
+                    for (final cat in AdminFaqCategory.values)
+                      DropdownMenuItem(value: cat, child: Text(cat.label)),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _category = v ?? _category),
+                ),
               ),
               const SizedBox(height: 14),
               AdminField(

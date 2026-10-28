@@ -45,4 +45,33 @@ void main() {
       expect(bytes.length, greaterThan(1000));
     },
   );
+
+  test('the report is on the paper chosen, either way round', () async {
+    // The page's size in points (1 in = 72 pt), from the document itself.
+    Future<String> mediaBox(ReportPaper paper, {bool landscape = false}) async {
+      final bytes = await PdfReportService.buildFullDashboardReport(
+        title: 'AgriTrade+ Analytics Report',
+        adminName: 'System Administrator',
+        generatedAt: DateTime(2026, 10, 16, 9),
+        dateRangeLabel: 'Sep 16, 2026 – Oct 15, 2026',
+        landscape: landscape,
+        paper: paper,
+        includeDataTables: true,
+        sections: const [],
+      );
+      final match = RegExp(
+        r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+      ).firstMatch(String.fromCharCodes(bytes));
+      expect(match, isNotNull);
+      double pt(String n) => double.parse(n);
+      return '${pt(match!.group(1)!).round()}x${pt(match.group(2)!).round()}';
+    }
+
+    expect(await mediaBox(ReportPaper.a4), '595x842');
+    // Short bond: 8.5 × 11 in.
+    expect(await mediaBox(ReportPaper.short), '612x792');
+    // Long bond: 8.5 × 13 in, and on its side for landscape.
+    expect(await mediaBox(ReportPaper.long), '612x936');
+    expect(await mediaBox(ReportPaper.long, landscape: true), '936x612');
+  });
 }

@@ -16,7 +16,8 @@ import '../services/rsba_number.dart';
 import '../widgets/password_requirements.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette;
 import 'admin_field.dart';
-import 'admin_filter_controls.dart' show AdminInputGlow, adminFieldDecoration;
+import 'admin_filter_controls.dart'
+    show AdminGreyMenu, AdminInputGlow, adminFieldDecoration;
 import 'policy_document_screen.dart';
 
 /// User Accounts → Farmers → Add Farmer: the agricultural office adds a
@@ -509,23 +510,25 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
               // On the same plate as the fields around it (the Admin
               // login's look).
               AdminInputGlow(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _barangay,
-                  isExpanded: true,
-                  hint: const Text('Choose a barangay'),
-                  borderRadius: BorderRadius.circular(16),
-                  decoration: adminFieldDecoration(
-                    AdminPalette.light,
-                    icon: Icons.location_on_outlined,
+                child: AdminGreyMenu(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _barangay,
+                    isExpanded: true,
+                    hint: const Text('Choose a barangay'),
+                    borderRadius: BorderRadius.circular(16),
+                    decoration: adminFieldDecoration(
+                      AdminPalette.light,
+                      icon: Icons.location_on_outlined,
+                    ),
+                    items: [
+                      for (final name in kLaurelBarangays)
+                        DropdownMenuItem(value: name, child: Text(name)),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _barangay = value;
+                      _serverError = null;
+                    }),
                   ),
-                  items: [
-                    for (final name in kLaurelBarangays)
-                      DropdownMenuItem(value: name, child: Text(name)),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _barangay = value;
-                    _serverError = null;
-                  }),
                 ),
               ),
               _error(_shown(_barangayError)),

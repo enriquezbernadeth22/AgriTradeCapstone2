@@ -131,6 +131,35 @@ InputDecoration adminFieldDecoration(
   disabledBorder: InputBorder.none,
 );
 
+/// A dropdown's menu in grey, not the app theme's green: the highlight on
+/// the chosen item when the menu opens, and the hover and press on every
+/// item. Wraps a DropdownButtonFormField in the Admin Portal; its menu
+/// takes the theme from here.
+class AdminGreyMenu extends StatelessWidget {
+  final Widget child;
+
+  const AdminGreyMenu({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // Also in a popup, outside the page's AdminThemeScope: light then.
+    final c =
+        context
+            .dependOnInheritedWidgetOfExactType<AdminThemeScope>()
+            ?.palette ??
+        AdminPalette.light;
+    return Theme(
+      data: Theme.of(context).copyWith(
+        focusColor: c.surfaceAlt,
+        hoverColor: c.surfaceAlt,
+        highlightColor: c.surfaceAlt,
+        splashColor: c.border,
+      ),
+      child: child,
+    );
+  }
+}
+
 /// The Admin Portal's text inputs, in the Admin login's look: a white pill
 /// on a soft shadow, with no outline, that glows a soft grey while it is
 /// being typed in (black and white, like every dropdown). Wraps a

@@ -1531,21 +1531,23 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                   ),
                   if (severityOptions != null) ...[
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: severity,
-                      borderRadius: BorderRadius.circular(kAdminPopupRadius),
-                      decoration: const InputDecoration(
-                        labelText: 'Violation severity',
+                    AdminGreyMenu(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: severity,
+                        borderRadius: BorderRadius.circular(kAdminPopupRadius),
+                        decoration: const InputDecoration(
+                          labelText: 'Violation severity',
+                        ),
+                        items: severityOptions
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(_capitalize(s)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setDialogState(() => severity = v),
                       ),
-                      items: severityOptions
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(_capitalize(s)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setDialogState(() => severity = v),
                     ),
                   ],
                 ],

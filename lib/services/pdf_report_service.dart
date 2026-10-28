@@ -9,6 +9,27 @@ import 'package:printing/printing.dart';
 import 'market_price_helpers.dart';
 import 'report_section.dart';
 
+/// The paper a report is laid out on — the sizes used in the Philippines.
+/// The margins are the report's own, the same on each.
+enum ReportPaper {
+  a4('A4', 'A4 (210 × 297 mm)', PdfPageFormat.a4),
+  short('Short', 'Short bond (8.5 × 11 in)', PdfPageFormat.letter),
+  long(
+    'Long',
+    'Long bond (8.5 × 13 in)',
+    PdfPageFormat(8.5 * PdfPageFormat.inch, 13 * PdfPageFormat.inch),
+  );
+
+  /// Its name in a button ("Short").
+  final String label;
+
+  /// Its name with its size, in a list to choose from.
+  final String description;
+  final PdfPageFormat format;
+
+  const ReportPaper(this.label, this.description, this.format);
+}
+
 /// Builds and hands off real PDF reports for the admin dashboard — the
 /// system's only "export" used to be a CSV string copied to the clipboard.
 /// Generation (pdf package) and delivery (printing package's native share
@@ -512,6 +533,7 @@ class PdfReportService {
     required String dateRangeLabel,
     String? notes,
     required bool landscape,
+    ReportPaper paper = ReportPaper.a4,
     required bool includeDataTables,
     // Plain sentences on what the figures say, under the title.
     List<String> keyFindings = const [],
@@ -621,7 +643,7 @@ class PdfReportService {
 
     doc.addPage(
       _pages(
-        format: landscape ? PdfPageFormat.a4.landscape : PdfPageFormat.a4,
+        format: landscape ? paper.format.landscape : paper.format,
         logo: logo,
         kind: kind,
         title: title,

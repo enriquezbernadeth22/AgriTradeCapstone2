@@ -17,11 +17,7 @@ import 'admin_dashboard_screen.dart'
     show AdminPalette, AdminRadii, AdminThemeScope;
 import 'admin_info_dialogs.dart' show showAdminInfoPopup;
 import 'admin_filter_controls.dart'
-    show
-        AdminPillDropdown,
-        AdminYearPill,
-        kAdminControlHeight,
-        kAdminFontFamily;
+    show AdminYearPill, kAdminControlHeight, kAdminFontFamily;
 import 'admin_overview_widgets.dart'
     show
         AdminChartCard,
@@ -34,33 +30,77 @@ import 'admin_overview_widgets.dart'
 /// A pair of years the Market Trend charts compare.
 typedef YearPair = ({int previous, int current});
 
-/// "2026 vs 2027", one pair for each year after the first on record
-/// ([pairs], newest first in the list).
-class AdminYearPairPicker extends StatelessWidget {
-  final List<YearPair> pairs;
-  final YearPair value;
+/// The years a chart compares, on year calendars (Market Demand, Price
+/// Trend): the earlier "vs" the later, or the one year alone while
+/// [earlier] is null (one year on record). Either calendar may pick any
+/// year from [firstYear] to [lastYear]. The two are kept in order — the
+/// earlier first, whichever was picked first — and never the same:
+/// picking the other one's year swaps them.
+class AdminYearCompare extends StatelessWidget {
+  final int firstYear;
+  final int lastYear;
+  final int? earlier;
+  final int later;
   final ValueChanged<YearPair> onChanged;
+  final double height;
 
-  const AdminYearPairPicker({
+  const AdminYearCompare({
     super.key,
-    required this.pairs,
-    required this.value,
+    required this.firstYear,
+    required this.lastYear,
+    required this.earlier,
+    required this.later,
     required this.onChanged,
+    this.height = kAdminControlHeight,
   });
 
-  static String label(YearPair pair) => '${pair.previous} vs ${pair.current}';
+  YearPair _ordered(int chosen, {required bool first}) {
+    final previous = earlier ?? later;
+    var a = first ? chosen : previous;
+    var b = first ? later : chosen;
+    if (a == b) {
+      if (first) {
+        b = previous;
+      } else {
+        a = later;
+      }
+    }
+    return (previous: math.min(a, b), current: math.max(a, b));
+  }
 
-  // The portal's dropdown: the same size and look as every other.
   @override
-  Widget build(BuildContext context) => AdminPillDropdown<YearPair>(
-    value: value,
-    icon: Icons.date_range_outlined,
-    items: [
-      for (final pair in pairs.reversed)
-        DropdownMenuItem(value: pair, child: Text(label(pair))),
-    ],
-    onChanged: onChanged,
-  );
+  Widget build(BuildContext context) {
+    final c = AdminThemeScope.of(context).palette;
+    // Room for the calendar icon, a whole year and the arrow.
+    Widget year(int value, {required bool first}) => AdminYearPill(
+      year: value,
+      firstYear: firstYear,
+      lastYear: lastYear,
+      width: 128,
+      height: height,
+      semanticLabel: first ? 'Earlier year' : 'Later year',
+      onChanged: (y) => onChanged(_ordered(y, first: first)),
+    );
+    final first = earlier;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 8,
+      children: [
+        if (first != null) ...[
+          year(first, first: true),
+          Text(
+            'vs',
+            style: TextStyle(
+              color: c.textSecondary,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+        year(later, first: false),
+      ],
+    );
+  }
 }
 
 /// Two lines, January to December: [years]' previous year in blue and the
@@ -413,25 +453,6 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
     });
   }
 
-  // Either calendar may pick any year offered. The two are kept in order —
-  // the earlier year is always the light green one, whichever was picked
-  // first — and never the same: picking the other's year swaps them.
-  void _pickYear(int chosen, {required bool first, required YearPair pair}) {
-    var a = first ? chosen : pair.previous;
-    var b = first ? pair.current : chosen;
-    if (a == b) {
-      if (first) {
-        b = pair.previous;
-      } else {
-        a = pair.current;
-      }
-    }
-    setState(() {
-      _earlier = math.min(a, b);
-      _later = math.max(a, b);
-    });
-  }
-
   void _retry() {
     setState(() => _retrying = true);
     widget.onRetry?.call();
@@ -504,10 +525,15 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
               title: 'Market Demand',
               subtitle: 'Compare monthly product demand across selected years.',
               bodyHeight: widget.bodyHeight - extra,
-              trailing: _controls(c, names, firstYear, lastYear, product, (
-                previous: earlier ?? later,
-                current: later,
-              ), earlier != null),
+              trailing: _controls(
+                c,
+                names,
+                firstYear,
+                lastYear,
+                product,
+                earlier,
+                later,
+              ),
               trailingStackBelow: _stackBelow,
               child: _body(
                 c,
@@ -751,44 +777,28 @@ class _AdminMarketDemandCardState extends State<AdminMarketDemandCard> {
     int firstYear,
     int lastYear,
     String? product,
-    YearPair pair,
-    bool comparing,
+    int? earlier,
+    int later,
   ) {
     const height = AdminMarketDemandCard.controlHeight;
-    // Room for the calendar icon, a whole year and the arrow.
-    Widget year(int value, {required bool first}) => AdminYearPill(
-      year: value,
-      firstYear: firstYear,
-      lastYear: lastYear,
-      width: 128,
-      height: height,
-      semanticLabel: first ? 'Earlier year' : 'Later year',
-      onChanged: (y) => _pickYear(y, first: first, pair: pair),
-    );
     return Wrap(
       alignment: WrapAlignment.end,
       spacing: 10,
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Earlier "vs" later; one year alone until there are two.
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 8,
-          children: [
-            if (comparing) ...[
-              year(pair.previous, first: true),
-              Text(
-                'vs',
-                style: TextStyle(
-                  color: c.textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-            year(pair.current, first: false),
-          ],
+        // Earlier "vs" later; one year alone until there are two. The
+        // earlier one is always the light green bars.
+        AdminYearCompare(
+          firstYear: firstYear,
+          lastYear: lastYear,
+          earlier: earlier,
+          later: later,
+          height: height,
+          onChanged: (pair) => setState(() {
+            _earlier = pair.previous;
+            _later = pair.current;
+          }),
         ),
         AdminCommoditySearchField(
           // Shows the product now shown.
@@ -1133,7 +1143,8 @@ class AdminPriceTrendSection extends StatefulWidget {
 }
 
 class _AdminPriceTrendSectionState extends State<AdminPriceTrendSection> {
-  // The pair the Admin picked; the newest until then.
+  // The years the Admin picked; this year against the one before until
+  // then.
   YearPair? _picked;
   late Stream<List<Map<String, dynamic>>> _reference = _referenceHistory();
 
@@ -1182,14 +1193,23 @@ class _AdminPriceTrendSectionState extends State<AdminPriceTrendSection> {
         );
         final unit = prices.unit;
         final now = widget.now ?? DateTime.now();
-        final pairs = PriceTrendService.yearPairs(
-          PriceTrendService.yearsOnRecord(widget.completedOrders, now),
+        final years = PriceTrendService.yearsOnRecord(
+          widget.completedOrders,
+          now,
         );
+        final picked = _picked;
+        bool offered(int y) => years.contains(y);
         // Null while there is one year on record: that year alone.
-        final YearPair? pair = pairs.contains(_picked)
-            ? _picked
-            : (pairs.isEmpty ? null : pairs.last);
-        final year = pair?.current ?? now.year;
+        final YearPair? pair =
+            picked != null &&
+                offered(picked.previous) &&
+                offered(picked.current) &&
+                picked.previous < picked.current
+            ? picked
+            : (years.length < 2
+                  ? null
+                  : (previous: years.last - 1, current: years.last));
+        final year = pair?.current ?? years.last;
         final previous = pair == null
             ? null
             : PriceTrendService.monthlyAverages(prices.points, pair.previous);
@@ -1235,19 +1255,15 @@ class _AdminPriceTrendSectionState extends State<AdminPriceTrendSection> {
               'Average ${widget.commodity} price per $unit each '
               'month — from farmer listings and sales, and Admin '
               'reference and imported prices',
-          // The year shown, in the same pill, until there is a second.
-          trailing: pair == null
-              ? AdminPillDropdown<int>(
-                  value: year,
-                  icon: Icons.date_range_outlined,
-                  items: [DropdownMenuItem(value: year, child: Text('$year'))],
-                  onChanged: (_) {},
-                )
-              : AdminYearPairPicker(
-                  pairs: pairs,
-                  value: pair,
-                  onChanged: (picked) => setState(() => _picked = picked),
-                ),
+          // The same year calendars as Market Demand.
+          trailing: AdminYearCompare(
+            firstYear: years.first,
+            lastYear: years.last,
+            earlier: pair?.previous,
+            later: year,
+            height: AdminMarketDemandCard.controlHeight,
+            onChanged: (picked) => setState(() => _picked = picked),
+          ),
         );
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.start,

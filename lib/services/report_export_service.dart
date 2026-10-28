@@ -47,6 +47,7 @@ class ReportExportService {
     required DateTimeRange? range,
     required String reportTitle,
     required bool landscape,
+    ReportPaper paper = ReportPaper.a4,
     required bool includeDataTables,
     required String notes,
     // Told what the export is doing at each step, to show the Admin.
@@ -161,6 +162,7 @@ class ReportExportService {
           dateRangeLabel: rangeLabel,
           notes: notes,
           landscape: landscape,
+          paper: paper,
           includeDataTables: includeDataTables,
           keyFindings: keyFindings,
           sections: reportSections,
