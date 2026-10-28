@@ -4,8 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/location_permission_prompt.dart';
-import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 // The chat composer and its attachment menu, shared by the Farmer and Buyer
 // chat screen (ChatScreen).
@@ -182,8 +182,8 @@ class ChatMessagesLoadingBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(2),
         child: LinearProgressIndicator(
           minHeight: 2.5,
-          color: AppTheme.dark.withValues(alpha: 0.55),
-          backgroundColor: AppTheme.dark.withValues(alpha: 0.08),
+          color: AppColors.brand.withValues(alpha: 0.55),
+          backgroundColor: AppColors.brandFill.withValues(alpha: 0.08),
         ),
       ),
     ),
@@ -234,8 +234,8 @@ class ChatSuggestionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     return Material(
-      color: AppTheme.tint,
-      shape: const StadiumBorder(side: BorderSide(color: Color(0xFFDCEDC8))),
+      color: AppColors.tint,
+      shape: StadiumBorder(side: BorderSide(color: AppColors.accent)),
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: enabled ? () => onTap!(context) : null,
@@ -247,7 +247,7 @@ class ChatSuggestionChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: enabled ? AppTheme.dark : Colors.grey[500],
+                color: enabled ? AppColors.brand : AppColors.grey(500),
               ),
               const SizedBox(width: 6),
               Flexible(
@@ -256,7 +256,7 @@ class ChatSuggestionChip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: enabled ? AppTheme.dark : Colors.grey[500],
+                    color: enabled ? AppColors.brand : AppColors.grey(500),
                   ),
                 ),
               ),
@@ -299,9 +299,9 @@ class ChatComposerBar extends StatelessWidget {
             onPressed: sending ? null : () => onAttach(buttonContext),
             constraints: const BoxConstraints(minWidth: 40, minHeight: 42),
             padding: EdgeInsets.zero,
-            icon: const Icon(
+            icon: Icon(
               Icons.add_circle_outline_rounded,
-              color: AppTheme.dark,
+              color: AppColors.brand,
               size: 26,
             ),
           ),
@@ -318,7 +318,7 @@ class ChatComposerBar extends StatelessWidget {
               hintText: hintText,
               isDense: true,
               filled: true,
-              fillColor: const Color(0xFFF4F6F2),
+              fillColor: AppColors.adapt(const Color(0xFFF4F6F2)),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 11,
@@ -332,7 +332,7 @@ class ChatComposerBar extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Material(
-          color: sending ? Colors.grey[400] : AppTheme.dark,
+          color: sending ? AppColors.grey(400) : AppColors.brandFill,
           shape: const CircleBorder(),
           child: InkWell(
             onTap: sending ? null : onSend,

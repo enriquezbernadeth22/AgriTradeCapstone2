@@ -26,7 +26,11 @@ class PendingRegistrationProfile {
   // value instead, or a resumed farmer could get mis-registered as an
   // auto-approved buyer.
   final String role;
+  // First name + Last name, joined (see person_name.dart).
   final String fullName;
+  // The two fields as typed; null on a profile saved before they existed.
+  final String? firstName;
+  final String? lastName;
   final String? mobileNumber;
   final bool supportedProductsAcknowledged;
   // Farmer-only.
@@ -38,6 +42,8 @@ class PendingRegistrationProfile {
   const PendingRegistrationProfile({
     required this.role,
     required this.fullName,
+    this.firstName,
+    this.lastName,
     this.mobileNumber,
     this.supportedProductsAcknowledged = false,
     this.barangay,
@@ -48,6 +54,8 @@ class PendingRegistrationProfile {
   Map<String, dynamic> toJson() => {
     'role': role,
     'fullName': fullName,
+    'firstName': firstName,
+    'lastName': lastName,
     'mobileNumber': mobileNumber,
     'supportedProductsAcknowledged': supportedProductsAcknowledged,
     'barangay': barangay,
@@ -59,6 +67,8 @@ class PendingRegistrationProfile {
       PendingRegistrationProfile(
         role: json['role'] as String? ?? 'buyer',
         fullName: json['fullName'] as String? ?? '',
+        firstName: json['firstName'] as String?,
+        lastName: json['lastName'] as String?,
         mobileNumber: json['mobileNumber'] as String?,
         supportedProductsAcknowledged:
             json['supportedProductsAcknowledged'] as bool? ?? false,
@@ -233,6 +243,9 @@ class AuthService {
     required String fullName,
     required String email,
     required String role,
+    // The two name fields, stored beside the joined fullName when known.
+    String? firstName,
+    String? lastName,
     // Already in "+63XXXXXXXXXX" form (see RegisterScreen._register) — this
     // is contact info only, never used for phone-number auth/OTP.
     String? mobileNumber,
@@ -258,6 +271,10 @@ class AuthService {
         // docs/firestore-schema-migration.md).
         'fullName': fullName.trim(),
         'name': fullName.trim(),
+        if (firstName != null && firstName.trim().isNotEmpty)
+          'firstName': firstName.trim(),
+        if (lastName != null && lastName.trim().isNotEmpty)
+          'lastName': lastName.trim(),
         'email': email.trim(),
         if (mobileNumber != null && mobileNumber.isNotEmpty)
           'mobileNumber': mobileNumber,
@@ -286,7 +303,7 @@ class AuthService {
       }, SetOptions(merge: true));
 
       // What the farmer submitted for the admin to review: a certificate
-      // image (older registrations, Google sign-up) or an RSBA number.
+      // image (older registrations, Google sign-up) or an RSBSA number.
       if (isFarmer && (certificateUrl != null || rsba.isNotEmpty)) {
         await FirebaseFirestore.instance
             .collection('verificationDocs')
@@ -582,6 +599,9 @@ class AuthService {
     required String fullName,
     required String email,
     required String role,
+    // The two name fields, stored beside the joined fullName when known.
+    String? firstName,
+    String? lastName,
     String? photoUrl,
     // Already in "+63XXXXXXXXXX" form — see signUp's mobileNumber doc.
     String? mobileNumber,
@@ -595,6 +615,10 @@ class AuthService {
       await _users.doc(uid).set({
         'fullName': fullName.trim(),
         'name': fullName.trim(),
+        if (firstName != null && firstName.trim().isNotEmpty)
+          'firstName': firstName.trim(),
+        if (lastName != null && lastName.trim().isNotEmpty)
+          'lastName': lastName.trim(),
         'email': email.trim(),
         if (mobileNumber != null && mobileNumber.isNotEmpty)
           'mobileNumber': mobileNumber,

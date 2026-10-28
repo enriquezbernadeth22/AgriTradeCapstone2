@@ -1,6 +1,7 @@
 import '../services/connectivity_service.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Shown instead of the app whenever a real internet connection could not
 /// be confirmed — at launch (see AppBootstrap) and any time a routing
@@ -27,7 +28,7 @@ class NoInternetScreen extends StatelessWidget {
     // instead of telling them to check their Wi-Fi.
     final serverIssue = ConnectivityService.instance.lastKnownOnline == true;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -35,11 +36,7 @@ class NoInternetScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.cloud_off_rounded,
-                  size: 72,
-                  color: AppTheme.dark,
-                ),
+                Icon(Icons.cloud_off_rounded, size: 72, color: AppColors.brand),
                 const SizedBox(height: 20),
                 Text(
                   serverIssue ? 'Can\'t connect right now' : 'You\'re offline',
@@ -53,10 +50,10 @@ class NoInternetScreen extends StatelessWidget {
                             'be reached.'
                       : message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     height: 1.4,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -68,7 +65,7 @@ class NoInternetScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.4,
-                    color: Colors.grey[600],
+                    color: AppColors.grey(600),
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -88,7 +85,7 @@ class NoInternetScreen extends StatelessWidget {
                         : const Icon(Icons.refresh_rounded),
                     label: Text(checking ? 'Checking…' : 'Try Again'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.dark,
+                      backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: const StadiumBorder(),

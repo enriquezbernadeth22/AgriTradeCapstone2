@@ -2,6 +2,8 @@ import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme/theme_controller.dart';
+import '../widgets/feedback_sheet.dart';
 import '../widgets/page_header.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/profile_menu.dart';
@@ -14,6 +16,7 @@ import 'notification_preferences_screen.dart';
 import 'buyer_fulfillment_preferences_screen.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The buyer's Profile tab. Same look as the farmer's (header, the
 /// avatar with its edit badge, name, then role-specific content), with
@@ -42,8 +45,6 @@ class BuyerProfileScreen extends StatefulWidget {
 }
 
 class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
-  static const Color _dark = AppTheme.dark;
-
   final String? _uid = FirebaseAuth.instance.currentUser?.uid;
 
   // Created once, not in build(), so a rebuild doesn't resubscribe.
@@ -94,7 +95,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _dark,
+                color: AppColors.brandFill,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
@@ -118,7 +119,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
         PageHeader(title: tr(context).navProfile, includeTitle: false),
         Expanded(
           child: AgriRefreshIndicator(
-            color: _dark,
+            color: AppColors.brand,
             onRefresh: _refreshData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -171,7 +172,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                                   Icon(
                                     Icons.place_outlined,
                                     size: 15,
-                                    color: Colors.grey[600],
+                                    color: AppColors.grey(600),
                                   ),
                                   const SizedBox(width: 3),
                                   Flexible(
@@ -181,7 +182,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.grey[700],
+                                        color: AppColors.grey(700),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -224,12 +225,24 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                     label: t.notificationSettings,
                     onTap: () => _open(const NotificationPreferencesScreen()),
                   ),
+                  // Follows the phone until switched here.
+                  ProfileSwitchTile(
+                    icon: Icons.dark_mode_outlined,
+                    label: t.darkMode,
+                    value: AppColors.isDark,
+                    onChanged: ThemeController.instance.setDark,
+                  ),
                   ProfileLinkTile(
                     icon: Icons.manage_accounts_outlined,
                     label: t.manageAccount,
                     onTap: () => _open(const ManageAccountScreen()),
                   ),
                   ProfileSectionLabel(t.sectionSupport),
+                  ProfileLinkTile(
+                    icon: Icons.rate_review_outlined,
+                    label: t.sendFeedback,
+                    onTap: () => showFeedbackSheet(context),
+                  ),
                   ProfileLinkTile(
                     icon: Icons.help_outline,
                     label: t.helpSupport,
@@ -283,7 +296,8 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
               decoration: BoxDecoration(
-                color: AppTheme.surface,
+                color: AppColors.surfaceAlt,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: IntrinsicHeight(
@@ -294,7 +308,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                         VerticalDivider(
                           width: 1,
                           thickness: 1,
-                          color: Colors.grey[300],
+                          color: AppColors.grey(300),
                         ),
                       Expanded(
                         child: InkWell(
@@ -307,7 +321,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                                 '${stats[i].$1}',
                                 style: AppTheme.heading(
                                   18,
-                                ).copyWith(color: _dark),
+                                ).copyWith(color: AppColors.brand),
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -317,7 +331,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[700],
+                                  color: AppColors.grey(700),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),

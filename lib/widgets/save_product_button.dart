@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/saved_products_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The Liked Products heart: an outline in dark green when the product is
 /// not liked, a filled red heart when it is, with a small bounce on tap.
@@ -51,7 +51,7 @@ class _LikeHeartState extends State<LikeHeart>
     return Tooltip(
       message: widget.liked ? 'Remove from Liked Products' : 'Like product',
       child: Material(
-        color: Colors.white,
+        color: AppColors.surface,
         shape: const CircleBorder(),
         elevation: 1.5,
         shadowColor: Colors.black.withValues(alpha: 0.35),
@@ -74,7 +74,7 @@ class _LikeHeartState extends State<LikeHeart>
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                   size: widget.size * 0.58,
-                  color: widget.liked ? LikeHeart.likedColor : AppTheme.dark,
+                  color: widget.liked ? LikeHeart.likedColor : AppColors.brand,
                 ),
               ),
             ),

@@ -68,6 +68,7 @@ extension AuditSectionInfo on AuditSection {
     AuditSection.adminActions => const [
       AuditAction.approveFarmer,
       AuditAction.rejectFarmer,
+      AuditAction.createFarmerAccount,
       AuditAction.updateBaselinePrice,
       AuditAction.deleteBaselinePrice,
       AuditAction.importBaselinePrices,

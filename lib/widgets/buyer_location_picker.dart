@@ -1,4 +1,3 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'agri_dialog.dart';
@@ -8,6 +7,7 @@ import '../data/laurel_barangays.dart';
 import '../data/ph_locations_service.dart';
 import '../services/geocoding_service.dart';
 import '../services/location_permission_prompt.dart';
+import '../theme/app_colors.dart';
 
 /// What the buyer location popup hands back — always a readable region/
 /// province/city/barangay; latitude/longitude are best-effort (see
@@ -138,7 +138,6 @@ class _BuyerLocationPopup extends StatefulWidget {
 }
 
 class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
-  static const Color _dark = AppTheme.dark;
   final _psgc = PhLocationsService.instance;
 
   List<PhRegion> _regions = const [];
@@ -619,7 +618,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: AppColors.grey(300),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -653,19 +652,19 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                     child: OutlinedButton.icon(
                       onPressed: _locating ? null : _useMyLocation,
                       icon: _locating
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: _dark,
+                                color: AppColors.brand,
                               ),
                             )
                           : const Icon(Icons.my_location),
                       label: const Text('Use My Current Location'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _dark,
-                        side: const BorderSide(color: _dark),
+                        foregroundColor: AppColors.brand,
+                        side: BorderSide(color: AppColors.brand),
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         shape: const StadiumBorder(),
                       ),
@@ -675,8 +674,8 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                     const SizedBox(height: 6),
                     Text(
                       _gpsNote!,
-                      style: const TextStyle(
-                        color: _dark,
+                      style: TextStyle(
+                        color: AppColors.brand,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -702,7 +701,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                             'Or choose manually',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: Colors.grey[600],
+                              color: AppColors.grey(600),
                             ),
                           ),
                         ),
@@ -731,10 +730,10 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                         _breadcrumb.isEmpty
                             ? 'Select your $_levelLabel'
                             : '${_breadcrumb.join(' › ')} — Select $_levelLabel',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -762,22 +761,22 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
       decoration: BoxDecoration(
-        color: _dark.withValues(alpha: 0.06),
+        color: AppColors.brandFill.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _dark.withValues(alpha: 0.25)),
+        border: Border.all(color: AppColors.brand.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.location_on, color: _dark, size: 22),
+          Icon(Icons.location_on, color: AppColors.brand, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Location detected',
                   style: TextStyle(
-                    color: _dark,
+                    color: AppColors.brand,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -795,14 +794,17 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                   _detectedBarangayCode != null
                       ? 'Please confirm your barangay'
                       : 'Choose your barangay to confirm',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
           TextButton(
             onPressed: () => setState(() => _detected = false),
-            style: TextButton.styleFrom(foregroundColor: _dark),
+            style: TextButton.styleFrom(foregroundColor: AppColors.brand),
             child: const Text('Change'),
           ),
         ],
@@ -814,7 +816,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
     // While detecting, the lists stay out of sight: a detected location
     // goes straight to its barangays, never back through the regions.
     if (_confirming || _loadingList || _locating) {
-      return const Center(child: CircularProgressIndicator(color: _dark));
+      return Center(child: CircularProgressIndicator(color: AppColors.brand));
     }
     if (_listError != null) {
       return Center(
@@ -823,12 +825,12 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off, size: 36, color: Colors.black38),
+              Icon(Icons.wifi_off, size: 36, color: AppColors.textMuted),
               const SizedBox(height: 10),
               Text(
                 _listError!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.black54),
+                style: TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
@@ -886,10 +888,10 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
     bool Function(T)? isDetected,
   }) {
     if (items.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'No entries found.',
-          style: TextStyle(color: Colors.black45),
+          style: TextStyle(color: AppColors.textMuted),
         ),
       );
     }
@@ -901,7 +903,9 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
         final item = items[i];
         final detected = isDetected?.call(item) ?? false;
         return ListTile(
-          tileColor: detected ? _dark.withValues(alpha: 0.06) : null,
+          tileColor: detected
+              ? AppColors.brandFill.withValues(alpha: 0.06)
+              : null,
           title: Text(
             label(item),
             style: TextStyle(
@@ -910,14 +914,14 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
             ),
           ),
           subtitle: detected
-              ? const Text(
+              ? Text(
                   'Detected — tap to confirm',
-                  style: TextStyle(fontSize: 11.5, color: _dark),
+                  style: TextStyle(fontSize: 11.5, color: AppColors.brand),
                 )
               : null,
-          trailing: const Icon(
+          trailing: Icon(
             Icons.chevron_right,
-            color: Colors.grey,
+            color: AppColors.grey(),
             size: 20,
           ),
           onTap: () => onTap(item),

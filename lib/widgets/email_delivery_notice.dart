@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The "can't find the email?" note shown after the app has asked for an
 /// account email (password reset link, verification code): a rounded pale
@@ -23,14 +23,14 @@ class EmailDeliveryNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppTheme.accent.withValues(alpha: 0.35),
+        color: AppColors.accent.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.mid.withValues(alpha: 0.18)),
+        border: Border.all(color: AppColors.mid.withValues(alpha: 0.18)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, size: 18, color: AppTheme.mid),
+          Icon(Icons.info_outline, size: 18, color: AppColors.mid),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -38,7 +38,7 @@ class EmailDeliveryNotice extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 12.5,
                 height: 1.45,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
           ),

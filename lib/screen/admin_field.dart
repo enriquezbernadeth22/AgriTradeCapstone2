@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 /// its name alone: the [decoration]'s labelText becomes the name above,
 /// its hintText the hint inside, its helperText the line under.
 ///
-/// Search boxes keep their own, plainer pill (adminPillDecoration).
+/// Search boxes use the same look (AdminInputGlow).
 class AdminField extends StatefulWidget {
   final TextEditingController controller;
   final InputDecoration decoration;
@@ -27,6 +27,12 @@ class AdminField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final bool autofocus;
 
+  /// Hides what is typed (a password).
+  final bool obscureText;
+
+  /// How the keyboard capitalizes (words, for a name).
+  final TextCapitalization textCapitalization;
+
   const AdminField({
     super.key,
     required this.controller,
@@ -41,6 +47,8 @@ class AdminField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.autofocus = false,
+    this.obscureText = false,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -99,6 +107,8 @@ class _AdminFieldState extends State<AdminField> {
         focusNode: _focusNode,
         enabled: widget.enabled,
         autofocus: widget.autofocus,
+        obscureText: widget.obscureText,
+        textCapitalization: widget.textCapitalization,
         minLines: widget.minLines,
         maxLines: widget.maxLines,
         maxLength: max,
@@ -117,6 +127,13 @@ class _AdminFieldState extends State<AdminField> {
             color: scheme.onSurface.withValues(alpha: 0.42),
           ),
           suffixIcon: decoration.suffixIcon,
+          // A fixed start to the text, e.g. "+63 " on a mobile number.
+          prefixText: decoration.prefixText,
+          prefixStyle: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurface,
+          ),
           // The plate around it is the field's shape and colour.
           filled: false,
           isDense: true,
@@ -238,11 +255,11 @@ class AdminFieldFrame extends StatelessWidget {
               )
             : (enabled ? Colors.white : const Color(0xFFF4F5F1)),
         borderRadius: radius,
-        border: Border.all(
-          color: focused
-              ? scheme.primary.withValues(alpha: 0.55)
-              : scheme.onSurface.withValues(alpha: 0.07),
-        ),
+        // No outline, like the Admin login's fields — the shadow and the
+        // green glow while typing set it apart (an outline only in dark).
+        border: dark
+            ? Border.all(color: scheme.onSurface.withValues(alpha: 0.12))
+            : null,
         boxShadow: focused
             ? [
                 BoxShadow(

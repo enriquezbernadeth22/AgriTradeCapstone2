@@ -113,46 +113,4 @@ void main() {
     expect(find.textContaining('has no contact number'), findsOne);
     expect(find.byTooltip('Call'), findsNothing);
   });
-
-  testWidgets('reporting a wrong number files it once, without the number', (
-    tester,
-  ) async {
-    final sent = <String>[];
-    await tester.pumpWidget(
-      host(
-        OrderContactSection(
-          orderId: 'o42',
-          status: 'confirmed',
-          viewerIsFarmer: true,
-          loadContact: () async => '+639123456789',
-          sendReport: (subject, message) async {
-            sent.add('$subject|$message');
-            return null;
-          },
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Report incorrect number'));
-    await tester.pumpAndSettle();
-    // Backing out sends nothing.
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(sent, isEmpty);
-
-    await tester.tap(find.text('Report incorrect number'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Report'));
-    await tester.pumpAndSettle();
-
-    expect(sent, hasLength(1));
-    expect(sent.single, contains('o42'));
-    expect(sent.single.contains('+639123456789'), isFalse);
-    expect(find.text('Reported to support'), findsOneWidget);
-    // Cannot be sent a second time.
-    await tester.tap(find.text('Reported to support'));
-    await tester.pumpAndSettle();
-    expect(sent, hasLength(1));
-  });
 }

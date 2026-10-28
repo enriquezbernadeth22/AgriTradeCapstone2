@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// "Public Location Preview" on farmer registration: once a barangay is
 /// chosen, exactly what buyers will see — the barangay, then the
@@ -26,9 +26,9 @@ class PublicLocationPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppTheme.accent.withValues(alpha: 0.28),
+        color: AppColors.accent.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.accent),
+        border: Border.all(color: AppColors.accent),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -40,18 +40,18 @@ class PublicLocationPreview extends StatelessWidget {
               Container(
                 width: 28,
                 height: 28,
-                decoration: const BoxDecoration(
-                  color: AppTheme.accent,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.visibility_outlined,
                   size: 16,
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -61,7 +61,7 @@ class PublicLocationPreview extends StatelessWidget {
                         fontFamily: _font,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                       ),
                     ),
                     Text(
@@ -70,7 +70,7 @@ class PublicLocationPreview extends StatelessWidget {
                         fontFamily: _font,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,
-                        color: Colors.black54,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -83,11 +83,12 @@ class PublicLocationPreview extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
+              border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x0F0E3210),
+                  color: AppColors.adapt(const Color(0x0F0E3210)),
                   blurRadius: 6,
                   offset: Offset(0, 2),
                 ),
@@ -95,11 +96,7 @@ class PublicLocationPreview extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.location_on_rounded,
-                  size: 22,
-                  color: AppTheme.mid,
-                ),
+                Icon(Icons.location_on_rounded, size: 22, color: AppColors.mid),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -107,21 +104,21 @@ class PublicLocationPreview extends StatelessWidget {
                     children: [
                       Text(
                         barangay,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: _font,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.dark,
+                          color: AppColors.brand,
                         ),
                       ),
                       const SizedBox(height: 1),
                       Text(
                         '$municipality, $province',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: _font,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -132,7 +129,7 @@ class PublicLocationPreview extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           // What stays private.
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
@@ -140,7 +137,7 @@ class PublicLocationPreview extends StatelessWidget {
                 child: Icon(
                   Icons.lock_outline_rounded,
                   size: 14,
-                  color: Colors.black45,
+                  color: AppColors.textMuted,
                 ),
               ),
               SizedBox(width: 6),
@@ -150,7 +147,7 @@ class PublicLocationPreview extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: _font,
                     fontSize: 11.5,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                     height: 1.35,
                   ),
                 ),

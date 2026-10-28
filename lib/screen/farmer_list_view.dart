@@ -10,6 +10,7 @@ import '../services/dashboard_analytics_service.dart';
 import '../services/dashboard_data_service.dart';
 import '../services/market_price_helpers.dart';
 import '../services/pdf_report_service.dart';
+import 'admin_add_farmer_dialog.dart';
 import 'admin_dashboard_screen.dart'
     show
         AdminPalette,
@@ -64,7 +65,7 @@ class _FarmerListRow {
       : '—';
   Timestamp? get reviewedAt => data['reviewedAt'] as Timestamp?;
 
-  /// The farmer's RSBA number (see farmerIdOf), or "Not provided".
+  /// The farmer's RSBSA number (see farmerIdOf), or "Not provided".
   String get farmerId => farmerIdOf(data) ?? kNoFarmerId;
 }
 
@@ -319,6 +320,15 @@ class _FarmerListViewState extends State<FarmerListView> with AdminPageSearch {
                                 label: 'Export Report',
                                 onPressed: _exporting ? () {} : _export,
                               ),
+                              const SizedBox(width: 8),
+                              // A farmer the office verified in person,
+                              // added already approved.
+                              AdminQuickActionButton(
+                                icon: Icons.person_add_alt_1_outlined,
+                                label: 'Add Farmer',
+                                filled: true,
+                                onPressed: () => showAddFarmerDialog(context),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -396,7 +406,6 @@ class _FarmerListFilterBar extends StatelessWidget {
       children: [
         AdminPillDropdown<String>(
           value: barangayFilter,
-          width: 190,
           icon: Icons.place_outlined,
           items: [
             for (final b in barangayOptions)
@@ -409,7 +418,6 @@ class _FarmerListFilterBar extends StatelessWidget {
         ),
         AdminPillDropdown<_SortOption>(
           value: sort,
-          width: 240,
           icon: Icons.sort,
           items: [
             for (final e in _sortLabels.entries)
@@ -447,7 +455,7 @@ class _FarmerListTable extends StatelessWidget {
             fontSize: 13,
           ),
           columns: const [
-            DataColumn(label: Text('RSBA No.')),
+            DataColumn(label: Text('RSBSA No.')),
             DataColumn(label: Text('Full Name')),
             DataColumn(label: Text('Email')),
             DataColumn(label: Text('Barangay')),
@@ -741,7 +749,7 @@ class _FarmerListDetailDialogState extends State<_FarmerListDetailDialog>
                           children: [
                             Flexible(
                               child: Text(
-                                'RSBA No. ${farmerId ?? kNoFarmerId}',
+                                'RSBSA No. ${farmerId ?? kNoFarmerId}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

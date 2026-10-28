@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/connectivity_service.dart';
+import '../theme/app_colors.dart';
 
 /// Wraps the whole app so it can warn the user the moment connectivity is
 /// lost while they're already inside it. AgriTrade+ requires live Firebase
@@ -70,7 +71,9 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
             child: SafeArea(
               bottom: false,
               child: Material(
-                color: _offline ? Colors.red[700] : Colors.green[700],
+                color: _offline
+                    ? AppColors.tone(Colors.red, 700)
+                    : AppColors.tone(Colors.green, 700),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: 6,

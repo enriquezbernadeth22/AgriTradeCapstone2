@@ -33,7 +33,6 @@ class ReportExportService {
   const ReportExportService._();
 
   static GlobalKey? _keyFor(DashboardSection s) => switch (s) {
-        DashboardSection.salesOverview => DashboardChartKeys.salesOverview,
         DashboardSection.salesByCategory => DashboardChartKeys.salesByCategory,
         DashboardSection.priceTrend => DashboardChartKeys.priceTrend,
         DashboardSection.newRegistrations => DashboardChartKeys.registrations,
@@ -311,7 +310,7 @@ class ReportExportService {
       final topProducts = DashboardAnalyticsService.topSellingProducts(orders, limit: 1, range: range);
       if (topProducts.isNotEmpty) {
         final p = topProducts.first;
-        findings.add('Best-selling product: ${p.name}, with ${formatPeso(p.revenue)} in sales.');
+        findings.add('Best-selling product: ${p.name}, with ${p.orders} completed ${p.orders == 1 ? 'order' : 'orders'} (${formatPeso(p.revenue)} in sales).');
       }
 
       final demand = DashboardAnalyticsService.demandByBuyerBarangay(orders, usersByUid, now, range: range);
@@ -485,12 +484,12 @@ class ReportExportService {
     final total = products.fold<num>(0, (acc, p) => acc + p.revenue);
     return ReportSection(
       title: 'Top-Selling Products',
-      headers: const ['Product', 'Quantity Sold', 'Revenue', 'Share of Sales'],
+      headers: const ['Product', 'Completed Orders', 'Quantity Sold', 'Revenue', 'Share of Sales'],
       rows: [
-        for (final p in products) [p.name, p.quantity, formatPeso(p.revenue), _share(p.revenue, total)],
+        for (final p in products) [p.name, p.orders, p.quantity, formatPeso(p.revenue), _share(p.revenue, total)],
         // Quantities are in different units (kg, pieces, heads), so they
         // are not added up.
-        if (products.isNotEmpty) ['Total', '—', formatPeso(total), '100%'],
+        if (products.isNotEmpty) ['Total', products.fold<int>(0, (acc, p) => acc + p.orders), '—', formatPeso(total), '100%'],
       ],
     );
   }
@@ -565,7 +564,7 @@ class ReportExportService {
     final rows = DashboardAnalyticsService.recentVerifications(verifDocs, usersByUid, range: range, limit: null);
     return ReportSection(
       title: 'Recent Verification Requests',
-      headers: const ['RSBA No.', 'Full Name', 'Barangay', 'Date Submitted', 'Status'],
+      headers: const ['RSBSA No.', 'Full Name', 'Barangay', 'Date Submitted', 'Status'],
       rows: rows.map((v) => [v.farmerId, v.fullName, v.barangay, v.dateSubmitted, v.status]).toList(),
     );
   }

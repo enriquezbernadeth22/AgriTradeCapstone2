@@ -241,7 +241,7 @@ const PolicyDocument kPrivacyPolicy = PolicyDocument(
             'allow it — the precise coordinates of your farm or your '
             'location.',
         'Marketplace activity: listings, orders, receipts, reviews, saved '
-            'products, reports and support requests.',
+            'products and reports.',
         'Messages: conversation messages, photos and any location you '
             'choose to share in a conversation, plus whether you are online '
             'or typing.',
@@ -399,7 +399,7 @@ const PolicyDocument kAdminGuidelines = PolicyDocument(
       points: [
         'Open user accounts, verification documents, orders and locations '
             'only when your work requires it: reviewing an '
-            'application, a report, an order issue or a support request.',
+            'application, a report or an order issue.',
         'Do not look up people out of curiosity or for personal reasons.',
       ],
     ),

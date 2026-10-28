@@ -5,8 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The one popup design for the whole AgriTrade+ mobile app (Farmer and
 /// Buyer): a frosted card — ~88% white over a light blur, thin light
@@ -33,9 +33,9 @@ enum AgriTone {
 }
 
 Color agriToneColor(AgriTone tone) => switch (tone) {
-  AgriTone.normal => AppTheme.dark,
-  AgriTone.warning => Colors.orange.shade800,
-  AgriTone.destructive => Colors.red.shade700,
+  AgriTone.normal => AppColors.brand,
+  AgriTone.warning => AppColors.tone(Colors.orange, 800),
+  AgriTone.destructive => AppColors.tone(Colors.red, 700),
 };
 
 /// The frosted surface every popup sits on.
@@ -68,9 +68,13 @@ class AgriFrostedCard extends StatelessWidget {
           filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.88),
+              color: AppColors.surface.withValues(alpha: 0.88),
               borderRadius: borderRadius,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+              border: Border.all(
+                color: AppColors.isDark
+                    ? AppColors.outline
+                    : Colors.white.withValues(alpha: 0.9),
+              ),
             ),
             child: Material(type: MaterialType.transparency, child: child),
           ),
@@ -123,7 +127,7 @@ class AgriDialog extends StatelessWidget {
             textAlign: centered ? TextAlign.center : TextAlign.start,
             style: GoogleFonts.montserrat(
               fontSize: 13,
-              color: Colors.black87,
+              color: AppColors.text,
               height: 1.45,
             ),
             child: content!,
@@ -156,7 +160,7 @@ class AgriDialog extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     color: tone == AgriTone.normal
-                        ? AppTheme.accent
+                        ? AppColors.accent
                         : toneColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
@@ -170,7 +174,7 @@ class AgriDialog extends StatelessWidget {
                   style: GoogleFonts.montserrat(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                   child: title!,
                 ),
@@ -353,7 +357,7 @@ class AgriDialogButton extends StatelessWidget {
               strokeWidth: 2,
               color: kind == AgriButtonKind.primary
                   ? Colors.white
-                  : AppTheme.dark,
+                  : AppColors.brand,
             ),
           )
         : Text(label, textAlign: TextAlign.center, style: textStyle);
@@ -364,11 +368,11 @@ class AgriDialogButton extends StatelessWidget {
         return ElevatedButton(
           onPressed: tap,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.dark,
+            backgroundColor: AppColors.brandFill,
             foregroundColor: Colors.white,
             // Not ready yet (e.g. the code is not complete): a faded green,
             // still the same button, instead of a grey one.
-            disabledBackgroundColor: AppTheme.dark.withValues(alpha: 0.35),
+            disabledBackgroundColor: AppColors.brand.withValues(alpha: 0.35),
             disabledForegroundColor: Colors.white,
             elevation: 0,
             padding: padding,
@@ -382,9 +386,9 @@ class AgriDialogButton extends StatelessWidget {
         return OutlinedButton(
           onPressed: tap,
           style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.white.withValues(alpha: 0.6),
-            foregroundColor: AppTheme.dark,
-            side: const BorderSide(color: AppTheme.dark, width: 1.2),
+            backgroundColor: AppColors.surface.withValues(alpha: 0.6),
+            foregroundColor: AppColors.brand,
+            side: BorderSide(color: AppColors.brand, width: 1.2),
             padding: padding,
             minimumSize: minimumSize,
             tapTargetSize: tapTargetSize,
@@ -396,11 +400,14 @@ class AgriDialogButton extends StatelessWidget {
         return ElevatedButton(
           onPressed: tap,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade50,
-            foregroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.tone(Colors.red, 50),
+            foregroundColor: AppColors.tone(Colors.red, 700),
             // A red outline, like the green one on the secondary button,
             // so it reads as a button (Remove, Log Out, Delete…).
-            side: BorderSide(color: Colors.red.shade700, width: 1.2),
+            side: BorderSide(
+              color: AppColors.tone(Colors.red, 700),
+              width: 1.2,
+            ),
             elevation: 0,
             padding: padding,
             minimumSize: minimumSize,
@@ -552,7 +559,7 @@ class AgriSheetFrame extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.black12,
+                    color: AppColors.hairline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -565,7 +572,7 @@ class AgriSheetFrame extends StatelessWidget {
                     style: GoogleFonts.montserrat(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.dark,
+                      color: AppColors.brand,
                     ),
                   ),
                 )
@@ -597,7 +604,9 @@ class AgriSheetAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? Colors.red.shade700 : AppTheme.dark;
+    final color = destructive
+        ? AppColors.tone(Colors.red, 700)
+        : AppColors.brand;
     return ListTile(
       leading: Icon(icon, color: color),
       title: Text(
@@ -605,7 +614,7 @@ class AgriSheetAction extends StatelessWidget {
         style: GoogleFonts.montserrat(
           fontWeight: FontWeight.w600,
           fontSize: 14,
-          color: destructive ? color : Colors.black87,
+          color: destructive ? color : AppColors.text,
         ),
       ),
       onTap: onTap,
@@ -670,7 +679,7 @@ Future<T?> showAgriPopupMenu<T>({
               for (final item in items)
                 _AgriMenuRow(
                   item: item,
-                  labelColor: upward ? AppTheme.dark : null,
+                  labelColor: upward ? AppColors.brand : null,
                   onTap: () => Navigator.pop(dialogContext, item.value),
                 ),
             ],
@@ -719,7 +728,7 @@ Future<T?> showAgriPopupMenu<T>({
             left: anchor.center.dx - pointerWidth / 2,
             child: CustomPaint(
               size: const Size(pointerWidth, pointerHeight),
-              painter: _MenuPointerPainter(),
+              painter: _MenuPointerPainter(AppColors.surface),
             ),
           ),
         ],
@@ -751,6 +760,9 @@ Future<T?> showAgriPopupMenu<T>({
 
 /// The little downward triangle linking an upward menu to its button.
 class _MenuPointerPainter extends CustomPainter {
+  final Color color;
+  _MenuPointerPainter(this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path()
@@ -758,14 +770,12 @@ class _MenuPointerPainter extends CustomPainter {
       ..lineTo(size.width, 0)
       ..lineTo(size.width / 2, size.height)
       ..close();
-    canvas.drawPath(
-      path,
-      Paint()..color = Colors.white.withValues(alpha: 0.94),
-    );
+    canvas.drawPath(path, Paint()..color = color.withValues(alpha: 0.94));
   }
 
   @override
-  bool shouldRepaint(_MenuPointerPainter oldDelegate) => false;
+  bool shouldRepaint(_MenuPointerPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _AgriMenuRow<T> extends StatelessWidget {
@@ -781,7 +791,9 @@ class _AgriMenuRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = item.destructive ? Colors.red.shade700 : AppTheme.dark;
+    final color = item.destructive
+        ? AppColors.tone(Colors.red, 700)
+        : AppColors.brand;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -798,7 +810,7 @@ class _AgriMenuRow<T> extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: item.destructive
                       ? color
-                      : labelColor ?? Colors.black87,
+                      : labelColor ?? AppColors.text,
                 ),
               ),
             ),

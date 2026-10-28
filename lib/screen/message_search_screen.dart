@@ -1,13 +1,14 @@
 import '../widgets/agri_app_bar.dart';
-import '../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/conversation_prefs_service.dart';
 import '../services/message_search_history_service.dart';
 import '../services/message_service.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/profile_avatar.dart';
 import 'chat_navigation.dart';
+import '../theme/app_colors.dart';
 
 /// The dedicated Messages search experience — opened by tapping the (non-
 /// editable) search bar on the Messages tab. Same screen for Farmer and
@@ -21,10 +22,9 @@ class MessageSearchScreen extends StatefulWidget {
 }
 
 class _MessageSearchScreenState extends State<MessageSearchScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _bg = Colors.white;
-
   final MessageService _messageService = MessageService();
+  // Nicknames, as on the Messages list.
+  final ConversationPrefs _prefs = ConversationPrefs.instance;
   final MessageSearchHistoryService _historyService =
       MessageSearchHistoryService();
   final TextEditingController _controller = TextEditingController();
@@ -105,10 +105,13 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
     return names[_otherUid(data)]?.toString() ?? 'User';
   }
 
-  bool _matches(Map<String, dynamic> data, String term) {
+  // A conversation matches by the other person's name, the nickname this
+  // user gave them, its last message or its product.
+  bool _matches(String conversationId, Map<String, dynamic> data, String term) {
     final needle = term.trim().toLowerCase();
     if (needle.isEmpty) return false;
     return _otherName(data).toLowerCase().contains(needle) ||
+        _prefs.displayName(conversationId, '').toLowerCase().contains(needle) ||
         (data['lastMessage']?.toString() ?? '').toLowerCase().contains(
           needle,
         ) ||
@@ -118,7 +121,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(
         titleWidget: Padding(
           padding: const EdgeInsets.only(right: 12),
@@ -158,12 +161,12 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
 
           if (_query.isNotEmpty) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: _dark),
+              return Center(
+                child: CircularProgressIndicator(color: AppColors.brand),
               );
             }
             final results = docs
-                .where((doc) => _matches(doc.data(), _query))
+                .where((doc) => _matches(doc.id, doc.data(), _query))
                 .toList();
             if (results.isEmpty) return _noResults();
             return ListView(
@@ -178,8 +181,9 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
           // conversations those searches match.
           final fromRecent = docs
               .where(
-                (doc) =>
-                    _recentSearches.any((term) => _matches(doc.data(), term)),
+                (doc) => _recentSearches.any(
+                  (term) => _matches(doc.id, doc.data(), term),
+                ),
               )
               .toList();
 
@@ -194,7 +198,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
                   TextButton(
                     onPressed: _clearRecent,
                     style: TextButton.styleFrom(
-                      foregroundColor: _dark,
+                      foregroundColor: AppColors.brand,
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
@@ -223,10 +227,10 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: AppColors.text,
         ),
       ),
     );
@@ -240,20 +244,20 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
         padding: const EdgeInsets.only(left: 4),
         child: Row(
           children: [
-            Icon(Icons.history, size: 20, color: Colors.grey[500]),
+            Icon(Icons.history, size: 20, color: AppColors.grey(500)),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 term,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                style: TextStyle(fontSize: 14, color: AppColors.text),
               ),
             ),
             IconButton(
               tooltip: 'Remove',
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.close, size: 18, color: Colors.grey[500]),
+              icon: Icon(Icons.close, size: 18, color: AppColors.grey(500)),
               onPressed: () => _removeRecent(term),
             ),
           ],
@@ -305,7 +309,8 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -324,13 +329,14 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          name,
+                          // The nickname, if one is set, as on the list.
+                          _prefs.displayName(conversationId, name),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: AppColors.text,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -340,7 +346,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                           ),
                         ),
                       ],
@@ -378,18 +384,18 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 44, color: Colors.grey[400]),
+            Icon(icon, size: 44, color: AppColors.grey(400)),
             const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 14, color: AppColors.grey(700)),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 12.5, color: AppColors.grey(500)),
             ),
           ],
         ),

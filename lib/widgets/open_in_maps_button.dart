@@ -1,6 +1,6 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/app_colors.dart';
 
 // ============================================================
 // Shared launcher — the one place that actually opens Google Maps.
@@ -55,8 +55,6 @@ class OpenInMapsButton extends StatelessWidget {
     this.farmerName = 'Farmer',
   });
 
-  static const Color _dark = AppTheme.dark;
-
   @override
   Widget build(BuildContext context) {
     final hasLocation = latitude != null && longitude != null;
@@ -65,21 +63,21 @@ class OpenInMapsButton extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          color: AppTheme.tint,
+          color: AppColors.tint,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _dark.withValues(alpha: 0.2)),
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
             Icon(
               Icons.location_off_outlined,
-              color: Colors.grey[500],
+              color: AppColors.grey(500),
               size: 20,
             ),
             const SizedBox(width: 10),
             Text(
               'Location not shared yet',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 13),
             ),
           ],
         ),
@@ -97,8 +95,8 @@ class OpenInMapsButton extends StatelessWidget {
         icon: const Icon(Icons.map_outlined, size: 20),
         label: Text("View $farmerName's Location"),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _dark,
-          side: const BorderSide(color: _dark),
+          foregroundColor: AppColors.brand,
+          side: BorderSide(color: AppColors.brand),
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: const StadiumBorder(),
         ),
@@ -131,8 +129,6 @@ class MapPinIconButton extends StatelessWidget {
     this.color,
   });
 
-  static const Color _dark = AppTheme.dark;
-
   @override
   Widget build(BuildContext context) {
     final hasLocation = latitude != null && longitude != null;
@@ -141,7 +137,7 @@ class MapPinIconButton extends StatelessWidget {
       icon: Icon(
         Icons.location_on,
         size: size,
-        color: hasLocation ? (color ?? _dark) : Colors.grey.shade400,
+        color: hasLocation ? (color ?? AppColors.brand) : AppColors.grey(400),
       ),
       tooltip: hasLocation
           ? "View $farmerName's location"

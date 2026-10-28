@@ -9,6 +9,7 @@ import 'agri_dialog.dart';
 import 'agri_form_field.dart';
 import 'otp_code_field.dart';
 import 'password_requirements.dart';
+import '../theme/app_colors.dart';
 
 /// Shared "change password" flow for logged-in farmers, buyers, and
 /// admins, in two steps:
@@ -183,7 +184,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     child: Text(
       _error!,
       textAlign: TextAlign.center,
-      style: AppTheme.body(size: 12, color: Colors.red.shade700),
+      style: AppTheme.body(size: 12, color: AppColors.tone(Colors.red, 700)),
     ),
   );
 
@@ -259,7 +260,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                       height: 24,
                       child: Checkbox(
                         value: !_obscure,
-                        activeColor: AppTheme.dark,
+                        activeColor: AppColors.brandFill,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6),
                         ),
@@ -280,7 +281,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
             Text(
               'We will email a 6-digit code to your login email to confirm '
               'it is you.',
-              style: AppTheme.body(size: 12, color: Colors.grey.shade600),
+              style: AppTheme.body(size: 12, color: AppColors.grey(600)),
             ),
             if (_error != null) _errorText(),
           ],
@@ -322,7 +323,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.55),
+                color: AppColors.accent.withValues(alpha: 0.55),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Text(
@@ -330,7 +331,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTheme.label().copyWith(
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -349,7 +350,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           Text(
             'Changing it logs you out on every other device.',
             textAlign: TextAlign.center,
-            style: AppTheme.body(size: 11.5, color: Colors.grey.shade600),
+            style: AppTheme.body(size: 11.5, color: AppColors.grey(600)),
           ),
           Center(
             child: TextButton.icon(
@@ -359,8 +360,8 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 _cooldown > 0 ? 'Resend code in ${_cooldown}s' : 'Resend code',
               ),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.dark,
-                disabledForegroundColor: Colors.grey.shade500,
+                foregroundColor: AppColors.brand,
+                disabledForegroundColor: AppColors.grey(500),
               ),
             ),
           ),

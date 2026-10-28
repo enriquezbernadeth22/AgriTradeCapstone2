@@ -44,7 +44,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Ellen Gonzales'), findsOneWidget);
     expect(find.text('Pending Review'), findsOneWidget);
-    for (final label in ['RSBA NO.', 'EMAIL', 'BARANGAY', 'SUBMITTED']) {
+    for (final label in ['RSBSA NO.', 'EMAIL', 'BARANGAY', 'SUBMITTED']) {
       expect(find.text(label), findsOneWidget);
     }
     expect(find.text('San Gabriel'), findsOneWidget);
@@ -53,7 +53,7 @@ void main() {
     expect(_approve(tester).onPressed, isNotNull);
   });
 
-  testWidgets('points out a shared RSBA No.; fits a narrow window', (
+  testWidgets('points out a shared RSBSA No.; fits a narrow window', (
     tester,
   ) async {
     await _pump(
@@ -68,7 +68,7 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(
-      find.text('This RSBA No. is also on another farmer account: Juan Cruz.'),
+      find.text('This RSBSA No. is also on another farmer account: Juan Cruz.'),
       findsOneWidget,
     );
   });

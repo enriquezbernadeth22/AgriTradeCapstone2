@@ -1,5 +1,5 @@
-// The Profile tab's gear menu, shared by both roles: Share My Store for
-// farmers only; Notification Settings, Manage Account, Help & Support and
+// The Profile tab's gear menu: Share My Store for farmers only;
+// Notification Settings, Manage Account, Send Feedback, Help & Support and
 // Log Out for everyone.
 import 'package:agritrade/l10n/app_localizations.dart';
 import 'package:agritrade/widgets/profile_settings_menu.dart';
@@ -11,7 +11,11 @@ import 'package:google_fonts/google_fonts.dart';
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  Future<void> open(WidgetTester tester, {VoidCallback? share}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    VoidCallback? share,
+    VoidCallback? logout,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
@@ -28,7 +32,7 @@ void main() {
             child: ProfileSettingsMenu(
               onShareStore: share,
               onHelp: () {},
-              onLogout: () {},
+              onLogout: logout ?? () {},
             ),
           ),
         ),
@@ -54,5 +58,19 @@ void main() {
     expect(find.text('Manage Account'), findsOneWidget);
     expect(find.text('Help & Support'), findsOneWidget);
     expect(find.text('Log Out'), findsOneWidget);
+  });
+
+  testWidgets('Send Feedback is on the menu', (tester) async {
+    await open(tester, share: () {});
+    expect(find.text('Send Feedback'), findsOneWidget);
+  });
+
+  testWidgets('choosing Log Out closes the panel and logs out', (tester) async {
+    var loggedOut = false;
+    await open(tester, logout: () => loggedOut = true);
+    await tester.tap(find.text('Log Out'));
+    await tester.pumpAndSettle();
+    expect(loggedOut, isTrue);
+    expect(find.text('Manage Account'), findsNothing);
   });
 }

@@ -1,5 +1,4 @@
 import 'dart:math';
-import '../theme/app_theme.dart';
 import '../widgets/notification_bell.dart';
 import 'dart:async';
 
@@ -21,6 +20,7 @@ import '../widgets/explore_product_card.dart';
 import '../widgets/save_product_button.dart';
 import '../widgets/agri_empty_state.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 class BuyerExploreScreen extends StatefulWidget {
   /// The notification bell in this tab's header; [bellKey] lets the
@@ -39,13 +39,11 @@ class BuyerExploreScreen extends StatefulWidget {
 }
 
 class BuyerExploreScreenState extends State<BuyerExploreScreen> {
-  static const Color _dark = AppTheme.dark;
-
   String _selectedCategory = 'All Postings';
   // Derived from the Commodity Master List so every category a farmer can
-  // now pick on Add Product (Grains, Root Crops, Vegetables, Spices,
-  // Fruits, Livestock) also has a matching buyer-side filter —
-  // not a separately hand-maintained list that can fall out of sync.
+  // pick on Add Product (Vegetables, Fruits, Livestock, and any the Admin
+  // added, such as Grains) also has a matching buyer-side filter — not a
+  // separately hand-maintained list that can fall out of sync.
   List<String> get _categories => [
     'All Postings',
     ...CommodityRegistry.instance.categories,
@@ -337,13 +335,13 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
         overlay.size.width - pillTopLeft.dx - maxWidth,
         0,
       ),
-      color: Colors.white,
-      surfaceTintColor: Colors.white,
+      color: AppColors.surface,
+      surfaceTintColor: AppColors.surface,
       elevation: 6,
       shadowColor: Colors.black.withValues(alpha: 0.25),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: AppColors.grey(200)),
       ),
       clipBehavior: Clip.antiAlias,
       menuPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -376,7 +374,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
       stream: _products,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _dark));
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.brand),
+          );
         }
         if (snapshot.hasError) {
           return RetryMessage(
@@ -405,7 +405,8 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
 
         if (_selectedCategory != 'All Postings') {
           docs = docs.where((doc) {
-            final category = (doc.data()['category'] ?? '').toString();
+            // Root crops and spices are Vegetables (normalizeCategory).
+            final category = normalizeCategory(doc.data()['category']);
             return category.toLowerCase() == _selectedCategory.toLowerCase();
           }).toList();
         }
@@ -491,8 +492,8 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                       icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
                       label: const Text('Clear filters'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _dark,
-                        side: const BorderSide(color: _dark),
+                        foregroundColor: AppColors.brand,
+                        side: BorderSide(color: AppColors.brand),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 12,
@@ -507,7 +508,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
         }
 
         return AgriRefreshIndicator(
-          color: _dark,
+          color: AppColors.brand,
           onRefresh: _refreshProducts,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -580,16 +581,16 @@ class _FilterPill extends StatelessWidget {
     this.trailing,
   });
 
-  static const Color _dark = AppTheme.dark;
-
   @override
   Widget build(BuildContext context) {
-    final foreground = selected ? Colors.white : _dark;
+    final foreground = selected ? Colors.white : AppColors.brand;
     return Material(
-      color: selected ? _dark : Colors.white,
+      color: selected ? AppColors.brandFill : AppColors.surface,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected ? _dark : _dark.withValues(alpha: 0.25),
+          color: selected
+              ? AppColors.brand
+              : AppColors.brand.withValues(alpha: 0.25),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -646,7 +647,7 @@ class _LocationOption extends StatelessWidget {
     return Container(
       height: height,
       width: double.infinity,
-      color: selected ? AppTheme.tint : Colors.white,
+      color: selected ? AppColors.tint : AppColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
@@ -658,13 +659,13 @@ class _LocationOption extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppTheme.dark : Colors.black87,
+                color: selected ? AppColors.brand : AppColors.text,
               ),
             ),
           ),
           if (selected) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.check_rounded, size: 18, color: AppTheme.dark),
+            Icon(Icons.check_rounded, size: 18, color: AppColors.brand),
           ],
         ],
       ),

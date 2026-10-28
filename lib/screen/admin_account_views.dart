@@ -643,8 +643,9 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
               ],
             ),
             const SizedBox(height: 18),
-            TextField(
+            AdminField(
               controller: _controller,
+              icon: Icons.person_outline,
               enabled: !_saving,
               maxLength: 60,
               textCapitalization: TextCapitalization.words,
@@ -1239,8 +1240,9 @@ class _RevokeSessionDialogState extends State<_RevokeSessionDialog> {
             ],
             const SizedBox(height: 14),
             if (passwordLogin)
-              TextField(
+              AdminField(
                 controller: _password,
+                icon: Icons.lock_outline,
                 obscureText: _obscure,
                 autofocus: true,
                 enabled: !_working,

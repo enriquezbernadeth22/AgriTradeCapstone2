@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/conversation_prefs_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
 import 'chat_list_screen.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 // The message-management sections opened from the Messages menu (the ☰ in
 // the Messages header): Muted, Reported and Blocked Users. Archived lives in
@@ -29,7 +29,7 @@ class MessageFolderScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: title),
       body: SafeArea(child: body),
     );
@@ -86,8 +86,8 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
             );
           }
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.dark),
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
             );
           }
           final docs = [...snapshot.data!.docs]
@@ -117,9 +117,9 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
 
   // Only the broad stage is shown to the reporter — never the outcome.
   (String, Color) _statusLabel(String status) => switch (status) {
-    'under_review' => ('Under review', Colors.blue.shade700),
-    'resolved' || 'dismissed' => ('Reviewed', AppTheme.dark),
-    _ => ('Submitted', Colors.orange.shade800),
+    'under_review' => ('Under review', AppColors.tone(Colors.blue, 700)),
+    'resolved' || 'dismissed' => ('Reviewed', AppColors.brand),
+    _ => ('Submitted', AppColors.tone(Colors.orange, 800)),
   };
 
   Widget _reportTile(Map<String, dynamic> report) {
@@ -222,8 +222,8 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                   trailingBuilder: (name) => OutlinedButton(
                     onPressed: () => _confirmUnblock(userId, name),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.dark,
-                      side: const BorderSide(color: AppTheme.dark),
+                      foregroundColor: AppColors.brand,
+                      side: BorderSide(color: AppColors.brand),
                       visualDensity: VisualDensity.compact,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
@@ -283,7 +283,8 @@ class _UserCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
+            border: AppColors.cardBorder,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -313,7 +314,7 @@ class _UserCard extends StatelessWidget {
                       style: GoogleFonts.montserrat(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: AppColors.text,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -321,7 +322,7 @@ class _UserCard extends StatelessWidget {
                       subtitle,
                       style: GoogleFonts.montserrat(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: AppColors.grey(600),
                       ),
                     ),
                     if (detail.isNotEmpty) ...[
@@ -332,7 +333,7 @@ class _UserCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.montserrat(
                           fontSize: 12,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           height: 1.35,
                         ),
                       ),

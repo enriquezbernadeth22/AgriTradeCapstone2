@@ -9,10 +9,10 @@ import '../data/commodity_master_list.dart';
 import '../services/delivery_coverage.dart';
 import '../services/market_price_helpers.dart';
 import '../services/pricing_tier_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
 import 'add_product_screen.dart';
 import 'place_order_screen.dart';
+import '../theme/app_colors.dart';
 
 // Product context for a Farmer–Buyer conversation that's tied to a product,
 // used by ChatScreen:
@@ -24,8 +24,6 @@ import 'place_order_screen.dart';
 //    the buyer and a read-only record for the farmer.
 //  - startChatOrder: re-checks the latest product, then opens the existing
 //    PlaceOrderScreen — no order logic lives in Messages.
-
-const Color _border = Color(0xFFDCEDC8);
 
 /// The current state of a product listing, read from products/{id}.
 class ChatProduct {
@@ -312,7 +310,7 @@ Future<bool> showSendOrderOptionsSheet(
             'The buyer can choose one of these for ${product.name}:',
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
-              color: Colors.black54,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 12),
@@ -330,7 +328,7 @@ Future<bool> showSendOrderOptionsSheet(
               'Wholesale is off for this listing, so only Retail will be sent.',
               style: GoogleFonts.montserrat(
                 fontSize: 11.5,
-                color: Colors.grey[600],
+                color: AppColors.grey(600),
               ),
             ),
           ],
@@ -377,9 +375,9 @@ class _OptionTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
+        color: AppColors.surface.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _border),
+        border: Border.all(color: AppColors.accent),
       ),
       child: Row(
         children: [
@@ -392,7 +390,7 @@ class _OptionTile extends StatelessWidget {
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 if (note != null)
@@ -400,7 +398,7 @@ class _OptionTile extends StatelessWidget {
                     note!,
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
-                      color: Colors.grey[600],
+                      color: AppColors.grey(600),
                     ),
                   ),
               ],
@@ -411,7 +409,7 @@ class _OptionTile extends StatelessWidget {
             style: GoogleFonts.montserrat(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: AppTheme.dark,
+              color: AppColors.brand,
             ),
           ),
         ],
@@ -438,7 +436,7 @@ class _FulfillmentLines extends StatelessWidget {
       padding: EdgeInsets.only(top: compact ? 1 : 3),
       child: Row(
         children: [
-          Icon(icon, size: compact ? 13 : 15, color: AppTheme.dark),
+          Icon(icon, size: compact ? 13 : 15, color: AppColors.brand),
           const SizedBox(width: 5),
           Expanded(
             child: Text(
@@ -447,7 +445,7 @@ class _FulfillmentLines extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.montserrat(
                 fontSize: compact ? 11 : 11.5,
-                color: Colors.grey[700],
+                color: AppColors.grey(700),
               ),
             ),
           ),
@@ -604,7 +602,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                 style: GoogleFonts.montserrat(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: AppColors.text,
                 ),
               ),
               const SizedBox(height: 3),
@@ -614,7 +612,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                 )
               else if (!loaded)
@@ -622,7 +620,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                   'Loading price…',
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
-                    color: Colors.grey[500],
+                    color: AppColors.grey(500),
                   ),
                 ),
               if (product != null && product.wholesaleEnabled)
@@ -634,7 +632,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
-                      color: Colors.grey[700],
+                      color: AppColors.grey(700),
                     ),
                   ),
                 ),
@@ -652,7 +650,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.orange.shade800,
+                      color: AppColors.tone(Colors.orange, 800),
                     ),
                   ),
                 ),
@@ -685,9 +683,9 @@ class _ChatProductCardState extends State<ChatProductCard> {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border.withValues(alpha: 0.7)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.7)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -743,9 +741,9 @@ class _ChatProductCardState extends State<ChatProductCard> {
     final url = product?.imageUrl.isNotEmpty == true
         ? product!.imageUrl
         : widget.fallbackImageUrl;
-    const placeholder = ColoredBox(
-      color: _border,
-      child: Icon(Icons.eco_rounded, color: AppTheme.dark),
+    final placeholder = ColoredBox(
+      color: AppColors.accent,
+      child: Icon(Icons.eco_rounded, color: AppColors.brand),
     );
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -773,9 +771,9 @@ class _ChatProductCardState extends State<ChatProductCard> {
   }) {
     final style = primary
         ? ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.dark,
+            backgroundColor: AppColors.brandFill,
             foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey.shade300,
+            disabledBackgroundColor: AppColors.grey(300),
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             minimumSize: Size.zero,
@@ -785,8 +783,8 @@ class _ChatProductCardState extends State<ChatProductCard> {
             ),
           )
         : OutlinedButton.styleFrom(
-            foregroundColor: AppTheme.dark,
-            side: const BorderSide(color: AppTheme.dark),
+            foregroundColor: AppColors.brand,
+            side: BorderSide(color: AppColors.brand),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -910,9 +908,9 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
-          color: isMe ? AppTheme.tint : Colors.white,
+          color: isMe ? AppColors.tint : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _border),
+          border: Border.all(color: AppColors.accent),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -927,14 +925,14 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           children: [
             Row(
               children: [
-                const Icon(Icons.sell_outlined, size: 15, color: AppTheme.dark),
+                Icon(Icons.sell_outlined, size: 15, color: AppColors.brand),
                 const SizedBox(width: 6),
                 Text(
                   isMe ? 'Order options sent' : 'Order options',
                   style: GoogleFonts.montserrat(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -945,7 +943,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
               style: GoogleFonts.montserrat(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
             const SizedBox(height: 10),
@@ -983,7 +981,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
                 'The buyer can choose an option to order.',
                 style: GoogleFonts.montserrat(
                   fontSize: 11,
-                  color: Colors.grey[600],
+                  color: AppColors.grey(600),
                 ),
               ),
             ],
@@ -1002,7 +1000,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           style: GoogleFonts.montserrat(
             fontSize: 11.5,
             fontWeight: FontWeight.w600,
-            color: Colors.black54,
+            color: AppColors.textSecondary,
           ),
         ),
         Text(
@@ -1010,7 +1008,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           style: GoogleFonts.montserrat(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: AppTheme.dark,
+            color: AppColors.brand,
           ),
         ),
         if (note != null)
@@ -1018,7 +1016,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
             note,
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
-              color: Colors.grey[700],
+              color: AppColors.grey(700),
             ),
           ),
       ],
@@ -1044,7 +1042,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           ? ElevatedButton(
               onPressed: _busy ? null : onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.dark,
+                backgroundColor: AppColors.brandFill,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: padding,
@@ -1055,8 +1053,8 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           : OutlinedButton(
               onPressed: _busy ? null : onPressed,
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.dark,
-                side: const BorderSide(color: AppTheme.dark),
+                foregroundColor: AppColors.brand,
+                side: BorderSide(color: AppColors.brand),
                 padding: padding,
                 shape: shape,
               ),

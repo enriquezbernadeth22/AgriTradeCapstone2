@@ -1,5 +1,4 @@
 import '../widgets/agri_app_bar.dart';
-import '../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -12,6 +11,7 @@ import '../widgets/permission_rationale_dialog.dart';
 import '../widgets/notification_card.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 /// Reads notifications/{uid}/items — written by Cloud Functions
 /// (functions/index.js) whenever a new message, new order, order status
@@ -27,10 +27,6 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _bg = AppTheme.surface;
-  static const Color _text = Color(0xFF1B1B1B);
-
   // Created once, not in build(), so switching filter doesn't resubscribe.
   Stream<QuerySnapshot<Map<String, dynamic>>>? _items;
   NotificationFilter _filter = NotificationFilter.all;
@@ -152,7 +148,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final hasUnread = docs.any((d) => d.data()['read'] != true);
 
         return Scaffold(
-          backgroundColor: _bg,
+          backgroundColor: AppColors.surfaceAlt,
           appBar: AgriAppBar(
             title: 'Notifications',
             actions: [
@@ -180,8 +176,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: Builder(
                   builder: (context) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: _dark),
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.brand,
+                        ),
                       );
                     }
                     if (snapshot.hasError) {
@@ -232,10 +230,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final selected = filter == _filter;
           return Center(
             child: Material(
-              color: selected ? _dark : Colors.white,
+              color: selected ? AppColors.brandFill : AppColors.surface,
               shape: StadiumBorder(
                 side: BorderSide(
-                  color: selected ? _dark : _dark.withValues(alpha: 0.25),
+                  color: selected
+                      ? AppColors.brand
+                      : AppColors.brand.withValues(alpha: 0.25),
                 ),
               ),
               clipBehavior: Clip.antiAlias,
@@ -252,7 +252,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       fontSize: 12.5,
                       height: 1.2,
                       fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : _dark,
+                      color: selected ? Colors.white : AppColors.brand,
                     ),
                   ),
                 ),
@@ -279,10 +279,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             padding: EdgeInsets.fromLTRB(16, rows.isEmpty ? 4 : 18, 16, 6),
             child: Text(
               group,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: _text,
+                color: AppColors.adapt(const Color(0xFF1B1B1B)),
               ),
             ),
           ),
@@ -295,7 +295,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             thickness: 1,
             indent: 16,
             endIndent: 16,
-            color: Colors.grey[200],
+            color: AppColors.grey(200),
           ),
         );
       }
@@ -347,14 +347,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: AppColors.tone(Colors.red, 200)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.notifications_off_outlined,
-            color: Colors.red.shade700,
+            color: AppColors.tone(Colors.red, 700),
             size: 20,
           ),
           const SizedBox(width: 10),
@@ -371,7 +371,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             "on: phone Settings → Apps → AgriTrade+ → Notifications.",
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: Colors.red.shade900,
+                    color: AppColors.tone(Colors.red, 900),
                     height: 1.4,
                   ),
                 ),
@@ -397,8 +397,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         _checkPermission();
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade900,
-                        side: BorderSide(color: Colors.red.shade300),
+                        foregroundColor: AppColors.tone(Colors.red, 900),
+                        side: BorderSide(
+                          color: AppColors.tone(Colors.red, 300),
+                        ),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
                       child: const Text(

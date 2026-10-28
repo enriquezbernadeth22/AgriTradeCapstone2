@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The one "nothing here yet" look for the mobile app: a small dark-green
 /// icon on a pale-green circle, a title, an optional line under it and an
@@ -35,11 +35,11 @@ class AgriEmptyState extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: const BoxDecoration(
-              color: AppTheme.tint,
+            decoration: BoxDecoration(
+              color: AppColors.tint,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 30, color: AppTheme.dark),
+            child: Icon(icon, size: 30, color: AppColors.brand),
           ),
           const SizedBox(height: 12),
           Text(
@@ -48,7 +48,7 @@ class AgriEmptyState extends StatelessWidget {
             style: GoogleFonts.montserrat(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: AppColors.text,
             ),
           ),
           if (subtitle != null) ...[
@@ -58,7 +58,7 @@ class AgriEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.montserrat(
                 fontSize: 12.5,
-                color: Colors.grey[600],
+                color: AppColors.grey(600),
                 height: 1.4,
               ),
             ),

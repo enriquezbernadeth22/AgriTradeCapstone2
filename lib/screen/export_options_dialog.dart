@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/report_export_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/busy_indicator.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette;
 import 'admin_filter_controls.dart';
@@ -21,12 +20,13 @@ enum DateRangePreset {
 }
 
 /// One selectable Analytics Dashboard section, in the order the dashboard
-/// itself renders them — [isChart] marks the 3 sections actually backed by
+/// itself renders them — [isChart] marks the 2 sections actually backed by
 /// an fl_chart widget (the only ones PNG export can capture; everything
-/// else is a data/list/table section).
+/// else is a data/list/table section). Sales Overview is a table only: the
+/// dashboard has no total-sales chart of its own.
 enum DashboardSection {
   kpiSummary('KPI Summary', isChart: false),
-  salesOverview('Sales Overview', isChart: true),
+  salesOverview('Sales Overview', isChart: false),
   salesByCategory('Sales by Category', isChart: true),
   priceTrend('Price Trend vs. Baseline', isChart: true),
   topSellingProducts('Top-Selling Products', isChart: false),
@@ -313,7 +313,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                     child: Text(
                       'Export Report',
                       style: TextStyle(
-                        color: c.isDark ? c.textPrimary : AppTheme.dark,
+                        color: c.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -353,7 +353,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                 _link(
                                   c,
                                   'Select All',
-                                  c.green,
+                                  c.textPrimary,
                                   () => setState(
                                     () => _groups.addAll(ReportGroup.values),
                                   ),
@@ -383,46 +383,48 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                             ),
 
                           _label(c, 'Commodity'),
-                          DropdownButtonFormField<String?>(
-                            key: ValueKey(
-                              '$_commodity-${_availableCommodities.length}',
-                            ),
-                            initialValue:
-                                _availableCommodities.contains(_commodity)
-                                ? _commodity
-                                : null,
-                            isExpanded: true,
-                            isDense: true,
-                            menuMaxHeight: 320,
-                            style: TextStyle(
-                              fontFamily: kAdminFontFamily,
-                              color: c.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            icon: Icon(
-                              Icons.expand_more_rounded,
-                              size: 18,
-                              color: c.textSecondary,
-                            ),
-                            dropdownColor: c.surface,
-                            borderRadius: BorderRadius.circular(
-                              kAdminPopupRadius,
-                            ),
-                            decoration: adminPillDecoration(c),
-                            items: [
-                              const DropdownMenuItem(
-                                value: null,
-                                child: Text('All Commodities'),
+                          AdminInputGlow(
+                            child: DropdownButtonFormField<String?>(
+                              key: ValueKey(
+                                '$_commodity-${_availableCommodities.length}',
                               ),
-                              for (final name in _availableCommodities)
-                                DropdownMenuItem(
-                                  value: name,
-                                  child: Text(name),
+                              initialValue:
+                                  _availableCommodities.contains(_commodity)
+                                  ? _commodity
+                                  : null,
+                              isExpanded: true,
+                              isDense: true,
+                              menuMaxHeight: 320,
+                              style: TextStyle(
+                                fontFamily: kAdminFontFamily,
+                                color: c.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              icon: Icon(
+                                Icons.expand_more_rounded,
+                                size: 18,
+                                color: c.textSecondary,
+                              ),
+                              dropdownColor: c.surface,
+                              borderRadius: BorderRadius.circular(
+                                kAdminPopupRadius,
+                              ),
+                              decoration: adminFieldDecoration(c),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('All Commodities'),
                                 ),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _commodity = value),
+                                for (final name in _availableCommodities)
+                                  DropdownMenuItem(
+                                    value: name,
+                                    child: Text(name),
+                                  ),
+                              ],
+                              onChanged: (value) =>
+                                  setState(() => _commodity = value),
+                            ),
                           ),
 
                           _label(c, 'Date Range'),
@@ -494,7 +496,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                 12,
                               ),
                               decoration: BoxDecoration(
-                                color: c.greenBg,
+                                color: c.surfaceAlt,
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Column(
@@ -504,7 +506,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                     children: [
                                       // Drawn by the browser, so it keeps
                                       // turning while the file is built.
-                                      BusySpinner(color: c.green),
+                                      BusySpinner(color: c.textPrimary),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
@@ -520,7 +522,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                   ),
                                   const SizedBox(height: 10),
                                   BusyBar(
-                                    color: c.green,
+                                    color: c.textPrimary,
                                     trackColor: c.surface,
                                   ),
                                   const SizedBox(height: 8),
@@ -547,7 +549,10 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                             const SizedBox(height: 12),
                             Text(
                               _successMessage!,
-                              style: TextStyle(color: c.green, fontSize: 12.5),
+                              style: TextStyle(
+                                color: c.textPrimary,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ],
                         ],
@@ -563,8 +568,9 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                           onPressed: _exporting
                               ? null
                               : () => Navigator.of(context).pop(),
+                          // The buttons are the only green in the dialog.
                           style: TextButton.styleFrom(
-                            foregroundColor: c.textSecondary,
+                            foregroundColor: primary,
                             shape: const StadiumBorder(),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 18,
@@ -646,8 +652,9 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
         ),
       );
 
-  // A pill to choose one of a few options: light green when chosen. With
-  // [radio] it carries a radio dot, for an either/or pair.
+  // A pill to choose one of a few options, in black and white: outlined in
+  // black when chosen. With [radio] it carries a radio dot, for an
+  // either/or pair.
   Widget _choice(
     AdminPalette c, {
     required String label,
@@ -661,9 +668,9 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       child: Container(
         padding: EdgeInsets.fromLTRB(radio ? 12 : 16, 9, 16, 9),
         decoration: BoxDecoration(
-          color: selected ? c.greenBg : c.surfaceAlt,
+          color: c.surface,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? c.green : c.border),
+          border: Border.all(color: selected ? c.textPrimary : c.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -674,14 +681,14 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                     ? Icons.radio_button_checked_rounded
                     : Icons.radio_button_unchecked_rounded,
                 size: 16,
-                color: selected ? c.green : c.textMuted,
+                color: selected ? c.textPrimary : c.textMuted,
               ),
               const SizedBox(width: 8),
             ],
             Text(
               label,
               style: TextStyle(
-                color: selected ? c.green : c.textSecondary,
+                color: selected ? c.textPrimary : c.textSecondary,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -708,15 +715,14 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
             SizedBox(
               width: 22,
               height: 22,
+              // Round, black with a white tick when ticked.
               child: Checkbox(
                 value: value,
                 onChanged: (checked) => onChanged(checked ?? false),
-                activeColor: c.green,
-                checkColor: c.isDark ? Colors.black : Colors.white,
+                activeColor: c.textPrimary,
+                checkColor: c.surface,
                 side: BorderSide(color: c.textMuted, width: 1.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
+                shape: const CircleBorder(),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
               ),

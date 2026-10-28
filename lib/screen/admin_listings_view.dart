@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../data/commodity_master_list.dart';
 import '../services/audit_log_service.dart';
 import '../services/connectivity_service.dart';
 import 'package:flutter/material.dart';
@@ -70,7 +71,7 @@ class AdminListingRow {
     return AdminListingRow(
       id: id,
       name: (data['name'] ?? '').toString().trim(),
-      category: (data['category'] ?? '').toString().trim(),
+      category: normalizeCategory(data['category']),
       farmer: (data['farmerName'] ?? '').toString().trim(),
       price: _positive(data['retailPrice'] ?? data['price']),
       wholesalePrice: wholesaleOn ? _positive(data['wholesalePrice']) : null,

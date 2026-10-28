@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// "Choose your role": Buyer | Farmer, in one rounded pill. The selected
 /// side is a dark green thumb with white text that slides across when the
@@ -33,12 +33,12 @@ class RoleToggle extends StatelessWidget {
       height: height,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F6),
+        color: AppColors.adapt(const Color(0xFFF7F8F6)),
         borderRadius: BorderRadius.circular(height / 2),
-        border: Border.all(color: const Color(0xFFDDE2DA)),
-        boxShadow: const [
+        border: Border.all(color: AppColors.adapt(const Color(0xFFDDE2DA))),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F0E3210),
+            color: AppColors.adapt(const Color(0x0F0E3210)),
             blurRadius: 6,
             offset: Offset(0, 2),
           ),
@@ -56,11 +56,11 @@ class RoleToggle extends StatelessWidget {
               heightFactor: 1,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AppTheme.dark,
+                  color: AppColors.brandFill,
                   borderRadius: BorderRadius.circular(height / 2),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x290E3210),
+                      color: AppColors.adapt(const Color(0x290E3210)),
                       blurRadius: 6,
                       offset: Offset(0, 2),
                     ),
@@ -97,7 +97,7 @@ class RoleToggle extends StatelessWidget {
                 fontFamily: 'Montserrat',
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppTheme.dark,
+                color: isSelected ? Colors.white : AppColors.brand,
               ),
               child: Text(label),
             ),

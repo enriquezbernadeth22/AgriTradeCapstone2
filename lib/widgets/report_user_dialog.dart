@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/report_reasons.dart';
 import 'agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 /// "Report this user" from a chat — asks for a reason and a description and
 /// files it to the `reports` collection for the Admin Moderation Queue.
@@ -115,7 +116,7 @@ class _ReportUserFormState extends State<_ReportUserForm> {
           DropdownButtonFormField<String>(
             initialValue: _reason,
             isExpanded: true,
-            dropdownColor: Colors.white,
+            dropdownColor: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             hint: const Text('Select a reason'),
             items: [

@@ -8,6 +8,7 @@ import '../widgets/explore_product_card.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/save_product_button.dart';
 import 'product_detail_screen.dart';
+import '../theme/app_colors.dart';
 
 /// A farmer's public profile, as a buyer sees it: photo, name, general
 /// location and Verified Farmer badge, then their active listings in a
@@ -27,8 +28,6 @@ class FarmerStorefrontScreen extends StatefulWidget {
 }
 
 class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
-  static const _green = AppTheme.dark;
-
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _profile =
       FirebaseFirestore.instance
           .collection('publicProfiles')
@@ -63,14 +62,14 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: const AgriAppBar(),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _profile,
         builder: (context, profileSnap) {
           if (profileSnap.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: _green),
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
             );
           }
           final profile = profileSnap.data?.data();
@@ -83,7 +82,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
             children: [
               _header(profile),
               const SizedBox(height: 20),
-              Divider(height: 1, color: Colors.grey[200]),
+              Divider(height: 1, color: AppColors.grey(200)),
               const SizedBox(height: 16),
               _productsSection(),
             ],
@@ -124,7 +123,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.place_outlined, size: 15, color: Colors.grey[600]),
+              Icon(Icons.place_outlined, size: 15, color: AppColors.grey(600)),
               const SizedBox(width: 3),
               Flexible(
                 child: Text(
@@ -133,7 +132,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[700],
+                    color: AppColors.grey(700),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -146,18 +145,19 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.tint,
+              color: AppColors.tint,
+              border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_rounded, size: 15, color: _green),
+                Icon(Icons.verified_rounded, size: 15, color: AppColors.brand),
                 SizedBox(width: 5),
                 Text(
                   'Verified Farmer',
                   style: TextStyle(
-                    color: _green,
+                    color: AppColors.brand,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -176,7 +176,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
             style: TextStyle(
               fontSize: 13,
               height: 1.45,
-              color: Colors.grey[700],
+              color: AppColors.grey(700),
             ),
           ),
         ],
@@ -189,9 +189,11 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
       stream: _products,
       builder: (context, productSnap) {
         if (productSnap.connectionState == ConnectionState.waiting) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.all(20),
-            child: Center(child: CircularProgressIndicator(color: _green)),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
+            ),
           );
         }
         if (productSnap.hasError) {
@@ -222,7 +224,10 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
 
   Widget _note(String text) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(text, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 13, color: AppColors.grey(600)),
+    ),
   );
 
   Widget _grid(List<QueryDocumentSnapshot<Map<String, dynamic>>> products) {

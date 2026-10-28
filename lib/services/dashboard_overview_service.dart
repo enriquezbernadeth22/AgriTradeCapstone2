@@ -90,14 +90,8 @@ class DashboardOverviewService extends ChangeNotifier {
     _liveSubscriptions
       ..add(
         data.usersStream.listen((snapshot) {
-          totalUsers = OverviewMetric.loaded((
-            farmers: DashboardAnalyticsService.farmerCount(snapshot.docs),
-            buyers: DashboardAnalyticsService.buyerCount(snapshot.docs),
-          ));
-          pendingVerifications = OverviewMetric.loaded(
-            DashboardAnalyticsService.pendingVerifications(snapshot.docs),
-          );
-          notifyListeners();
+          _users = snapshot.docs;
+          _countUsers();
         }, onError: stopped),
       )
       ..add(
@@ -110,6 +104,25 @@ class DashboardOverviewService extends ChangeNotifier {
       );
     data.addListener(_onOrdersChanged);
     data.ensureLoaded();
+    // Orders already in: counted now, not on their next change.
+    _onOrdersChanged();
+  }
+
+  // The latest users.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>>? _users;
+
+  // Total Users and Pending Verifications from the users.
+  void _countUsers() {
+    final users = _users;
+    if (users == null) return;
+    totalUsers = OverviewMetric.loaded((
+      farmers: DashboardAnalyticsService.farmerCount(users),
+      buyers: DashboardAnalyticsService.buyerCount(users),
+    ));
+    pendingVerifications = OverviewMetric.loaded(
+      DashboardAnalyticsService.pendingVerifications(users),
+    );
+    notifyListeners();
   }
 
   void _onOrdersChanged() {
@@ -123,7 +136,7 @@ class DashboardOverviewService extends ChangeNotifier {
     notifyListeners();
   }
 
-  static final _users = FirebaseFirestore.instance.collection('users');
+  static final _usersRef = FirebaseFirestore.instance.collection('users');
   static final _reports = FirebaseFirestore.instance.collection('reports');
   static final _orders = FirebaseFirestore.instance.collection('orders');
 
@@ -142,7 +155,7 @@ class DashboardOverviewService extends ChangeNotifier {
     notifyListeners();
 
     final all = Stopwatch()..start();
-    final farmers = _users.where('role', isEqualTo: 'farmer');
+    final farmers = _usersRef.where('role', isEqualTo: 'farmer');
     // Needed by both Total Users and Pending Verifications — asked once.
     final approvedFarmers = _count(
       farmers.where('approvalStatus', isEqualTo: 'approved'),
@@ -155,7 +168,7 @@ class DashboardOverviewService extends ChangeNotifier {
     // before, run through the same DashboardAnalyticsService functions.
     Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>? userDocs;
     Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> allUsers() =>
-        userDocs ??= _users.get().then((s) => s.docs);
+        userDocs ??= _usersRef.get().then((s) => s.docs);
 
     await Future.wait([
       // TOTAL USERS = buyers + APPROVED farmers (pending and rejected
@@ -165,7 +178,7 @@ class DashboardOverviewService extends ChangeNotifier {
         () async {
           final counts = await Future.wait([
             approvedFarmers,
-            _count(_users.where('role', isEqualTo: 'buyer')),
+            _count(_usersRef.where('role', isEqualTo: 'buyer')),
           ]);
           return (farmers: counts[0], buyers: counts[1]);
         },

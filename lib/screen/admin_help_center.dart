@@ -200,19 +200,21 @@ class _HelpCenterDialogState extends State<_HelpCenterDialog> {
   // The search, with the category filter beside it (under it on a narrow
   // window).
   Widget _toolbar(AdminPalette c, bool narrow) {
-    final search = TextField(
-      controller: _search,
-      onChanged: (_) => setState(() {}),
-      style: TextStyle(color: c.textPrimary, fontSize: 13),
-      decoration: adminPillDecoration(
-        c,
-        hint: 'Search questions and answers…',
-        icon: Icons.search,
+    final search = AdminInputGlow(
+      child: TextField(
+        controller: _search,
+        onChanged: (_) => setState(() {}),
+        style: TextStyle(color: c.textPrimary, fontSize: 13),
+        decoration: adminFieldDecoration(
+          c,
+          hint: 'Search questions and answers…',
+          icon: Icons.search,
+        ),
       ),
     );
     final filter = AdminPillDropdown<String>(
       value: _category?.name ?? 'all',
-      width: narrow ? double.infinity : 260,
+      width: narrow ? double.infinity : kAdminControlWidth,
       icon: _category == null
           ? Icons.filter_list_rounded
           : _categoryIcon(_category!),
@@ -746,20 +748,24 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       SizedBox(
-                        width: math.min(320, width - 48),
-                        child: TextField(
-                          onChanged: (v) => setState(() => _search = v),
-                          style: TextStyle(color: c.textPrimary, fontSize: 13),
-                          decoration: adminPillDecoration(
-                            c,
-                            hint: 'Search FAQs…',
-                            icon: Icons.search,
+                        width: math.min(kAdminControlWidth, width - 48),
+                        child: AdminInputGlow(
+                          child: TextField(
+                            onChanged: (v) => setState(() => _search = v),
+                            style: TextStyle(
+                              color: c.textPrimary,
+                              fontSize: 13,
+                            ),
+                            decoration: adminFieldDecoration(
+                              c,
+                              hint: 'Search FAQs…',
+                              icon: Icons.search,
+                            ),
                           ),
                         ),
                       ),
                       AdminPillDropdown<String>(
                         value: _category,
-                        width: 230,
                         icon: Icons.category_outlined,
                         items: [
                           const DropdownMenuItem(
@@ -776,7 +782,6 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
                       ),
                       AdminPillDropdown<String>(
                         value: _status,
-                        width: 160,
                         icon: Icons.filter_list_rounded,
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('All')),

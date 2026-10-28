@@ -1,7 +1,7 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 import 'walking_farmer_loader.dart';
+import '../theme/app_colors.dart';
 
 /// The very first thing Flutter draws after the native splash hands off.
 /// The circular logo stays exactly where the native splash draws it (same
@@ -23,17 +23,17 @@ class BrandedLoadingScreen extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => Container(
           width: _logoSize,
           height: _logoSize,
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.agriculture, size: 60, color: AppTheme.dark),
+          child: Icon(Icons.agriculture, size: 60, color: AppColors.brand),
         ),
       ),
     );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       body: LayoutBuilder(
         builder: (context, constraints) => Stack(
           children: [

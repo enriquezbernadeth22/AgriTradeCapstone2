@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The filters above the notification list. Buyers and farmers get the
 /// same ones, plus Reports for farmers (listing/account moderation notices,
@@ -110,10 +110,6 @@ class NotificationCard extends StatelessWidget {
     this.onTap,
   });
 
-  static const Color _dark = AppTheme.dark;
-  static const Color _unreadBackground = AppTheme.tint;
-  static const Color _unreadDot = Color(0xFF2E7D32);
-
   @override
   Widget build(BuildContext context) {
     final warning = type == 'moderation_warning';
@@ -121,7 +117,7 @@ class NotificationCard extends StatelessWidget {
     // A flat, full-width row (the list puts a divider between rows); an
     // unread one is tinted green.
     return Material(
-      color: isRead ? Colors.white : _unreadBackground,
+      color: isRead ? AppColors.surface : AppColors.tint,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -132,12 +128,14 @@ class NotificationCard extends StatelessWidget {
               CircleAvatar(
                 radius: 19,
                 backgroundColor: warning
-                    ? const Color(0xFFFFF3E0)
-                    : const Color(0xFFDCEDC8),
+                    ? AppColors.adapt(const Color(0xFFFFF3E0))
+                    : AppColors.accent,
                 child: Icon(
                   notificationIcon(type),
                   size: 19,
-                  color: warning ? const Color(0xFFE65100) : _dark,
+                  color: warning
+                      ? AppColors.adapt(const Color(0xFFE65100))
+                      : AppColors.brand,
                 ),
               ),
               const SizedBox(width: 12),
@@ -159,7 +157,7 @@ class NotificationCard extends StatelessWidget {
                               fontWeight: isRead
                                   ? FontWeight.w600
                                   : FontWeight.w700,
-                              color: const Color(0xFF1B1B1B),
+                              color: AppColors.adapt(const Color(0xFF1B1B1B)),
                             ),
                           ),
                         ),
@@ -170,8 +168,8 @@ class NotificationCard extends StatelessWidget {
                             child: Container(
                               width: 9,
                               height: 9,
-                              decoration: const BoxDecoration(
-                                color: _unreadDot,
+                              decoration: BoxDecoration(
+                                color: AppColors.adapt(const Color(0xFF2E7D32)),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -185,10 +183,10 @@ class NotificationCard extends StatelessWidget {
                         body,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           height: 1.35,
-                          color: Color(0xFF424242),
+                          color: AppColors.adapt(const Color(0xFF424242)),
                         ),
                       ),
                     ],
@@ -196,10 +194,10 @@ class NotificationCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         DateFormat('h:mm a').format(createdAt!),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF616161),
+                          color: AppColors.adapt(const Color(0xFF616161)),
                         ),
                       ),
                     ],
@@ -207,12 +205,12 @@ class NotificationCard extends StatelessWidget {
                 ),
               ),
               if (notificationOpensScreen(type))
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 2, top: 8),
                   child: Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
-                    color: Color(0xFF757575),
+                    color: AppColors.adapt(const Color(0xFF757575)),
                   ),
                 ),
             ],

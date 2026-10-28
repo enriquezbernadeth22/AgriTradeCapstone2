@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../screen/order_actions.dart';
 import '../services/market_price_helpers.dart';
 import '../services/order_format.dart';
-import '../theme/app_theme.dart';
 import 'order_card.dart';
+import '../theme/app_colors.dart';
 
 /// The receipt of a completed order, as it appears in the farmer–buyer
 /// conversation (a message of type 'receipt'). Both sides get View Receipt;
@@ -46,9 +46,9 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
           maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: AppColors.grey(300)),
         ),
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: _orderStream,
@@ -80,11 +80,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
       children: [
         Row(
           children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              color: AppTheme.dark,
-              size: 20,
-            ),
+            Icon(Icons.receipt_long_outlined, color: AppColors.brand, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -92,14 +88,14 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
                 style: GoogleFonts.montserrat(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                 ),
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: AppColors.tone(Colors.red, 50),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -107,7 +103,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
                 style: GoogleFonts.montserrat(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: Colors.red.shade700,
+                  color: AppColors.tone(Colors.red, 700),
                 ),
               ),
             ),
@@ -120,7 +116,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: AppColors.text,
             ),
           ),
         if ((order?.productName ?? data['productName'] ?? '')
@@ -132,7 +128,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           ),
         const SizedBox(height: 6),
@@ -145,7 +141,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
           style: GoogleFonts.montserrat(
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
-            color: Colors.black87,
+            color: AppColors.text,
           ),
         ),
         const SizedBox(height: 10),
@@ -169,7 +165,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                 ),
               ),

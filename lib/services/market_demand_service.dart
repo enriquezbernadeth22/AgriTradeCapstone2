@@ -102,7 +102,7 @@ class MarketDemandService {
       final commodity = matchSupportedCommodity(name) ?? name;
       final category =
           categoryOfCommodity(commodity) ??
-          (record['category'] ?? '').toString().trim();
+          normalizeCategory(record['category']);
       final unit = (record['unit'] ?? '').toString().trim();
       final pricing = (record['pricingType'] ?? '').toString().toLowerCase();
       sales.add(

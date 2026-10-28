@@ -16,10 +16,10 @@ import '../widgets/market_tab_guide.dart';
 import '../widgets/page_header.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_refresh_indicator.dart';
-import '../theme/app_theme.dart';
 import '../widgets/notification_bell.dart';
 import 'add_product_screen.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
 //
@@ -72,8 +72,6 @@ class MarketTab extends StatefulWidget {
 }
 
 class _MarketTabState extends State<MarketTab> {
-  static const Color _dark = AppTheme.dark;
-
   static const int _profileTabIndex = 3;
   static const int _ordersTabIndex = 2;
   DateTime? _selectedSalesMonth;
@@ -230,9 +228,11 @@ class _MarketTabState extends State<MarketTab> {
             return Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE7EFE4)),
+                border: Border.all(
+                  color: AppColors.adapt(const Color(0xFFE7EFE4)),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -287,13 +287,16 @@ class _MarketTabState extends State<MarketTab> {
                       style: GoogleFonts.montserrat(
                         fontSize: 25,
                         fontWeight: FontWeight.bold,
-                        color: _dark,
+                        color: AppColors.brand,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       periodLabel,
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.grey(600),
+                      ),
                     ),
                     const SizedBox(height: 14),
                     SizedBox(
@@ -307,8 +310,8 @@ class _MarketTabState extends State<MarketTab> {
                           gridData: FlGridData(
                             drawVerticalLine: false,
                             horizontalInterval: scale.step,
-                            getDrawingHorizontalLine: (_) => const FlLine(
-                              color: Color(0xFFE9EEE6),
+                            getDrawingHorizontalLine: (_) => FlLine(
+                              color: AppColors.adapt(const Color(0xFFE9EEE6)),
                               strokeWidth: 1,
                             ),
                           ),
@@ -328,7 +331,7 @@ class _MarketTabState extends State<MarketTab> {
                                   '₱${value >= 1000 ? '${(value / 1000).toStringAsFixed(0)}k' : value.toStringAsFixed(0)}',
                                   style: TextStyle(
                                     fontSize: 9,
-                                    color: Colors.grey[600],
+                                    color: AppColors.grey(600),
                                   ),
                                 ),
                               ),
@@ -349,7 +352,7 @@ class _MarketTabState extends State<MarketTab> {
                                       '${days[index].date.day}',
                                       style: TextStyle(
                                         fontSize: 9,
-                                        color: Colors.grey[600],
+                                        color: AppColors.grey(600),
                                       ),
                                     ),
                                   );
@@ -367,12 +370,12 @@ class _MarketTabState extends State<MarketTab> {
                               // (or past a day's real total) before a
                               // sudden jump in sales.
                               preventCurveOverShooting: true,
-                              color: _dark,
+                              color: AppColors.brand,
                               barWidth: 3,
                               dotData: const FlDotData(show: false),
                               belowBarData: BarAreaData(
                                 show: true,
-                                color: _dark.withValues(alpha: 0.10),
+                                color: AppColors.brand.withValues(alpha: 0.10),
                               ),
                             ),
                           ],
@@ -382,7 +385,10 @@ class _MarketTabState extends State<MarketTab> {
                     const SizedBox(height: 8),
                     Text(
                       'Revenue is based on orders marked completed.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.grey(600),
+                      ),
                     ),
                   ],
                 ],
@@ -403,7 +409,8 @@ class _MarketTabState extends State<MarketTab> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(
-        color: AppTheme.tint,
+        color: AppColors.tint,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -411,7 +418,7 @@ class _MarketTabState extends State<MarketTab> {
           Icon(
             newFarmer ? Icons.storefront_outlined : Icons.show_chart_rounded,
             size: 30,
-            color: _dark,
+            color: AppColors.brand,
           ),
           const SizedBox(height: 8),
           Text(
@@ -420,7 +427,7 @@ class _MarketTabState extends State<MarketTab> {
             style: GoogleFonts.montserrat(
               fontSize: 14.5,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: AppColors.text,
             ),
           ),
           const SizedBox(height: 4),
@@ -431,7 +438,7 @@ class _MarketTabState extends State<MarketTab> {
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
               height: 1.4,
             ),
           ),
@@ -446,7 +453,7 @@ class _MarketTabState extends State<MarketTab> {
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Product'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _dark,
+                backgroundColor: AppColors.brandFill,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(
@@ -464,8 +471,8 @@ class _MarketTabState extends State<MarketTab> {
               // The farmer's product list lives on the Profile tab.
               onPressed: () => widget.onNavigateToTab?.call(_profileTabIndex),
               style: OutlinedButton.styleFrom(
-                foregroundColor: _dark,
-                side: const BorderSide(color: _dark),
+                foregroundColor: AppColors.brand,
+                side: BorderSide(color: AppColors.brand),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 10,
@@ -491,26 +498,26 @@ class _MarketTabState extends State<MarketTab> {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE3E9DF)),
+        border: Border.all(color: AppColors.adapt(const Color(0xFFE3E9DF))),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.normal,
-              color: Colors.black87,
+              color: AppColors.text,
             ),
           ),
           const SizedBox(width: 3),
-          const Icon(
+          Icon(
             Icons.keyboard_arrow_down_rounded,
             size: 18,
-            color: Colors.black54,
+            color: AppColors.textSecondary,
           ),
         ],
       ),
@@ -545,17 +552,17 @@ class _MarketTabState extends State<MarketTab> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDE5DB),
+                    color: AppColors.adapt(const Color(0xFFDDE5DB)),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Select Month',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -569,10 +576,10 @@ class _MarketTabState extends State<MarketTab> {
                     ),
                     Text(
                       '$pickerYear',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.text,
                       ),
                     ),
                     _yearArrow(
@@ -610,13 +617,15 @@ class _MarketTabState extends State<MarketTab> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? _dark
+                              ? AppColors.brandFill
                               : isValid
-                              ? const Color(0xFFF4F8F2)
-                              : const Color(0xFFF7F7F7),
+                              ? AppColors.adapt(const Color(0xFFF4F8F2))
+                              : AppColors.adapt(const Color(0xFFF7F7F7)),
                           borderRadius: BorderRadius.circular(11),
                           border: Border.all(
-                            color: isSelected ? _dark : const Color(0xFFE8EEE6),
+                            color: isSelected
+                                ? AppColors.brand
+                                : AppColors.adapt(const Color(0xFFE8EEE6)),
                           ),
                         ),
                         child: Text(
@@ -625,7 +634,7 @@ class _MarketTabState extends State<MarketTab> {
                             color: isSelected
                                 ? Colors.white
                                 : isValid
-                                ? Colors.black87
+                                ? AppColors.text
                                 : Colors.black26,
                             fontSize: 13,
                             fontWeight: isSelected
@@ -640,18 +649,24 @@ class _MarketTabState extends State<MarketTab> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _legendDot(_dark),
+                    _legendDot(AppColors.brand),
                     const SizedBox(width: 5),
-                    const Text(
+                    Text(
                       'Selectable month',
-                      style: TextStyle(fontSize: 10, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    _legendDot(const Color(0xFFD8DDD9)),
+                    _legendDot(AppColors.adapt(const Color(0xFFD8DDD9))),
                     const SizedBox(width: 5),
-                    const Text(
+                    Text(
                       'Not available',
-                      style: TextStyle(fontSize: 10, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -660,25 +675,25 @@ class _MarketTabState extends State<MarketTab> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F8EF),
+                    color: AppColors.adapt(const Color(0xFFF0F8EF)),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.info_outline_rounded,
-                        color: _dark,
+                        color: AppColors.brand,
                         size: 16,
                       ),
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(
                           'Available from ${DateFormat('MMMM yyyy').format(firstMonth)}, based on your verification date. Future months cannot be selected.',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             height: 1.35,
-                            color: Color(0xFF52614F),
+                            color: AppColors.adapt(const Color(0xFF52614F)),
                           ),
                         ),
                       ),
@@ -692,8 +707,10 @@ class _MarketTabState extends State<MarketTab> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(sheetContext),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: _dark,
-                          side: const BorderSide(color: Color(0xFFDDE5DB)),
+                          foregroundColor: AppColors.brand,
+                          side: BorderSide(
+                            color: AppColors.adapt(const Color(0xFFDDE5DB)),
+                          ),
                           shape: const StadiumBorder(),
                           padding: const EdgeInsets.symmetric(vertical: 11),
                         ),
@@ -706,7 +723,7 @@ class _MarketTabState extends State<MarketTab> {
                         onPressed: () =>
                             Navigator.pop(sheetContext, draftMonth),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.dark,
+                          backgroundColor: AppColors.brandFill,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: const StadiumBorder(),
@@ -738,10 +755,16 @@ class _MarketTabState extends State<MarketTab> {
         height: 34,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: enabled ? AppTheme.tint : const Color(0xFFF3F4F3),
+          color: enabled
+              ? AppColors.tint
+              : AppColors.adapt(const Color(0xFFF3F4F3)),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 20, color: enabled ? _dark : Colors.black26),
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled ? AppColors.brand : Colors.black26,
+        ),
       ),
     );
   }
@@ -758,13 +781,13 @@ class _MarketTabState extends State<MarketTab> {
     width: double.infinity,
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE7EFE4)),
+      border: Border.all(color: AppColors.adapt(const Color(0xFFE7EFE4))),
     ),
     child: Text(
       message,
-      style: TextStyle(color: Colors.grey[700], fontSize: 12),
+      style: TextStyle(color: AppColors.grey(700), fontSize: 12),
     ),
   );
 
@@ -772,9 +795,9 @@ class _MarketTabState extends State<MarketTab> {
     width: double.infinity,
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE7EFE4)),
+      border: Border.all(color: AppColors.adapt(const Color(0xFFE7EFE4))),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.05),
@@ -986,10 +1009,12 @@ class _MarketTabState extends State<MarketTab> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // On the banner's light picture: the same dark
+                        // text in light and dark mode.
                         Text(
                           tr(context).welcomeBack,
                           style: TextStyle(
-                            color: Color(0xFF52614F),
+                            color: const Color(0xFF52614F),
                             fontSize: 12,
                             fontWeight: FontWeight.normal,
                           ),
@@ -1009,21 +1034,36 @@ class _MarketTabState extends State<MarketTab> {
                         const SizedBox(height: 4),
                         Text(
                           tr(context).productsListed(productCount),
-                          style: const TextStyle(
-                            color: Color(0xFF52614F),
+                          style: TextStyle(
+                            color: const Color(0xFF52614F),
                             fontSize: 11,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  CircleAvatar(
-                    radius: 29,
-                    backgroundColor: Colors.white,
-                    backgroundImage: imageProvider,
-                    child: imageProvider == null
-                        ? const Icon(Icons.person, color: _dark, size: 30)
-                        : null,
+                  // A white outline, on a soft shadow so it still shows
+                  // against the light sky of the farm picture behind.
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 29,
+                      backgroundColor: AppColors.surface,
+                      backgroundImage: imageProvider,
+                      child: imageProvider == null
+                          ? Icon(Icons.person, color: AppColors.brand, size: 30)
+                          : null,
+                    ),
                   ),
                 ],
               ),
@@ -1088,7 +1128,8 @@ class _MarketTabState extends State<MarketTab> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
+            border: AppColors.cardBorder,
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
@@ -1107,7 +1148,7 @@ class _MarketTabState extends State<MarketTab> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.normal,
-                  color: Colors.grey[600],
+                  color: AppColors.grey(600),
                   letterSpacing: 0.4,
                   height: 1.3,
                 ),
@@ -1118,7 +1159,7 @@ class _MarketTabState extends State<MarketTab> {
                 style: GoogleFonts.montserrat(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: _dark,
+                  color: AppColors.brand,
                 ),
               ),
             ],
@@ -1147,7 +1188,7 @@ class _SalesHeading extends StatelessWidget {
         const SizedBox(height: 3),
         Text(
           t.completedOrderRevenue,
-          style: const TextStyle(fontSize: 11, color: Colors.black54),
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
       ],
     );
@@ -1165,7 +1206,7 @@ class _SectionTitle extends StatelessWidget {
     style: GoogleFonts.montserrat(
       fontSize: 16,
       fontWeight: FontWeight.w600,
-      color: Colors.black87,
+      color: AppColors.text,
     ),
   );
 }

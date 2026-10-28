@@ -13,7 +13,8 @@ void main() {
   });
 
   test('however it was typed, it lands under the one category', () {
-    expect(category({'category': ' root crops '}, null), 'Root Crops');
+    // Root crops and spices are Vegetables now, also on older orders.
+    expect(category({'category': ' root crops '}, null), 'Vegetables');
     expect(category({'category': 'VEGETABLES'}, null), 'Vegetables');
     expect(category({'category': 'livestock'}, null), 'Livestock');
   });
@@ -23,7 +24,7 @@ void main() {
       category({'productName': 'Lakatan'}, {'category': 'Fruits'}),
       'Fruits',
     );
-    expect(category({'category': '  '}, {'category': 'Spices'}), 'Spices');
+    expect(category({'category': '  '}, {'category': 'Spices'}), 'Vegetables');
   });
 
   test('otherwise the commodity it names, matched exactly', () {

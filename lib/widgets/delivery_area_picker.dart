@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/ph_locations_service.dart';
 import '../services/delivery_coverage.dart';
-import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
 import 'app_search_bar.dart';
+import '../theme/app_colors.dart';
 
 /// The farmer's Custom Areas picker: a searchable list of PH
 /// municipalities/cities where several can be ticked. Resolves to the new
@@ -112,7 +112,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.black12,
+                    color: AppColors.hairline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -124,7 +124,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                   style: GoogleFonts.montserrat(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                 ),
               ),
@@ -134,7 +134,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                   'Select every municipality or city you deliver to.',
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -160,16 +160,18 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                             style: GoogleFonts.montserrat(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.dark,
+                              color: AppColors.brand,
                             ),
                           ),
-                          backgroundColor: const Color(0xFFE8F3E3),
+                          backgroundColor: AppColors.adapt(
+                            const Color(0xFFE8F3E3),
+                          ),
                           side: BorderSide.none,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                           onDeleted: () => _toggle(area),
-                          deleteIconColor: AppTheme.dark,
+                          deleteIconColor: AppColors.brand,
                           visualDensity: VisualDensity.compact,
                         ),
                     ],
@@ -182,15 +184,17 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                     'Couldn\'t load the full list — showing nearby areas only.',
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
-                      color: Colors.orange.shade800,
+                      color: AppColors.tone(Colors.orange, 800),
                     ),
                   ),
                 ),
               const SizedBox(height: 6),
               Expanded(
                 child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: AppTheme.dark),
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.brand,
+                        ),
                       )
                     : results.isEmpty
                     ? Center(
@@ -198,7 +202,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                           'No matching municipality or city.',
                           style: GoogleFonts.montserrat(
                             fontSize: 12.5,
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                           ),
                         ),
                       )
@@ -209,7 +213,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                           return CheckboxListTile(
                             dense: true,
                             value: _selected.contains(area),
-                            activeColor: AppTheme.dark,
+                            activeColor: AppColors.brandFill,
                             onChanged: (_) => _toggle(area),
                             title: Text(
                               area.name,
@@ -224,7 +228,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                                     area.province,
                                     style: GoogleFonts.montserrat(
                                       fontSize: 11.5,
-                                      color: Colors.grey[600],
+                                      color: AppColors.grey(600),
                                     ),
                                   ),
                           );

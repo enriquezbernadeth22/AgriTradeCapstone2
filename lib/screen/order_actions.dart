@@ -13,6 +13,7 @@ import 'add_review_screen.dart';
 import 'chat_screen.dart';
 import 'order_details_screen.dart';
 import 'order_receipt_screen.dart';
+import '../theme/app_colors.dart';
 
 /// Everything a user can do to an order from the Orders list, the order
 /// details screen or a receipt card in Messages. The business rules stay in
@@ -29,7 +30,7 @@ class OrderActions {
       SnackBar(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppTheme.dark,
+        backgroundColor: AppColors.brandFill,
         content: Text(message),
       ),
     );
@@ -505,16 +506,16 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
         );
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(fontSize: 13.5, color: Colors.grey[500]),
+      hintStyle: TextStyle(fontSize: 13.5, color: AppColors.grey(500)),
       prefixIcon: prefix,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.surface,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      counterStyle: TextStyle(fontSize: 11, color: Colors.grey[500]),
-      border: outline(Colors.grey.shade300),
-      enabledBorder: outline(Colors.grey.shade300),
-      focusedBorder: outline(AppTheme.mid, 1.4),
+      counterStyle: TextStyle(fontSize: 11, color: AppColors.grey(500)),
+      border: outline(AppColors.grey(300)),
+      enabledBorder: outline(AppColors.grey(300)),
+      focusedBorder: outline(AppColors.mid, 1.4),
     );
   }
 
@@ -522,10 +523,10 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
     padding: const EdgeInsets.only(left: 4, bottom: 7),
     child: Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: AppTheme.dark,
+        color: AppColors.brand,
       ),
     ),
   );
@@ -558,7 +559,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
             'propose a new date. They can accept it, cancel, or message you.',
             style: TextStyle(
               fontSize: 12.5,
-              color: Colors.grey[700],
+              color: AppColors.grey(700),
               height: 1.45,
             ),
           ),
@@ -569,18 +570,18 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
             initialValue: _reason,
             isExpanded: true,
             // The list opens as the same white panel as every dropdown.
-            dropdownColor: Colors.white,
+            dropdownColor: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
-            icon: const Icon(
+            icon: Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: AppTheme.dark,
+              color: AppColors.brand,
             ),
             decoration: _field(),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Montserrat',
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
-              color: AppTheme.dark,
+              color: AppColors.brand,
             ),
             items: [
               for (final entry in kOrderDelayReasons.entries)
@@ -616,19 +617,19 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
             child: InputDecorator(
               decoration:
                   _field(
-                    prefix: const Padding(
+                    prefix: Padding(
                       padding: EdgeInsets.only(left: 16, right: 8),
                       child: Icon(
                         Icons.calendar_today_outlined,
                         size: 18,
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                       ),
                     ),
                   ).copyWith(
                     prefixIconConstraints: const BoxConstraints(minWidth: 0),
-                    suffixIcon: const Icon(
+                    suffixIcon: Icon(
                       Icons.chevron_right_rounded,
-                      color: AppTheme.dark,
+                      color: AppColors.brand,
                     ),
                   ),
               child: Text(
@@ -636,7 +637,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: _date == null ? FontWeight.w500 : FontWeight.w600,
-                  color: _date == null ? Colors.grey[500] : AppTheme.dark,
+                  color: _date == null ? AppColors.grey(500) : AppColors.brand,
                 ),
               ),
             ),

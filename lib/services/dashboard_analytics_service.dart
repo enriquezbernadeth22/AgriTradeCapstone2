@@ -203,11 +203,10 @@ String? areaFromOrderAddress(String? address) {
 ///   above) — both must independently satisfy this same definition.
 /// - **SALES BY CATEGORY** = completed-order revenue grouped by product
 ///   category. See [categoryRevenue].
-/// - **TOP-SELLING PRODUCTS** = products ranked by completed-order
-///   revenue, quantity sold retained as a secondary value. See
-///   [topSellingProducts] (platform-wide) and
-///   FarmerRevenueService.bestSellingProducts (farmer-scoped — the
-///   function platform-wide delegates to).
+/// - **TOP-SELLING PRODUCTS** = commodities ranked by number of completed
+///   orders (sales value breaks a tie), with revenue and quantity sold as
+///   secondary values — the same count as the Farmer's Best-Selling
+///   Products (MarketDemandService.bestSellers). See [topSellingProducts].
 /// - **CURRENT MARKET AVERAGE** = average ACTIVE LISTING price for the
 ///   same commodity, unit, and pricing type — never the Admin Reference
 ///   Price (`market_prices.baselinePrice`). See
@@ -482,19 +481,13 @@ class DashboardAnalyticsService {
   }
 
   /// The categories Sales by Category reports under, spelled as shown.
-  static const List<String> salesCategories = [
-    'Grains',
-    'Root Crops',
-    'Vegetables',
-    'Spices',
-    'Fruits',
-    'Livestock',
-  ];
+  static const List<String> salesCategories = kBuiltInCategories;
 
   // [raw] as one of the commodity list's categories however it was typed
-  // ("root crops", " Vegetables "); null for anything that is not one.
+  // (" vegetables "; "Root Crops", now Vegetables — see normalizeCategory);
+  // null for anything that is not one.
   static String? _knownCategory(Object? raw) {
-    final text = (raw ?? '').toString().trim();
+    final text = normalizeCategory(raw);
     if (text.isEmpty) return null;
     final key = text.toLowerCase().replaceAll(RegExp(r'[\s_-]+'), ' ');
     for (final name in [
@@ -628,109 +621,6 @@ class DashboardAnalyticsService {
     ];
   }
 
-  /// SALES PERFORMANCE by product: for each of the [months] calendar months
-  /// ending this one, the revenue and number of completed orders of every
-  /// product (its supported commodity, else the order's own product name)
-  /// — the [limit] that sold the most over the whole
-  /// period, highest first (ranked by revenue, as Top-Selling Products
-  /// is). A month in which a product sold nothing is a real 0, so a line
-  /// shows the drop.
-  static List<({String name, List<double> revenue, List<int> orders})>
-  monthlyProductSales(
-    Iterable<Map<String, dynamic>> orders, {
-    required DateTime now,
-    int months = 6,
-    int limit = 5,
-  }) {
-    final first = DateTime(now.year, now.month - (months - 1), 1);
-    final revenue = <String, List<double>>{};
-    final counts = <String, List<int>>{};
-    for (final data in orders) {
-      if ((data['status'] ?? '').toString().toLowerCase() != 'completed') {
-        continue;
-      }
-      // A product not on the commodity list still has its sales charted,
-      // under its own name.
-      final productName = (data['productName'] ?? '').toString().trim();
-      final name =
-          orderCommodity(data) ?? (productName.isEmpty ? null : productName);
-      final date = _completionDate(data);
-      if (name == null || date == null) continue;
-      final index = (date.year - first.year) * 12 + (date.month - first.month);
-      if (index < 0 || index >= months) continue;
-      final total = data['total'];
-      revenue.putIfAbsent(
-        name,
-        () => List<double>.filled(months, 0),
-      )[index] += total is num
-          ? total.toDouble()
-          : double.tryParse(total?.toString() ?? '') ?? 0;
-      counts.putIfAbsent(name, () => List<int>.filled(months, 0))[index]++;
-    }
-    double sum(List<double> values) => values.fold(0, (a, b) => a + b);
-    final ranked = revenue.keys.toList()
-      ..sort((a, b) {
-        final byRevenue = sum(revenue[b]!).compareTo(sum(revenue[a]!));
-        return byRevenue != 0 ? byRevenue : a.compareTo(b);
-      });
-    return [
-      for (final name in ranked.take(limit))
-        (name: name, revenue: revenue[name]!, orders: counts[name]!),
-    ];
-  }
-
-  /// SALES PERFORMANCE for one [product]: its demand in each of the
-  /// [months] calendar months ending this one — the quantity sold in
-  /// completed orders (in the product's own unit), their revenue and how
-  /// many there were — so the months it sells best, and where it drops,
-  /// show. A month with no sale is a real 0.
-  static List<({DateTime month, double quantity, double revenue, int orders})>
-  monthlyDemandFor(
-    Iterable<Map<String, dynamic>> orders, {
-    required String product,
-    required DateTime now,
-    int months = 6,
-  }) {
-    final first = DateTime(now.year, now.month - (months - 1), 1);
-    final target = product.trim().toLowerCase();
-    final unit = unitForCommodity(product).toLowerCase();
-    final quantity = List<double>.filled(months, 0);
-    final revenue = List<double>.filled(months, 0);
-    final counts = List<int>.filled(months, 0);
-    for (final data in orders) {
-      if ((data['status'] ?? '').toString().toLowerCase() != 'completed') {
-        continue;
-      }
-      final productName = (data['productName'] ?? '').toString().trim();
-      final name = orderCommodity(data) ?? productName;
-      if (name.toLowerCase() != target) continue;
-      final date = _completionDate(data);
-      if (date == null) continue;
-      final index = (date.year - first.year) * 12 + (date.month - first.month);
-      if (index < 0 || index >= months) continue;
-      final total = data['total'];
-      revenue[index] += total is num
-          ? total.toDouble()
-          : double.tryParse(total?.toString() ?? '') ?? 0;
-      counts[index]++;
-      // Quantities only add up in one unit (never kg with heads).
-      final orderUnit = (data['unit'] ?? '').toString().trim().toLowerCase();
-      final q = data['quantity'];
-      if ((orderUnit.isEmpty || orderUnit == unit) && q is num) {
-        quantity[index] += q.toDouble();
-      }
-    }
-    return [
-      for (var i = 0; i < months; i++)
-        (
-          month: DateTime(first.year, first.month + i, 1),
-          quantity: quantity[i],
-          revenue: revenue[i],
-          orders: counts[i],
-        ),
-    ];
-  }
-
   /// The supported commodity a completed order was for: the commodity
   /// frozen on the order, or the one its product name refers to ("Native
   /// Chicken" is Chicken). Null for a product that is not on the Admin's
@@ -742,15 +632,75 @@ class DashboardAnalyticsService {
     return matchSupportedCommodity((order['productName'] ?? '').toString());
   }
 
-  /// TOP-SELLING PRODUCTS = the supported commodities ranked by the revenue
-  /// of their completed orders, every listing of a commodity counted
-  /// together. An order for something that is not on the commodity list is
-  /// not ranked.
-  static List<({String name, num revenue, num quantity})> topSellingProducts(
+  /// The product a completed order counts under in Market Demand and
+  /// Top-Selling Products: its supported commodity ([orderCommodity]) —
+  /// "Native Chicken" is Chicken — or, for a product that is not on the
+  /// Admin's commodity list, its own name ("tomato" and "Tomato" alike).
+  /// Every completed order counts somewhere, so these figures add up to
+  /// the same totals as Sales by Category. Null only without a name.
+  static String? demandProduct(Map<String, dynamic> order) {
+    final commodity = orderCommodity(order);
+    if (commodity != null) return commodity;
+    final name = (order['productName'] ?? order['name'] ?? '')
+        .toString()
+        .trim()
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (name.isEmpty) return null;
+    return name
+        .split(' ')
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  /// MARKET DEMAND = the completed orders of [commodity] in each month of
+  /// [year], January first: dated by when each order completed, and matched
+  /// to the product by the same rule as Top-Selling Products
+  /// ([demandProduct]). Orders, not kilos or pieces, as units differ.
+  static List<int> monthlyCompletedOrders(
+    Iterable<Map<String, dynamic>> orders,
+    String commodity,
+    int year,
+  ) {
+    final counts = List<int>.filled(12, 0);
+    final key = commodity.trim().toLowerCase();
+    for (final order in orders) {
+      if ((order['status'] ?? '').toString().toLowerCase() != 'completed') {
+        continue;
+      }
+      final date = _completionDate(order);
+      if (date == null || date.year != year) continue;
+      if (demandProduct(order)?.toLowerCase() != key) continue;
+      counts[date.month - 1]++;
+    }
+    return counts;
+  }
+
+  /// When a completed order completed (see [_completionDate]).
+  static DateTime? completionDateOf(Map<String, dynamic> order) =>
+      _completionDate(order);
+
+  /// The years with any completed order.
+  static Set<int> completedOrderYears(Iterable<Map<String, dynamic>> orders) =>
+      {
+        for (final order in orders)
+          if ((order['status'] ?? '').toString().toLowerCase() == 'completed')
+            if (_completionDate(order) case final date?) date.year,
+      };
+
+  /// TOP-SELLING PRODUCTS = products ranked by how many completed orders
+  /// they had (the sales value breaks a tie), every listing of a commodity
+  /// counted together and a product not on the commodity list under its
+  /// own name ([demandProduct]) — so every completed order is counted, as
+  /// in Sales by Category. Orders, not pesos, because that is how demand
+  /// is counted everywhere else: the Farmer's Best-Selling Products, the
+  /// Buyer's demand badge, Market Demand and the Demand Heatmap.
+  static List<({String name, int orders, num revenue, num quantity})>
+  topSellingProducts(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> orders, {
     int limit = 5,
     DateTimeRange? range,
   }) {
+    final orderCount = <String, int>{};
     final revenue = <String, num>{};
     final quantity = <String, num>{};
     for (final doc in orders) {
@@ -759,19 +709,28 @@ class DashboardAnalyticsService {
         continue;
       }
       if (!_inRange(_completionDate(data), range)) continue;
-      final commodity = orderCommodity(data);
+      final commodity = demandProduct(data);
       if (commodity == null) continue;
       num number(dynamic raw) =>
           raw is num ? raw : num.tryParse(raw?.toString() ?? '') ?? 0;
+      orderCount[commodity] = (orderCount[commodity] ?? 0) + 1;
       revenue[commodity] = (revenue[commodity] ?? 0) + number(data['total']);
       quantity[commodity] =
           (quantity[commodity] ?? 0) + number(data['quantity']);
     }
     final ranked = revenue.keys.toList()
-      ..sort((a, b) => revenue[b]!.compareTo(revenue[a]!));
+      ..sort((a, b) {
+        final byOrders = orderCount[b]!.compareTo(orderCount[a]!);
+        return byOrders != 0 ? byOrders : revenue[b]!.compareTo(revenue[a]!);
+      });
     return [
       for (final name in ranked.take(limit))
-        (name: name, revenue: revenue[name]!, quantity: quantity[name]!),
+        (
+          name: name,
+          orders: orderCount[name]!,
+          revenue: revenue[name]!,
+          quantity: quantity[name]!,
+        ),
     ];
   }
 
@@ -1176,8 +1135,7 @@ class DashboardAnalyticsService {
       if (name.isEmpty) continue;
       final product = matchSupportedCommodity(name) ?? name;
       final category =
-          categoryOfCommodity(product) ??
-          (data['category'] ?? '').toString().trim();
+          categoryOfCommodity(product) ?? normalizeCategory(data['category']);
       final savedUnit = (data['unit'] ?? '').toString().trim();
       final unit = savedUnit.isNotEmpty ? savedUnit : unitForCommodity(product);
       final rawQuantity = data['quantity'];

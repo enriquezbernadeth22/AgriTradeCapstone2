@@ -1,7 +1,7 @@
-import '../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// The existing notification bell icon, unchanged, plus a small unread-count
 /// badge in its corner — reused by Farmer Home and Buyer Marketplace so the
@@ -9,13 +9,9 @@ import 'package:flutter/material.dart';
 /// notifications/{uid}/items where read == false; never a hardcoded count.
 class NotificationBell extends StatelessWidget {
   final VoidCallback onPressed;
-  final Color color;
+  final Color? color;
 
-  const NotificationBell({
-    super.key,
-    required this.onPressed,
-    this.color = AppTheme.dark,
-  });
+  const NotificationBell({super.key, required this.onPressed, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +22,11 @@ class NotificationBell extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onPressed,
-          icon: Icon(Icons.notifications_none_rounded, color: color, size: 22),
+          icon: Icon(
+            Icons.notifications_none_rounded,
+            color: color ?? AppColors.brand,
+            size: 22,
+          ),
         ),
         if (uid != null)
           Positioned(

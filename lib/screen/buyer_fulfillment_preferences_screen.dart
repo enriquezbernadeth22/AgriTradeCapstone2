@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/buyer_location_picker.dart';
 import 'buyer_saved_products_screen.dart' show buyerSubScreenAppBar;
+import '../theme/app_colors.dart';
 
 /// A buyer's optional delivery / pickup preferences.
 ///
@@ -24,7 +25,6 @@ class BuyerFulfillmentPreferencesScreen extends StatefulWidget {
 
 class _BuyerFulfillmentPreferencesScreenState
     extends State<BuyerFulfillmentPreferencesScreen> {
-  static const Color _dark = AppTheme.dark;
   static const _methods = {
     'delivery': 'Delivery',
     'pickup': 'Pickup',
@@ -141,7 +141,7 @@ class _BuyerFulfillmentPreferencesScreenState
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          backgroundColor: _dark,
+          backgroundColor: AppColors.brandFill,
           content: Text(message),
         ),
       );
@@ -150,10 +150,10 @@ class _BuyerFulfillmentPreferencesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: buyerSubScreenAppBar('Delivery & Pick-up'),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _dark))
+          ? Center(child: CircularProgressIndicator(color: AppColors.brand))
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
@@ -174,9 +174,9 @@ class _BuyerFulfillmentPreferencesScreenState
                     onSelectionChanged: (value) =>
                         setState(() => _method = value.first),
                     style: SegmentedButton.styleFrom(
-                      selectedBackgroundColor: _dark,
+                      selectedBackgroundColor: AppColors.brand,
                       selectedForegroundColor: Colors.white,
-                      foregroundColor: _dark,
+                      foregroundColor: AppColors.brand,
                       textStyle: const TextStyle(
                         fontFamily: 'Montserrat',
                         fontSize: 13,
@@ -201,13 +201,19 @@ class _BuyerFulfillmentPreferencesScreenState
                   textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
                     hintText: 'e.g. Green gate beside the barangay hall',
-                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    hintStyle: TextStyle(
+                      color: AppColors.grey(500),
+                      fontSize: 13,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(color: _dark, width: 1.5),
+                      borderSide: BorderSide(
+                        color: AppColors.brand,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -215,12 +221,19 @@ class _BuyerFulfillmentPreferencesScreenState
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.lock_outline, size: 14, color: Colors.grey[600]),
+                    Icon(
+                      Icons.lock_outline,
+                      size: 14,
+                      color: AppColors.grey(600),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Private to you. Other users never see this on your profile.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.grey(600),
+                        ),
                       ),
                     ),
                   ],
@@ -248,10 +261,10 @@ class _BuyerFulfillmentPreferencesScreenState
 
   Widget _sectionTitle(String text) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 13.5,
       fontWeight: FontWeight.w700,
-      color: Colors.black87,
+      color: AppColors.text,
     ),
   );
 
@@ -269,26 +282,27 @@ class _BuyerFulfillmentPreferencesScreenState
         return Container(
           padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
           decoration: BoxDecoration(
-            color: AppTheme.surface,
+            color: AppColors.surfaceAlt,
+            border: AppColors.cardBorder,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
-              const Icon(Icons.place_outlined, size: 20, color: _dark),
+              Icon(Icons.place_outlined, size: 20, color: AppColors.brand),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   readable.isEmpty ? 'Not set' : readable,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
               ),
               TextButton(
                 onPressed: () => _editLocation(data),
-                style: TextButton.styleFrom(foregroundColor: _dark),
+                style: TextButton.styleFrom(foregroundColor: AppColors.brand),
                 child: Text(
                   readable.isEmpty ? 'Set' : 'Change',
                   style: const TextStyle(

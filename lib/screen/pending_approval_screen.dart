@@ -29,6 +29,7 @@ import '../theme/app_theme.dart';
 import '../widgets/agritrade_text.dart';
 import '../services/first_entry_after_approval.dart';
 import 'login_screen.dart';
+import '../theme/app_colors.dart';
 
 class PendingApprovalScreen extends StatefulWidget {
   final bool justVerified;
@@ -250,7 +251,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
     if (rejected && _rejectionReason.isEmpty) _loadRejectionReason();
 
     return Scaffold(
-      backgroundColor: AppTheme.bgLight,
+      backgroundColor: AppColors.page,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -258,7 +259,8 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
             child: Container(
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -278,7 +280,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                     decoration: BoxDecoration(
                       color: rejected
                           ? Colors.red.withValues(alpha: 0.12)
-                          : AppTheme.accent,
+                          : AppColors.accent,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -288,7 +290,9 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                           ? Icons.verified_rounded
                           : Icons.hourglass_top_rounded,
                       size: 42,
-                      color: rejected ? Colors.red[700] : AppTheme.dark,
+                      color: rejected
+                          ? AppColors.tone(Colors.red, 700)
+                          : AppColors.brand,
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -342,7 +346,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Colors.red[700],
+                              color: AppColors.tone(Colors.red, 700),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -361,7 +365,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withValues(alpha: 0.35),
+                        color: AppColors.accent.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Column(
@@ -413,14 +417,16 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                       decoration: BoxDecoration(
                         color: Colors.amber.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.amber.shade300),
+                        border: Border.all(
+                          color: AppColors.tone(Colors.amber, 300),
+                        ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
                             Icons.schedule,
-                            color: Colors.amber.shade800,
+                            color: AppColors.tone(Colors.amber, 800),
                             size: 18,
                           ),
                           const SizedBox(width: 8),
@@ -431,7 +437,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.amber.shade900,
+                                color: AppColors.tone(Colors.amber, 900),
                                 height: 1.4,
                               ),
                             ),
@@ -512,7 +518,7 @@ class _StepRow extends StatelessWidget {
         Icon(
           done ? Icons.check_circle : Icons.radio_button_unchecked,
           size: 20,
-          color: done ? AppTheme.mid : Colors.grey,
+          color: done ? AppColors.mid : AppColors.grey(),
         ),
         const SizedBox(width: 10),
         Text(
@@ -520,7 +526,7 @@ class _StepRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 13.5,
             fontWeight: done ? FontWeight.w600 : FontWeight.normal,
-            color: done ? AppTheme.dark : Colors.grey[700],
+            color: done ? AppColors.brand : AppColors.grey(700),
           ),
         ),
       ],

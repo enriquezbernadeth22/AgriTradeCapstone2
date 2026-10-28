@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Wraps [child] in a looping left-to-right gradient sweep, used to animate
 /// skeleton loading placeholders (build screens out of [SkeletonBox] /
@@ -6,15 +7,15 @@ import 'package:flutter/material.dart';
 /// placeholder shimmers together as a single sweep, not independently).
 class Shimmer extends StatefulWidget {
   final Widget child;
-  final Color baseColor;
-  final Color highlightColor;
+  final Color? baseColor;
+  final Color? highlightColor;
   final Duration duration;
 
   const Shimmer({
     super.key,
     required this.child,
-    this.baseColor = const Color(0xFFE6E6E6),
-    this.highlightColor = const Color(0xFFF6F6F6),
+    this.baseColor,
+    this.highlightColor,
     this.duration = const Duration(milliseconds: 1400),
   });
 
@@ -36,6 +37,9 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final base = widget.baseColor ?? AppColors.adapt(const Color(0xFFE6E6E6));
+    final highlight =
+        widget.highlightColor ?? AppColors.adapt(const Color(0xFFF6F6F6));
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -45,7 +49,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
         return ShaderMask(
           blendMode: BlendMode.srcATop,
           shaderCallback: (bounds) => LinearGradient(
-            colors: [widget.baseColor, widget.highlightColor, widget.baseColor],
+            colors: [base, highlight, base],
             stops: const [0.35, 0.5, 0.65],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
@@ -89,7 +93,7 @@ class SkeletonBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFE0E0E0),
+        color: AppColors.adapt(const Color(0xFFE0E0E0)),
         borderRadius: borderRadius,
       ),
     );
@@ -106,8 +110,8 @@ class SkeletonCircle extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: Color(0xFFE0E0E0),
+      decoration: BoxDecoration(
+        color: AppColors.adapt(const Color(0xFFE0E0E0)),
         shape: BoxShape.circle,
       ),
     );

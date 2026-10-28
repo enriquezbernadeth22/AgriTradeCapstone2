@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 /// The "Leave This Process?" confirmation, shown when the user goes Back
 /// while an account email request (password reset, verification code,
@@ -141,7 +141,6 @@ class _LeaveDialog extends StatelessWidget {
   const _LeaveDialog();
 
   static const double _buttonHeight = 46;
-  static const Color _warning = Color(0xFFEF6C00);
 
   // Both buttons: same height and pill shape, with a label that shrinks
   // rather than wraps.
@@ -173,7 +172,7 @@ class _LeaveDialog extends StatelessWidget {
             ? ElevatedButton(
                 onPressed: onPressed,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.dark,
+                  backgroundColor: AppColors.brandFill,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: padding,
@@ -184,9 +183,9 @@ class _LeaveDialog extends StatelessWidget {
             : OutlinedButton(
                 onPressed: onPressed,
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppTheme.mid,
-                  side: const BorderSide(color: AppTheme.mid, width: 1.2),
+                  backgroundColor: AppColors.surface,
+                  foregroundColor: AppColors.mid,
+                  side: BorderSide(color: AppColors.mid, width: 1.2),
                   padding: padding,
                   shape: shape,
                 ),
@@ -201,7 +200,7 @@ class _LeaveDialog extends StatelessWidget {
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.3,
       child: Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -218,12 +217,14 @@ class _LeaveDialog extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _warning.withValues(alpha: 0.12),
+                    color: AppColors.adapt(
+                      const Color(0xFFEF6C00),
+                    ).withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.warning_amber_rounded,
-                    color: _warning,
+                    color: AppColors.adapt(const Color(0xFFEF6C00)),
                     size: 28,
                   ),
                 ),
@@ -234,7 +235,7 @@ class _LeaveDialog extends StatelessWidget {
                   style: GoogleFonts.montserrat(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -247,7 +248,7 @@ class _LeaveDialog extends StatelessWidget {
                     style: GoogleFonts.montserrat(
                       fontSize: 13,
                       height: 1.5,
-                      color: Colors.black87,
+                      color: AppColors.text,
                     ),
                   ),
                 ),

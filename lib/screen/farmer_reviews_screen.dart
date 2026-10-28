@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../services/review_stats.dart';
-import '../theme/app_theme.dart';
 import '../widgets/profile_avatar.dart';
+import '../theme/app_colors.dart';
 
 /// Five stars for [rating], with half stars.
 class RatingStars extends StatelessWidget {
@@ -28,7 +28,7 @@ class RatingStars extends StatelessWidget {
               ? Icons.star_half_rounded
               : Icons.star_border_rounded,
           size: size,
-          color: rating >= i + 0.5 ? Colors.amber : Colors.grey[400],
+          color: rating >= i + 0.5 ? Colors.amber : AppColors.grey(400),
         ),
     ],
   );
@@ -50,8 +50,6 @@ class FarmerReviewsScreen extends StatefulWidget {
 }
 
 class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
-  static const _green = AppTheme.dark;
-
   final String? _sellerId = FirebaseAuth.instance.currentUser?.uid;
   bool get _forProduct => (widget.productId ?? '').isNotEmpty;
 
@@ -92,7 +90,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: AgriAppBar(
         title: _forProduct ? 'Product Reviews' : 'Buyer Reviews',
       ),
@@ -101,13 +99,13 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {
-            return const Center(
+            return Center(
               child: SizedBox(
                 width: 26,
                 height: 26,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: _green,
+                  color: AppColors.brand,
                 ),
               ),
             );
@@ -154,9 +152,9 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
     width: double.infinity,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: AppColors.grey(200)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +164,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: AppColors.text,
           ),
         ),
         const SizedBox(height: 8),
@@ -175,7 +173,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
             'No reviews yet',
             style: GoogleFonts.montserrat(
               fontSize: 13,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           )
         else ...[
@@ -186,7 +184,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                 style: GoogleFonts.montserrat(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
-                  color: _green,
+                  color: AppColors.brand,
                 ),
               ),
               const SizedBox(width: 10),
@@ -198,7 +196,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
             'Based on ${reviewCountLabel(summary.count)}',
             style: GoogleFonts.montserrat(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           ),
         ],
@@ -223,15 +221,18 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
         : 'You';
     String date(dynamic value) =>
         value is Timestamp ? DateFormat('MMM d, y').format(value.toDate()) : '';
-    final muted = GoogleFonts.montserrat(fontSize: 11, color: Colors.grey[600]);
+    final muted = GoogleFonts.montserrat(
+      fontSize: 11,
+      color: AppColors.grey(600),
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.grey(200)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +245,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: _green,
+                  color: AppColors.brand,
                 ),
               ),
             ),
@@ -271,7 +272,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                       style: GoogleFonts.montserrat(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: AppColors.text,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -290,10 +291,10 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                         padding: const EdgeInsets.only(top: 3),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.verified_outlined,
                               size: 13,
-                              color: _green,
+                              color: AppColors.brand,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -301,7 +302,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                               style: GoogleFonts.montserrat(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: _green,
+                                color: AppColors.brand,
                               ),
                             ),
                           ],
@@ -318,7 +319,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
               comment,
               style: GoogleFonts.montserrat(
                 fontSize: 13,
-                color: Colors.black87,
+                color: AppColors.text,
                 height: 1.4,
               ),
             ),
@@ -342,7 +343,8 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.tint,
+                color: AppColors.tint,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -356,7 +358,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                           style: GoogleFonts.montserrat(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _green,
+                            color: AppColors.brand,
                           ),
                         ),
                       ),
@@ -369,7 +371,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                     reply,
                     style: GoogleFonts.montserrat(
                       fontSize: 12.5,
-                      color: Colors.black87,
+                      color: AppColors.text,
                       height: 1.4,
                     ),
                   ),
@@ -490,7 +492,7 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
           icon: const Icon(Icons.edit_outlined, size: 15),
           label: const Text('Edit reply'),
           style: TextButton.styleFrom(
-            foregroundColor: AppTheme.dark,
+            foregroundColor: AppColors.brand,
             minimumSize: const Size(0, 32),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             textStyle: GoogleFonts.montserrat(
@@ -524,13 +526,13 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                         : 'Edit your reply…',
                     hintStyle: GoogleFonts.montserrat(
                       fontSize: 13,
-                      color: Colors.grey[500],
+                      color: AppColors.grey(500),
                     ),
                     // Kept clean: the limit still applies.
                     counterText: '',
                     isDense: true,
                     filled: true,
-                    fillColor: const Color(0xFFF4F6F3),
+                    fillColor: AppColors.adapt(const Color(0xFFF4F6F3)),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 11,
@@ -541,10 +543,7 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(22),
-                      borderSide: const BorderSide(
-                        color: AppTheme.mid,
-                        width: 1.2,
-                      ),
+                      borderSide: BorderSide(color: AppColors.mid, width: 1.2),
                     ),
                   ),
                 ),
@@ -557,8 +556,8 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                   tooltip: 'Send reply',
                   onPressed: _canSend ? _send : null,
                   style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.dark,
-                    disabledBackgroundColor: AppTheme.dark.withValues(
+                    backgroundColor: AppColors.brandFill,
+                    disabledBackgroundColor: AppColors.brandFill.withValues(
                       alpha: 0.3,
                     ),
                     foregroundColor: Colors.white,
@@ -587,7 +586,7 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                       _controller.clear();
                     }),
               style: TextButton.styleFrom(
-                foregroundColor: Colors.grey[700],
+                foregroundColor: AppColors.grey(700),
                 minimumSize: const Size(0, 30),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),

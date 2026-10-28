@@ -159,7 +159,7 @@ List<AdminNotificationItem> buildAdminNotifications({
       _time(data['createdAt']),
       Icons.assignment_ind_outlined,
       'New farmer application',
-      '$name · RSBA No.: ${farmerIdOf(data) ?? kNoFarmerId}',
+      '$name · RSBSA No.: ${farmerIdOf(data) ?? kNoFarmerId}',
       AdminNotificationTarget.verification,
     );
     final approval = _text(data['approvalStatus'], '').toLowerCase();

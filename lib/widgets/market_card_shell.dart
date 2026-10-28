@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
 import '../l10n/tr.dart';
 import 'agri_app_bar.dart';
+import '../theme/app_colors.dart';
 
 /// The shared frame of the Farmer Dashboard's market cards (Best-Selling
 /// Products, Top Buyer Locations, Current Market Average):
@@ -29,9 +29,9 @@ class MarketCardShell extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE9F0E4)),
+        border: Border.all(color: AppColors.adapt(const Color(0xFFE9F0E4))),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -55,7 +55,7 @@ class MarketCardShell extends StatelessWidget {
                       style: GoogleFonts.montserrat(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: AppColors.text,
                       ),
                     ),
                     if (subtitle != null) ...[
@@ -65,7 +65,7 @@ class MarketCardShell extends StatelessWidget {
                         style: GoogleFonts.montserrat(
                           fontSize: 11.5,
                           height: 1.35,
-                          color: Colors.grey[600],
+                          color: AppColors.grey(600),
                         ),
                       ),
                     ],
@@ -80,7 +80,8 @@ class MarketCardShell extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.surface,
+                    color: AppColors.surfaceAlt,
+                    border: AppColors.cardBorder,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -88,7 +89,7 @@ class MarketCardShell extends StatelessWidget {
                     style: GoogleFonts.montserrat(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.dark,
+                      color: AppColors.brand,
                     ),
                   ),
                 ),
@@ -116,12 +117,13 @@ class MarketCardEmpty extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: AppColors.surfaceAlt,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 28, color: AppTheme.dark.withValues(alpha: 0.45)),
+          Icon(icon, size: 28, color: AppColors.brand.withValues(alpha: 0.45)),
           const SizedBox(height: 8),
           Text(
             message,
@@ -129,7 +131,7 @@ class MarketCardEmpty extends StatelessWidget {
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
               height: 1.4,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           ),
         ],
@@ -148,8 +150,8 @@ class MarketCardLoading extends StatelessWidget {
       borderRadius: BorderRadius.circular(2),
       child: LinearProgressIndicator(
         minHeight: 2.5,
-        color: AppTheme.dark.withValues(alpha: 0.55),
-        backgroundColor: AppTheme.dark.withValues(alpha: 0.08),
+        color: AppColors.brand.withValues(alpha: 0.55),
+        backgroundColor: AppColors.brandFill.withValues(alpha: 0.08),
       ),
     );
   }
@@ -172,7 +174,7 @@ Widget marketCardRows({
     children: [
       // One plain line each, a hairline between them — easy to scan.
       for (var i = 0; i < shown.length; i++) ...[
-        if (i > 0) Divider(height: 1, color: Colors.grey[200]),
+        if (i > 0) Divider(height: 1, color: AppColors.grey(200)),
         shown[i],
       ],
       if (!showAll && rows.length > kMarketCardRows)
@@ -196,7 +198,7 @@ void openMarketCardScreen(
     context,
     MaterialPageRoute(
       builder: (_) => Scaffold(
-        backgroundColor: AppTheme.surface,
+        backgroundColor: AppColors.surfaceAlt,
         appBar: AgriAppBar(title: title),
         body: SafeArea(
           top: false,
@@ -231,7 +233,7 @@ class MarketCardViewAll extends StatelessWidget {
         icon: const Icon(Icons.chevron_right_rounded, size: 18),
         label: Text('${tr(context).viewAll} ($count)'),
         style: TextButton.styleFrom(
-          foregroundColor: AppTheme.dark,
+          foregroundColor: AppColors.brand,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           minimumSize: const Size(0, 34),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,

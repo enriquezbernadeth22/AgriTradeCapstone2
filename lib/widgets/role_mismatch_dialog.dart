@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 // If your role selection screen is elsewhere, fix this import + the class name below.
 import '../screen/role_selection_screen.dart';
-import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 // ============================================================
 // Role Mismatch dialog
@@ -17,10 +17,6 @@ import 'agri_dialog.dart';
 //
 // where 'buyer' is the role the account is actually registered as.
 // ============================================================
-
-const Color _darkGreen = AppTheme.dark;
-const Color _midGreen = AppTheme.dark;
-const Color _lightGreenAccent = Color(0xFFDCEDC8);
 
 Future<void> showRoleMismatchDialog(
   BuildContext context,
@@ -57,16 +53,16 @@ Future<void> showRoleMismatchDialog(
                 // ---- Logo ----
                 CircleAvatar(
                   radius: 34,
-                  backgroundColor: _lightGreenAccent,
+                  backgroundColor: AppColors.accent,
                   child: ClipOval(
                     child: Image.asset(
                       'assets/images/logo.png',
                       width: 46,
                       height: 46,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Icon(
+                      errorBuilder: (_, _, _) => Icon(
                         Icons.agriculture,
-                        color: _midGreen,
+                        color: AppColors.brand,
                         size: 34,
                       ),
                     ),
@@ -75,12 +71,12 @@ Future<void> showRoleMismatchDialog(
                 const SizedBox(height: 16),
 
                 // ---- Title ----
-                const Text(
+                Text(
                   'Role Mismatch Detected!',
                   style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.bold,
-                    color: _darkGreen,
+                    color: AppColors.brand,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -89,18 +85,18 @@ Future<void> showRoleMismatchDialog(
                 // ---- Message (with the role in bold) ----
                 Text.rich(
                   TextSpan(
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13.5,
-                      color: Colors.black87,
+                      color: AppColors.text,
                       height: 1.4,
                     ),
                     children: [
                       const TextSpan(text: 'This account is registered as '),
                       TextSpan(
                         text: roleLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _darkGreen,
+                          color: AppColors.brand,
                         ),
                       ),
                       TextSpan(
@@ -120,7 +116,7 @@ Future<void> showRoleMismatchDialog(
                   child: ElevatedButton(
                     onPressed: () => goToRoleSelection(dialogContext),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _darkGreen,
+                      backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: RoundedRectangleBorder(
@@ -142,12 +138,12 @@ Future<void> showRoleMismatchDialog(
                 // ---- Button 2: secondary ----
                 TextButton(
                   onPressed: () => goToRoleSelection(dialogContext),
-                  child: const Text(
+                  child: Text(
                     'Back to Role Selection',
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: _darkGreen,
+                      color: AppColors.brand,
                     ),
                   ),
                 ),

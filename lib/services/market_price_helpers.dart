@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import '../data/commodity_master_list.dart';
+import 'price_recommendation_service.dart';
 
 /// Shared formatting + aggregation helpers so every screen — admin Price
 /// Management, the marketplace, product detail, orders, inventory, and
@@ -65,11 +66,24 @@ String timeAgo(Timestamp? ts) {
 /// figure (see market_prices.baselinePrice). "Active" excludes archived,
 /// suspended, and sold-out (quantity <= 0) listings, since an asking price
 /// that isn't actually for sale right now shouldn't count toward what the
-/// market is currently charging. Returns null when nothing matches, so
-/// callers can show an explicit "No active listings" state instead of a
-/// fake 0 or a silent fallback to the reference price.
+/// market is currently charging. An unusually high or low asking price is
+/// left out first, by the same rule the suggested selling price uses
+/// ([PriceRecommendationService.trimOutliers]), so one typo or one farmer
+/// far off the market can't pull the average with it. Returns null when
+/// nothing matches, so callers can show an explicit "No active listings"
+/// state instead of a fake 0 or a silent fallback to the reference price.
 double? computeLiveAverage(
   List<QueryDocumentSnapshot<Map<String, dynamic>>> products,
+  String commodityKey, {
+  String pricingType = 'retail',
+}) =>
+    liveAverageOfListings([for (final doc in products) doc.data()], commodityKey, pricingType: pricingType);
+
+/// [computeLiveAverage] for listings already read as plain maps — the one
+/// Current Market Average every screen shows (Price Management, the
+/// Farmer's Market tab, Market Change Analysis, the exported reports).
+double? liveAverageOfListings(
+  Iterable<Map<String, dynamic>> listings,
   String commodityKey, {
   String pricingType = 'retail',
 }) {
@@ -79,8 +93,7 @@ double? computeLiveAverage(
   final matches = <double>[];
   final expectedUnit = unitForCommodity(matchSupportedCommodity(commodityKey) ?? commodityKey);
 
-  for (final doc in products) {
-    final data = doc.data();
+  for (final data in listings) {
     if (data['isArchived'] == true || data['isSuspended'] == true) continue;
 
     final rawQuantity = data['quantity'];
@@ -91,7 +104,7 @@ double? computeLiveAverage(
 
     final commodity = (data['commodity'] ?? '').toString().toLowerCase();
     final name = (data['name'] ?? '').toString().toLowerCase();
-    final category = (data['category'] ?? '').toString().toLowerCase();
+    final category = normalizeCategory(data['category']).toLowerCase();
     if (commodity != key && !name.contains(key) && !category.contains(key)) continue;
 
     final unit = (data['unit'] ?? unitForProductName(data['name']?.toString() ?? '')).toString();
@@ -119,7 +132,8 @@ double? computeLiveAverage(
   }
 
   if (matches.isEmpty) return null;
-  return matches.reduce((a, b) => a + b) / matches.length;
+  final kept = PriceRecommendationService.trimOutliers(matches);
+  return kept.reduce((a, b) => a + b) / kept.length;
 }
 
 double? computeWholesaleLiveAverage(

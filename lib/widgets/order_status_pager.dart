@@ -9,11 +9,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/order_seen_service.dart';
-import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
 import 'agri_refresh_indicator.dart';
 import 'retry_message.dart';
 import 'agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 // The Orders body shared by the Farmer and Buyer sides (see OrdersView):
 // plain text status tabs with a green underline, a red corner badge for
@@ -447,13 +447,13 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
           padding: const EdgeInsets.symmetric(horizontal: 8),
           labelPadding: EdgeInsets.symmetric(horizontal: scrollable ? 16 : 4),
           indicatorSize: TabBarIndicatorSize.label,
-          indicator: const UnderlineTabIndicator(
-            borderSide: BorderSide(color: AppTheme.dark, width: 2),
+          indicator: UnderlineTabIndicator(
+            borderSide: BorderSide(color: AppColors.brand, width: 2),
           ),
-          dividerColor: Colors.grey.shade200,
+          dividerColor: AppColors.grey(200),
           dividerHeight: 1,
-          labelColor: AppTheme.dark,
-          unselectedLabelColor: Colors.grey.shade700,
+          labelColor: AppColors.brand,
+          unselectedLabelColor: AppColors.grey(700),
           labelStyle: GoogleFonts.montserrat(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -483,7 +483,7 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
     final header = widget.headerBuilder?.call(tab, docs) ?? const <Widget>[];
     final items = widget.itemsBuilder(tab, docs, _isNew);
     return AgriRefreshIndicator(
-      color: AppTheme.dark,
+      color: AppColors.brand,
       onRefresh: widget.onRefresh,
       child: LayoutBuilder(
         builder: (context, constraints) => ListView(
@@ -548,7 +548,7 @@ class _TabLabel extends StatelessWidget {
                   ),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE53935),
+                    color: AppColors.adapt(const Color(0xFFE53935)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -600,8 +600,8 @@ class _LoadingBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(2),
         child: LinearProgressIndicator(
           minHeight: 2.5,
-          color: AppTheme.dark.withValues(alpha: 0.55),
-          backgroundColor: AppTheme.dark.withValues(alpha: 0.08),
+          color: AppColors.brand.withValues(alpha: 0.55),
+          backgroundColor: AppColors.brandFill.withValues(alpha: 0.08),
         ),
       ),
     ),
@@ -688,13 +688,13 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(9),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.tint,
+                      decoration: BoxDecoration(
+                        color: AppColors.tint,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.swipe_rounded,
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                         size: 22,
                       ),
                     ),
@@ -709,7 +709,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                           style: GoogleFonts.montserrat(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.dark,
+                            color: AppColors.brand,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -718,7 +718,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                           'Pending, Confirmed, Shipped, and Completed orders.',
                           style: GoogleFonts.montserrat(
                             fontSize: 12.5,
-                            color: Colors.black87,
+                            color: AppColors.text,
                             height: 1.4,
                           ),
                         ),
@@ -733,7 +733,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                   TextButton(
                     onPressed: widget.onDismiss,
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.black54,
+                      foregroundColor: AppColors.textSecondary,
                     ),
                     child: Text(
                       'Skip',
@@ -745,7 +745,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                     onPressed: widget.onDismiss,
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white,
-                      backgroundColor: AppTheme.dark,
+                      backgroundColor: AppColors.brandFill,
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),

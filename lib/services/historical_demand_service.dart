@@ -84,7 +84,7 @@ class HistoricalDemandRecord {
       year: year,
       month: month,
       commodity: commodity,
-      category: (data['category'] ?? '').toString(),
+      category: normalizeCategory(data['category']),
       quantity: quantity,
       unit: (data['unit'] ?? '').toString(),
       averagePrice: (data['averagePrice'] as num?)?.toDouble(),

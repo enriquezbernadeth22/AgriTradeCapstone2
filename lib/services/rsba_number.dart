@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// The farmer's RSBA number, asked for on the registration form in place
+/// The farmer's RSBSA number, asked for on the registration form in place
 /// of a certificate upload.
 ///
 /// The accepted length is the client's request: 15–17 characters, letters
@@ -17,17 +17,17 @@ import 'package:flutter/services.dart';
 const int kRsbaMinLength = 15;
 const int kRsbaMaxLength = 17;
 
-const String kRsbaLabel = 'RSBA No.';
-const String kRsbaHint = 'Enter your RSBA number';
-const String kRsbaInvalidMessage = 'Enter a valid RSBA number.';
+const String kRsbaLabel = 'RSBSA No.';
+const String kRsbaHint = 'Enter your RSBSA number';
+const String kRsbaInvalidMessage = 'Enter a valid RSBSA number.';
 
 final RegExp _rsbaAllowed = RegExp(r'[A-Za-z0-9]');
 
-/// Shown where a farmer has no RSBA number on file (an account registered
+/// Shown where a farmer has no RSBSA number on file (an account registered
 /// before the number was asked for) — never a made-up ID in its place.
 const String kNoFarmerId = 'Not provided';
 
-/// A farmer's Farmer ID: the RSBA number they registered with. It is what
+/// A farmer's Farmer ID: the RSBSA number they registered with. It is what
 /// the Admin checks before approving the account, and how the farmer is
 /// identified in the portal afterwards. Null when none is on file.
 ///

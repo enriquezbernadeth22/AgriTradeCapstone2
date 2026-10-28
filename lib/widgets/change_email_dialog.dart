@@ -9,6 +9,7 @@ import 'agri_dialog.dart';
 import 'agri_form_field.dart';
 import 'email_request_leave_guard.dart';
 import 'otp_code_field.dart';
+import '../theme/app_colors.dart';
 
 /// "Change email" flow for a logged-in Admin with a password account
 /// (Admin Portal > Manage Account). First the new email and the current
@@ -267,7 +268,7 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
     padding: const EdgeInsets.only(top: 4),
     child: Text(
       _error!,
-      style: TextStyle(color: Colors.red.shade700, fontSize: 12.5),
+      style: TextStyle(color: AppColors.tone(Colors.red, 700), fontSize: 12.5),
     ),
   );
 
@@ -363,16 +364,16 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.55),
+                color: AppColors.accent.withValues(alpha: 0.55),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.alternate_email_rounded,
                     size: 16,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                   const SizedBox(width: 6),
                   Flexible(
@@ -381,7 +382,7 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.label().copyWith(
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -431,13 +432,13 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
 
   // How long the code lasts and where else to look for it, in a soft box.
   Widget _codeNote() {
-    final style = AppTheme.body(size: 12, color: Colors.grey.shade700);
+    final style = AppTheme.body(size: 12, color: AppColors.grey(700));
     Widget line(IconData icon, String text) => Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 1),
-          child: Icon(icon, size: 15, color: AppTheme.mid),
+          child: Icon(icon, size: 15, color: AppColors.mid),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -448,9 +449,9 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE3E8E1)),
+        border: Border.all(color: AppColors.adapt(const Color(0xFFE3E8E1))),
       ),
       child: Column(
         children: [
@@ -479,8 +480,8 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
           icon: Icon(icon, size: 16),
           label: Text(label),
           style: TextButton.styleFrom(
-            foregroundColor: AppTheme.dark,
-            disabledForegroundColor: Colors.grey.shade500,
+            foregroundColor: AppColors.brand,
+            disabledForegroundColor: AppColors.grey(500),
             textStyle: AppTheme.label().copyWith(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
@@ -496,7 +497,7 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
       spacing: 4,
       children: [
         link(Icons.refresh_rounded, resendLabel, canResend ? _resend : null),
-        Container(width: 1, height: 16, color: Colors.grey.shade300),
+        Container(width: 1, height: 16, color: AppColors.grey(300)),
         link(Icons.edit_outlined, 'Change email', _saving ? null : _editEmail),
       ],
     );

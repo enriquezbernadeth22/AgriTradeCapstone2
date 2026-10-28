@@ -26,6 +26,7 @@ import 'product_reviews_screen.dart';
 import 'buyer_market_view.dart';
 import 'farmer_storefront_screen.dart';
 import '../widgets/profile_avatar.dart';
+import '../theme/app_colors.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -42,9 +43,6 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _accent = Color(0xFFDCEDC8);
-
   Uint8List? _imageBytes;
   String? _imageUrl;
   late Map<String, dynamic> _currentData;
@@ -164,16 +162,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) => progress == null
             ? child
-            : const Center(child: CircularProgressIndicator(color: _dark)),
+            : Center(child: CircularProgressIndicator(color: AppColors.brand)),
         errorBuilder: (context, error, stackTrace) => Container(
-          color: _accent,
-          child: const Icon(Icons.broken_image, size: 90, color: _dark),
+          color: AppColors.accent,
+          child: Icon(Icons.broken_image, size: 90, color: AppColors.brand),
         ),
       );
     }
     return Container(
-      color: _accent,
-      child: const Icon(Icons.eco_rounded, size: 90, color: _dark),
+      color: AppColors.accent,
+      child: Icon(Icons.eco_rounded, size: 90, color: AppColors.brand),
     );
   }
 
@@ -257,9 +255,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       future: _farmerLocation,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator(color: _dark)),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
+            ),
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
@@ -290,8 +290,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Text(
               'Farm area: ${location.area}',
-              style: const TextStyle(
-                color: Colors.black87,
+              style: TextStyle(
+                color: AppColors.text,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -301,7 +301,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               distanceKm == null
                   ? 'Distance unavailable. Add a saved location to see an estimate.'
                   : 'Approx. ${distanceKm.toStringAsFixed(1)} km away',
-              style: TextStyle(color: Colors.grey[700], fontSize: 12.5),
+              style: TextStyle(color: AppColors.grey(700), fontSize: 12.5),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -340,8 +340,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       circleId: const CircleId('approximate_farmer_area'),
                       center: center,
                       radius: 700,
-                      fillColor: _dark.withValues(alpha: 0.12),
-                      strokeColor: _dark.withValues(alpha: 0.6),
+                      fillColor: AppColors.brandFill.withValues(alpha: 0.12),
+                      strokeColor: AppColors.brand.withValues(alpha: 0.6),
                       strokeWidth: 1,
                     ),
                   },
@@ -352,7 +352,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text(
               'The marker shows the general barangay area, not the exact '
               'farm.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
             ),
           ],
         );
@@ -385,10 +385,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     fit: BoxFit.cover,
     loadingBuilder: (context, child, progress) => progress == null
         ? child
-        : const Center(child: CircularProgressIndicator(color: _dark)),
+        : Center(child: CircularProgressIndicator(color: AppColors.brand)),
     errorBuilder: (context, error, stackTrace) => Container(
-      color: _accent,
-      child: const Icon(Icons.broken_image, size: 90, color: _dark),
+      color: AppColors.accent,
+      child: Icon(Icons.broken_image, size: 90, color: AppColors.brand),
     ),
   );
 
@@ -418,8 +418,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             bottom: -1,
             height: 27,
             child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
             ),
@@ -440,9 +441,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         height: 7,
                         margin: const EdgeInsets.symmetric(horizontal: 3),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(
+                          color: AppColors.surface.withValues(
                             alpha: i == page ? 1 : 0.6,
                           ),
+                          border: AppColors.cardBorder,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -489,20 +491,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // The thin rule between sections of the content panel.
   Widget _divider({double top = 18, double bottom = 18}) => Padding(
     padding: EdgeInsets.only(top: top, bottom: bottom),
-    child: Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+    child: Divider(height: 1, thickness: 1, color: AppColors.grey(200)),
   );
 
   // One line of the product summary: icon, text, optional trailing note.
   Widget _infoRow(IconData icon, String text, {Widget? trailing}) => Row(
     children: [
-      Icon(icon, size: 16, color: Colors.grey[600]),
+      Icon(icon, size: 16, color: AppColors.grey(600)),
       const SizedBox(width: 8),
       Expanded(
         child: Text(
           text,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 13.5, color: Colors.grey[800]),
+          style: TextStyle(fontSize: 13.5, color: AppColors.grey(800)),
         ),
       ),
       ?trailing,
@@ -556,26 +558,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           displayName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: AppColors.text,
                           ),
                         ),
                         const SizedBox(height: 2),
                         if (verified)
-                          const Row(
+                          Row(
                             children: [
                               Icon(
                                 Icons.verified_rounded,
                                 size: 14,
-                                color: _dark,
+                                color: AppColors.brand,
                               ),
                               SizedBox(width: 4),
                               Text(
                                 'Verified Farmer',
                                 style: TextStyle(
-                                  color: _dark,
+                                  color: AppColors.brand,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -586,14 +588,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           Text(
                             'Farmer',
                             style: TextStyle(
-                              color: Colors.grey[700],
+                              color: AppColors.grey(700),
                               fontSize: 12,
                             ),
                           ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.grey[600]),
+                  Icon(Icons.chevron_right, color: AppColors.grey(600)),
                 ],
               ),
             ),
@@ -637,7 +639,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: [
               _sectionTitle('Buyer Reviews'),
               const SizedBox(height: 12),
-              const Center(child: CircularProgressIndicator(color: _dark)),
+              Center(child: CircularProgressIndicator(color: AppColors.brand)),
             ],
           );
         }
@@ -649,7 +651,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               const SizedBox(height: 8),
               Text(
                 'Could not load reviews.',
-                style: TextStyle(color: Colors.grey[700], fontSize: 13.5),
+                style: TextStyle(color: AppColors.grey(700), fontSize: 13.5),
               ),
             ],
           );
@@ -664,12 +666,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: [
               _sectionTitle('Buyer Reviews'),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'No reviews yet',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.text,
                 ),
               ),
               const SizedBox(height: 3),
@@ -677,7 +679,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 'Be the first to review this product after completing an '
                 'order.',
                 style: TextStyle(
-                  color: Colors.grey[700],
+                  color: AppColors.grey(700),
                   fontSize: 13,
                   height: 1.4,
                 ),
@@ -723,7 +725,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 : '(${docs.length} reviews)',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[700],
+                              color: AppColors.grey(700),
                             ),
                           ),
                         ],
@@ -743,7 +745,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    foregroundColor: _dark,
+                    foregroundColor: AppColors.brand,
                     padding: const EdgeInsets.only(left: 8),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -798,7 +800,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       width: 250,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: AppColors.surfaceAlt,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -836,7 +839,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey[700],
+                                color: AppColors.grey(700),
                               ),
                             ),
                           ),
@@ -857,7 +860,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.4,
-                color: text.isEmpty ? Colors.grey[600] : Colors.black87,
+                color: text.isEmpty ? AppColors.grey(600) : AppColors.text,
               ),
             ),
           ),
@@ -900,7 +903,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       body: Stack(
         children: [
           Positioned.fill(child: _content(context, data)),
@@ -925,7 +928,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _content(BuildContext context, Map<String, dynamic> data) {
     final name = data['name']?.toString() ?? 'Unnamed';
-    final category = data['category']?.toString() ?? '';
+    final category = normalizeCategory(data['category']);
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;
     final wholesalePrice = (data['wholesalePrice'] as num?)?.toDouble();
     final wholesaleMinimum = (data['wholesaleMinimumQuantity'] as num?) ?? 1;
@@ -950,7 +953,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final harvested = harvestDateOf(data);
 
     return AgriRefreshIndicator(
-      color: _dark,
+      color: AppColors.brand,
       onRefresh: _refreshData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -975,15 +978,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.tint,
+                        color: AppColors.tint,
+                        border: AppColors.cardBorder,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         category,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _dark,
+                          color: AppColors.brand,
                         ),
                       ),
                     ),
@@ -1003,7 +1007,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         formatPeso(price),
                         style: AppTheme.heading(
                           32,
-                        ).copyWith(color: _dark, height: 1.1),
+                        ).copyWith(color: AppColors.brand, height: 1.1),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
@@ -1012,7 +1016,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: AppColors.grey(700),
                           ),
                         ),
                       ),
@@ -1042,7 +1046,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ? '(1 review)'
                               : '($reviewCount reviews)',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                             fontSize: 12,
                           ),
                         ),
@@ -1063,14 +1067,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.red[50],
+                              color: AppColors.tone(Colors.red, 50),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.red[200]!),
+                              border: Border.all(
+                                color: AppColors.tone(Colors.red, 200),
+                              ),
                             ),
                             child: Text(
                               'OUT OF STOCK',
                               style: TextStyle(
-                                color: Colors.red[700],
+                                color: AppColors.tone(Colors.red, 700),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 11,
                               ),
@@ -1102,12 +1108,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Icons.eco_outlined,
                       harvestLabel(harvested),
                       trailing: isRecentlyHarvested(harvested)
-                          ? const Text(
+                          ? Text(
                               'Recently Harvested',
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
-                                color: _dark,
+                                color: AppColors.brand,
                               ),
                             )
                           : null,
@@ -1123,7 +1129,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           height: 1.4,
-                          color: Colors.grey[500],
+                          color: AppColors.grey(500),
                         ),
                       ),
                     ),
@@ -1139,18 +1145,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.tint,
+                        color: AppColors.tint,
+                        border: AppColors.cardBorder,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Wholesale available',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: _dark,
+                              color: AppColors.brand,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -1159,7 +1166,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             '${formatStock(wholesaleMinimum, unit)} or more',
                             style: TextStyle(
                               fontSize: 12.5,
-                              color: Colors.grey[800],
+                              color: AppColors.grey(800),
                             ),
                           ),
                           if (available < wholesaleMinimum) ...[
@@ -1168,7 +1175,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               'Wholesale is temporarily unavailable because current stock is below the minimum.',
                               style: TextStyle(
                                 fontSize: 11.5,
-                                color: Colors.orange[800],
+                                color: AppColors.tone(Colors.orange, 800),
                               ),
                             ),
                           ],
@@ -1189,10 +1196,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     description.isEmpty
                         ? 'No description provided.'
                         : description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       height: 1.55,
-                      color: Colors.black87,
+                      color: AppColors.text,
                     ),
                   ),
                   if (postedOn != null || updatedOn != null) ...[
@@ -1203,7 +1210,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         if (updatedOn != null) 'Updated on $updatedOn',
                       ].join('\n'),
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: AppColors.grey(600),
                         fontSize: 11.5,
                         height: 1.5,
                       ),
@@ -1232,7 +1239,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                           style: TextButton.styleFrom(
-                            foregroundColor: _dark,
+                            foregroundColor: AppColors.brand,
                             padding: const EdgeInsets.only(left: 8),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -1282,7 +1289,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
+          border: AppColors.cardBorder,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -1312,10 +1320,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _dark,
+                  backgroundColor: AppColors.brandFill,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey[300],
-                  disabledForegroundColor: Colors.grey[600],
+                  disabledBackgroundColor: AppColors.grey(300),
+                  disabledForegroundColor: AppColors.grey(600),
                   elevation: 0,
                   minimumSize: const Size.fromHeight(_actionHeight),
                   shape: RoundedRectangleBorder(
@@ -1369,12 +1377,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          foregroundColor: _dark,
-          backgroundColor: enabled ? AppTheme.tint : Colors.grey.shade100,
+          foregroundColor: AppColors.brand,
+          backgroundColor: enabled ? AppColors.tint : AppColors.grey(100),
           side: BorderSide(
             color: enabled
-                ? _dark.withValues(alpha: 0.35)
-                : Colors.grey.shade300,
+                ? AppColors.brand.withValues(alpha: 0.35)
+                : AppColors.grey(300),
           ),
           minimumSize: const Size(_actionHeight, _actionHeight),
           padding: EdgeInsets.zero,
@@ -1468,11 +1476,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: _dark),
+        child: Icon(icon, color: AppColors.brand),
       ),
     );
   }

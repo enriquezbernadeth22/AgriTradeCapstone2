@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 /// The reviews of one product a buyer may see — those not removed by
 /// moderation — newest first. Shared by the Product Details preview and
@@ -56,7 +57,7 @@ class ReviewStars extends StatelessWidget {
               ? Icons.star_half_rounded
               : Icons.star_border_rounded,
           size: size,
-          color: rating >= index + 0.5 ? Colors.amber : Colors.grey[400],
+          color: rating >= index + 0.5 ? Colors.amber : AppColors.grey(400),
         ),
       ),
     );
@@ -83,8 +84,6 @@ class ProductReviewsScreen extends StatefulWidget {
 }
 
 class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
-  static const Color _dark = AppTheme.dark;
-
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews =
       FirebaseFirestore.instance
           .collection('productReviews')
@@ -178,7 +177,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
   void _openPhoto(String url) {
     showDialog<void>(
       context: context,
-      barrierColor: Colors.black87,
+      barrierColor: AppColors.text,
       builder: (dialogContext) => GestureDetector(
         onTap: () => Navigator.of(dialogContext).pop(),
         child: Stack(
@@ -232,9 +231,9 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
               errorBuilder: (_, _, _) => Container(
                 width: size,
                 height: size,
-                color: AppTheme.accent,
+                color: AppColors.accent,
                 alignment: Alignment.center,
-                child: const Icon(Icons.broken_image, color: _dark),
+                child: Icon(Icons.broken_image, color: AppColors.brand),
               ),
             ),
           ),
@@ -289,7 +288,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                           DateFormat('MMM d, y').format(created),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[700],
+                            color: AppColors.grey(700),
                           ),
                         ),
                     ],
@@ -305,7 +304,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                 icon: Icon(
                   Icons.flag_outlined,
                   size: 18,
-                  color: Colors.grey[600],
+                  color: AppColors.grey(600),
                 ),
               ),
           ],
@@ -314,16 +313,16 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         // firestore.rules).
         if ((review['orderId'] ?? '').toString().isNotEmpty) ...[
           const SizedBox(height: 8),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.verified_outlined, size: 14, color: _dark),
+              Icon(Icons.verified_outlined, size: 14, color: AppColors.brand),
               SizedBox(width: 4),
               Text(
                 'Verified Purchase',
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: _dark,
+                  color: AppColors.brand,
                 ),
               ),
             ],
@@ -333,11 +332,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           const SizedBox(height: 8),
           Text(
             text,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 14,
-              height: 1.5,
-            ),
+            style: TextStyle(color: AppColors.text, fontSize: 14, height: 1.5),
           ),
         ],
         if (photos.isNotEmpty) ...[const SizedBox(height: 10), _photos(photos)],
@@ -347,27 +342,28 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.tint,
+              color: AppColors.tint,
+              border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Reply from the farmer',
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: _dark,
+                    color: AppColors.brand,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   reply,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13.5,
                     height: 1.45,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
               ],
@@ -381,19 +377,21 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: const AgriAppBar(title: 'Buyer Reviews'),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _reviews,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: _dark));
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
+            );
           }
           if (snapshot.hasError) {
             return Center(
               child: Text(
                 'Could not load reviews.',
-                style: TextStyle(color: Colors.grey[700]),
+                style: TextStyle(color: AppColors.grey(700)),
               ),
             );
           }
@@ -417,7 +415,11 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
             itemCount: docs.length + 1,
             separatorBuilder: (_, _) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.grey(200),
+              ),
             ),
             itemBuilder: (context, index) {
               if (index > 0) return _review(docs[index - 1]);
@@ -428,7 +430,10 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                     widget.productName,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13.5, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: AppColors.grey(700),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -447,7 +452,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                               : '(${docs.length} reviews)',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[700],
+                            color: AppColors.grey(700),
                           ),
                         ),
                       ),

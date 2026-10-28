@@ -24,6 +24,7 @@ import 'farmer_list_view.dart';
 import 'moderation_queue_view.dart';
 import '../data/laurel_barangays.dart';
 import '../services/connectivity_service.dart';
+import '../services/price_history_service.dart';
 import '../services/market_price_helpers.dart';
 import '../widgets/admin_sidebar.dart';
 import '../widgets/agri_dialog.dart'
@@ -43,6 +44,7 @@ import 'admin_filter_controls.dart';
 import 'admin_suspend_accounts_dialog.dart';
 import 'admin_global_search.dart';
 import 'admin_market_trends_card.dart';
+import 'admin_price_trend_chart.dart';
 import 'admin_notifications.dart';
 import 'admin_account_views.dart';
 import 'admin_info_dialogs.dart';
@@ -1681,7 +1683,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
                                 color: c.textPrimary,
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -1690,7 +1692,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                               maxLines: 1,
                               style: GoogleFonts.montserrat(
                                 color: c.textSecondary,
-                                fontSize: 11,
+                                fontSize: 10.5,
                               ),
                             ),
                           ],
@@ -2148,10 +2150,10 @@ class _AnalyticsDashboardView extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Everything below is fed by DashboardDataService's cached
-          // orders/products/market_prices fetch (see dashboard_data_service.
-          // dart) — a one-shot .get(), not a live listener, refreshed only
-          // on TTL expiry or the Refresh button above. Sales Performance
+          // Everything below is fed by DashboardDataService's shared live
+          // listeners on orders/products/market_prices (see
+          // dashboard_data_service.dart): a change in the database redraws
+          // these charts by itself, with no refresh needed. Sales Performance
           // and Market Intelligence both read that one
           // orders snapshot, so their figures always reconcile with each
           // other.
@@ -2171,6 +2173,7 @@ class _AnalyticsDashboardView extends StatelessWidget {
 
               final orders = svc.orders;
               final products = svc.products;
+              final marketPrices = svc.marketPrices;
               final now = DateTime.now();
               // Mapped once per data load, not once per chart rebuild.
               final orderData = [for (final d in orders) d.data()];
@@ -2185,7 +2188,7 @@ class _AnalyticsDashboardView extends StatelessWidget {
                   commodity.name,
               ];
               final baselineByName = <String, double>{
-                for (final doc in svc.marketPrices)
+                for (final doc in marketPrices)
                   if (((doc.data()['baselinePrice'] as num?) ?? 0) > 0)
                     (doc.data()['name'] ?? doc.id)
                         .toString()
@@ -2210,16 +2213,20 @@ class _AnalyticsDashboardView extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ---- 2. SALES PERFORMANCE ---- (each card is titled)
+                  // ---- 2. MARKET DEMAND AND SALES ---- (each card is
+                  // titled; the two share one body height)
                   _responsiveRow(
                     [
-                      ChartCaptureBoundary(
-                        captureKey: DashboardChartKeys.salesOverview,
-                        child: AdminSalesPerformanceCard(orders: orderData),
+                      AdminMarketDemandCard(
+                        completedOrders: orderData,
+                        bodyHeight: _demandRowHeight,
+                        error: svc.ordersError,
+                        onRetry: svc.refresh,
                       ),
                       ChartCaptureBoundary(
                         captureKey: DashboardChartKeys.salesByCategory,
                         child: AdminSalesByCategoryCard(
+                          bodyHeight: _demandRowHeight,
                           revenueFor: (months) =>
                               DashboardAnalyticsService.categoryRevenue(
                                 orders,
@@ -2384,7 +2391,10 @@ class _DashboardSectionsSkeleton extends StatelessWidget {
         const _SectionHeader(title: 'Sales Performance'),
         const SizedBox(height: 12),
         _responsiveRow(
-          const [AdminChartCardSkeleton(), AdminChartCardSkeleton()],
+          const [
+            AdminChartCardSkeleton(bodyHeight: _demandRowHeight),
+            AdminChartCardSkeleton(bodyHeight: _demandRowHeight),
+          ],
           flexes: const [3, 2],
         ),
         const SizedBox(height: 16),
@@ -2434,6 +2444,10 @@ class _UserAccountsPage extends StatelessWidget {
 // Lays [children] out as a Row of Expanded(flex: flexes[i]) above ~900px,
 // or stacks them into a single Column below it — the same breakpoint the
 // KPI row already uses.
+// The body height of the Market Demand card and Sales by Category
+// beside it (the demand card's controls, summary and chart need the room).
+const double _demandRowHeight = 350;
+
 Widget _responsiveRow(List<Widget> children, {List<int>? flexes}) {
   return LayoutBuilder(
     builder: (context, constraints) {
@@ -3016,7 +3030,6 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
       message: 'Show demand for one product category',
       child: AdminPillDropdown<String?>(
         value: categories.contains(_category) ? _category : null,
-        width: 190,
         icon: Icons.category_outlined,
         items: [
           const DropdownMenuItem(value: null, child: Text('All Categories')),
@@ -3057,6 +3070,8 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
       listenable: DashboardDataService.instance,
       builder: (context, _) {
         final svc = DashboardDataService.instance;
+        final heatOrdersAll = svc.orders;
+        final heatProducts = svc.products;
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _usersStream,
           builder: (context, usersSnap) {
@@ -3096,7 +3111,7 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                     // for once each (a no-op afterwards), merged in as they
                     // are known.
                     _loadBuyerPins({
-                      for (final doc in svc.orders)
+                      for (final doc in heatOrdersAll)
                         if (usersByUid.containsKey(
                           (doc.data()['buyerId'] ?? '').toString(),
                         ))
@@ -3116,7 +3131,7 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                     // doc (see GeocodingService), regardless of which month is
                     // currently selected, so switching months never re-fires
                     // this for a buyer already resolved.
-                    for (final doc in svc.orders) {
+                    for (final doc in heatOrdersAll) {
                       final buyerId = (doc.data()['buyerId'] ?? '').toString();
                       if (buyerId.isEmpty) continue;
                       final buyer = usersByUid[buyerId];
@@ -3151,7 +3166,7 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
 
                     final years =
                         DashboardAnalyticsService.yearsWithCompletedOrders(
-                          svc.orders,
+                          heatOrdersAll,
                           _now,
                         );
                     // One product category at a time, when one is chosen:
@@ -3160,11 +3175,11 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                     final category = _category;
                     final productById = category == null
                         ? const <String, Map<String, dynamic>>{}
-                        : {for (final p in svc.products) p.id: p.data()};
+                        : {for (final p in heatProducts) p.id: p.data()};
                     final heatOrders = category == null
-                        ? svc.orders
+                        ? heatOrdersAll
                         : [
-                            for (final doc in svc.orders)
+                            for (final doc in heatOrdersAll)
                               if (DashboardAnalyticsService.orderCategory(
                                     doc.data(),
                                     productById[(doc.data()['productId'] ?? '')
@@ -3184,12 +3199,13 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                     // Where buyers searched, counted by area the same way —
                     // added to the purchase heat below (one demand map).
                     _watchSearches();
+                    final monthSearches = _searchEvents ?? const [];
                     final searches =
                         DashboardAnalyticsService.searchesByBuyerAreaForMonth(
                           category == null
-                              ? (_searchEvents ?? const [])
+                              ? monthSearches
                               : [
-                                  for (final event in _searchEvents ?? const [])
+                                  for (final event in monthSearches)
                                     if (categoryOfCommodity(
                                           matchSupportedCommodity(
                                                 (event['query'] ?? '')
@@ -4300,6 +4316,22 @@ class _PriceManagementViewState extends State<_PriceManagementView>
   // the archive.
   bool _showArchived = false;
 
+  // The price History table, in place of the commodities (see
+  // _historyPage); its entries are loaded each time it is opened.
+  bool _showHistory = false;
+  Future<List<PriceHistoryEntry>>? _history;
+  bool _exporting = false;
+
+  void _openHistory(bool open) => setState(() {
+    _showHistory = open;
+    _ticked.clear();
+    if (open) {
+      _history = PriceHistoryService.load(
+        DashboardDataService.instance.marketPrices,
+      );
+    }
+  });
+
   // Each commodity's Current Market Average for the listings last seen.
   List<QueryDocumentSnapshot<Map<String, dynamic>>>? _averagedProducts;
   final Map<String, double?> _liveAverages = {};
@@ -4732,47 +4764,70 @@ class _PriceManagementViewState extends State<_PriceManagementView>
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _selectionBar(context, c),
-              const SizedBox(width: 12),
-              // The archive is a page of its own, opened from here: the
-              // commodities in use and the archived ones are never listed
-              // together.
-              ListenableBuilder(
-                listenable: DashboardDataService.instance,
-                builder: (context, _) {
-                  final archivedCount = DashboardDataService
-                      .instance
-                      .marketPrices
-                      .where((doc) => doc.data()['isActive'] == false)
-                      .length;
-                  return AdminQuickActionButton(
-                    icon: _showArchived
-                        ? Icons.arrow_back_rounded
-                        : Icons.archive_outlined,
-                    label: _showArchived
-                        ? 'Back to Commodities'
-                        : 'Archived ($archivedCount)',
-                    onPressed: () => setState(() {
-                      _showArchived = !_showArchived;
-                      _ticked.clear();
-                    }),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              AdminQuickActionButton(
-                icon: Icons.add,
-                label: 'Add Commodity',
-                filled: true,
-                onPressed: () => _openBaselineDialog(context),
-              ),
-            ],
-          ),
+          child: _showHistory
+              // The History table: back, and its export.
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    AdminQuickActionButton(
+                      icon: Icons.arrow_back_rounded,
+                      label: 'Back to Commodities',
+                      onPressed: () => _openHistory(false),
+                    ),
+                    const SizedBox(width: 8),
+                    _historyExportButton(context),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _selectionBar(context, c),
+                    const SizedBox(width: 12),
+                    // The archive is a page of its own, opened from here: the
+                    // commodities in use and the archived ones are never listed
+                    // together.
+                    ListenableBuilder(
+                      listenable: DashboardDataService.instance,
+                      builder: (context, _) {
+                        final archivedCount = DashboardDataService
+                            .instance
+                            .marketPrices
+                            .where((doc) => doc.data()['isActive'] == false)
+                            .length;
+                        return AdminQuickActionButton(
+                          icon: _showArchived
+                              ? Icons.arrow_back_rounded
+                              : Icons.archive_outlined,
+                          label: _showArchived
+                              ? 'Back to Commodities'
+                              : 'Archived ($archivedCount)',
+                          onPressed: () => setState(() {
+                            _showArchived = !_showArchived;
+                            _ticked.clear();
+                          }),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    // Every reference price set, and what it changed from.
+                    AdminQuickActionButton(
+                      icon: Icons.history_rounded,
+                      label: 'History',
+                      onPressed: () => _openHistory(true),
+                    ),
+                    const SizedBox(width: 8),
+                    AdminQuickActionButton(
+                      icon: Icons.add,
+                      label: 'Add Commodity',
+                      filled: true,
+                      onPressed: () => _openBaselineDialog(context),
+                    ),
+                  ],
+                ),
         ),
-        Expanded(child: _page(context, c)),
+        Expanded(
+          child: _showHistory ? _historyPage(context, c) : _page(context, c),
+        ),
       ],
     );
   }
@@ -4841,6 +4896,225 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     );
   }
 
+  // The History entries the header's search leaves: by commodity,
+  // category or who recorded it.
+  List<PriceHistoryEntry> _searchedHistory(List<PriceHistoryEntry> all) {
+    final query = _search;
+    if (query.isEmpty) return all;
+    return [
+      for (final e in all)
+        if ([
+          e.commodity,
+          e.category,
+          e.recordedBy,
+        ].any((text) => text.toLowerCase().contains(query)))
+          e,
+    ];
+  }
+
+  // Export: the History as shown (its search applied), as a PDF, Excel or
+  // CSV file.
+  Widget _historyExportButton(BuildContext context) {
+    Future<void> export(ReportFormat format) async {
+      final messenger = ScaffoldMessenger.of(context);
+      setState(() => _exporting = true);
+      try {
+        final entries = _searchedHistory(await _history ?? const []);
+        if (entries.isEmpty) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('There is no price history to export.'),
+            ),
+          );
+          return;
+        }
+        final filename = await PriceHistoryService.export(
+          entries,
+          format: format,
+          scopeLabel: _search.isEmpty
+              ? 'All commodities'
+              : 'Search: "${pageSearch.trim()}"',
+        );
+        messenger.showSnackBar(SnackBar(content: Text('Saved $filename')));
+      } catch (_) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not export the price history. Try again.'),
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _exporting = false);
+      }
+    }
+
+    return PopupMenuButton<ReportFormat>(
+      tooltip: 'Export the price history',
+      enabled: !_exporting,
+      position: PopupMenuPosition.under,
+      onSelected: export,
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: ReportFormat.pdf, child: Text('PDF')),
+        PopupMenuItem(value: ReportFormat.excel, child: Text('Excel (.xlsx)')),
+        PopupMenuItem(value: ReportFormat.csv, child: Text('CSV')),
+      ],
+      child: IgnorePointer(
+        child: AdminQuickActionButton(
+          icon: Icons.download_rounded,
+          label: _exporting ? 'Exporting…' : 'Export',
+          opensOptions: true,
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
+  // Price Management → History: every reference price set, newest
+  // effective date first, with the price it replaced and the change.
+  Widget _historyPage(BuildContext context, AdminPalette c) {
+    final secondary = TextStyle(color: c.textSecondary);
+    final day = DateFormat('MMM d, y');
+    final moment = DateFormat('MMM d, y · h:mm a');
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+      child: Container(
+        width: double.infinity,
+        padding: kAdminTablePadding,
+        decoration: adminTableCard(c),
+        clipBehavior: Clip.antiAlias,
+        child: FutureBuilder<List<PriceHistoryEntry>>(
+          future: _history,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const AdminEmptyState(
+                icon: Icons.cloud_off_outlined,
+                title: 'Could not load the price history',
+                subtitle: 'Check your connection, then open History again.',
+              );
+            }
+            if (!snapshot.hasData) return const AdminLoadingSpinner();
+            final all = snapshot.data!;
+            final rows = _searchedHistory(all);
+            if (all.isEmpty) {
+              return const AdminEmptyState(
+                icon: Icons.history_rounded,
+                title: 'No price history yet',
+                subtitle:
+                    'Each reference price you set or import is recorded '
+                    'here, with its date.',
+              );
+            }
+            if (rows.isEmpty) {
+              return const AdminEmptyState(
+                icon: Icons.search_off,
+                title: 'No price changes match your search',
+                subtitle:
+                    'The search looks at Commodity, Category and Recorded By.',
+              );
+            }
+            return AdminPaged<PriceHistoryEntry>(
+              items: rows,
+              resetKey: _search,
+              builder: (context, page) => AdminTableFit(
+                table: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    adminTableHeaderColor(c),
+                  ),
+                  dataRowColor: adminTableRowColor(c),
+                  columnSpacing: kAdminTableColumnSpacing,
+                  horizontalMargin: kAdminTableMargin,
+                  headingTextStyle: adminTableHeaderStyle(c),
+                  dataTextStyle: TextStyle(
+                    fontFamily: kAdminFontFamily,
+                    color: c.textPrimary,
+                    fontSize: 13,
+                  ),
+                  columns: const [
+                    DataColumn(label: Text('Effective Date')),
+                    DataColumn(label: Text('Commodity')),
+                    DataColumn(label: Text('Category')),
+                    DataColumn(label: Text('Price')),
+                    DataColumn(label: Text('Previous Price')),
+                    DataColumn(label: Text('Change')),
+                    DataColumn(label: Text('Unit')),
+                    DataColumn(label: Text('Recorded')),
+                    DataColumn(label: Text('Recorded By')),
+                  ],
+                  rows: [
+                    for (final e in page)
+                      DataRow(
+                        cells: [
+                          DataCell(Text(day.format(e.effectiveDate))),
+                          DataCell(
+                            Text(
+                              e.isActive
+                                  ? e.commodity
+                                  : '${e.commodity} (archived)',
+                              style: e.isActive ? null : secondary,
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              e.category.isEmpty ? '—' : e.category,
+                              style: secondary,
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              formatPeso(e.price),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              e.previous == null
+                                  ? '—'
+                                  : formatPeso(e.previous!),
+                              style: secondary,
+                            ),
+                          ),
+                          // A rise in the caution colour, a fall in green.
+                          DataCell(
+                            Text(
+                              e.changeLabel,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: switch (e.change) {
+                                  final d? when d > 0.005 => c.amber,
+                                  final d? when d < -0.005 => c.green,
+                                  _ => c.textSecondary,
+                                },
+                              ),
+                            ),
+                          ),
+                          DataCell(Text(e.unit, style: secondary)),
+                          DataCell(
+                            Text(
+                              e.recordedAt == null
+                                  ? '—'
+                                  : moment.format(e.recordedAt!),
+                              style: secondary,
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              e.recordedBy.isEmpty ? '—' : e.recordedBy,
+                              style: secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _page(BuildContext context, AdminPalette c) {
     DashboardDataService.instance.ensureLoaded();
     // The whole page (header/buttons + table) scrolls as one unit — the
@@ -4872,8 +5146,13 @@ class _PriceManagementViewState extends State<_PriceManagementView>
                       id: doc.id,
                       data: data,
                       name: name,
-                      category: (data['category'] ?? categoryOfCommodity(name))
-                          ?.toString(),
+                      // None stays none (not in a category yet).
+                      category: switch (normalizeCategory(
+                        data['category'] ?? categoryOfCommodity(name),
+                      )) {
+                        '' => null,
+                        final category => category,
+                      },
                       // Farmers can post it (Supported Products, Add
                       // Product) only while active and in a category —
                       // see CommodityRegistry. Not active = archived.
@@ -4995,7 +5274,7 @@ class _PriceManagementViewState extends State<_PriceManagementView>
                                     label: Text('Admin Reference Price'),
                                   ),
                                   DataColumn(label: Text('Unit')),
-                                  DataColumn(label: Text('Price Date')),
+                                  DataColumn(label: Text('Last Update')),
                                   DataColumn(label: Text('Actions')),
                                 ],
                                 rows: [
@@ -5080,7 +5359,10 @@ class _PriceManagementViewState extends State<_PriceManagementView>
       () => computeLiveAverage(products, name),
     );
     final unit = (data['unit'] ?? '').toString();
-    final effectiveDate = data['effectiveDate'] as Timestamp?;
+    // Last Update: when the commodity's price was last saved — its
+    // effective date for a record that predates that field.
+    final lastUpdate =
+        data['updatedAt'] as Timestamp? ?? data['effectiveDate'] as Timestamp?;
     return DataRow(
       selected: _ticked.contains(id),
       onSelectChanged: (on) => setState(() {
@@ -5136,8 +5418,8 @@ class _PriceManagementViewState extends State<_PriceManagementView>
         DataCell(Text(unit.isEmpty ? 'kg' : unit, style: secondary)),
         DataCell(
           Text(
-            effectiveDate != null
-                ? DateFormat('MMM d, y').format(effectiveDate.toDate())
+            lastUpdate != null
+                ? DateFormat('MMM d, y').format(lastUpdate.toDate())
                 : '—',
             style: secondary,
           ),
@@ -5545,7 +5827,9 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
     final unit = _editing
         ? (_unitChoice ?? '')
         : (_knownUnit(typedUnit) ?? typedUnit);
-    final category = _categoryController.text.trim();
+    // "Root Crops" or "Spices" typed by hand is saved as Vegetables;
+    // any other category as typed (normalizeCategory).
+    final category = normalizeCategory(_categoryController.text);
 
     if (name.isEmpty) {
       setState(() => _error = 'Enter a commodity name.');

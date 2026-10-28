@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The splash screen's loading indicator: a little farmer in a salakot
 /// walks once, left to right, along a thin track that fills dark green
@@ -119,13 +119,6 @@ class _FarmerPainter extends CustomPainter {
   // the distance walked, so they slow as he does, and end feet together.
   static const double _strides = 6;
 
-  static const Color _straw = Color(0xFFD9A441);
-  static const Color _strawDark = Color(0xFFB7832B);
-  static const Color _skin = Color(0xFFC68642);
-  static const Color _shirt = AppTheme.mid;
-  static const Color _pants = Color(0xFF3E4A3D);
-  static const Color _track = Color(0xFFE4EBE1);
-
   @override
   void paint(Canvas canvas, Size size) {
     final groundY = size.height - 3;
@@ -140,13 +133,13 @@ class _FarmerPainter extends CustomPainter {
     canvas.drawLine(
       Offset(margin, groundY),
       Offset(size.width - margin, groundY),
-      trackPaint..color = _track,
+      trackPaint..color = AppColors.adapt(const Color(0xFFE4EBE1)),
     );
     if (x > margin) {
       canvas.drawLine(
         Offset(margin, groundY),
         Offset(x, groundY),
-        trackPaint..color = AppTheme.dark,
+        trackPaint..color = AppColors.brand,
       );
     }
 
@@ -181,11 +174,15 @@ class _FarmerPainter extends CustomPainter {
     // in front.
     limb
       ..strokeWidth = 3.2
-      ..color = Color.lerp(_pants, Colors.black, 0.25)!;
+      ..color = Color.lerp(
+        AppColors.adapt(const Color(0xFF3E4A3D)),
+        AppColors.textStrong,
+        0.25,
+      )!;
     canvas.drawLine(hip, end(hip, legLength, -legAngle), limb);
     limb
       ..strokeWidth = 2.6
-      ..color = Color.lerp(_shirt, Colors.black, 0.3)!;
+      ..color = Color.lerp(AppColors.mid, AppColors.textStrong, 0.3)!;
     canvas.drawLine(shoulder, end(shoulder, armLength, -armAngle), limb);
 
     // Body (shirt).
@@ -193,28 +190,36 @@ class _FarmerPainter extends CustomPainter {
       Rect.fromCenter(center: const Offset(0.3, -18), width: 7.5, height: 13),
       const Radius.circular(3.5),
     );
-    canvas.drawRRect(body, Paint()..color = _shirt);
+    canvas.drawRRect(body, Paint()..color = AppColors.mid);
 
     // Near leg and arm, with a foot.
     limb
       ..strokeWidth = 3.2
-      ..color = _pants;
+      ..color = AppColors.adapt(const Color(0xFF3E4A3D));
     final foot = end(hip, legLength, legAngle);
     canvas.drawLine(hip, foot, limb);
     canvas.drawLine(
       foot,
       foot + const Offset(2.6, 0),
-      limb..color = const Color(0xFF2B2B2B),
+      limb..color = AppColors.adapt(const Color(0xFF2B2B2B)),
     );
     limb
       ..strokeWidth = 2.6
-      ..color = _shirt;
+      ..color = AppColors.mid;
     final hand = end(shoulder, armLength, armAngle);
     canvas.drawLine(shoulder, hand, limb);
-    canvas.drawCircle(hand, 1.5, Paint()..color = _skin);
+    canvas.drawCircle(
+      hand,
+      1.5,
+      Paint()..color = AppColors.adapt(const Color(0xFFC68642)),
+    );
 
     // Head.
-    canvas.drawCircle(const Offset(1.4, -29), 3.8, Paint()..color = _skin);
+    canvas.drawCircle(
+      const Offset(1.4, -29),
+      3.8,
+      Paint()..color = AppColors.adapt(const Color(0xFFC68642)),
+    );
 
     // Salakot: a wide, shallow cone with a darker rim.
     final hat = Path()
@@ -222,12 +227,15 @@ class _FarmerPainter extends CustomPainter {
       ..lineTo(12, -31)
       ..lineTo(1.6, -38.5)
       ..close();
-    canvas.drawPath(hat, Paint()..color = _straw);
+    canvas.drawPath(
+      hat,
+      Paint()..color = AppColors.adapt(const Color(0xFFD9A441)),
+    );
     canvas.drawLine(
       const Offset(-9.5, -31),
       const Offset(12, -31),
       Paint()
-        ..color = _strawDark
+        ..color = AppColors.adapt(const Color(0xFFB7832B))
         ..strokeWidth = 1.4
         ..strokeCap = StrokeCap.round,
     );

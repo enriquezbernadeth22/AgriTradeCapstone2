@@ -1,5 +1,4 @@
 import '../widgets/agri_app_bar.dart';
-import '../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../data/laurel_barangays.dart';
 import '../services/location_permission_prompt.dart';
+import '../theme/app_colors.dart';
 
 /// Lets a farmer drop a pin at their real farm location — the map stays
 /// still and the pin stays centered while the farmer drags the map
@@ -26,8 +26,6 @@ class SetFarmLocationScreen extends StatefulWidget {
 }
 
 class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
-  static const Color _dark = AppTheme.dark;
-
   GoogleMapController? _mapController;
   late LatLng _picked;
   bool _saving = false;
@@ -129,10 +127,10 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: true,
           ),
-          const IgnorePointer(
+          IgnorePointer(
             child: Padding(
               padding: EdgeInsets.only(bottom: 36),
-              child: Icon(Icons.location_on, color: _dark, size: 44),
+              child: Icon(Icons.location_on, color: AppColors.brand, size: 44),
             ),
           ),
           Positioned(
@@ -142,7 +140,8 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: const [
                   BoxShadow(
@@ -152,9 +151,9 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                   ),
                 ],
               ),
-              child: const Text(
+              child: Text(
                 'Drag the map so the pin sits over your farm, or use your current location.',
-                style: TextStyle(fontSize: 12.5, color: Colors.black87),
+                style: TextStyle(fontSize: 12.5, color: AppColors.text),
               ),
             ),
           ),
@@ -169,20 +168,20 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _locating ? null : _useMyLocation,
                     icon: _locating
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: _dark,
+                              color: AppColors.brand,
                             ),
                           )
                         : const Icon(Icons.my_location),
                     label: const Text('Use My Current Location'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _dark,
-                      side: const BorderSide(color: _dark),
-                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.brand,
+                      side: BorderSide(color: AppColors.brand),
+                      backgroundColor: AppColors.surface,
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: const StadiumBorder(),
                     ),
@@ -194,7 +193,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                   child: ElevatedButton(
                     onPressed: _saving ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _dark,
+                      backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: const StadiumBorder(),

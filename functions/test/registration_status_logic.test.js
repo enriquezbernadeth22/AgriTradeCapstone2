@@ -52,11 +52,11 @@ test("the approval email says the farmer can log in", () => {
 });
 
 test("the rejection email gives the reason when there is one", () => {
-  const withReason = templates.farmerRejectedEmail({ name: "", reason: "RSBA number not found." });
+  const withReason = templates.farmerRejectedEmail({ name: "", reason: "RSBSA number not found." });
   assert.strictEqual(withReason.subject, "Farmer Application Update — AgriTrade+");
   for (const body of [withReason.text, withReason.html]) {
     assert.ok(body.includes("Your Farmer application was not approved."));
-    assert.ok(body.includes("RSBA number not found."));
+    assert.ok(body.includes("RSBSA number not found."));
   }
   const without = templates.farmerRejectedEmail({ name: "", reason: "" });
   assert.ok(!without.text.includes("Reason"));

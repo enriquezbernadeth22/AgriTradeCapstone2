@@ -17,6 +17,7 @@ import 'buyer_orders_screen.dart';
 import 'buyer_profile_screen.dart';
 import 'notifications_screen.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 // A one-shot "command channel", not persisted UI state — see the matching
 // comment on globalFarmerTabIndex in farmer_home_screen.dart.
@@ -32,8 +33,6 @@ class BuyerMarketplaceScreen extends StatefulWidget {
 }
 
 class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
-  static const Color _bg = Colors.white;
-
   late int _navIndex;
 
   // Explore, for Back: a scrolled-down Explore goes back to its top first.
@@ -175,7 +174,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
         if (shouldExit) SystemNavigator.pop();
       },
       child: Scaffold(
-        backgroundColor: _bg,
+        backgroundColor: AppColors.page,
         // No app bar: every tab starts with its own header row — logo and
         // title, see PageHeader.
         // The status bar strip is the header's green (PageHeaderSafeArea).

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The one search bar for product/farmer search: a white pill with a thin
 /// green outline, the search icon, then the text. Marketplace shows it as a
@@ -45,7 +45,8 @@ class AppSearchBar extends StatefulWidget {
 }
 
 class _AppSearchBarState extends State<AppSearchBar> {
-  static const _textStyle = TextStyle(fontSize: 13.5, color: Colors.black87);
+  static TextStyle get _textStyle =>
+      TextStyle(fontSize: 13.5, color: AppColors.text);
 
   // A screen that does not manage focus itself still gets the focused
   // outline: the bar then tracks focus with a node of its own.
@@ -87,14 +88,14 @@ class _AppSearchBarState extends State<AppSearchBar> {
   @override
   Widget build(BuildContext context) {
     final focused = widget.onTap == null && _focus.hasFocus;
-    final hintStyle = _textStyle.copyWith(color: Colors.grey[500]);
+    final hintStyle = _textStyle.copyWith(color: AppColors.grey(500));
     final hasText = widget.controller?.text.isNotEmpty ?? false;
     final showClear = widget.onClear != null && hasText;
 
     final content = Row(
       children: [
         const SizedBox(width: 16),
-        const Icon(Icons.search, color: AppTheme.dark, size: 20),
+        Icon(Icons.search, color: AppColors.brand, size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: widget.onTap != null
@@ -109,7 +110,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                   focusNode: _focus,
                   autofocus: widget.autofocus,
                   style: _textStyle,
-                  cursorColor: AppTheme.dark,
+                  cursorColor: AppColors.brand,
                   textInputAction: TextInputAction.search,
                   // Every border off: the pill around the field is the
                   // only outline, so the app-wide focused border can't
@@ -130,7 +131,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
         ),
         if (showClear)
           IconButton(
-            icon: Icon(Icons.close, color: Colors.grey[500], size: 18),
+            icon: Icon(Icons.close, color: AppColors.grey(500), size: 18),
             onPressed: widget.onClear,
           )
         else
@@ -143,8 +144,8 @@ class _AppSearchBarState extends State<AppSearchBar> {
     // pill, in a faint see-through colour, its curved ends and lower edge
     // came out lighter than the rest, so it looked incomplete.
     final outline = Color.alphaBlend(
-      AppTheme.dark.withValues(alpha: focused ? 0.6 : 0.3),
-      Colors.white,
+      AppColors.brand.withValues(alpha: focused ? 0.6 : 0.3),
+      AppColors.surface,
     );
     return SizedBox(
       height: AppSearchBar.height,
@@ -160,7 +161,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
           ),
         ),
         child: Material(
-          color: Colors.white,
+          color: AppColors.surface,
           shape: const StadiumBorder(),
           clipBehavior: Clip.antiAlias,
           child: widget.onTap != null

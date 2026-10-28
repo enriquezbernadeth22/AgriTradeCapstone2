@@ -7,8 +7,8 @@ import 'package:printing/printing.dart';
 
 import '../services/download_helper.dart';
 import '../services/order_receipt_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/retry_message.dart';
+import '../theme/app_colors.dart';
 
 /// Shows the formal PDF Transaction Receipt of a completed order. Farmer
 /// and buyer open the same document; it is read-only, and can be shared,
@@ -34,19 +34,19 @@ class _OrderReceiptScreenState extends State<OrderReceiptScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: const AgriAppBar(title: 'Transaction Receipt'),
       body: FutureBuilder<(OrderReceipt, Uint8List)?>(
         future: _receipt,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
+            return Center(
               child: SizedBox(
                 width: 26,
                 height: 26,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                 ),
               ),
             );
@@ -78,8 +78,8 @@ class _OrderReceiptScreenState extends State<OrderReceiptScreen> {
             canChangePageFormat: false,
             canChangeOrientation: false,
             canDebug: false,
-            actionBarTheme: const PdfActionBarTheme(
-              backgroundColor: AppTheme.dark,
+            actionBarTheme: PdfActionBarTheme(
+              backgroundColor: AppColors.brandFill,
             ),
             actions: [
               PdfPreviewAction(

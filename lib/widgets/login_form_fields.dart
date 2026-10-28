@@ -18,6 +18,7 @@ import 'glow_field.dart';
 import 'login_lockout_dialog.dart';
 import 'role_mismatch_dialog.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The email/password sign-in form — fields, Forgot Password, and the
 /// submit button — plus the whole sign-in flow behind it. Shared by
@@ -100,12 +101,12 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 1),
             child: Icon(
               Icons.warning_amber_rounded,
               size: 15,
-              color: _errorColor,
+              color: AppColors.adapt(const Color(0xFFC62828)),
             ),
           ),
           const SizedBox(width: 6),
@@ -113,7 +114,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             child: Text(
               message,
               style: AppTheme.body(
-                color: _errorColor,
+                color: AppColors.adapt(const Color(0xFFC62828)),
                 size: 12.5,
               ).copyWith(height: 1.35, fontWeight: FontWeight.w500),
             ),
@@ -122,8 +123,6 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
       ),
     );
   }
-
-  static const _errorColor = Color(0xFFC62828);
 
   @override
   void dispose() {
@@ -459,17 +458,16 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
   // and the same pill-shaped controls (the fields are the shared
   // GlowField) — only the copy and sizing differ, for a desktop panel.
   // Email and password only: the Admin door has no Google sign-in.
-  static const _adminMuted = Color(0xFF6B7468);
   // One height for both fields and the button, so the controls line up as
   // a single column of identical pills.
-  static const _adminHeight = 58.0;
+  static const _adminHeight = 46.0;
 
   Widget _adminLabel(String text) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w600,
-      color: Color(0xFF2B332A),
+      color: AppColors.adapt(const Color(0xFF2B332A)),
     ),
   );
 
@@ -495,6 +493,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               keyboardType: TextInputType.emailAddress,
               hint: 'admin@example.com',
               icon: Icons.email_outlined,
+              compact: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _loading ? null : _login(),
               autofillHints: const [
@@ -511,14 +510,16 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               TextButton(
                 onPressed: _openForgotPassword,
                 style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.mid,
+                  // The dark green, smaller and lighter than the labels
+                  // beside it (13, semi-bold).
+                  foregroundColor: AppColors.brand,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: const Text(
                   'Forgot Password?',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
                 ),
               ),
             ],
@@ -531,14 +532,17 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               obscureText: _obscurePassword,
               hint: 'Enter your password',
               icon: Icons.lock_outline,
+              compact: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _loading ? null : _login(),
               autofillHints: const [AutofillHints.password],
               suffix: IconButton(
+                visualDensity: VisualDensity.compact,
+                iconSize: 19,
                 tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey[600],
+                  color: AppColors.grey(600),
                 ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
@@ -552,9 +556,11 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             child: ElevatedButton(
               onPressed: (_loading || _googleLoading) ? null : _login,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.dark,
+                backgroundColor: AppColors.brandFill,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppTheme.dark.withValues(alpha: 0.6),
+                disabledBackgroundColor: AppColors.brandFill.withValues(
+                  alpha: 0.6,
+                ),
                 elevation: 0,
                 padding: EdgeInsets.zero,
                 shape: buttonShape,
@@ -568,11 +574,18 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.shield_outlined, size: 15, color: _adminMuted),
+              Icon(
+                Icons.shield_outlined,
+                size: 15,
+                color: AppColors.adapt(const Color(0xFF6B7468)),
+              ),
               const SizedBox(width: 6),
               Text(
                 'Authorized administrators only',
-                style: TextStyle(fontSize: 12, color: _adminMuted),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.adapt(const Color(0xFF6B7468)),
+                ),
               ),
             ],
           ),
@@ -615,8 +628,8 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                 onTap: _openForgotPassword,
                 child: Text(
                   tr(context).forgotPassword,
-                  style: const TextStyle(
-                    color: AppTheme.dark,
+                  style: TextStyle(
+                    color: AppColors.brand,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -636,7 +649,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             suffix: IconButton(
               icon: Icon(
                 _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                color: Colors.grey[600],
+                color: AppColors.grey(600),
               ),
               onPressed: () =>
                   setState(() => _obscurePassword = !_obscurePassword),
@@ -667,15 +680,18 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             const SizedBox(height: 18),
             Row(
               children: [
-                Expanded(child: Divider(color: Colors.grey[300])),
+                Expanded(child: Divider(color: AppColors.grey(300))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
                     'or',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12.5),
+                    style: TextStyle(
+                      color: AppColors.grey(500),
+                      fontSize: 12.5,
+                    ),
                   ),
                 ),
-                Expanded(child: Divider(color: Colors.grey[300])),
+                Expanded(child: Divider(color: AppColors.grey(300))),
               ],
             ),
             const SizedBox(height: 18),
@@ -687,18 +703,18 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                     : _continueWithGoogle,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 11),
-                  side: BorderSide(color: Colors.grey[300]!),
+                  side: BorderSide(color: AppColors.grey(300)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 child: _googleLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                       )
                     : Row(
@@ -715,7 +731,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: AppColors.text,
                             ),
                           ),
                         ],

@@ -6,13 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/order_format.dart';
 import '../services/order_seen_service.dart';
 import '../services/order_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_status_pager.dart';
 import '../widgets/page_header.dart';
 import 'inventory_screen.dart';
 import 'order_actions.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The Orders screen body for both the Farmer and the Buyer: same header,
 /// tabs, swipe, badges, cards, loading and empty states. [role] only
@@ -138,14 +138,15 @@ class _OrdersViewState extends State<OrdersView> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: AppTheme.tint,
+          color: AppColors.tint,
+          border: AppColors.cardBorder,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           'Review your completed orders to earn the Trusted Buyer badge. '
           '$unreviewed order${unreviewed == 1 ? '' : 's'} still need${unreviewed == 1 ? 's' : ''} a review.',
           style: GoogleFonts.montserrat(
-            color: AppTheme.dark,
+            color: AppColors.brand,
             fontSize: 12,
             height: 1.35,
           ),
@@ -180,8 +181,8 @@ class _OrdersViewState extends State<OrdersView> {
                     style:
                         FilledButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: AppTheme.dark,
-                          shadowColor: AppTheme.dark,
+                          backgroundColor: AppColors.brandFill,
+                          shadowColor: AppColors.brand,
                           shape: const StadiumBorder(),
                           minimumSize: Size.zero,
                           fixedSize: const Size.fromHeight(36),
@@ -221,7 +222,7 @@ class _OrdersViewState extends State<OrdersView> {
                     icon: const Icon(Icons.storefront_outlined, size: 17),
                     label: const Text('Browse Marketplace'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.dark,
+                      foregroundColor: AppColors.brand,
                       textStyle: GoogleFonts.montserrat(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import 'agritrade_text.dart';
 import 'typewriter_headline.dart';
+import '../theme/app_colors.dart';
 
 /// The branded header used by both [RoleSelectionScreen] (the app's front
 /// door) and [LoginScreen] (its role-specific doors): the rice field at
@@ -36,6 +36,29 @@ class LoginHero extends StatelessWidget {
   /// How far the screen's white sheet overlaps the bottom of the hero.
   static const double sheetOverlap = 32;
 
+  /// How tall the white sheet needs to be for the login form at its full
+  /// size: the form (measured on a phone, with room for an error line)
+  /// and the sheet's padding — the phone's navigation bar comes on top.
+  static const double formRoom = 610;
+
+  /// The hero's height on a screen [screenHeight] tall: about a third of
+  /// it (at most [max]), but less on a short phone — down to 150 — so the
+  /// login form under it keeps its full size and does not scroll; only a
+  /// very short screen then makes the form a little smaller
+  /// (LoginSheetBody). [bottomInset] is the phone's navigation bar (the
+  /// buttons or the gesture line). Low while the keyboard is up.
+  static double heightFor(
+    double screenHeight, {
+    required bool keyboardOpen,
+    double bottomInset = 0,
+    double max = 310,
+  }) {
+    if (keyboardOpen) return 120;
+    final third = (screenHeight * 0.36).clamp(150.0, max);
+    final leftOver = screenHeight - formRoom - bottomInset + sheetOverlap;
+    return third < leftOver ? third : (leftOver < 150 ? 150 : leftOver);
+  }
+
   // Soft enough to leave the photo alone, enough to lift white text off a
   // bright sky.
   static const _textShadow = [
@@ -56,12 +79,12 @@ class LoginHero extends StatelessWidget {
             // rice, when cropped to the hero's band.
             alignment: const Alignment(0, -0.2),
             filterQuality: FilterQuality.medium,
-            errorBuilder: (context, error, stackTrace) => const DecoratedBox(
+            errorBuilder: (context, error, stackTrace) => DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppTheme.dark, AppTheme.mid],
+                  colors: [AppColors.brand, AppColors.mid],
                 ),
               ),
             ),
@@ -75,9 +98,9 @@ class LoginHero extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppTheme.dark.withValues(alpha: 0.55),
-                  AppTheme.dark.withValues(alpha: 0.12),
-                  AppTheme.dark.withValues(alpha: 0.30),
+                  AppColors.brand.withValues(alpha: 0.55),
+                  AppColors.brand.withValues(alpha: 0.12),
+                  AppColors.brand.withValues(alpha: 0.30),
                 ],
                 stops: const [0, 0.5, 1],
               ),

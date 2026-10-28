@@ -15,6 +15,7 @@ import '../services/product_share_service.dart';
 import '../services/push_notification_service.dart';
 import '../widgets/branded_loading_screen.dart';
 import '../widgets/no_internet_screen.dart';
+import '../widgets/walking_farmer_loader.dart';
 import 'app_router.dart';
 import 'admin_session_gate.dart';
 
@@ -169,6 +170,12 @@ class _AppBootstrapState extends State<AppBootstrap> {
     // Recognizes this installation for the signed-in account (New Device
     // Login Alert) — see DeviceTrustService.
     DeviceTrustService.instance.start();
+    // The splash stays up until the farmer has walked all the way across,
+    // even when everything loaded sooner — on the phone and the Admin
+    // website alike (the loading runs during the walk, so a slow start
+    // never waits longer). Once per app run.
+    await WalkingFarmerLoader.untilWalkDone();
+    if (!mounted) return;
     setState(() => _phase = _BootPhase.ready);
   }
 

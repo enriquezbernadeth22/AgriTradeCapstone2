@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 /// "Too Many Login Attempts": shown when password login for an email is
 /// paused after repeated wrong passwords (see AuthService.logIn and
@@ -90,7 +90,6 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
 
   static const double _radius = 22;
   static const double _buttonHeight = 46;
-  static const Color _warning = Color(0xFFEF6C00);
 
   // Both buttons share this: same height, same pill shape, and a label
   // that shrinks rather than wraps, so they stay identical whatever the
@@ -123,7 +122,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
             ? ElevatedButton(
                 onPressed: onPressed,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.dark,
+                  backgroundColor: AppColors.brandFill,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: padding,
@@ -134,9 +133,9 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
             : OutlinedButton(
                 onPressed: onPressed,
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppTheme.mid,
-                  side: const BorderSide(color: AppTheme.mid, width: 1.2),
+                  backgroundColor: AppColors.surface,
+                  foregroundColor: AppColors.mid,
+                  side: BorderSide(color: AppColors.mid, width: 1.2),
                   padding: padding,
                   shape: shape,
                 ),
@@ -152,7 +151,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
     final finished = timed && _remaining == 0;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -173,12 +172,14 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: _warning.withValues(alpha: 0.12),
+                  color: AppColors.adapt(
+                    const Color(0xFFEF6C00),
+                  ).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.lock_clock_outlined,
-                  color: _warning,
+                  color: AppColors.adapt(const Color(0xFFEF6C00)),
                   size: 27,
                 ),
               ),
@@ -189,7 +190,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                 style: GoogleFonts.montserrat(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                 ),
               ),
               const SizedBox(height: 8),
@@ -207,7 +208,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
                     height: 1.5,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
               ),
@@ -220,7 +221,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                     vertical: 14,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.accent.withValues(alpha: 0.35),
+                    color: AppColors.accent.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
@@ -233,7 +234,9 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                           fontWeight: finished
                               ? FontWeight.w600
                               : FontWeight.w500,
-                          color: finished ? AppTheme.dark : Colors.black54,
+                          color: finished
+                              ? AppColors.brand
+                              : AppColors.textSecondary,
                         ),
                       ),
                       if (!finished) ...[
@@ -244,7 +247,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                             fontSize: 28,
                             height: 1.1,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.dark,
+                            color: AppColors.brand,
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),

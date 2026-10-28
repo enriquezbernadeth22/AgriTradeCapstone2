@@ -12,6 +12,7 @@ import '../services/dashboard_data_service.dart';
 import 'admin_dashboard_screen.dart'
     show AdminEmptyState, AdminPalette, AdminStatusBadge, AdminThemeScope;
 import 'admin_overview_widgets.dart';
+import '../theme/app_colors.dart';
 
 /// Which applications the page lists, chosen with its summary cards.
 enum _QueueFilter { pending, approved, rejected }
@@ -126,7 +127,7 @@ class _VerificationQueueViewState extends State<VerificationQueueView> {
     final barangay = _firstNonEmpty([profile['barangay']]);
     final reason = _firstNonEmpty([verif?['rejectionReason']]);
     final details = [
-      'RSBA No.: ${farmerIdOf(profile, verif) ?? kNoFarmerId}',
+      'RSBSA No.: ${farmerIdOf(profile, verif) ?? kNoFarmerId}',
       ?barangay,
       if (decided != null) DateFormat('MMM d, y').format(decided),
     ].join('  •  ');
@@ -388,14 +389,14 @@ class _VerificationQueueViewState extends State<VerificationQueueView> {
 
 /// One application waiting for a decision, as a review card: who applied
 /// (photo or initials, name, "Pending Review"), the details to check —
-/// RSBA No., email, barangay and when it was submitted — anything that
+/// RSBSA No., email, barangay and when it was submitted — anything that
 /// needs a second look, and View Details / Reject / Approve.
 class FarmerApplicationCard extends StatelessWidget {
   final String uid;
   final Map<String, dynamic> profile;
   final Map<String, dynamic>? verif;
 
-  /// Other farmer accounts with the same RSBA No.
+  /// Other farmer accounts with the same RSBSA No.
   final List<String> sameFarmerId;
 
   const FarmerApplicationCard({
@@ -429,7 +430,7 @@ class FarmerApplicationCard extends StatelessWidget {
         ? DateFormat('MMM d, y').format(submittedAt.toDate())
         : '—';
     final document = (verif?['document'] ?? '').toString();
-    // The Farmer ID is the RSBA number typed at registration. It is what
+    // The Farmer ID is the RSBSA number typed at registration. It is what
     // the Admin checks against the registry before approving — the app
     // itself does not verify it.
     final farmerId = farmerIdOf(profile, verif);
@@ -439,10 +440,10 @@ class FarmerApplicationCard extends StatelessWidget {
     final c = AdminThemeScope.of(context).palette;
     final warnings = [
       if (sameFarmerId.isNotEmpty)
-        'This RSBA No. is also on another farmer account: '
+        'This RSBSA No. is also on another farmer account: '
             '${sameFarmerId.join(', ')}.',
       if (nothingToCheck)
-        'No RSBA No. was submitted, so there is nothing to check this '
+        'No RSBSA No. was submitted, so there is nothing to check this '
             'application against.',
     ];
 
@@ -457,7 +458,7 @@ class FarmerApplicationCard extends StatelessWidget {
           style: _actionStyle(c.textPrimary, c.border),
           onPressed: () => showFarmerVerificationDetails(context, uid: uid),
         ),
-        // Only an older application has a document; the RSBA number took
+        // Only an older application has a document; the RSBSA number took
         // its place on the registration form.
         if (document.isNotEmpty)
           OutlinedButton.icon(
@@ -545,7 +546,7 @@ class FarmerApplicationCard extends StatelessWidget {
       children: [
         _ApplicationField(
           icon: Icons.badge_outlined,
-          label: 'RSBA No.',
+          label: 'RSBSA No.',
           value: farmerId ?? kNoFarmerId,
           emphasis: true,
           valueColor: farmerId == null ? c.red : null,
@@ -574,9 +575,9 @@ class FarmerApplicationCard extends StatelessWidget {
         color: c.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: c.border),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A0E3210),
+            color: AppColors.adapt(const Color(0x0A0E3210)),
             blurRadius: 10,
             offset: Offset(0, 3),
           ),
@@ -1185,7 +1186,7 @@ class _FarmerVerificationDetailDialogState
                       _sectionLabel('Farmer Information'),
                       _detailRow('Full Name', fullName),
                       _detailRow(
-                        'RSBA No.',
+                        'RSBSA No.',
                         farmerIdOf(user, verif) ?? kNoFarmerId,
                       ),
                       _detailRow('Email', email),
@@ -1285,7 +1286,7 @@ class _FarmerVerificationDetailDialogState
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 12.5,
-          color: Colors.grey[600],
+          color: AppColors.grey(600),
           letterSpacing: 0.4,
         ),
       ),
@@ -1304,7 +1305,7 @@ class _FarmerVerificationDetailDialogState
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: AppColors.grey(700),
               ),
             ),
           ),

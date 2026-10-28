@@ -750,6 +750,13 @@ Object.assign(exports, require("./public_product"));
 // A suspension set for a time ends by itself — see suspension.js.
 Object.assign(exports, require("./suspension"));
 
+// The Admin adds a farmer account from User Accounts, created once the
+// farmer confirms it by email — see admin_create_farmer.js.
+Object.assign(exports, require("./admin_create_farmer"));
+
+// Feedback from the app, emailed to the team — see app_feedback.js.
+Object.assign(exports, require("./app_feedback"));
+
 // ---------------------------------------------------------------
 // Order delay / reschedule (see OrderService.reportDelay and friends).
 //

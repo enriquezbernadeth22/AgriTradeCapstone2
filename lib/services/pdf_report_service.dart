@@ -682,7 +682,7 @@ class PdfReportService {
           _sectionHeading('Approved Farmers', number: 2),
           _table(
             [
-              'RSBA No.',
+              'RSBSA No.',
               'Full Name',
               'Email',
               'Barangay',

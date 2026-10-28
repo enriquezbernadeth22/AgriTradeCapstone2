@@ -1,4 +1,3 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/product_share_service.dart';
@@ -18,6 +17,7 @@ import 'farmer_orders_tab.dart';
 import 'farmer_profile_tab.dart';
 import 'notifications_screen.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 // A one-shot "command channel", not persisted UI state: setting this while
 // a FarmerHomeScreen is already mounted (e.g. from a notification tap, see
@@ -37,9 +37,6 @@ class FarmerHomeScreen extends StatefulWidget {
 }
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _bg = Colors.white;
-
   // 0 = Market, 1 = Messages, 2 = Orders, 3 = Profile
   late int _selectedIndex = widget.initialIndex;
 
@@ -141,7 +138,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: _bg,
+        backgroundColor: AppColors.page,
         // ---- Bottom navigation bar (Market · Messages · + · Orders · Profile) ----
         // The small floating bar, always on screen.
         bottomNavigationBar: DockedNavBar(
@@ -248,11 +245,11 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: _dark,
+                color: AppColors.brandFill,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: _dark.withValues(alpha: 0.28),
+                    color: AppColors.brand.withValues(alpha: 0.28),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),

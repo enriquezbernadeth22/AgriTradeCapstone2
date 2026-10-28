@@ -97,20 +97,21 @@ class _SuspendAccountsDialogState extends State<_SuspendAccountsDialog> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    style: TextStyle(color: c.textPrimary, fontSize: 13),
-                    decoration: adminPillDecoration(
-                      c,
-                      hint: 'Search name, email or area…',
-                      icon: Icons.search,
+                  child: AdminInputGlow(
+                    child: TextField(
+                      style: TextStyle(color: c.textPrimary, fontSize: 13),
+                      decoration: adminFieldDecoration(
+                        c,
+                        hint: 'Search name, email or area…',
+                        icon: Icons.search,
+                      ),
+                      onChanged: (value) => setState(() => _search = value),
                     ),
-                    onChanged: (value) => setState(() => _search = value),
                   ),
                 ),
                 const SizedBox(width: 10),
                 AdminPillDropdown<String>(
                   value: _show,
-                  width: 190,
                   icon: Icons.filter_list_rounded,
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text('All accounts')),

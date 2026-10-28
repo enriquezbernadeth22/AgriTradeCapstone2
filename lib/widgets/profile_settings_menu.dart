@@ -4,12 +4,15 @@ import 'package:google_fonts/google_fonts.dart';
 import '../screen/manage_account_screen.dart';
 import '../screen/notification_preferences_screen.dart';
 import 'page_header.dart';
+import '../theme/theme_controller.dart';
+import 'feedback_sheet.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The settings (gear) menu beside the farmer's Profile title:
 ///
-///   [Share My Store]   Notification Settings   Manage Account
-///   Help & Support   ─────   Log Out (red)
+///   [Share My Store]   Notification Settings   Dark Mode (a switch)
+///   Manage Account   Send Feedback   Help & Support   ─────   Log Out (red)
 ///
 /// (The buyer's Profile lists the same options on the page itself, in
 /// labelled groups.) Manage Account is one screen for both roles; Help &
@@ -35,7 +38,7 @@ class ProfileSettingsMenu extends StatelessWidget {
       String value,
       IconData icon,
       String label, {
-      Color color = Colors.black87,
+      Color? color,
     }) => PopupMenuItem(
       value: value,
       height: 40,
@@ -43,14 +46,14 @@ class ProfileSettingsMenu extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: color),
+          Icon(icon, size: 18, color: color ?? AppColors.text),
           const SizedBox(width: 10),
           Text(
             label,
             style: GoogleFonts.montserrat(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: color,
+              color: color ?? AppColors.text,
             ),
           ),
         ],
@@ -62,7 +65,7 @@ class ProfileSettingsMenu extends StatelessWidget {
 
     return PopupMenuButton<String>(
       tooltip: 'Settings',
-      icon: const Icon(Icons.settings_outlined, color: PageHeader.titleColor),
+      icon: Icon(Icons.settings_outlined, color: PageHeader.titleColor),
       // A small floating panel that opens just below the icon.
       position: PopupMenuPosition.under,
       offset: const Offset(0, 4),
@@ -74,8 +77,12 @@ class ProfileSettingsMenu extends StatelessWidget {
             onShareStore?.call();
           case 'notifications':
             open(const NotificationPreferencesScreen());
+          case 'dark':
+            ThemeController.instance.setDark(!AppColors.isDark);
           case 'manage':
             open(const ManageAccountScreen());
+          case 'feedback':
+            showFeedbackSheet(context);
           case 'help':
             onHelp();
           case 'logout':
@@ -90,10 +97,50 @@ class ProfileSettingsMenu extends StatelessWidget {
           Icons.notifications_none_rounded,
           t.notificationSettings,
         ),
+        // Dark Mode: a switch in the row; tapping the row flips it, and
+        // the whole app changes at once.
+        PopupMenuItem(
+          value: 'dark',
+          height: 40,
+          padding: const EdgeInsets.only(left: 14, right: 6),
+          child: Row(
+            children: [
+              Icon(Icons.dark_mode_outlined, size: 18, color: AppColors.text),
+              const SizedBox(width: 10),
+              Text(
+                t.darkMode,
+                style: GoogleFonts.montserrat(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Spacer(),
+              IgnorePointer(
+                child: Transform.scale(
+                  scale: 0.75,
+                  child: Switch(
+                    value: AppColors.isDark,
+                    onChanged: (_) {},
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.brandFill,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         item('manage', Icons.manage_accounts_outlined, t.manageAccount),
+        item('feedback', Icons.rate_review_outlined, t.sendFeedback),
         item('help', Icons.help_outline, t.helpSupport),
         const PopupMenuDivider(height: 9),
-        item('logout', Icons.logout, t.logOut, color: const Color(0xFFD32F2F)),
+        item(
+          'logout',
+          Icons.logout,
+          t.logOut,
+          color: AppColors.adapt(const Color(0xFFD32F2F)),
+        ),
       ],
     );
   }

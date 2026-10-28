@@ -32,6 +32,14 @@ Color adminActionColor(AdminPalette c) => c.isDark ? c.green : AppTheme.dark;
 Color adminOnActionColor(AdminPalette c) =>
     c.isDark ? AppTheme.dark : Colors.white;
 
+/// The colour of a dropdown's, search's or calendar's icon and chosen
+/// option: black and white (white on the dark theme), leaving green to
+/// the buttons.
+Color adminControlColor(AdminPalette c) => c.textPrimary;
+
+/// Text on [adminControlColor].
+Color adminOnControlColor(AdminPalette c) => c.surface;
+
 /// Corner radius of every menu and popup in the portal — the same rounded
 /// card the mobile app's popups use.
 const double kAdminPopupRadius = 20;
@@ -82,35 +90,111 @@ mixin AdminReadOnce<T extends StatefulWidget> on State<T> {
       (_reads[key] ??= open()) as Stream<R>;
 }
 
-/// The pill-shaped field every search box and dropdown sits in.
-InputDecoration adminPillDecoration(
+/// Every search box and dropdown in the portal is this wide…
+const double kAdminControlWidth = 200;
+
+/// …and this tall, so they line up wherever they sit side by side.
+const double kAdminControlHeight = 40;
+
+/// The inside of a text input (a search box), for inside [AdminInputGlow]:
+/// no fill and no outline of its own — the glow plate around it is the
+/// field, exactly like the Admin login's fields.
+///
+/// [fixedHeight]: for a control already [kAdminControlHeight] tall, which
+/// centres its text itself (no padding above and below to throw it off).
+InputDecoration adminFieldDecoration(
   AdminPalette c, {
   String? hint,
   IconData? icon,
-}) {
-  OutlineInputBorder border(Color color, [double width = 1]) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.pill),
-        borderSide: BorderSide(color: color, width: width),
-      );
-  return InputDecoration(
-    hintText: hint,
-    hintStyle: TextStyle(color: c.textMuted, fontSize: 13),
-    prefixIcon: icon == null
-        ? null
-        : Padding(
-            padding: const EdgeInsets.only(left: 14, right: 8),
-            child: Icon(icon, size: 18, color: c.textSecondary),
-          ),
-    prefixIconConstraints: const BoxConstraints(minHeight: 18),
-    filled: true,
-    fillColor: c.surfaceAlt,
-    isDense: true,
-    contentPadding: EdgeInsets.fromLTRB(icon == null ? 16 : 0, 12, 14, 12),
-    border: border(c.border),
-    enabledBorder: border(c.border),
-    focusedBorder: border(c.green, 1.5),
-  );
+  bool fixedHeight = false,
+}) => InputDecoration(
+  hintText: hint,
+  hintStyle: TextStyle(color: c.textMuted, fontSize: 13),
+  prefixIcon: icon == null
+      ? null
+      : Padding(
+          padding: const EdgeInsets.only(left: 14, right: 8),
+          child: Icon(icon, size: 18, color: adminControlColor(c)),
+        ),
+  prefixIconConstraints: const BoxConstraints(minHeight: 18),
+  filled: false,
+  isDense: true,
+  contentPadding: EdgeInsets.fromLTRB(
+    icon == null ? 16 : 0,
+    fixedHeight ? 0 : 12,
+    14,
+    fixedHeight ? 0 : 12,
+  ),
+  border: InputBorder.none,
+  enabledBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  disabledBorder: InputBorder.none,
+);
+
+/// The Admin Portal's text inputs, in the Admin login's look: a white pill
+/// on a soft shadow, with no outline, that glows a soft grey while it is
+/// being typed in (black and white, like every dropdown). Wraps a
+/// TextField whose decoration is [adminFieldDecoration].
+class AdminInputGlow extends StatefulWidget {
+  final Widget child;
+  final BorderRadius? borderRadius;
+
+  const AdminInputGlow({super.key, required this.child, this.borderRadius});
+
+  @override
+  State<AdminInputGlow> createState() => _AdminInputGlowState();
+}
+
+class _AdminInputGlowState extends State<AdminInputGlow> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Also in a popup, outside the page's AdminThemeScope: light then.
+    final c =
+        context
+            .dependOnInheritedWidgetOfExactType<AdminThemeScope>()
+            ?.palette ??
+        AdminPalette.light;
+    return Focus(
+      // Only watches the field inside; never takes focus itself.
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (focused) => setState(() => _focused = focused),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius:
+              widget.borderRadius ?? BorderRadius.circular(AdminRadii.pill),
+          border: c.isDark ? Border.all(color: c.border) : null,
+          boxShadow: _focused
+              ? [
+                  BoxShadow(
+                    color: adminControlColor(c).withValues(alpha: 0.14),
+                    blurRadius: 12,
+                    spreadRadius: 0.5,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: c.isDark ? 0.25 : 0.08,
+                    ),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+        ),
+        child: widget.child,
+      ),
+    );
+  }
 }
 
 /// A pill-shaped search box.
@@ -123,7 +207,7 @@ class AdminPillSearch extends StatelessWidget {
     super.key,
     required this.hint,
     required this.onChanged,
-    this.width = 320,
+    this.width = kAdminControlWidth,
   });
 
   @override
@@ -131,10 +215,21 @@ class AdminPillSearch extends StatelessWidget {
     final c = AdminThemeScope.of(context).palette;
     return SizedBox(
       width: width,
-      child: TextField(
-        style: TextStyle(color: c.textPrimary, fontSize: 13),
-        decoration: adminPillDecoration(c, hint: hint, icon: Icons.search),
-        onChanged: onChanged,
+      height: kAdminControlHeight,
+      child: AdminInputGlow(
+        // The field in the middle of the pill, level with the dropdowns'.
+        child: Center(
+          child: TextField(
+            style: TextStyle(color: c.textPrimary, fontSize: 13),
+            decoration: adminFieldDecoration(
+              c,
+              hint: hint,
+              icon: Icons.search,
+              fixedHeight: true,
+            ),
+            onChanged: onChanged,
+          ),
+        ),
       ),
     );
   }
@@ -157,7 +252,7 @@ class AdminPillDropdown<T> extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.icon,
-    this.width = 200,
+    this.width = kAdminControlWidth,
   });
 
   Future<void> _open(BuildContext context, AdminPalette c) async {
@@ -169,7 +264,7 @@ class AdminPillDropdown<T> extends StatelessWidget {
       Offset(0, button.size.height + 6),
       ancestor: overlay,
     );
-    final action = adminActionColor(c);
+    final action = adminControlColor(c);
     // By position, not by value: a value may itself be null ("All …").
     final chosen = await showMenu<int>(
       context: context,
@@ -215,36 +310,42 @@ class AdminPillDropdown<T> extends StatelessWidget {
     final shown = items.where((item) => item.value == value).firstOrNull;
     return SizedBox(
       width: width,
+      height: kAdminControlHeight,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _open(context, c),
-          child: InputDecorator(
-            decoration: adminPillDecoration(c, icon: icon),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DefaultTextStyle.merge(
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: kAdminFontFamily,
-                      color: c.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+          // The same plate as the portal's text inputs (the Admin login's
+          // look), so a dropdown beside a search box matches it.
+          child: AdminInputGlow(
+            child: InputDecorator(
+              textAlignVertical: TextAlignVertical.center,
+              decoration: adminFieldDecoration(c, icon: icon),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DefaultTextStyle.merge(
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kAdminFontFamily,
+                        color: c.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      child: shown?.child ?? const SizedBox.shrink(),
                     ),
-                    child: shown?.child ?? const SizedBox.shrink(),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.expand_more_rounded,
-                  size: 18,
-                  color: c.textSecondary,
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: c.textSecondary,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -274,7 +375,9 @@ class AdminPillToggle<T> extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.surfaceAlt,
         borderRadius: BorderRadius.circular(AdminRadii.pill),
-        border: Border.all(color: c.border),
+        // No outline, as the portal's fields; only on the dark theme,
+        // where the track would not show without one.
+        border: c.isDark ? Border.all(color: c.border) : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1098,7 +1201,7 @@ class AdminMonthPill extends StatelessWidget {
     required this.firstYear,
     required this.lastYear,
     required this.onChanged,
-    this.width = 190,
+    this.width = kAdminControlWidth,
   });
 
   Future<void> _open(BuildContext context, AdminPalette c) async {
@@ -1145,38 +1248,42 @@ class AdminMonthPill extends StatelessWidget {
     final c = AdminThemeScope.of(context).palette;
     return SizedBox(
       width: width,
+      height: kAdminControlHeight,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _open(context, c),
-          child: InputDecorator(
-            decoration: adminPillDecoration(
-              c,
-              icon: Icons.calendar_month_outlined,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    DateFormat('MMMM y').format(DateTime(year, month)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: kAdminFontFamily,
-                      color: c.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+          child: AdminInputGlow(
+            child: InputDecorator(
+              textAlignVertical: TextAlignVertical.center,
+              decoration: adminFieldDecoration(
+                c,
+                icon: Icons.calendar_month_outlined,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      DateFormat('MMMM y').format(DateTime(year, month)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kAdminFontFamily,
+                        color: c.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.expand_more_rounded,
-                  size: 18,
-                  color: c.textSecondary,
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: c.textSecondary,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1211,7 +1318,7 @@ class _AdminMonthCalendarState extends State<_AdminMonthCalendar> {
   @override
   Widget build(BuildContext context) {
     final c = widget.palette;
-    final action = adminActionColor(c);
+    final action = adminControlColor(c);
     final today = DateTime.now();
     Widget arrow(IconData icon, String tooltip, bool enabled, int step) =>
         IconButton(
@@ -1306,8 +1413,263 @@ class _AdminMonthCalendarState extends State<_AdminMonthCalendar> {
                                             ? FontWeight.w700
                                             : FontWeight.w500,
                                         color: selected
-                                            ? adminOnActionColor(c)
+                                            ? adminOnControlColor(c)
                                             : ahead
+                                            ? c.textMuted
+                                            : c.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---- Year picker ----
+
+/// A pill that shows a year and opens a small calendar of years under it —
+/// the month picker's look ([AdminMonthPill]), with years in place of
+/// months: twelve to a page, arrows to the pages before. Only
+/// [firstYear]..[lastYear] can be picked.
+class AdminYearPill extends StatelessWidget {
+  final int year;
+  final int firstYear;
+  final int lastYear;
+  final ValueChanged<int> onChanged;
+  final double width;
+  final double height;
+
+  /// What a screen reader says for it ("Earlier year").
+  final String? semanticLabel;
+
+  const AdminYearPill({
+    super.key,
+    required this.year,
+    required this.firstYear,
+    required this.lastYear,
+    required this.onChanged,
+    this.width = kAdminControlWidth,
+    this.height = kAdminControlHeight,
+    this.semanticLabel,
+  });
+
+  Future<void> _open(BuildContext context, AdminPalette c) async {
+    final button = context.findRenderObject();
+    final overlay = Navigator.of(context).overlay?.context.findRenderObject();
+    if (button is! RenderBox || overlay is! RenderBox) return;
+    final corner = button.localToGlobal(
+      Offset(0, button.size.height + 6),
+      ancestor: overlay,
+    );
+    final chosen = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        corner.dx,
+        corner.dy,
+        overlay.size.width - corner.dx - button.size.width,
+        0,
+      ),
+      color: c.surface,
+      items: [
+        // One item holding the whole calendar; its own cells are what is
+        // clicked, not the item.
+        PopupMenuItem<int>(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          child: _AdminYearCalendar(
+            palette: c,
+            year: year,
+            firstYear: firstYear,
+            lastYear: lastYear,
+          ),
+        ),
+      ],
+    );
+    if (chosen != null && chosen != year) onChanged(chosen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AdminThemeScope.of(context).palette;
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      value: '$year',
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _open(context, c),
+            child: AdminInputGlow(
+              child: InputDecorator(
+                textAlignVertical: TextAlignVertical.center,
+                decoration: adminFieldDecoration(
+                  c,
+                  icon: Icons.calendar_today_outlined,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$year',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamily: kAdminFontFamily,
+                          color: c.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.expand_more_rounded,
+                      size: 16,
+                      color: c.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminYearCalendar extends StatefulWidget {
+  final AdminPalette palette;
+  final int year;
+  final int firstYear;
+  final int lastYear;
+
+  const _AdminYearCalendar({
+    required this.palette,
+    required this.year,
+    required this.firstYear,
+    required this.lastYear,
+  });
+
+  @override
+  State<_AdminYearCalendar> createState() => _AdminYearCalendarState();
+}
+
+class _AdminYearCalendarState extends State<_AdminYearCalendar> {
+  // Pages of twelve years from the first year (years not come yet greyed,
+  // as months are on the month picker); opens on the chosen year's page.
+  late int _page = (widget.year - widget.firstYear) ~/ 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.palette;
+    final action = adminControlColor(c);
+    final start = widget.firstYear + 12 * _page;
+    final end = start + 11;
+    Widget arrow(IconData icon, String tooltip, bool enabled, int step) =>
+        IconButton(
+          tooltip: tooltip,
+          visualDensity: VisualDensity.compact,
+          icon: Icon(icon, color: enabled ? c.textPrimary : c.textMuted),
+          onPressed: enabled ? () => setState(() => _page += step) : null,
+        );
+    return SizedBox(
+      width: 280,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                arrow(
+                  Icons.chevron_left_rounded,
+                  'Earlier years',
+                  _page > 0,
+                  -1,
+                ),
+                Expanded(
+                  child: Text(
+                    '$start – $end',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: kAdminFontFamily,
+                      color: c.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                arrow(
+                  Icons.chevron_right_rounded,
+                  'Later years',
+                  end < widget.lastYear,
+                  1,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (var row = 0; row < 4; row++)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    for (var column = 0; column < 3; column++)
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            final year = start + row * 3 + column;
+                            final selected = year == widget.year;
+                            // Before the first year there is nothing to show.
+                            final out =
+                                year < widget.firstYear ||
+                                year > widget.lastYear;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
+                              child: Material(
+                                color: selected ? action : Colors.transparent,
+                                borderRadius: BorderRadius.circular(
+                                  AdminRadii.pill,
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(
+                                    AdminRadii.pill,
+                                  ),
+                                  onTap: out
+                                      ? null
+                                      : () => Navigator.of(context).pop(year),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 9,
+                                    ),
+                                    child: Text(
+                                      '$year',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: kAdminFontFamily,
+                                        fontSize: 13,
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: selected
+                                            ? adminOnControlColor(c)
+                                            : out
                                             ? c.textMuted
                                             : c.textPrimary,
                                       ),

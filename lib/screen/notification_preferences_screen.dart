@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/permission_rationale_dialog.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// Profile → Notification Preferences: which notifications also buzz the
 /// phone. Every notification is still kept in the app's Notifications
@@ -106,7 +107,7 @@ class _NotificationPreferencesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: AgriAppBar(title: tr(context).notificationSettings),
       body: StreamBuilder<NotificationPrefs>(
         stream: _prefs,
@@ -132,7 +133,7 @@ class _NotificationPreferencesScreenState
                         Icon(
                           Icons.info_outline,
                           size: 16,
-                          color: Colors.red[700],
+                          color: AppColors.tone(Colors.red, 700),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -141,7 +142,7 @@ class _NotificationPreferencesScreenState
                             'settings.',
                             style: AppTheme.body(
                               size: 12.5,
-                            ).copyWith(color: Colors.red[700]),
+                            ).copyWith(color: AppColors.tone(Colors.red, 700)),
                           ),
                         ),
                       ],
@@ -173,7 +174,7 @@ class _NotificationPreferencesScreenState
                 'account notices are also sent to your email.',
                 style: AppTheme.body(
                   size: 12.5,
-                ).copyWith(color: Colors.grey[600]),
+                ).copyWith(color: AppColors.grey(600)),
               ),
             ],
           );
@@ -184,7 +185,7 @@ class _NotificationPreferencesScreenState
 
   Widget _card(List<Widget> children) => Container(
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
     ),
@@ -200,17 +201,19 @@ class _NotificationPreferencesScreenState
       value: value,
       onChanged: _busy ? null : onChanged,
       activeThumbColor: Colors.white,
-      activeTrackColor: AppTheme.dark,
+      activeTrackColor: AppColors.brandFill,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       title: Text(
         pref.label,
-        style: AppTheme.body(size: 14.5).copyWith(fontWeight: FontWeight.w600),
+        style: AppTheme.body(size: 14.5).copyWith(fontWeight: FontWeight.w700),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Text(
           pref.description,
-          style: AppTheme.body(size: 12.5).copyWith(color: Colors.grey[600]),
+          style: AppTheme.body(
+            size: 12.5,
+          ).copyWith(color: AppColors.grey(700), fontWeight: FontWeight.w600),
         ),
       ),
     );

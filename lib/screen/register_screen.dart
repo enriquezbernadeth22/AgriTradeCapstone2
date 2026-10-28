@@ -25,6 +25,8 @@ import 'privacy_policy_screen.dart';
 import 'supported_products_screen.dart';
 import 'terms_and_conditions_screen.dart';
 import '../l10n/tr.dart';
+import '../services/person_name.dart';
+import '../theme/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   // Which role the toggle at the top starts on. Defaults to buyer; the
@@ -49,7 +51,10 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen>
     with SingleTickerProviderStateMixin {
   // ---------- What the user types ----------
-  final _fullNameController = TextEditingController();
+  // First name and Last name, two fields; stored joined as the full name
+  // too (see person_name.dart).
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   late final _emailController = TextEditingController(
     text: widget.initialEmail ?? '',
   );
@@ -64,12 +69,12 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
 
-  // Farmer-only: the barangay and the RSBA number (see rsba_number.dart).
+  // Farmer-only: the barangay and the RSBSA number (see rsba_number.dart).
   // The number is kept while the role toggle is on Buyer, so switching
   // back to Farmer does not lose what was typed.
   String? _selectedBarangay;
   final _rsbaController = TextEditingController();
-  // Set once the RSBA field has been left with something in it — only
+  // Set once the RSBSA field has been left with something in it — only
   // then is a number that is not valid shown as an error.
   bool _rsbaTouched = false;
 
@@ -124,7 +129,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.initState();
 
     // Rebuild on every keystroke so errors + the button update live.
-    _fullNameController.addListener(_onChange);
+    _firstNameController.addListener(_onChange);
+    _lastNameController.addListener(_onChange);
     _emailController.addListener(_onChange);
     _mobileController.addListener(_onChange);
     _passwordController.addListener(_onChange);
@@ -170,7 +176,8 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
@@ -188,15 +195,18 @@ class _RegisterScreenState extends State<RegisterScreen>
   // Password.
   bool _passwordMeetsRules(String p) => PasswordRules.meetsAll(p);
 
-  bool _nameHasDigits(String name) => RegExp(r'[0-9]').hasMatch(name);
+  // Shared rules for both name fields (person_name.dart).
+  String? get _firstNameError => nameFieldError(
+    _firstNameController.text,
+    label: 'First name',
+    submitted: _triedSubmit,
+  );
 
-  String? get _nameError {
-    final name = _fullNameController.text.trim();
-    if (name.isEmpty) return null;
-    if (name.length < 3) return 'That name looks too short.';
-    if (_nameHasDigits(name)) return 'Full name cannot contain numbers.';
-    return null;
-  }
+  String? get _lastNameError => nameFieldError(
+    _lastNameController.text,
+    label: 'Last name',
+    submitted: _triedSubmit,
+  );
 
   String? get _emailError {
     final email = _emailController.text.trim();
@@ -252,14 +262,13 @@ class _RegisterScreenState extends State<RegisterScreen>
   );
 
   bool get _isFormValid {
-    final name = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final mobile = _mobileController.text.trim();
     final pass = _passwordController.text;
     final confirm = _confirmController.text;
 
-    if (name.length < 3) return false;
-    if (_nameHasDigits(name)) return false;
+    if (!isValidNamePart(_firstNameController.text)) return false;
+    if (!isValidNamePart(_lastNameController.text)) return false;
     if (!_emailPattern.hasMatch(email)) return false;
     // Required for both roles — order/delivery/pick-up coordination.
     if (!_mobileNumberValid(mobile)) return false;
@@ -352,7 +361,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     final mobileDigits = _mobileController.text.trim();
     final pendingProfile = PendingRegistrationProfile(
       role: _selectedRole,
-      fullName: _fullNameController.text.trim(),
+      fullName: joinName(_firstNameController.text, _lastNameController.text),
+      firstName: tidyName(_firstNameController.text),
+      lastName: tidyName(_lastNameController.text),
       mobileNumber: mobileDigits.isEmpty ? null : phMobileE164(mobileDigits),
       supportedProductsAcknowledged:
           _isFarmer && _supportedProductsAcknowledged,
@@ -437,12 +448,19 @@ class _RegisterScreenState extends State<RegisterScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline, size: 14, color: Colors.red.shade700),
+              Icon(
+                Icons.error_outline,
+                size: 14,
+                color: AppColors.tone(Colors.red, 700),
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   errorText,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 11),
+                  style: TextStyle(
+                    color: AppColors.tone(Colors.red, 700),
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -452,7 +470,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           const SizedBox(height: 6),
           Text(
             caption,
-            style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
+            style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
           ),
         ],
         const SizedBox(height: 16),
@@ -476,14 +494,14 @@ class _RegisterScreenState extends State<RegisterScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
+        color: AppColors.adapt(const Color(0xFFFFF8E1)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Icon(
             Icons.warning_amber_rounded,
-            color: Colors.orange.shade700,
+            color: AppColors.tone(Colors.orange, 700),
             size: 18,
           ),
           const SizedBox(width: 8),
@@ -491,7 +509,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             child: Text(
               'Only farmers from Laurel, Batangas may register.',
               style: AppTheme.body(
-                color: const Color(0xFF6D4C00),
+                color: AppColors.adapt(const Color(0xFF6D4C00)),
                 size: 12,
               ).copyWith(fontWeight: FontWeight.w600, height: 1.4),
             ),
@@ -522,7 +540,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             value: _supportedProductsAcknowledged,
             onChanged: (v) =>
                 setState(() => _supportedProductsAcknowledged = v ?? false),
-            activeColor: AppTheme.dark,
+            activeColor: AppColors.brandFill,
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -534,7 +552,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                   RichText(
                     text: TextSpan(
                       style: AppTheme.body(
-                        color: Colors.black87,
+                        color: AppColors.text,
                         size: 12.5,
                       ).copyWith(height: 1.4),
                       children: [
@@ -545,8 +563,11 @@ class _RegisterScreenState extends State<RegisterScreen>
                         ),
                         TextSpan(
                           text: 'Supported Products',
-                          style: AppTheme.body(color: AppTheme.dark, size: 12.5)
-                              .copyWith(
+                          style:
+                              AppTheme.body(
+                                color: AppColors.brand,
+                                size: 12.5,
+                              ).copyWith(
                                 fontWeight: FontWeight.bold,
                                 decoration: TextDecoration.underline,
                               ),
@@ -611,7 +632,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             Checkbox(
               value: _agreedToTerms,
               onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
-              activeColor: AppTheme.dark,
+              activeColor: AppColors.brandFill,
               visualDensity: VisualDensity.compact,
             ),
             Expanded(
@@ -623,7 +644,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     RichText(
                       text: TextSpan(
                         style: AppTheme.body(
-                          color: Colors.black87,
+                          color: AppColors.text,
                           size: 12.5,
                         ).copyWith(height: 1.4),
                         children: [
@@ -632,7 +653,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             text: 'Terms & Conditions',
                             style:
                                 AppTheme.body(
-                                  color: AppTheme.dark,
+                                  color: AppColors.brand,
                                   size: 12.5,
                                 ).copyWith(
                                   fontWeight: FontWeight.bold,
@@ -652,7 +673,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             text: 'Privacy Policy',
                             style:
                                 AppTheme.body(
-                                  color: AppTheme.dark,
+                                  color: AppColors.brand,
                                   size: 12.5,
                                 ).copyWith(
                                   fontWeight: FontWeight.bold,
@@ -689,7 +710,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // RSBA No. — farmers only, right after Full Name. It took the place of
+  // RSBSA No. — farmers only, right after the name. It took the place of
   // the certificate upload.
   // The Focus wrapper only listens: once the field is left with something
   // typed in it, a number that is not valid starts showing as an error.
@@ -730,12 +751,12 @@ class _RegisterScreenState extends State<RegisterScreen>
           padding: const WidgetStatePropertyAll(EdgeInsets.zero),
           backgroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled)
-                ? const Color(0xFFDDDDDD)
-                : AppTheme.dark,
+                ? AppColors.adapt(const Color(0xFFDDDDDD))
+                : AppColors.brand,
           ),
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled)
-                ? const Color(0xFF8F8F8F)
+                ? AppColors.adapt(const Color(0xFF8F8F8F))
                 : Colors.white,
           ),
         ),
@@ -778,7 +799,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 if (!_isFormValid && !_loading) ...[
                   Text(
                     'Please complete all fields first.',
-                    style: AppTheme.body(color: Colors.black45, size: 12),
+                    style: AppTheme.body(color: AppColors.textMuted, size: 12),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -789,13 +810,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                       context,
                     ).clamp(maxScaleFactor: 1.3),
                     text: TextSpan(
-                      style: AppTheme.body(color: Colors.black87, size: 13.5),
+                      style: AppTheme.body(color: AppColors.text, size: 13.5),
                       children: [
                         TextSpan(text: tr(context).alreadyHaveAccount),
                         TextSpan(
                           text: tr(context).logIn,
                           style: AppTheme.body(
-                            color: AppTheme.dark,
+                            color: AppColors.brand,
                             size: 13.5,
                           ).copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -826,7 +847,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.bgLight,
+      backgroundColor: AppColors.page,
       body: SafeArea(
         child: Stack(
           children: [
@@ -860,8 +881,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                             return Container(
                               width: 70,
                               height: 70,
-                              decoration: const BoxDecoration(
-                                color: AppTheme.mid,
+                              decoration: BoxDecoration(
+                                color: AppColors.mid,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -890,16 +911,23 @@ class _RegisterScreenState extends State<RegisterScreen>
                       _roleToggle(),
                       const SizedBox(height: 20),
 
-                      // ---- Full name ----
+                      // ---- First name, Last name ----
                       _buildField(
-                        label: tr(context).fullName,
-                        controller: _fullNameController,
-                        hint: 'Juan F. Santos',
+                        label: tr(context).firstName,
+                        controller: _firstNameController,
+                        hint: 'Juan',
                         icon: Icons.person_outline,
-                        errorText: _nameError,
+                        errorText: _firstNameError,
+                      ),
+                      _buildField(
+                        label: tr(context).lastName,
+                        controller: _lastNameController,
+                        hint: 'Santos',
+                        icon: Icons.person_outline,
+                        errorText: _lastNameError,
                       ),
 
-                      // ---- RSBA No. (farmers only) ----
+                      // ---- RSBSA No. (farmers only) ----
                       if (_isFarmer) _rsbaField(),
 
                       // ---- Email ----
@@ -943,7 +971,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             _obscurePassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: Colors.grey,
+                            color: AppColors.grey(),
                           ),
                           onPressed: () => setState(
                             () => _obscurePassword = !_obscurePassword,
@@ -965,7 +993,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             _obscureConfirm
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: Colors.grey,
+                            color: AppColors.grey(),
                           ),
                           onPressed: () => setState(
                             () => _obscureConfirm = !_obscureConfirm,

@@ -6,9 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 // Conversation tools opened from Conversation Info, shared by the Farmer
 // and Buyer chats:
@@ -165,7 +165,7 @@ class _JumpTargetState extends State<_JumpTarget> {
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: highlighted == widget.messageId
-              ? const Color(0xFFFFF3C4)
+              ? AppColors.adapt(const Color(0xFFFFF3C4))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -216,7 +216,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(
         titleWidget: Padding(
           padding: const EdgeInsets.only(right: 12),
@@ -235,8 +235,8 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
             return _hint('Couldn\'t load messages. Check your connection.');
           }
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.dark),
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
             );
           }
           final query = _query.text.trim().toLowerCase();
@@ -268,7 +268,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
                   '${_formatDate(context, data['createdAt'] as Timestamp?)}',
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
-                    color: Colors.grey[600],
+                    color: AppColors.grey(600),
                   ),
                 ),
                 onTap: () => Navigator.pop(context, results[i].id),
@@ -286,7 +286,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: GoogleFonts.montserrat(fontSize: 13, color: Colors.grey[600]),
+        style: GoogleFonts.montserrat(fontSize: 13, color: AppColors.grey(600)),
       ),
     ),
   );
@@ -305,10 +305,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
       spans.add(
         TextSpan(
           text: text.substring(index, index + query.length),
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            color: AppTheme.dark,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.brand),
         ),
       );
       start = index + query.length;
@@ -316,7 +313,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
     if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
     return Text.rich(
       TextSpan(
-        style: GoogleFonts.montserrat(fontSize: 13.5, color: Colors.black87),
+        style: GoogleFonts.montserrat(fontSize: 13.5, color: AppColors.text),
         children: spans,
       ),
       maxLines: 3,
@@ -352,7 +349,7 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
   Widget build(BuildContext context) {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: const AgriAppBar(title: 'Photos'),
       body: FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
         future: _messages,
@@ -363,8 +360,8 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
             );
           }
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.dark),
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
             );
           }
           final photos = snapshot.data!
@@ -410,10 +407,10 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
                     url,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => ColoredBox(
-                      color: Colors.grey.shade200,
-                      child: const Icon(
+                      color: AppColors.grey(200),
+                      child: Icon(
                         Icons.broken_image_outlined,
-                        color: Colors.grey,
+                        color: AppColors.grey(),
                       ),
                     ),
                   ),
@@ -437,9 +434,9 @@ class _PhotoPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.textStrong,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.textStrong,
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(

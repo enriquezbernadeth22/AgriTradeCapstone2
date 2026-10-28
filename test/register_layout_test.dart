@@ -129,8 +129,9 @@ void main() {
     await pumpForm(tester);
     double top(Finder finder) => tester.getRect(finder).top;
     final order = [
-      top(find.text('Full Name')),
-      top(find.text('RSBA No.')),
+      top(find.text('First Name')),
+      top(find.text('Last Name')),
+      top(find.text('RSBSA No.')),
       top(find.text('Email Address')),
       top(find.text('Mobile Number')),
       top(find.text('Password')),
@@ -145,7 +146,7 @@ void main() {
 
   testWidgets('a buyer sees none of the farmer-only parts', (tester) async {
     await pumpForm(tester, role: 'buyer');
-    expect(find.text('RSBA No.'), findsNothing);
+    expect(find.text('RSBSA No.'), findsNothing);
     expect(find.textContaining('Only farmers from Laurel'), findsNothing);
     expect(find.text('Barangay (Laurel)'), findsNothing);
     expect(

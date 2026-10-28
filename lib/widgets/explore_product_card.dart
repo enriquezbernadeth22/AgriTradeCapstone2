@@ -4,9 +4,9 @@ import '../data/commodity_master_list.dart';
 import '../services/harvest_info.dart';
 import '../services/image_helper.dart';
 import '../services/market_price_helpers.dart';
-import '../theme/app_theme.dart';
 import 'demand_badge.dart';
 import 'save_product_button.dart';
+import '../theme/app_colors.dart';
 
 /// One product in the Buyer Explore grid: image on top, then category (and
 /// rating), name, price, the wholesale badge, stock and the farmer.
@@ -38,8 +38,6 @@ class ExploreProductCard extends StatelessWidget {
     this.onToggleSave,
     this.showFarmer = true,
   });
-
-  static const Color _dark = AppTheme.dark;
 
   // Width : height of the product image, the same on every card.
   static const double _imageAspectRatio = 4 / 3;
@@ -81,7 +79,8 @@ class ExploreProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = (data['name'] ?? 'Unnamed Product').toString();
-    final category = (data['category'] ?? 'General').toString();
+    final savedCategory = normalizeCategory(data['category']);
+    final category = savedCategory.isEmpty ? 'General' : savedCategory;
     final farmer = (data['farmerName'] ?? 'Local Farmer').toString();
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;
     final wholesalePrice = (data['wholesalePrice'] as num?)?.toDouble();
@@ -101,7 +100,7 @@ class ExploreProductCard extends StatelessWidget {
       elevation: 1,
       shadowColor: Colors.black.withValues(alpha: 0.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.white,
+      color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -155,7 +154,7 @@ class ExploreProductCard extends StatelessWidget {
                               fontSize: 10,
                               height: 1.3,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[500],
+                              color: AppColors.grey(500),
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -177,11 +176,11 @@ class ExploreProductCard extends StatelessWidget {
                                   : '${rating.toStringAsFixed(1)} ($reviewCount)',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
                                 height: 1.3,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: AppColors.text,
                               ),
                             ),
                           ),
@@ -193,10 +192,10 @@ class ExploreProductCard extends StatelessWidget {
                       withSellingOption(name, data),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13.5,
-                        color: Colors.black87,
+                        color: AppColors.text,
                         height: 1.2,
                       ),
                     ),
@@ -211,8 +210,8 @@ class ExploreProductCard extends StatelessWidget {
                       child: Text(
                         formatPriceWithUnit(price, unit),
                         maxLines: 1,
-                        style: const TextStyle(
-                          color: _dark,
+                        style: TextStyle(
+                          color: AppColors.brand,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                           height: 1.25,
@@ -233,17 +232,18 @@ class ExploreProductCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.tint,
+                          color: AppColors.tint,
+                          border: AppColors.cardBorder,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Wholesale available',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 10,
                             height: 1.2,
-                            color: _dark,
+                            color: AppColors.brand,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -258,7 +258,7 @@ class ExploreProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: AppColors.grey(600),
                         fontSize: 11,
                         height: 1.3,
                       ),
@@ -268,15 +268,19 @@ class ExploreProductCard extends StatelessWidget {
                       Divider(
                         height: 1,
                         thickness: 0.5,
-                        color: Colors.grey[200],
+                        color: AppColors.grey(200),
                       ),
                       const SizedBox(height: 5),
                       Row(
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 7,
-                            backgroundColor: Color(0xFFDCEDC8),
-                            child: Icon(Icons.person, size: 9, color: _dark),
+                            backgroundColor: AppColors.accent,
+                            child: Icon(
+                              Icons.person,
+                              size: 9,
+                              color: AppColors.brand,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -285,7 +289,7 @@ class ExploreProductCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color: AppColors.grey(600),
                                 fontSize: 11,
                                 height: 1.3,
                               ),
@@ -310,11 +314,9 @@ class _ProductImage extends StatelessWidget {
 
   const _ProductImage({required this.data});
 
-  static const Color _dark = AppTheme.dark;
-
   Widget _placeholder(IconData icon) => Container(
-    color: const Color(0xFFDCEDC8),
-    child: Icon(icon, size: 48, color: _dark),
+    color: AppColors.accent,
+    child: Icon(icon, size: 48, color: AppColors.brand),
   );
 
   @override
@@ -339,7 +341,7 @@ class _ProductImage extends StatelessWidget {
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) => progress == null
             ? child
-            : const Center(child: CircularProgressIndicator(color: _dark)),
+            : Center(child: CircularProgressIndicator(color: AppColors.brand)),
         errorBuilder: (context, error, stackTrace) =>
             _placeholder(Icons.broken_image),
       );

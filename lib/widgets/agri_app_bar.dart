@@ -3,10 +3,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_theme.dart';
 import 'app_back_button.dart';
 import 'docked_nav_bar.dart';
 import 'page_header.dart';
+import '../theme/app_colors.dart';
 
 /// The header of every inner screen (anything opened on top of the main
 /// tabs — the tabs themselves use PageHeader). One widget, so the screens
@@ -65,10 +65,10 @@ class AgriAppBar extends StatefulWidget implements PreferredSizeWidget {
 
   /// The band's colour — the bottom bar's pure white, as on the tabs'
   /// header.
-  static const Color background = PageHeader.background;
+  static Color get background => PageHeader.background;
 
   /// Title and icons on the band.
-  static const Color foreground = AppTheme.dark;
+  static Color get foreground => AppColors.brand;
 
   static const double height = 60;
 
@@ -155,11 +155,8 @@ class _AgriAppBarState extends State<AgriAppBar> {
       toolbarHeight: AgriAppBar.height,
       // Status bar padding is drawn by the strip above, not here.
       primary: false,
-      iconTheme: const IconThemeData(color: AgriAppBar.foreground, size: 24),
-      actionsIconTheme: const IconThemeData(
-        color: AgriAppBar.foreground,
-        size: 24,
-      ),
+      iconTheme: IconThemeData(color: AgriAppBar.foreground, size: 24),
+      actionsIconTheme: IconThemeData(color: AgriAppBar.foreground, size: 24),
       automaticallyImplyLeading: false,
       // The 40px circle sits 12px from the screen edge; the title starts
       // 12px after it (or at the 16px page edge when there is no Back).
@@ -194,7 +191,9 @@ class _AgriAppBarState extends State<AgriAppBar> {
     // Dark status bar icons on the light band, whether or not the bar
     // itself is showing.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: AppColors.isDark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -217,6 +216,7 @@ class _AgriAppBarState extends State<AgriAppBar> {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AgriAppBar.background,
+                  border: AppColors.cardBorder,
                   borderRadius: _corners,
                   boxShadow: DockedNavBar.shadow,
                 ),

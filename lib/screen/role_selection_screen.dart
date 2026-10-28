@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 import '../widgets/existing_account_dialog.dart';
 import '../widgets/login_form_fields.dart';
 import '../widgets/login_hero.dart';
+import '../widgets/login_sheet_body.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The app's front door: "Log In" or "Don't have an account? Create One."
 /// No role is picked here — login itself is role-agnostic (see
@@ -18,12 +19,16 @@ class RoleSelectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final heroHeight = keyboardOpen
-        ? 120.0
-        : (screenHeight * 0.36).clamp(200.0, 320.0);
+    // Less on a short phone, so the form fits (LoginHero.heightFor).
+    final heroHeight = LoginHero.heightFor(
+      screenHeight,
+      keyboardOpen: keyboardOpen,
+      bottomInset: MediaQuery.viewPaddingOf(context).bottom,
+      max: 320,
+    );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       body: Stack(
         children: [
           // ---- Hero: same branded header as LoginScreen — this is the ----
@@ -45,8 +50,9 @@ class RoleSelectionScreen extends StatelessWidget {
             right: 0,
             bottom: 0,
             child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                 boxShadow: [
                   BoxShadow(
@@ -58,8 +64,8 @@ class RoleSelectionScreen extends StatelessWidget {
               ),
               child: SafeArea(
                 top: false,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 36, 28, 24),
+                child: LoginSheetBody(
+                  keyboardOpen: keyboardOpen,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
@@ -67,9 +73,9 @@ class RoleSelectionScreen extends StatelessWidget {
                       Text(
                         tr(context).loginButton,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 28,
-                          color: AppTheme.dark,
+                          color: AppColors.brand,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -79,7 +85,7 @@ class RoleSelectionScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: AppColors.grey(600),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -101,7 +107,7 @@ class RoleSelectionScreen extends StatelessWidget {
                                 text: tr(context).noAccountSignUp,
                                 style: GoogleFonts.montserrat(
                                   fontSize: 14,
-                                  color: Colors.black87,
+                                  color: AppColors.text,
                                 ),
                               ),
                             ),
@@ -119,7 +125,7 @@ class RoleSelectionScreen extends StatelessWidget {
                                     style: GoogleFonts.montserrat(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: AppTheme.dark,
+                                      color: AppColors.brand,
                                     ),
                                   ),
                                 ),

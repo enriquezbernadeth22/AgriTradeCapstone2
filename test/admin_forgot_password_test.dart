@@ -73,6 +73,9 @@ Future<void> openForgot(WidgetTester tester) async {
 Finder get resetField =>
     find.widgetWithText(TextField, 'Enter your admin email address');
 
+// The visible field: the 46-high pill the text field sits in.
+Finder get resetBox => find.byKey(const Key('admin-reset-field'));
+
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
@@ -89,18 +92,18 @@ void main() {
     expect(find.textContaining('Spam or Junk folder'), findsOneWidget);
 
     // The field and the button are the same width, and not stretched.
-    final field = tester.getSize(resetField);
+    final field = tester.getSize(resetBox);
     final button = tester.getSize(
       find.widgetWithText(FilledButton, 'Send Reset Link'),
     );
     expect(field.width, button.width);
     expect(field.width, lessThanOrEqualTo(420));
-    expect(field.height, inInclusiveRange(48, 50));
+    expect(field.height, inInclusiveRange(46, 48));
     expect(button.height, inInclusiveRange(46, 48));
 
     // The form sits to the right of the photo.
     final panelRight = tester.getTopRight(find.byType(AdminBrandPanel)).dx;
-    expect(tester.getTopLeft(resetField).dx, greaterThan(panelRight));
+    expect(tester.getTopLeft(resetBox).dx, greaterThan(panelRight));
   });
 
   testWidgets('tablet and small browsers fit without overflow', (tester) async {
@@ -114,7 +117,7 @@ void main() {
       await tester.ensureVisible(find.text('Forgot password?'));
       await openForgot(tester);
       expect(tester.takeException(), isNull, reason: 'forgot at $size');
-      expect(tester.getSize(resetField).width, lessThanOrEqualTo(size.width));
+      expect(tester.getSize(resetBox).width, lessThanOrEqualTo(size.width));
       await tester.pumpWidget(const SizedBox());
     }
   });
@@ -147,7 +150,7 @@ void main() {
     // The form is centred in the right-hand area.
     final area = Rect.fromLTRB(rect.right, 0, 1440, 900);
     expect(
-      tester.getCenter(resetField).dx,
+      tester.getCenter(resetBox).dx,
       moreOrLessEquals(area.center.dx, epsilon: 1),
     );
 

@@ -8,12 +8,18 @@ import 'widgets/app_scaffold_messenger.dart';
 import 'widgets/connectivity_banner.dart';
 import 'services/account_status_watcher.dart';
 import 'services/session_timeout_service.dart';
+import 'services/feedback_service.dart';
+import 'theme/theme_controller.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+Future<void> main() async {
   // Tells Flutter to get itself ready before we run any setup code.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Light or dark (Settings → Appearance), in place before the first
+  // frame so the app never flashes the wrong one.
+  await ThemeController.instance.load();
 
   // Starts watching for a 30-day-plus background inactivity period — see
   // SessionTimeoutService for why this is the only thing that should ever
@@ -23,6 +29,10 @@ void main() {
   // Signs a buyer or farmer out, with the reason, as soon as an Admin
   // suspends or bans the account while the app is open.
   AccountStatusWatcher.instance.start(rootNavigatorKey);
+
+  // Asks for feedback now and then, after a few products posted or orders
+  // placed — over whatever screen is showing.
+  FeedbackService.instance.start(rootNavigatorKey);
 
   // Draws the first frame immediately (the branded loading screen) instead
   // of waiting on Firebase.initializeApp() first — AppBootstrap does that
@@ -36,6 +46,14 @@ class AgriTradeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilt when Appearance changes (ThemeController).
+    return ValueListenableBuilder<AppearanceMode>(
+      valueListenable: ThemeController.instance,
+      builder: (context, _, _) => _app(),
+    );
+  }
+
+  Widget _app() {
     return MaterialApp(
       title: 'AgriTrade+',
       navigatorKey: rootNavigatorKey,
@@ -43,10 +61,9 @@ class AgriTradeApp extends StatelessWidget {
       // Hides the red "DEBUG" ribbon in the corner.
       debugShowCheckedModeBanner: false,
 
-      // One line = Montserrat everywhere, plus your green theme.
+      // One line = Montserrat everywhere, plus your green theme — light or
+      // dark, as AppColors is set (Settings → Appearance).
       theme: AppTheme.themeData(),
-      // Light only — the app has no dark mode.
-      themeMode: ThemeMode.light,
 
       // English only. The texts still come from the translation files
       // (lib/l10n), so a Filipino version can be added later by
@@ -79,24 +96,29 @@ class AgriTradeApp extends StatelessWidget {
       // content, is what actually makes both of these span every
       // screen.
       builder: (context, child) {
-        return ConnectivityBanner(
-          child: Listener(
-            onPointerDown: (_) =>
-                SessionTimeoutService.instance.recordActivity(),
-            onPointerMove: (_) =>
-                SessionTimeoutService.instance.recordActivity(),
-            onPointerSignal: (_) =>
-                SessionTimeoutService.instance.recordActivity(),
-            child: Focus(
-              autofocus: true,
-              onKeyEvent: (node, event) {
-                SessionTimeoutService.instance.recordActivity();
-                return KeyEventResult.ignored;
-              },
-              // Every message (SnackBar): 2 seconds, and the newest
-              // replaces the one showing (AppScaffoldMessenger).
-              child: AppScaffoldMessenger(
-                child: child ?? const SizedBox.shrink(),
+        // The same text size on every phone: the phone's own Font size
+        // setting (Settings → Display) does not enlarge the app's text and
+        // fields, so the screens look as designed everywhere.
+        return MediaQuery.withNoTextScaling(
+          child: ConnectivityBanner(
+            child: Listener(
+              onPointerDown: (_) =>
+                  SessionTimeoutService.instance.recordActivity(),
+              onPointerMove: (_) =>
+                  SessionTimeoutService.instance.recordActivity(),
+              onPointerSignal: (_) =>
+                  SessionTimeoutService.instance.recordActivity(),
+              child: Focus(
+                autofocus: true,
+                onKeyEvent: (node, event) {
+                  SessionTimeoutService.instance.recordActivity();
+                  return KeyEventResult.ignored;
+                },
+                // Every message (SnackBar): 2 seconds, and the newest
+                // replaces the one showing (AppScaffoldMessenger).
+                child: AppScaffoldMessenger(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),

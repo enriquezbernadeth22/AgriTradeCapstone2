@@ -7,7 +7,9 @@ import 'admin_login_view.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/login_form_fields.dart';
 import '../widgets/login_hero.dart';
+import '../widgets/login_sheet_body.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   // Null means "role-agnostic" login: whoever this account belongs to
@@ -80,16 +82,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final screenHeight = MediaQuery.sizeOf(context).height;
     // Keyboard up = give the form the room back instead of overflowing.
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final heroHeight = keyboardOpen
-        ? 120.0
-        // Room for the typed-out headline between the logo and the sheet.
-        : (screenHeight * 0.36).clamp(210.0, 310.0);
+    // Room for the typed-out headline between the logo and the sheet;
+    // less on a short phone, so the form fits (LoginHero.heightFor).
+    final heroHeight = LoginHero.heightFor(
+      screenHeight,
+      keyboardOpen: keyboardOpen,
+      bottomInset: MediaQuery.viewPaddingOf(context).bottom,
+    );
     final showBack = !kIsWeb && !widget.disableBackNavigation;
 
     return PopScope(
       canPop: !widget.disableBackNavigation,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.page,
         body: Stack(
           children: [
             // ---- Hero: farm landscape photo + the AgriTrade+ lockup ----
@@ -116,8 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
               right: 0,
               bottom: 0,
               child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  border: AppColors.cardBorder,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                   boxShadow: [
                     BoxShadow(
@@ -129,101 +135,91 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: SafeArea(
                   top: false,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(28, 36, 28, 24),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: kIsWeb ? 440 : double.infinity,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _LoginHeader(roleLabel: _roleLabel),
-                            if (widget.flashMessage != null) ...[
-                              const SizedBox(height: 14),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accent.withValues(
-                                    alpha: 0.35,
+                  child: LoginSheetBody(
+                    keyboardOpen: keyboardOpen,
+                    maxWidth: kIsWeb ? 440 : double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _LoginHeader(roleLabel: _roleLabel),
+                        if (widget.flashMessage != null) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 18,
+                                  color: AppColors.brand,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    widget.flashMessage!,
+                                    style: AppTheme.body(size: 12.5),
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.info_outline,
-                                      size: 18,
-                                      color: AppTheme.dark,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        widget.flashMessage!,
-                                        style: AppTheme.body(size: 12.5),
-                                      ),
-                                    ),
-                                  ],
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 26),
+                        LoginFormFields(role: widget.role),
+                        // Makes no sense for admin accounts (created
+                        // manually via the Firebase Console), so hidden
+                        // for that door.
+                        if (!_isAdmin) ...[
+                          const SizedBox(height: 14),
+                          // Only "Create One." is tappable — the
+                          // question before it is plain text.
+                          Center(
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                RichText(
+                                  text: TextSpan(
+                                    text: tr(context).noAccountSignUp,
+                                    style: TextStyle(color: AppColors.text),
+                                  ),
                                 ),
-                              ),
-                            ],
-                            const SizedBox(height: 26),
-                            LoginFormFields(role: widget.role),
-                            // Makes no sense for admin accounts (created
-                            // manually via the Firebase Console), so hidden
-                            // for that door.
-                            if (!_isAdmin) ...[
-                              const SizedBox(height: 14),
-                              // Only "Create One." is tappable — the
-                              // question before it is plain text.
-                              Center(
-                                child: Wrap(
-                                  alignment: WrapAlignment.center,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    RichText(
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  // Says so first if the account last used on this
+                                  // phone already exists (a farmer waiting for
+                                  // approval), instead of opening the form again.
+                                  onTap: () => openRegistration(
+                                    context,
+                                    role: widget.role,
+                                    onLoginPage: true,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    child: RichText(
                                       text: TextSpan(
-                                        text: tr(context).noAccountSignUp,
-                                        style: const TextStyle(
-                                          color: Colors.black87,
+                                        text: tr(context).createOne,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.brand,
                                         ),
                                       ),
                                     ),
-                                    GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      // Says so first if the account last used on this
-                                      // phone already exists (a farmer waiting for
-                                      // approval), instead of opening the form again.
-                                      onTap: () => openRegistration(
-                                        context,
-                                        role: widget.role,
-                                        onLoginPage: true,
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        child: RichText(
-                                          text: TextSpan(
-                                            text: tr(context).createOne,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.dark,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -261,9 +257,9 @@ class _LoginHeader extends StatelessWidget {
       children: [
         Text(
           tr(context).loginButton,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 28,
-            color: AppTheme.dark,
+            color: AppColors.brand,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -272,7 +268,7 @@ class _LoginHeader extends StatelessWidget {
           roleLabel ?? tr(context).loginSubtitle,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[600],
+            color: AppColors.grey(600),
             fontWeight: FontWeight.w500,
           ),
         ),

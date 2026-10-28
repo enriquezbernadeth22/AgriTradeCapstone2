@@ -113,29 +113,30 @@ void main() {
     expect(find.text('Not set'), findsOneWidget);
   });
 
-  testWidgets('Top-Selling Products lists rank, quantity and sales value', (
-    tester,
-  ) async {
-    await pump(
-      tester,
-      const AdminTopProductsCard(
-        products: [
-          (name: 'Red Onion', revenue: 2400, quantity: 25),
-          (name: 'Yellow Corn', revenue: 2180, quantity: 75),
-        ],
-      ),
-    );
-    expect(tester.takeException(), isNull);
-    expect(find.text('Red Onion'), findsOneWidget);
-    expect(find.text('₱2,400.00'), findsOneWidget);
-    expect(find.text('25 kg sold'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('Red Onion')).dy,
-      lessThan(tester.getTopLeft(find.text('Yellow Corn')).dy),
-    );
-  });
+  testWidgets(
+    'Top-Selling Products lists rank, orders, quantity and sales value',
+    (tester) async {
+      await pump(
+        tester,
+        const AdminTopProductsCard(
+          products: [
+            (name: 'Red Onion', orders: 9, revenue: 2400, quantity: 25),
+            (name: 'Yellow Corn', orders: 4, revenue: 2180, quantity: 75),
+          ],
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Red Onion'), findsOneWidget);
+      expect(find.text('9 orders'), findsOneWidget);
+      expect(find.text('25 kg sold · ₱2,400.00'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Red Onion')).dy,
+        lessThan(tester.getTopLeft(find.text('Yellow Corn')).dy),
+      );
+    },
+  );
 
   testWidgets('both cards are the same height, and Top-Selling Products '
       'has an empty state', (tester) async {
@@ -156,5 +157,15 @@ void main() {
       tester.getSize(find.byType(AdminTopProductsCard)).height,
       tester.getSize(find.byType(AdminPriceTrendCard)).height,
     );
+  });
+
+  test('the price axis runs from 0 in steps of 100, larger for pricier '
+      'commodities, never with the line on the top edge', () {
+    expect(priceTrendAxis(220), (max: 300.0, step: 100.0));
+    expect(priceTrendAxis(186), (max: 200.0, step: 100.0));
+    expect(priceTrendAxis(195), (max: 300.0, step: 100.0));
+    expect(priceTrendAxis(45), (max: 100.0, step: 100.0));
+    // A head of cattle: still round steps, and no more than five.
+    expect(priceTrendAxis(42000), (max: 50000.0, step: 10000.0));
   });
 }

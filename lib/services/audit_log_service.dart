@@ -44,6 +44,9 @@ abstract final class AuditAction {
   static const suspendAccount = 'SUSPEND_ACCOUNT';
   static const banAccount = 'BAN_ACCOUNT';
   static const reactivateAccount = 'REACTIVATE_ACCOUNT';
+  // An Admin added a farmer account (written by adminCreateFarmer, see
+  // functions/admin_create_farmer.js — never by a client).
+  static const createFarmerAccount = 'CREATE_FARMER_ACCOUNT';
 
   static const all = [
     loginSuccess,
@@ -76,6 +79,7 @@ abstract final class AuditAction {
     suspendAccount,
     banAccount,
     reactivateAccount,
+    createFarmerAccount,
   ];
 
   /// The two actions that can happen before anyone is signed in — a failed

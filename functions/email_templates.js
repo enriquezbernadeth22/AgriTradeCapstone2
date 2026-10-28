@@ -209,6 +209,122 @@ function passwordResetEmail({ name, link }) {
   };
 }
 
+// A farmer account the agricultural office added from the Admin Portal:
+// the farmer logs in to the mobile app with the password the office gave
+// them (where they verify their email, as everyone does). The password is
+// never in the email; the link only lets them change it.
+// To the AgriTrade+ team: feedback sent from the app (app_feedback.js).
+function appFeedbackEmail({ rating, message, triggerLabel, name, email, role, barangay, platform, appVersion }) {
+  const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
+  const from = [name || "A user", role ? `(${role})` : ""].filter(Boolean).join(" ");
+  const rows = [
+    ["Rating", `${stars}  ${rating} of 5`],
+    ["From", from],
+    ["Email", email || "—"],
+    ...(barangay ? [["Barangay", barangay]] : []),
+    ["When", triggerLabel || "Opened Send Feedback"],
+    ...(platform || appVersion ? [["App", [platform, appVersion && `v${appVersion}`].filter(Boolean).join(" ")]] : []),
+  ];
+  const comment = message || "(No comment, rating only.)";
+  return {
+    subject: `App feedback: ${rating}/5 from ${from}`,
+    text: [
+      "New feedback from the AgriTrade+ app.",
+      "",
+      ...rows.map(([label, value]) => `${label}: ${value}`),
+      "",
+      "Feedback:",
+      comment,
+      "",
+      "Reply to this email to answer them.",
+    ].join("\n"),
+    html: layout({
+      title: "App feedback",
+      preheader: `${rating}/5 — ${message ? message.slice(0, 80) : "rating only"}`,
+      bodyHtml: [
+        paragraph("<strong>New feedback from the AgriTrade+ app.</strong>"),
+        detailsTable(rows),
+        paragraph(escapeHtml(comment).replace(/\n/g, "<br>")),
+        paragraph("Reply to this email to answer them."),
+      ].join("\n"),
+    }),
+  };
+}
+
+// Before an Admin-added farmer account is created: the farmer confirms it
+// is them (farmer_invite_logic.js). `details` are [label, value] rows.
+function farmerConfirmAccountEmail({ name, link, details = [] }) {
+  const greeting = greetingFor(name);
+  return {
+    subject: "Confirm your AgriTrade+ farmer account",
+    text: [
+      greeting,
+      "",
+      "The Agricultural Office of Laurel, Batangas is adding an AgriTrade+ farmer account for you with these details:",
+      "",
+      ...details.map(([label, value]) => `${label}: ${value}`),
+      "",
+      "If this is you, open this link and tap \"Yes, it's me\":",
+      "",
+      link,
+      "",
+      "The account is created only if you confirm. The link expires in 24 hours.",
+      "",
+      "If this is not you, open the link and tap \"No, it's not me\", or ignore this email.",
+      "",
+      "The AgriTrade+ Team",
+    ].join("\n"),
+    html: layout({
+      title: "Confirm your farmer account",
+      preheader: "Tap \"Yes, it's me\" so the office can add your AgriTrade+ account.",
+      bodyHtml: [
+        paragraph(`<strong>${escapeHtml(greeting)}</strong>`),
+        paragraph("The Agricultural Office of Laurel, Batangas is adding an AgriTrade+ farmer account for you with these details:"),
+        detailsTable(details),
+        paragraph("If this is you, confirm it below. The account is created only if you confirm."),
+        button("Yes, it's me", link),
+        linkFallback(link),
+        paragraph("The link expires in 24 hours. If this is not you, open the link and choose \"No, it's not me\", or simply ignore this email."),
+        paragraph(`<strong style="color:${BRAND_GREEN}">The AgriTrade+ Team</strong>`),
+      ].join("\n"),
+    }),
+  };
+}
+
+function farmerAccountCreatedEmail({ name, link }) {
+  const greeting = greetingFor(name);
+  return {
+    subject: "Your AgriTrade+ farmer account is ready",
+    text: [
+      greeting,
+      "",
+      "The Agricultural Office of Laurel, Batangas has created an AgriTrade+ farmer account for you, already approved for selling.",
+      "",
+      "Log in to the AgriTrade+ mobile app with this email address and the password the office gave you.",
+      "",
+      "To choose a password of your own, open this link:",
+      "",
+      link,
+      "",
+      "If you did not expect this account, please contact the Agricultural Office.",
+      "",
+      "The AgriTrade+ Team",
+    ].join("\n"),
+    html: layout({
+      title: "Your farmer account is ready",
+      preheader: "Log in to AgriTrade+ with the password the office gave you.",
+      bodyHtml: [
+        paragraph(`<strong>${escapeHtml(greeting)}</strong>`),
+        paragraph("The Agricultural Office of Laurel, Batangas has created an AgriTrade+ farmer account for you, already approved for selling."),
+        paragraph("Log in to the AgriTrade+ mobile app with this email address and the password the office gave you. To choose a password of your own, use the button below."),
+        button("Change My Password", link),
+        paragraph("If you did not expect this account, please contact the Agricultural Office."),
+        paragraph(`<strong style="color:${BRAND_GREEN}">The AgriTrade+ Team</strong>`),
+      ].join("\n"),
+    }),
+  };
+}
+
 function newDeviceEmail({ name, deviceName, platform, when }) {
   const greeting = greetingFor(name);
   return {
@@ -463,4 +579,4 @@ function googleSignInEmail({ name }) {
   };
 }
 
-module.exports = { escapeHtml, verificationEmail, otpEmail, passwordResetEmail, googleSignInEmail, newDeviceEmail, signInEmail, passwordChangedEmail, adminSignInEmail, farmerApprovedEmail, farmerRejectedEmail, accountNoticeEmail };
+module.exports = { escapeHtml, verificationEmail, otpEmail, passwordResetEmail, appFeedbackEmail, farmerConfirmAccountEmail, farmerAccountCreatedEmail, googleSignInEmail, newDeviceEmail, signInEmail, passwordChangedEmail, adminSignInEmail, farmerApprovedEmail, farmerRejectedEmail, accountNoticeEmail };

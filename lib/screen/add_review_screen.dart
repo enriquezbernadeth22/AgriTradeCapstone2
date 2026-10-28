@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/cloudinary_service.dart';
 import '../services/review_service.dart';
+import '../theme/app_colors.dart';
 
 class AddReviewScreen extends StatefulWidget {
   final String orderId;
@@ -29,9 +30,6 @@ class AddReviewScreen extends StatefulWidget {
 }
 
 class _AddReviewScreenState extends State<AddReviewScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _accent = Color(0xFFDCEDC8);
-
   final _reviewService = ReviewService();
   final _cloudinary = CloudinaryService();
   final _picker = ImagePicker();
@@ -154,7 +152,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            const Icon(Icons.star_border_rounded, color: Colors.grey, size: 32),
+            Icon(Icons.star_border_rounded, color: AppColors.grey(), size: 32),
             if (fill > 0)
               ClipRect(
                 clipper: _StarFillClipper(fill),
@@ -182,7 +180,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
@@ -204,18 +203,18 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                               widget.productImage!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, _, _) => Container(
-                                color: _accent,
-                                child: const Icon(
+                                color: AppColors.accent,
+                                child: Icon(
                                   Icons.shopping_basket,
-                                  color: _dark,
+                                  color: AppColors.brand,
                                 ),
                               ),
                             )
                           : Container(
-                              color: _accent,
-                              child: const Icon(
+                              color: AppColors.accent,
+                              child: Icon(
                                 Icons.shopping_basket,
-                                color: _dark,
+                                color: AppColors.brand,
                               ),
                             ),
                     ),
@@ -248,7 +247,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                 _rating == 0
                     ? 'Choose 0.5 to 5 stars'
                     : '${_rating.toStringAsFixed(1)} out of 5',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: AppColors.grey(600), fontSize: 12),
               ),
             ),
             const SizedBox(height: 16),
@@ -286,9 +285,9 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                   if (!snap.hasData) {
                     return Container(
                       height: 120,
-                      color: _accent,
+                      color: AppColors.accent,
                       alignment: Alignment.center,
-                      child: const CircularProgressIndicator(color: _dark),
+                      child: CircularProgressIndicator(color: AppColors.brand),
                     );
                   }
                   return ClipRRect(
@@ -309,7 +308,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
               child: ElevatedButton(
                 onPressed: _submitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _dark,
+                  backgroundColor: AppColors.brandFill,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),

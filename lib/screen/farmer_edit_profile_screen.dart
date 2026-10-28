@@ -1,5 +1,4 @@
 import '../widgets/agri_app_bar.dart';
-import '../theme/app_theme.dart';
 import '../widgets/recovery_email_code_dialog.dart';
 import 'dart:io';
 
@@ -18,6 +17,7 @@ import '../services/ph_mobile.dart';
 import '../widgets/buyer_location_picker.dart';
 import 'set_farm_location_screen.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -27,10 +27,6 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _accent = Color(0xFFDCEDC8);
-  static const Color _fieldBorder = Color(0xFFDCEDC8);
-
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _recoveryEmailController = TextEditingController();
@@ -307,7 +303,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       SnackBar(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: _dark,
+        backgroundColor: AppColors.brandFill,
         content: Text(
           message,
           style: GoogleFonts.montserrat(color: Colors.white),
@@ -417,15 +413,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.tint,
+        color: AppColors.tint,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _fieldBorder, width: 1.2),
+        border: Border.all(color: AppColors.accent, width: 1.2),
       ),
       child: Row(
         children: [
           Icon(
             hasLocation ? Icons.location_on : Icons.location_off_outlined,
-            color: _dark,
+            color: AppColors.brand,
             size: 22,
           ),
           const SizedBox(width: 12),
@@ -452,7 +448,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       : 'Not pinned yet — buyers and admin can\'t see your farm on the map.',
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
-                    color: Colors.grey[600],
+                    color: AppColors.grey(600),
                   ),
                 ),
               ],
@@ -465,7 +461,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               style: GoogleFonts.montserrat(
                 fontWeight: FontWeight.bold,
                 fontSize: 12.5,
-                color: _dark,
+                color: AppColors.brand,
               ),
             ),
           ),
@@ -476,21 +472,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   InputDecoration _fieldDecoration(IconData icon) {
     return InputDecoration(
-      prefixIcon: Icon(icon, color: _dark, size: 20),
+      prefixIcon: Icon(icon, color: AppColors.brand, size: 20),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.surface,
       contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: _fieldBorder, width: 1.2),
+        borderSide: BorderSide(color: AppColors.accent, width: 1.2),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: _fieldBorder, width: 1.2),
+        borderSide: BorderSide(color: AppColors.accent, width: 1.2),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: _dark, width: 1.6),
+        borderSide: BorderSide(color: AppColors.brand, width: 1.6),
       ),
     );
   }
@@ -503,7 +499,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         style: GoogleFonts.montserrat(
           fontSize: 11.5,
           fontWeight: FontWeight.w600,
-          color: Colors.grey[600],
+          color: AppColors.grey(600),
           letterSpacing: 0.5,
         ),
       ),
@@ -529,10 +525,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             children: [
               CircleAvatar(
                 radius: 46,
-                backgroundColor: _accent,
+                backgroundColor: AppColors.accent,
                 backgroundImage: imageProvider,
                 child: imageProvider == null
-                    ? const Icon(Icons.person, color: _dark, size: 52)
+                    ? Icon(Icons.person, color: AppColors.brand, size: 52)
                     : null,
               ),
               Positioned(
@@ -543,7 +539,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: _dark,
+                      color: AppColors.brandFill,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -566,7 +562,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: _dark,
+              color: AppColors.brand,
             ),
           ),
         ),
@@ -577,10 +573,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tr(context).editProfile),
       body: _initialLoading
-          ? const Center(child: CircularProgressIndicator(color: _dark))
+          ? Center(child: CircularProgressIndicator(color: AppColors.brand))
           : SingleChildScrollView(
               // Room between the header and the photo.
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -605,7 +601,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         false, // email changes need re-auth; edit elsewhere if needed
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                     ),
                     decoration: _fieldDecoration(Icons.mail_outline),
                   ),
@@ -642,7 +638,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ? null
                               : 'We will email it a 6-digit code to verify it.',
                           helperStyle: TextStyle(
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                             fontSize: 11,
                           ),
                         ),
@@ -656,12 +652,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: TextButton.icon(
                         onPressed: _verifyingRecovery ? null : _verifyRecovery,
                         icon: _verifyingRecovery
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 14,
                                 height: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: _dark,
+                                  color: AppColors.brand,
                                 ),
                               )
                             : const Icon(
@@ -670,7 +666,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ),
                         label: const Text('Verify now'),
                         style: TextButton.styleFrom(
-                          foregroundColor: _dark,
+                          foregroundColor: AppColors.brand,
                           textStyle: GoogleFonts.montserrat(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
@@ -692,7 +688,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       prefixStyle: GoogleFonts.montserrat(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                       ),
                       hintText: kPhMobileHint,
                     ),
@@ -711,20 +707,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             .copyWith(
                               hintText: 'Tap to set your location',
                               suffixIcon: _savingLocation
-                                  ? const Padding(
+                                  ? Padding(
                                       padding: EdgeInsets.all(14),
                                       child: SizedBox(
                                         width: 16,
                                         height: 16,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: _dark,
+                                          color: AppColors.brand,
                                         ),
                                       ),
                                     )
-                                  : const Icon(
+                                  : Icon(
                                       Icons.keyboard_arrow_down_rounded,
-                                      color: Colors.grey,
+                                      color: AppColors.grey(),
                                     ),
                             ),
                       ),
@@ -745,8 +741,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ElevatedButton(
                     onPressed: _loading ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _dark,
-                      disabledBackgroundColor: Colors.grey.shade400,
+                      backgroundColor: AppColors.brandFill,
+                      disabledBackgroundColor: AppColors.grey(400),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: RoundedRectangleBorder(

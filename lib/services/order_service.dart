@@ -153,9 +153,7 @@ class OrderService {
         final frozenCommodity = (productData?['commodity'] ?? '')
             .toString()
             .trim();
-        final listedCategory = (productData?['category'] ?? '')
-            .toString()
-            .trim();
+        final listedCategory = normalizeCategory(productData?['category']);
         final frozenCategory = listedCategory.isNotEmpty
             ? listedCategory
             : categoryOfCommodity(frozenCommodity);

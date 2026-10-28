@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// The AgriTrade+ password rules — the same for registration and for
 /// Change Password, so a password allowed in one is allowed in the other.
@@ -67,7 +68,9 @@ class PasswordRequirementsChecklist extends StatelessWidget {
                 Icon(
                   met ? Icons.check_circle : Icons.circle_outlined,
                   size: 14,
-                  color: met ? Colors.green[600] : Colors.grey[400],
+                  color: met
+                      ? AppColors.tone(Colors.green, 600)
+                      : AppColors.grey(400),
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -75,7 +78,9 @@ class PasswordRequirementsChecklist extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: met ? FontWeight.w600 : FontWeight.normal,
-                    color: met ? Colors.green[700] : Colors.grey[600],
+                    color: met
+                        ? AppColors.tone(Colors.green, 700)
+                        : AppColors.grey(600),
                   ),
                 ),
               ],

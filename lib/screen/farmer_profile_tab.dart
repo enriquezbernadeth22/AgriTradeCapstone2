@@ -1,4 +1,3 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +22,7 @@ import '../widgets/skeleton_loaders.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
 class ProfileTab extends StatefulWidget {
@@ -33,14 +33,29 @@ class ProfileTab extends StatefulWidget {
 }
 
 class _ProfileTabState extends State<ProfileTab> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _accent = Color(0xFFDCEDC8);
   final ProductService _productService = ProductService();
   // The farmer's own products, for the overall rating — created once.
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _myProductsForRating =
       _productService.myProductsStream();
+  // The farmer's saved profile, live — its name and location. The name
+  // comes from here (as on the Market tab), not the login account, so an
+  // edit shows at once: this tab stays alive under the others and is not
+  // rebuilt when Edit Profile saves.
+  late final Stream<DocumentSnapshot<Map<String, dynamic>>> _profile =
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid ?? 'unknown')
+          .snapshots();
   // 'active' | 'archived' — which of the farmer's own listings to show.
   String _productFilter = 'active';
+  // How My Products is ordered.
+  _ProductSort _sort = _ProductSort.newest;
+  // The farmer's own listings, created once — re-sorting never reloads.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _myProducts =
+      FirebaseFirestore.instance
+          .collection('products')
+          .where('farmerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+          .snapshots();
 
   Future<void> _refreshData() async {
     await Future.delayed(const Duration(milliseconds: 700));
@@ -127,7 +142,7 @@ class _ProfileTabState extends State<ProfileTab> {
             children: [
               CircleAvatar(
                 radius: 46,
-                backgroundColor: _accent,
+                backgroundColor: AppColors.accent,
                 child: hasPhoto
                     ? ClipOval(
                         child: Image.network(
@@ -135,11 +150,14 @@ class _ProfileTabState extends State<ProfileTab> {
                           width: 92,
                           height: 92,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              const Icon(Icons.person, color: _dark, size: 52),
+                          errorBuilder: (_, _, _) => Icon(
+                            Icons.person,
+                            color: AppColors.brand,
+                            size: 52,
+                          ),
                         ),
                       )
-                    : const Icon(Icons.person, color: _dark, size: 52),
+                    : Icon(Icons.person, color: AppColors.brand, size: 52),
               ),
               Positioned(
                 bottom: -2,
@@ -147,7 +165,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: _dark,
+                    color: AppColors.brandFill,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -166,8 +184,6 @@ class _ProfileTabState extends State<ProfileTab> {
   // field on each product doc — rename this to whatever field your
   // ProductService.addProduct() actually writes (e.g. 'farmerId', 'uid').
   Widget _myProductsSection(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -180,36 +196,14 @@ class _ProfileTabState extends State<ProfileTab> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[500],
+                    color: AppColors.grey(500),
                     letterSpacing: 0.8,
                   ),
                 ),
               ),
-              InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddProductScreen()),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_circle_outline, size: 16, color: _dark),
-                      SizedBox(width: 4),
-                      Text(
-                        'Add',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: _dark,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Sorting and a category filter, for a farmer with many
+              // listings (adding one is the + in the bottom bar).
+              _sortMenu(),
             ],
           ),
           const SizedBox(height: 6),
@@ -229,11 +223,12 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
             ],
           ),
-          Divider(height: 1, color: Colors.grey.shade200),
+          Divider(height: 1, color: AppColors.grey(200)),
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
+              border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -244,10 +239,7 @@ class _ProfileTabState extends State<ProfileTab> {
               ],
             ),
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('products')
-                  .where('farmerId', isEqualTo: uid)
-                  .snapshots(),
+              stream: _myProducts,
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Shimmer(
@@ -269,11 +261,12 @@ class _ProfileTabState extends State<ProfileTab> {
                 }
 
                 final showArchived = _productFilter == 'archived';
-                final docs = (snap.data?.docs ?? [])
+                final inTab = (snap.data?.docs ?? [])
                     .where(
                       (d) => (d.data()['isArchived'] == true) == showArchived,
                     )
                     .toList();
+                final docs = _sorted(inTab);
                 final Widget list = docs.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(20),
@@ -283,7 +276,7 @@ class _ProfileTabState extends State<ProfileTab> {
                               : "You haven't posted any active products yet.",
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                           ),
                         ),
                       )
@@ -309,6 +302,111 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
+  // [docs] in the chosen order.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _sorted(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final shown = [...docs];
+    String name(Map<String, dynamic> d) =>
+        (d['name'] ?? '').toString().trim().toLowerCase();
+    int posted(Map<String, dynamic> d) {
+      final at = d['updatedAt'] ?? d['createdAt'];
+      return at is Timestamp ? at.millisecondsSinceEpoch : 0;
+    }
+
+    shown.sort((a, b) {
+      final x = a.data();
+      final y = b.data();
+      final byChoice = switch (_sort) {
+        _ProductSort.newest => posted(y).compareTo(posted(x)),
+        _ProductSort.oldest => posted(x).compareTo(posted(y)),
+        _ProductSort.nameAz => name(x).compareTo(name(y)),
+        _ProductSort.nameZa => name(y).compareTo(name(x)),
+      };
+      // Ties in name order, so the list never shuffles.
+      return byChoice != 0 ? byChoice : name(x).compareTo(name(y));
+    });
+    return shown;
+  }
+
+  // "Sort" — how the list is ordered. The pill names what is chosen.
+  Widget _sortMenu() {
+    TextStyle item(bool selected) => TextStyle(
+      fontSize: 13,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+      color: selected ? AppColors.brand : AppColors.text,
+    );
+    PopupMenuItem<String> choice(String value, String label, bool selected) =>
+        PopupMenuItem<String>(
+          value: value,
+          height: 38,
+          child: Row(
+            children: [
+              Expanded(child: Text(label, style: item(selected))),
+              if (selected)
+                Icon(Icons.check_rounded, size: 17, color: AppColors.brand),
+            ],
+          ),
+        );
+    PopupMenuItem<String> heading(String label) => PopupMenuItem<String>(
+      enabled: false,
+      height: 30,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: AppColors.grey(500),
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+
+    return PopupMenuButton<String>(
+      tooltip: 'Sort your products',
+      position: PopupMenuPosition.under,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onSelected: (value) =>
+          setState(() => _sort = _ProductSort.values.byName(value)),
+      itemBuilder: (context) => [
+        heading('SORT BY'),
+        for (final sort in _ProductSort.values)
+          choice(sort.name, sort.label, sort == _sort),
+      ],
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 5, 8, 5),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.grey(300)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sort_rounded, size: 16, color: AppColors.brand),
+            const SizedBox(width: 5),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Text(
+                _sort.short,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.brand,
+                ),
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.expand_more_rounded, size: 16, color: AppColors.brand),
+          ],
+        ),
+      ),
+    );
+  }
+
   // One half of Active | Archived: its label centred, and — for the one
   // showing — dark green with a green bar under the whole half. Tapping
   // it works too.
@@ -327,7 +425,7 @@ class _ProfileTabState extends State<ProfileTab> {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? _dark : Colors.grey[500],
+                color: selected ? AppColors.brand : AppColors.grey(500),
               ),
             ),
           ),
@@ -337,7 +435,7 @@ class _ProfileTabState extends State<ProfileTab> {
             height: 2.5,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: selected ? _dark : Colors.transparent,
+              color: selected ? AppColors.brandFill : Colors.transparent,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -437,10 +535,10 @@ class _ProfileTabState extends State<ProfileTab> {
                     errorBuilder: (_, _, _) => Container(
                       width: 46,
                       height: 46,
-                      color: _accent,
-                      child: const Icon(
+                      color: AppColors.accent,
+                      child: Icon(
                         Icons.eco_outlined,
-                        color: _dark,
+                        color: AppColors.brand,
                         size: 22,
                       ),
                     ),
@@ -448,10 +546,10 @@ class _ProfileTabState extends State<ProfileTab> {
                 : Container(
                     width: 46,
                     height: 46,
-                    color: _accent,
-                    child: const Icon(
+                    color: AppColors.accent,
+                    child: Icon(
                       Icons.eco_outlined,
-                      color: _dark,
+                      color: AppColors.brand,
                       size: 22,
                     ),
                   ),
@@ -476,7 +574,9 @@ class _ProfileTabState extends State<ProfileTab> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: isArchived ? Colors.grey[300] : Colors.orange[100],
+                    color: isArchived
+                        ? AppColors.grey(300)
+                        : AppColors.tone(Colors.orange, 100),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -484,7 +584,9 @@ class _ProfileTabState extends State<ProfileTab> {
                     style: TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.bold,
-                      color: isArchived ? Colors.grey[700] : Colors.orange[800],
+                      color: isArchived
+                          ? AppColors.grey(700)
+                          : AppColors.tone(Colors.orange, 800),
                     ),
                   ),
                 ),
@@ -501,7 +603,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         subtitle,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Colors.grey[600],
+                          color: AppColors.grey(600),
                         ),
                       ),
                     // How many buyers liked this listing — a number
@@ -512,18 +614,18 @@ class _ProfileTabState extends State<ProfileTab> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.favorite_rounded,
                             size: 13,
-                            color: _dark,
+                            color: AppColors.brand,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             saveCount == 1 ? '1 like' : '$saveCount likes',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: _dark,
+                              color: AppColors.brand,
                             ),
                           ),
                         ],
@@ -538,7 +640,7 @@ class _ProfileTabState extends State<ProfileTab> {
             builder: (buttonContext) => IconButton(
               tooltip: 'Product actions',
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.more_vert, color: Colors.grey[500]),
+              icon: Icon(Icons.more_vert, color: AppColors.grey(500)),
               onPressed: () => _openProductMenu(
                 buttonContext,
                 id: id,
@@ -568,7 +670,7 @@ class _ProfileTabState extends State<ProfileTab> {
       SnackBar(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: _dark,
+        backgroundColor: AppColors.brandFill,
         content: Text(message),
       ),
     );
@@ -727,7 +829,7 @@ class _ProfileTabState extends State<ProfileTab> {
           if (summary.count == 0)
             Text(
               tr(context).noReviewsYet,
-              style: TextStyle(fontSize: 12, color: Colors.black45),
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             )
           else ...[
             Text(
@@ -735,7 +837,7 @@ class _ProfileTabState extends State<ProfileTab> {
               style: GoogleFonts.montserrat(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
             const SizedBox(width: 2),
@@ -743,7 +845,7 @@ class _ProfileTabState extends State<ProfileTab> {
             const SizedBox(width: 6),
             Text(
               reviewCountLabel(summary.count),
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 12, color: AppColors.grey(600)),
             ),
             const Spacer(),
             TextButton(
@@ -757,7 +859,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 ),
               ),
               style: TextButton.styleFrom(
-                foregroundColor: _dark,
+                foregroundColor: AppColors.brand,
                 minimumSize: const Size(0, 30),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -794,9 +896,9 @@ class _ProfileTabState extends State<ProfileTab> {
           margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: AppColors.grey(200)),
           ),
           child: Row(
             children: [
@@ -806,7 +908,10 @@ class _ProfileTabState extends State<ProfileTab> {
                   children: [
                     Text(
                       'Overall Product Rating',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.grey(600),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     ...[
@@ -817,7 +922,7 @@ class _ProfileTabState extends State<ProfileTab> {
                             style: GoogleFonts.montserrat(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: _dark,
+                              color: AppColors.brand,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -826,7 +931,10 @@ class _ProfileTabState extends State<ProfileTab> {
                       ),
                       Text(
                         'Based on ${reviewCountLabel(summary.count)}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.grey(600),
+                        ),
                       ),
                     ],
                   ],
@@ -840,7 +948,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   ),
                 ),
                 style: TextButton.styleFrom(
-                  foregroundColor: _dark,
+                  foregroundColor: AppColors.brand,
                   textStyle: GoogleFonts.montserrat(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -858,7 +966,6 @@ class _ProfileTabState extends State<ProfileTab> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final name = user?.displayName ?? 'Farmer';
 
     // The header stays put; pull-to-refresh starts under it.
     return Column(
@@ -868,7 +975,7 @@ class _ProfileTabState extends State<ProfileTab> {
         PageHeader(title: tr(context).navProfile, includeTitle: false),
         Expanded(
           child: AgriRefreshIndicator(
-            color: _dark,
+            color: AppColors.brand,
             onRefresh: _refreshData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -885,23 +992,33 @@ class _ProfileTabState extends State<ProfileTab> {
                   const SizedBox(height: 10),
 
                   // ---- Name ----
-                  Text(
-                    name,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: _profile,
+                    builder: (context, snap) {
+                      final data = snap.data?.data();
+                      final name =
+                          [data?['name'], data?['fullName'], user?.displayName]
+                              .map((v) => v?.toString().trim() ?? '')
+                              .firstWhere(
+                                (v) => v.isNotEmpty,
+                                orElse: () => 'Farmer',
+                              );
+                      return Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text,
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 6),
 
                   // ---- Location ----
                   StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user?.uid ?? 'unknown')
-                        .snapshots(),
+                    stream: _profile,
                     builder: (context, snap) {
                       final data = snap.data?.data();
                       final barangay = data?['barangay']?.toString();
@@ -917,14 +1034,14 @@ class _ProfileTabState extends State<ProfileTab> {
                           Icon(
                             Icons.location_on_outlined,
                             size: 15,
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             location,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[600],
+                              color: AppColors.grey(600),
                             ),
                           ),
                         ],
@@ -944,4 +1061,20 @@ class _ProfileTabState extends State<ProfileTab> {
       ],
     );
   }
+}
+
+/// How My Products is ordered.
+enum _ProductSort {
+  newest('Newest first', 'Newest'),
+  oldest('Oldest first', 'Oldest'),
+  nameAz('Name: A–Z', 'A–Z'),
+  nameZa('Name: Z–A', 'Z–A');
+
+  /// In the menu.
+  final String label;
+
+  /// On the pill.
+  final String short;
+
+  const _ProductSort(this.label, this.short);
 }

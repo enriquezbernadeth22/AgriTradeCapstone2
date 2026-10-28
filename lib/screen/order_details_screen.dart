@@ -6,11 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/market_price_helpers.dart';
 import '../services/order_contact_service.dart';
 import '../services/order_format.dart';
-import '../theme/app_theme.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_contact_section.dart';
 import '../widgets/profile_avatar.dart';
 import 'order_actions.dart';
+import '../theme/app_colors.dart';
 
 /// The complete summary of one order, for either side: status, product,
 /// the other party, fulfillment, payment and timeline. Stays live — a
@@ -72,7 +72,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: const AgriAppBar(title: 'Order Details'),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _orderStream,
@@ -91,12 +91,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         textAlign: TextAlign.center,
                       ),
                     )
-                  : const SizedBox(
+                  : SizedBox(
                       width: 26,
                       height: 26,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                       ),
                     ),
             );
@@ -143,9 +143,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: AppColors.grey(200)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +157,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           ),
           const SizedBox(height: 10),
@@ -183,7 +183,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             label,
             style: GoogleFonts.montserrat(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           ),
         ),
@@ -194,7 +194,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             style: GoogleFonts.montserrat(
               fontSize: strong ? 14.5 : 12.5,
               fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
-              color: color ?? Colors.black87,
+              color: color ?? AppColors.text,
             ),
           ),
         ),
@@ -206,7 +206,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     text,
     style: GoogleFonts.montserrat(
       fontSize: 11.5,
-      color: Colors.grey[600],
+      color: AppColors.grey(600),
       height: 1.4,
     ),
   );
@@ -223,16 +223,18 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         ? 'To be confirmed'
         : MaterialLocalizations.of(context).formatMediumDate(proposed);
     final waiting = order.isDelayed;
-    final warning = Colors.orange.shade800;
+    final warning = AppColors.tone(Colors.orange, 800);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: waiting ? Colors.orange.withValues(alpha: 0.08) : AppTheme.tint,
+        color: waiting ? Colors.orange.withValues(alpha: 0.08) : AppColors.tint,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: waiting ? Colors.orange.shade200 : const Color(0xFFC8E6C9),
+          color: waiting
+              ? AppColors.tone(Colors.orange, 200)
+              : AppColors.adapt(const Color(0xFFC8E6C9)),
         ),
       ),
       child: Column(
@@ -245,7 +247,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     ? Icons.schedule_rounded
                     : Icons.event_available_outlined,
                 size: 19,
-                color: waiting ? warning : AppTheme.dark,
+                color: waiting ? warning : AppColors.brand,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -254,7 +256,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   style: GoogleFonts.montserrat(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: waiting ? warning : AppTheme.dark,
+                    color: waiting ? warning : AppColors.brand,
                   ),
                 ),
               ),
@@ -271,7 +273,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 fontSize: 12.5,
                 height: 1.4,
                 fontStyle: FontStyle.italic,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
           ],
@@ -336,7 +338,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
                 if (order.createdAt != null)
@@ -344,7 +346,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     'Placed ${formatOrderDateTimeLong(order.createdAt!)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
-                      color: Colors.grey[600],
+                      color: AppColors.grey(600),
                     ),
                   ),
               ],
@@ -556,20 +558,20 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ? formatPeso(order.deliveryFee!)
                   : 'To be arranged with $feeParty',
             ),
-          Divider(height: 14, color: Colors.grey.shade200),
+          Divider(height: 14, color: AppColors.grey(200)),
           if (total != null)
             _line(
               'Total',
               formatPeso(total),
               strong: true,
-              color: AppTheme.dark,
+              color: AppColors.brand,
             )
           else ...[
             _line(
               'Product total',
               formatPeso(order.subtotal),
               strong: true,
-              color: AppTheme.dark,
+              color: AppColors.brand,
             ),
             _note(
               'The delivery fee is not included — it is arranged directly '
@@ -588,11 +590,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       children: [
         Row(
           children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              color: AppTheme.dark,
-              size: 22,
-            ),
+            Icon(Icons.receipt_long_outlined, color: AppColors.brand, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: _note(
@@ -625,7 +623,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   order.reviewed
                       ? Chip(
                           visualDensity: VisualDensity.compact,
-                          backgroundColor: AppTheme.tint,
+                          backgroundColor: AppColors.tint,
                           side: BorderSide.none,
                           avatar: const Icon(
                             Icons.star_rounded,
@@ -637,7 +635,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             style: GoogleFonts.montserrat(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.dark,
+                              color: AppColors.brand,
                             ),
                           ),
                         )
@@ -720,10 +718,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }) {
     final (label, reached, at) = stage;
     final color = rejected
-        ? Colors.red.shade700
+        ? AppColors.tone(Colors.red, 700)
         : reached
-        ? AppTheme.dark
-        : Colors.grey.shade400;
+        ? AppColors.brand
+        : AppColors.grey(400);
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -742,7 +740,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   child: Container(
                     width: 1.5,
                     margin: const EdgeInsets.symmetric(vertical: 2),
-                    color: Colors.grey.shade300,
+                    color: AppColors.grey(300),
                   ),
                 ),
             ],
@@ -759,7 +757,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     style: GoogleFonts.montserrat(
                       fontSize: 13,
                       fontWeight: reached ? FontWeight.w600 : FontWeight.w500,
-                      color: reached ? Colors.black87 : Colors.grey[500],
+                      color: reached ? AppColors.text : AppColors.grey(500),
                     ),
                   ),
                   if (reached)
@@ -779,8 +777,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Widget _actionBar(List<OrderCardAction> actions) => Container(
     decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      color: AppColors.surface,
+      border: Border(top: BorderSide(color: AppColors.grey(200))),
     ),
     child: SafeArea(
       top: false,

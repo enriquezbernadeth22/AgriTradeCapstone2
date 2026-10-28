@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// [GlowField]'s tap-to-choose twin: the same pill-shaped white plate, icon
 /// and thin divider used by the login and registration fields, for a value
@@ -31,7 +32,7 @@ class GlowTapField extends StatelessWidget {
     final theme = Theme.of(context);
     // The same text and hint styles a TextField inside GlowField resolves to.
     final textStyle = theme.textTheme.titleMedium?.copyWith(
-      color: hasValue ? Colors.black87 : null,
+      color: hasValue ? AppColors.text : null,
     );
     final hintStyle =
         theme.inputDecorationTheme.hintStyle ??
@@ -49,9 +50,9 @@ class GlowTapField extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(left: 18, right: 12),
-                child: Icon(icon, color: AppTheme.mid, size: 20),
+                child: Icon(icon, color: AppColors.mid, size: 20),
               ),
-              Container(height: 22, width: 1, color: Colors.black12),
+              Container(height: 22, width: 1, color: AppColors.hairline),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -69,7 +70,7 @@ class GlowTapField extends StatelessWidget {
               if (trailing != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 14),
-                  child: Icon(trailing, color: Colors.grey[600], size: 20),
+                  child: Icon(trailing, color: AppColors.grey(600), size: 20),
                 ),
             ],
           ),

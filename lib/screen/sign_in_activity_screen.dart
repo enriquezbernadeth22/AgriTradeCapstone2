@@ -5,9 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../services/device_trust_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 /// One device the account has signed in on, as shown in the list.
 class SignInDevice {
@@ -110,7 +110,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
   TextStyle _text(double size, {Color? color, FontWeight? weight}) =>
       GoogleFonts.montserrat(
         fontSize: size,
-        color: color ?? Colors.black87,
+        color: color ?? AppColors.text,
         fontWeight: weight ?? FontWeight.w400,
         height: 1.4,
       );
@@ -152,13 +152,13 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
   Widget _alertsCard() => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppTheme.accent.withValues(alpha: 0.30),
+      color: AppColors.accent.withValues(alpha: 0.30),
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.shield_outlined, color: AppTheme.mid, size: 22),
+        Icon(Icons.shield_outlined, color: AppColors.mid, size: 22),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -171,7 +171,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                       'New Device Login Alerts',
                       style: _text(
                         13.5,
-                        color: AppTheme.dark,
+                        color: AppColors.brand,
                         weight: FontWeight.w700,
                       ),
                     ),
@@ -182,7 +182,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.mid,
+                      color: AppColors.mid,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -201,7 +201,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                 'When your account is logged in to on a device not listed '
                 'here, we email you and send a notification. The login '
                 'itself is not blocked.',
-                style: _text(12, color: Colors.black54),
+                style: _text(12, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -218,10 +218,12 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: highlighted ? Colors.orange.shade400 : Colors.grey.shade200,
+          color: highlighted
+              ? AppColors.tone(Colors.orange, 400)
+              : AppColors.grey(200),
           width: highlighted ? 1.4 : 1,
         ),
       ),
@@ -232,7 +234,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
             padding: const EdgeInsets.only(top: 2),
             child: Icon(
               isPhone ? Icons.smartphone_rounded : Icons.computer_rounded,
-              color: AppTheme.mid,
+              color: AppColors.mid,
               size: 22,
             ),
           ),
@@ -248,7 +250,9 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                     isCurrent ? 'This device' : 'New login',
                     style: _text(
                       11.5,
-                      color: isCurrent ? AppTheme.mid : Colors.orange.shade800,
+                      color: isCurrent
+                          ? AppColors.mid
+                          : AppColors.tone(Colors.orange, 800),
                       weight: FontWeight.w700,
                     ),
                   ),
@@ -257,15 +261,15 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                 if (device.platform.isNotEmpty)
                   Text(
                     device.platform,
-                    style: _text(12, color: Colors.black54),
+                    style: _text(12, color: AppColors.textSecondary),
                   ),
                 Text(
                   'First logged in: ${_when(device.firstSeen)}',
-                  style: _text(12, color: Colors.black54),
+                  style: _text(12, color: AppColors.textSecondary),
                 ),
                 Text(
                   'Last active: ${_when(device.lastSeen)}',
-                  style: _text(12, color: Colors.black54),
+                  style: _text(12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -273,7 +277,9 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
           if (!isCurrent)
             TextButton(
               onPressed: () => _remove(device),
-              style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.tone(Colors.red, 700),
+              ),
               child: Text(
                 'Remove',
                 style: GoogleFonts.montserrat(
@@ -290,7 +296,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: const AgriAppBar(title: 'Devices & Login Activity'),
       body: FutureBuilder<String>(
         future: _currentDeviceId,
@@ -308,7 +314,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                     'DEVICES SIGNED IN TO THIS ACCOUNT',
                     style: _text(
                       10.5,
-                      color: Colors.grey[600],
+                      color: AppColors.grey(600),
                       weight: FontWeight.w700,
                     ).copyWith(letterSpacing: 0.6),
                   ),
@@ -316,19 +322,19 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                   if (snapshot.hasError)
                     Text(
                       'Could not load your devices. Please try again.',
-                      style: _text(13, color: Colors.black54),
+                      style: _text(13, color: AppColors.textSecondary),
                     )
                   else if (devices == null)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Center(
-                        child: CircularProgressIndicator(color: AppTheme.mid),
+                        child: CircularProgressIndicator(color: AppColors.mid),
                       ),
                     )
                   else if (devices.isEmpty)
                     Text(
                       'No devices recorded yet.',
-                      style: _text(13, color: Colors.black54),
+                      style: _text(13, color: AppColors.textSecondary),
                     )
                   else
                     for (final device in devices)
@@ -340,7 +346,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                     'See a device you do not recognize? Change your password '
                     'in your account settings so it can no longer be used to '
                     'log in.',
-                    style: _text(12, color: Colors.black54),
+                    style: _text(12, color: AppColors.textSecondary),
                   ),
                 ],
               );

@@ -1,5 +1,5 @@
 // The two registration pieces that can be checked without Firebase: the
-// RSBA number rules, and the searchable "Select Barangay" sheet.
+// RSBSA number rules, and the searchable "Select Barangay" sheet.
 import 'package:agritrade/data/laurel_barangays.dart';
 import 'package:agritrade/services/rsba_number.dart';
 import 'package:agritrade/widgets/barangay_location_field.dart';
@@ -33,7 +33,7 @@ Widget pickerHost(ValueChanged<String?> onResult, {String? selected}) {
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  group('RSBA number', () {
+  group('RSBSA number', () {
     test('15 to 17 letters and numbers is valid', () {
       expect(isValidRsba('A' * 14), isFalse);
       expect(isValidRsba('A' * 15), isTrue);
@@ -58,7 +58,7 @@ void main() {
       expect(rsbaError('ABC123', touched: true), kRsbaInvalidMessage);
       expect(rsbaError('ABC123', submitted: true), kRsbaInvalidMessage);
       expect(rsbaError('A' * 15, touched: true), isNull);
-      expect(rsbaError('', submitted: true), 'RSBA No. is required.');
+      expect(rsbaError('', submitted: true), 'RSBSA No. is required.');
     });
 
     test('no message spells out the accepted length', () {

@@ -683,7 +683,6 @@ class _FilterBar extends StatelessWidget {
             children: [
               AdminPillDropdown<String?>(
                 value: actionFilter,
-                width: 210,
                 icon: Icons.bolt_outlined,
                 items: [
                   const DropdownMenuItem(
@@ -704,7 +703,6 @@ class _FilterBar extends StatelessWidget {
                   value: admins.any((d) => d.id == adminFilter)
                       ? adminFilter
                       : null,
-                  width: 210,
                   icon: Icons.person_outline,
                   items: [
                     const DropdownMenuItem(

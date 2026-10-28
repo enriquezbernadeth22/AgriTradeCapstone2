@@ -54,7 +54,7 @@ List<AdminSearchHit> searchAdminRecords(
         group: 'Farmer',
         title: name.isEmpty ? 'Unnamed farmer' : name,
         detail: [
-          if (farmerId.isNotEmpty) 'RSBA No. $farmerId',
+          if (farmerId.isNotEmpty) 'RSBSA No. $farmerId',
           if (barangay.isNotEmpty) barangay,
         ].join(' · '),
         target: AdminNotificationTarget.farmers,
@@ -71,7 +71,7 @@ List<AdminSearchHit> searchAdminRecords(
 /// says what by); anywhere else it finds farmers and opens User Accounts
 /// › Farmers.
 const Map<int, String> kAdminPageSearchHints = {
-  3: 'Search name, email, RSBA No. or barangay…',
+  3: 'Search name, email, RSBSA No. or barangay…',
   4: 'Search commodity, category, status or unit…',
   5: 'Search farmer, listing, report ID or reporter…',
   7: 'Search loaded entries…',
@@ -181,17 +181,20 @@ class _AdminGlobalSearchState extends State<AdminGlobalSearch> {
               FocusManager.instance.primaryFocus?.unfocus();
             },
             fieldViewBuilder: (context, controller, focusNode, onSubmitted) =>
-                TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  style: TextStyle(color: c.textPrimary, fontSize: 13),
-                  decoration: adminPillDecoration(
-                    c,
-                    hint:
-                        kAdminPageSearchHints[widget.page] ?? 'Search farmers…',
-                    icon: Icons.search,
+                AdminInputGlow(
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    style: TextStyle(color: c.textPrimary, fontSize: 13),
+                    decoration: adminFieldDecoration(
+                      c,
+                      hint:
+                          kAdminPageSearchHints[widget.page] ??
+                          'Search farmers…',
+                      icon: Icons.search,
+                    ),
+                    onSubmitted: (_) => onSubmitted(),
                   ),
-                  onSubmitted: (_) => onSubmitted(),
                 ),
             optionsViewBuilder: (context, onSelected, hits) => Align(
               alignment: Alignment.topLeft,

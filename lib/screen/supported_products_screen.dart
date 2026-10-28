@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/commodity_master_list.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The full, always-up-to-date Supported Products list — reads straight
 /// from CommodityRegistry (the Admin-managed commodity list, the single
@@ -17,7 +17,7 @@ class SupportedProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgLight,
+      backgroundColor: AppColors.page,
       appBar: const AgriAppBar(title: 'Supported Products'),
       // Rebuilds whenever the Admin adds, moves or disables a commodity.
       body: ListenableBuilder(
@@ -35,7 +35,7 @@ class SupportedProductsScreen extends StatelessWidget {
           'Only products on this list can be posted in the marketplace.',
           style: GoogleFonts.montserrat(
             fontSize: 13,
-            color: Colors.black87,
+            color: AppColors.text,
             height: 1.5,
           ),
         ),
@@ -47,7 +47,7 @@ class SupportedProductsScreen extends StatelessWidget {
             style: GoogleFonts.montserrat(
               fontSize: 14.5,
               fontWeight: FontWeight.bold,
-              color: AppTheme.dark,
+              color: AppColors.brand,
             ),
           ),
           const SizedBox(height: 8),
@@ -62,17 +62,17 @@ class SupportedProductsScreen extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppTheme.mid.withValues(alpha: 0.35),
+                        color: AppColors.mid.withValues(alpha: 0.35),
                       ),
                     ),
                     child: Text(
                       name,
                       style: GoogleFonts.montserrat(
                         fontSize: 13,
-                        color: Colors.black87,
+                        color: AppColors.text,
                       ),
                     ),
                   ),

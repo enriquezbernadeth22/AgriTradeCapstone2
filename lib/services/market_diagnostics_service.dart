@@ -292,7 +292,11 @@ class MarketDiagnosticsService {
     // ---- Price. ----
     final paidNow = paid.isEmpty ? null : _mean(paid);
     final paidThen = paidBefore.isEmpty ? null : _mean(paidBefore);
-    final marketAverage = asking.isEmpty ? null : _mean(asking);
+    // The same Current Market Average as Price Management and the Farmer's
+    // Market tab (unusual prices left out, one unit, live animals only).
+    final marketAverage = asking.isEmpty
+        ? null
+        : liveAverageOfListings(products, commodity);
     final double? priceChange = paidNow != null && paidThen != null
         ? paidNow / paidThen - 1
         : null;
@@ -305,8 +309,8 @@ class MarketDiagnosticsService {
         : ChangeDirection.steady;
     final averagePart = marketAverage == null
         ? 'No active listing to average.'
-        : 'Current Market Average ${money(marketAverage)} across '
-              '${_plural(asking.length, 'active listing')}.';
+        : 'Current Market Average ${money(marketAverage)}; '
+              '${_plural(asking.length, 'active listing')} on sale.';
     final String paidPart;
     if (priceChange != null) {
       paidPart =

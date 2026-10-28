@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
+import '../theme/app_colors.dart';
 
-const _messageStyle = TextStyle(
+TextStyle get _messageStyle => TextStyle(
   fontFamily: 'Montserrat',
   fontSize: 13.5,
   fontWeight: FontWeight.w500,
-  color: Colors.black87,
+  color: AppColors.text,
   height: 1.5,
 );
 
-const _bulletStyle = TextStyle(
+TextStyle get _bulletStyle => TextStyle(
   fontFamily: 'Montserrat',
   fontSize: 12.5,
   fontWeight: FontWeight.w500,
-  color: Colors.black87,
+  color: AppColors.text,
   height: 1.45,
 );
 
@@ -42,11 +42,11 @@ Future<bool> showPermissionRationale(
       // The bundled Montserrat, so the title is truly bold.
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Montserrat',
           fontSize: 18,
           fontWeight: FontWeight.w800,
-          color: AppTheme.dark,
+          color: AppColors.brand,
         ),
       ),
       scrollable: true,
@@ -70,10 +70,10 @@ Future<bool> showPermissionRationale(
             Container(
               padding: const EdgeInsets.fromLTRB(10, 12, 12, 4),
               decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.32),
+                color: AppColors.accent.withValues(alpha: 0.32),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppTheme.accent.withValues(alpha: 0.9),
+                  color: AppColors.accent.withValues(alpha: 0.9),
                 ),
               ),
               child: Column(
@@ -85,12 +85,12 @@ Future<bool> showPermissionRationale(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 1, right: 7),
                             child: Icon(
                               Icons.check_circle_rounded,
                               size: 15,
-                              color: AppTheme.mid,
+                              color: AppColors.mid,
                             ),
                           ),
                           Expanded(

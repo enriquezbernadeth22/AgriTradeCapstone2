@@ -42,6 +42,23 @@ Future<void> _showInfoDialog(
   );
 }
 
+/// A card's ⓘ button → how its figures are worked out: a short popup with
+/// [paragraphs], opened on a click rather than on hover.
+Future<void> showAdminInfoPopup(
+  BuildContext context, {
+  required String title,
+  required List<String> paragraphs,
+}) => _showInfoDialog(
+  context,
+  title: title,
+  width: 440,
+  content: (c) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [for (final text in paragraphs) _paragraph(c, text)],
+  ),
+);
+
 Widget _paragraph(AdminPalette c, String text) => Padding(
   padding: const EdgeInsets.only(bottom: 6),
   child: Text(

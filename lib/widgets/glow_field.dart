@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// A pill-shaped field styled after the reference design: icon, a thin
 /// vertical divider, then the text — sitting on a plain white plate with a
@@ -30,6 +31,10 @@ class GlowField extends StatefulWidget {
   /// Shows the value, greyed, without letting it be edited or focused.
   final bool readOnly;
 
+  /// A shorter field, with smaller text and icon (the Admin Portal's
+  /// login, on a desktop screen).
+  final bool compact;
+
   const GlowField({
     super.key,
     required this.controller,
@@ -45,6 +50,7 @@ class GlowField extends StatefulWidget {
     this.prefixText,
     this.autofocus = false,
     this.readOnly = false,
+    this.compact = false,
   });
 
   @override
@@ -79,17 +85,25 @@ class _GlowFieldState extends State<GlowField> {
       child: Row(
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 18, right: 12),
-            child: Icon(widget.icon, color: AppTheme.mid, size: 20),
+            padding: EdgeInsets.only(left: widget.compact ? 16 : 18, right: 12),
+            child: Icon(
+              widget.icon,
+              color: AppColors.mid,
+              size: widget.compact ? 18 : 20,
+            ),
           ),
-          Container(height: 22, width: 1, color: Colors.black12),
+          Container(
+            height: widget.compact ? 18 : 22,
+            width: 1,
+            color: AppColors.hairline,
+          ),
           if (widget.prefixText != null)
             Padding(
               padding: const EdgeInsets.only(left: 12),
               child: Text(
                 widget.prefixText!,
-                style: const TextStyle(
-                  color: AppTheme.dark,
+                style: TextStyle(
+                  color: AppColors.brand,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -104,8 +118,8 @@ class _GlowFieldState extends State<GlowField> {
               canRequestFocus: !widget.readOnly,
               enableInteractiveSelection: !widget.readOnly,
               style: widget.readOnly
-                  ? const TextStyle(color: Colors.black54)
-                  : null,
+                  ? TextStyle(color: AppColors.textSecondary)
+                  : (widget.compact ? const TextStyle(fontSize: 13.5) : null),
               keyboardType: widget.keyboardType,
               obscureText: widget.obscureText,
               textInputAction: widget.textInputAction,
@@ -114,6 +128,10 @@ class _GlowFieldState extends State<GlowField> {
               inputFormatters: widget.inputFormatters,
               decoration: InputDecoration(
                 hintText: widget.hint,
+                hintStyle: widget.compact
+                    ? TextStyle(fontSize: 13.5, color: AppColors.grey())
+                    : null,
+                isDense: widget.compact,
                 suffixIcon: widget.suffix,
                 filled: false,
                 border: InputBorder.none,
@@ -121,8 +139,8 @@ class _GlowFieldState extends State<GlowField> {
                 focusedBorder: InputBorder.none,
                 errorBorder: InputBorder.none,
                 focusedErrorBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 18,
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: widget.compact ? 11 : 18,
                   horizontal: 12,
                 ),
               ),

@@ -37,6 +37,7 @@ import 'page_transitions.dart';
 import 'pending_approval_screen.dart';
 import 'register_screen.dart';
 import 'role_selection_screen.dart';
+import '../theme/app_colors.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String role; // 'farmer' or 'buyer'
@@ -260,6 +261,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 widget.email.split('@').first),
       email: widget.email,
       role: role,
+      firstName: profile?.firstName,
+      lastName: profile?.lastName,
       mobileNumber: profile?.mobileNumber,
       supportedProductsAcknowledged:
           profile?.supportedProductsAcknowledged ?? false,
@@ -392,7 +395,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          backgroundColor: isError ? Colors.red.shade700 : AppTheme.dark,
+          backgroundColor: isError
+              ? AppColors.tone(Colors.red, 700)
+              : AppColors.brandFill,
           content: Text(message),
         ),
       );
@@ -422,7 +427,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         if (!didPop) _onBack();
       },
       child: Scaffold(
-        backgroundColor: AppTheme.bgLight,
+        backgroundColor: AppColors.page,
         // No coloured header: this screen has no title bar, only a Back
         // button floating at the top left, as on Forgot Password.
         body: SafeArea(
@@ -445,14 +450,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         Container(
                           width: 84,
                           height: 84,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.accent,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.mark_email_unread_outlined,
                             size: 42,
-                            color: AppTheme.dark,
+                            color: AppColors.brand,
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -485,13 +490,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.accent.withValues(alpha: 0.45),
+                            color: AppColors.accent.withValues(alpha: 0.45),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             maskEmail(widget.email),
                             style: AppTheme.label().copyWith(
-                              color: AppTheme.dark,
+                              color: AppColors.brand,
                               fontSize: 13.5,
                             ),
                             textAlign: TextAlign.center,
@@ -541,7 +546,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                 : null,
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 11),
-                              side: const BorderSide(color: AppTheme.mid),
+                              side: BorderSide(color: AppColors.mid),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
@@ -550,12 +555,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (_requesting) ...[
-                                  const SizedBox(
+                                  SizedBox(
                                     height: 14,
                                     width: 14,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.grey,
+                                      color: AppColors.grey(),
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -568,8 +573,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                       : 'Resend Code',
                                   style: AppTheme.body(
                                     color: canResend
-                                        ? AppTheme.dark
-                                        : Colors.grey,
+                                        ? AppColors.brand
+                                        : AppColors.grey(),
                                     size: 14,
                                   ).copyWith(fontWeight: FontWeight.w600),
                                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The 6-digit verification code input: six boxes drawn from one real text
 /// field laid over them — so typing, backspace, paste and the keyboard's
@@ -98,16 +99,18 @@ class _CodeBox extends StatelessWidget {
       height: 54,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: filled ? AppTheme.accent.withValues(alpha: 0.35) : Colors.white,
+        color: filled
+            ? AppColors.accent.withValues(alpha: 0.35)
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: active || filled ? AppTheme.dark : Colors.grey.shade300,
+          color: active || filled ? AppColors.brand : AppColors.grey(300),
           width: active ? 2 : 1.2,
         ),
       ),
       child: Text(
         digit,
-        style: AppTheme.heading(22).copyWith(color: AppTheme.dark),
+        style: AppTheme.heading(22).copyWith(color: AppColors.brand),
       ),
     );
   }

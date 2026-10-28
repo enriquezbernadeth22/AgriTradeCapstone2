@@ -3,13 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/order_format.dart';
-import '../theme/app_theme.dart';
 import '../widgets/retry_message.dart';
 import 'buyer_saved_products_screen.dart' show buyerSubScreenAppBar;
 import 'farmer_reviews_screen.dart' show RatingStars;
 import 'order_details_screen.dart';
 import 'product_detail_screen.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 /// The reviews this buyer has written. Every review belongs to one of
 /// their own completed orders — a review's document id is that order's id,
@@ -23,8 +23,6 @@ class BuyerMyReviewsScreen extends StatefulWidget {
 }
 
 class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
-  static const Color _dark = AppTheme.dark;
-
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews =
       FirebaseFirestore.instance
           .collection('productReviews')
@@ -71,7 +69,7 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: buyerSubScreenAppBar('My Reviews'),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _reviews,
@@ -84,7 +82,9 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
             );
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: _dark));
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
+            );
           }
           final docs =
               snapshot.data!.docs
@@ -122,7 +122,8 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -139,10 +140,10 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
             productName,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: AppColors.text,
             ),
           ),
           const SizedBox(height: 6),
@@ -156,7 +157,10 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
                     MaterialLocalizations.of(context).formatMediumDate(created),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.grey(600),
+                    ),
                   ),
                 ),
             ],
@@ -165,10 +169,10 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
             const SizedBox(height: 8),
             Text(
               comment,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
           ],
@@ -178,18 +182,19 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.surface,
+                color: AppColors.surfaceAlt,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Farmer's reply",
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
-                      color: _dark,
+                      color: AppColors.brand,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -227,8 +232,8 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
     );
   }
 
-  static final ButtonStyle _linkStyle = TextButton.styleFrom(
-    foregroundColor: _dark,
+  static ButtonStyle get _linkStyle => TextButton.styleFrom(
+    foregroundColor: AppColors.brand,
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     minimumSize: Size.zero,
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,

@@ -1,5 +1,5 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// A user's profile photo, falling back to their initials when they have
 /// no photo (or it fails to load). Shared by the Messages list, Messages
@@ -15,9 +15,6 @@ class ProfileAvatar extends StatelessWidget {
     required this.name,
     this.radius = 24,
   });
-
-  static const Color _dark = AppTheme.dark;
-  static const Color _accent = Color(0xFFDCEDC8);
 
   String get _initials {
     final parts = name
@@ -37,7 +34,7 @@ class ProfileAvatar extends StatelessWidget {
     final initials = Text(
       _initials,
       style: TextStyle(
-        color: _dark,
+        color: AppColors.brand,
         fontWeight: FontWeight.bold,
         fontSize: radius * 0.72,
       ),
@@ -45,7 +42,7 @@ class ProfileAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: _accent,
+      backgroundColor: AppColors.accent,
       child: url.isEmpty
           ? initials
           : ClipOval(

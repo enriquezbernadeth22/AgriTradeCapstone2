@@ -52,7 +52,8 @@ function getTransport() {
 
 /**
  * Sends one email. `message` is what email_templates.js builds:
- * { subject, text, html }. Throws if Gmail does not accept it.
+ * { subject, text, html }. Throws if Gmail does not accept it. An optional
+ * `replyTo` sets where a reply goes.
  */
 async function sendMail(to, message) {
   return getTransport().sendMail({
@@ -61,6 +62,8 @@ async function sendMail(to, message) {
     subject: message.subject,
     text: message.text,
     html: message.html,
+    // Feedback: the team answers the sender straight from Gmail.
+    ...(message.replyTo ? { replyTo: message.replyTo } : {}),
   });
 }
 

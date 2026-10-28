@@ -3,12 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../services/saved_products_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/explore_product_card.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/save_product_button.dart';
 import 'product_detail_screen.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 /// The listings this buyer liked on Explore or Product Details (the heart
 /// icon in its app bar) — the same cards as the Explore grid, read live.
@@ -21,8 +21,6 @@ class BuyerSavedProductsScreen extends StatefulWidget {
 }
 
 class _BuyerSavedProductsScreenState extends State<BuyerSavedProductsScreen> {
-  static const Color _dark = AppTheme.dark;
-
   final _service = SavedProductsService();
   final _likes = LikedProducts.instance;
 
@@ -95,13 +93,13 @@ class _BuyerSavedProductsScreenState extends State<BuyerSavedProductsScreen> {
     } else if (products.isNotEmpty) {
       body = _grid(products);
     } else if (loading) {
-      body = const Center(child: CircularProgressIndicator(color: _dark));
+      body = Center(child: CircularProgressIndicator(color: AppColors.brand));
     } else {
       body = _empty(unavailable: ids.isNotEmpty);
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: buyerSubScreenAppBar('Liked Products'),
       body: body,
     );

@@ -319,7 +319,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
                           child: AgriTradeText(
-                            fontSize: 21,
+                            fontSize: 19,
                             light: colors.lightWordmark,
                           ),
                         ),
@@ -476,8 +476,8 @@ class _AdminSidebarItem extends StatefulWidget {
 class _AdminSidebarItemState extends State<_AdminSidebarItem> {
   bool _hovered = false;
 
-  static const double _height = 44;
-  static const double _iconSize = 20;
+  static const double _height = 40;
+  static const double _iconSize = 18;
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +500,7 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.montserrat(
-                    fontSize: 13.5,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w500,
                     color: color,
                   ),
@@ -635,7 +635,7 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            height: 32,
+            height: 30,
             margin: const EdgeInsets.only(left: 40, bottom: 2),
             padding: const EdgeInsets.only(left: 10, right: 10),
             decoration: BoxDecoration(
@@ -665,7 +665,7 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.montserrat(
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       color: selected
                           ? colors.accent

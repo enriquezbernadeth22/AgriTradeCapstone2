@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/app_back_button.dart';
+import 'app_colors.dart';
 
 class AppTheme {
   // ---------- COLOURS ----------
@@ -35,12 +36,25 @@ class AppTheme {
   static ThemeData themeData() {
     // Takes Flutter's standard set of text sizes (headings, body,
     // captions...) and rebuilds all of them in Montserrat.
-    final montserratText = GoogleFonts.montserratTextTheme();
+    final dark = AppColors.isDark;
+    final brightness = dark ? Brightness.dark : Brightness.light;
+    // (On the default text colours for light or dark.)
+    final montserratText = GoogleFonts.montserratTextTheme(
+      ThemeData(brightness: brightness).textTheme,
+    );
 
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: mid, primary: dark),
-      scaffoldBackgroundColor: bgLight,
+      // Light or dark, from Settings → Appearance (AppColors).
+      brightness: brightness,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppTheme.mid,
+        brightness: brightness,
+        primary: AppColors.brand,
+        surface: AppColors.surface,
+        onSurface: AppColors.text,
+      ),
+      scaffoldBackgroundColor: AppColors.page,
 
       // <-- THIS is the line that changes the whole app's font.
       textTheme: montserratText,
@@ -50,16 +64,18 @@ class AppTheme {
       // the same light look as a fallback for any plain AppBar.
       // Any plain AppBar: the same white as the app's headers.
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: dark,
+        foregroundColor: AppColors.brand,
         elevation: 0,
         scrolledUnderElevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        systemOverlayStyle: dark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         titleTextStyle: GoogleFonts.montserrat(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: dark,
+          color: AppColors.brand,
         ),
       ),
 
@@ -69,7 +85,7 @@ class AppTheme {
       // (about 40 high), in proportion with the small bottom bar.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: dark,
+          backgroundColor: AppColors.brandFill,
           foregroundColor: Colors.white,
           padding: buttonPadding,
           shape: RoundedRectangleBorder(
@@ -82,14 +98,14 @@ class AppTheme {
       // Every button in the app is pill-shaped, for consistency.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: dark,
+          foregroundColor: AppColors.brand,
           shape: const StadiumBorder(),
           textStyle: GoogleFonts.montserrat(fontSize: 13.5),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: dark,
+          foregroundColor: AppColors.brand,
           shape: const StadiumBorder(),
           padding: buttonPadding,
           textStyle: buttonText(),
@@ -97,7 +113,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: dark,
+          backgroundColor: AppColors.brandFill,
           shape: const StadiumBorder(),
           padding: buttonPadding,
           textStyle: buttonText(),
@@ -111,27 +127,30 @@ class AppTheme {
       // line, rounded corners on a several-line box.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: fieldFill,
-        hintStyle: GoogleFonts.montserrat(fontSize: 13.5, color: Colors.grey),
+        fillColor: AppColors.field,
+        hintStyle: GoogleFonts.montserrat(
+          fontSize: 13.5,
+          color: AppColors.grey(),
+        ),
         errorStyle: GoogleFonts.montserrat(fontSize: 11.5),
         // The "12/40" under a field with a length limit, the same on every
         // field (nickname, review, …).
         counterStyle: GoogleFonts.montserrat(
           fontSize: 11,
           fontWeight: FontWeight.w500,
-          color: Colors.grey[600],
+          color: AppColors.grey(600),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide.none,
+          borderSide: AppColors.outlineSide,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide.none,
+          borderSide: AppColors.outlineSide,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: mid, width: 1.4),
+          borderSide: BorderSide(color: AppColors.mid, width: 1.4),
         ),
       ),
 
@@ -140,18 +159,21 @@ class AppTheme {
       // card, Montserrat, dark-green title and the same dimmed barrier.
       // New popups should use agri_dialog.dart for the full frosted style.
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         barrierColor: const Color(0x61000000),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: AppColors.outlineSide,
+        ),
         titleTextStyle: GoogleFonts.montserrat(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: dark,
+          color: AppColors.brand,
         ),
         contentTextStyle: GoogleFonts.montserrat(
           fontSize: 13,
-          color: Colors.black87,
+          color: AppColors.text,
           height: 1.45,
         ),
       ),
@@ -161,29 +183,31 @@ class AppTheme {
       // and pill Cancel / OK buttons like AgriDialogButton.
       datePickerTheme: _datePickerTheme(),
       timePickerTheme: TimePickerThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         elevation: 6,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         helpTextStyle: GoogleFonts.montserrat(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Colors.grey[600],
+          color: AppColors.grey(600),
         ),
-        dialHandColor: dark,
-        dialBackgroundColor: tint,
+        dialHandColor: AppColors.brandFill,
+        dialBackgroundColor: AppColors.tint,
         hourMinuteColor: WidgetStateColor.resolveWith(
-          (states) => states.contains(WidgetState.selected) ? accent : tint,
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.accent
+              : AppColors.tint,
         ),
-        hourMinuteTextColor: dark,
+        hourMinuteTextColor: AppColors.brand,
         hourMinuteShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
         dayPeriodShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        dayPeriodColor: accent,
-        dayPeriodTextColor: dark,
-        entryModeIconColor: dark,
+        dayPeriodColor: AppColors.accent,
+        dayPeriodTextColor: AppColors.brand,
+        entryModeIconColor: AppColors.brand,
         cancelButtonStyle: _pickerCancelButton,
         confirmButtonStyle: _pickerConfirmButton,
       ),
@@ -191,24 +215,27 @@ class AppTheme {
       // Every dropdown list and popup menu opens as the same white panel
       // with rounded corners (it used to take the app's greenish surface
       // colour), with the current choice shown in pale green.
-      canvasColor: Colors.white,
-      focusColor: accent.withValues(alpha: 0.7),
+      canvasColor: AppColors.surface,
+      focusColor: AppColors.accent.withValues(alpha: 0.7),
       popupMenuTheme: PopupMenuThemeData(
-        color: Colors.white,
+        color: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 6,
         shadowColor: Colors.black.withValues(alpha: 0.25),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: AppColors.outlineSide,
+        ),
         textStyle: GoogleFonts.montserrat(
           fontSize: 13.5,
-          color: Colors.black87,
+          color: AppColors.text,
         ),
       ),
-      menuTheme: const MenuThemeData(
+      menuTheme: MenuThemeData(
         style: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll(Colors.white),
-          surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
-          shape: WidgetStatePropertyAll(
+          backgroundColor: WidgetStatePropertyAll(AppColors.surface),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(16)),
             ),
@@ -216,12 +243,13 @@ class AppTheme {
         ),
       ),
 
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.white,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        modalBarrierColor: Color(0x61000000),
+        modalBarrierColor: const Color(0x61000000),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          side: AppColors.outlineSide,
         ),
       ),
 
@@ -230,13 +258,13 @@ class AppTheme {
       // here — without one it fell back to the dark body text and could
       // not be read on the dark bar.
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: dark,
+        backgroundColor: AppColors.brandFill,
         contentTextStyle: GoogleFonts.montserrat(
           fontSize: 13.5,
           fontWeight: FontWeight.w500,
           color: Colors.white,
         ),
-        actionTextColor: accent,
+        actionTextColor: AppColors.accent,
         closeIconColor: Colors.white,
         behavior: SnackBarBehavior.floating,
         elevation: 4,
@@ -247,10 +275,10 @@ class AppTheme {
 
   // Picker buttons, shaped like AgriDialogButton: Cancel outlined, the
   // confirm button filled dark green.
-  static final ButtonStyle _pickerCancelButton = TextButton.styleFrom(
-    foregroundColor: dark,
-    backgroundColor: Colors.white,
-    side: const BorderSide(color: dark, width: 1.2),
+  static ButtonStyle get _pickerCancelButton => TextButton.styleFrom(
+    foregroundColor: AppColors.brand,
+    backgroundColor: AppColors.surface,
+    side: BorderSide(color: AppColors.brand, width: 1.2),
     shape: const StadiumBorder(),
     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
     textStyle: GoogleFonts.montserrat(
@@ -258,9 +286,9 @@ class AppTheme {
       fontWeight: FontWeight.w600,
     ),
   );
-  static final ButtonStyle _pickerConfirmButton = TextButton.styleFrom(
+  static ButtonStyle get _pickerConfirmButton => TextButton.styleFrom(
     foregroundColor: Colors.white,
-    backgroundColor: dark,
+    backgroundColor: AppColors.brandFill,
     shape: const StadiumBorder(),
     padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 10),
     textStyle: GoogleFonts.montserrat(
@@ -276,34 +304,34 @@ class AppTheme {
           borderSide: BorderSide(color: color, width: width),
         );
     return DatePickerThemeData(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 6,
       shadowColor: Colors.black.withValues(alpha: 0.25),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      headerBackgroundColor: Colors.white,
-      headerForegroundColor: dark,
+      headerBackgroundColor: AppColors.surface,
+      headerForegroundColor: AppColors.brand,
       headerHelpStyle: GoogleFonts.montserrat(
         fontSize: 12,
         fontWeight: FontWeight.w600,
-        color: Colors.grey[600],
+        color: AppColors.grey(600),
       ),
       headerHeadlineStyle: GoogleFonts.montserrat(
         fontSize: 26,
         fontWeight: FontWeight.w700,
-        color: dark,
+        color: AppColors.brand,
       ),
-      dividerColor: Colors.grey.shade200,
-      subHeaderForegroundColor: dark,
+      dividerColor: AppColors.grey(200),
+      subHeaderForegroundColor: AppColors.brand,
       toggleButtonTextStyle: GoogleFonts.montserrat(
         fontSize: 13.5,
         fontWeight: FontWeight.w700,
-        color: dark,
+        color: AppColors.brand,
       ),
       weekdayStyle: GoogleFonts.montserrat(
         fontSize: 12,
         fontWeight: FontWeight.w700,
-        color: Colors.grey[600],
+        color: AppColors.grey(600),
       ),
       dayStyle: GoogleFonts.montserrat(
         fontSize: 13.5,
@@ -312,50 +340,57 @@ class AppTheme {
       dayForegroundColor: WidgetStateColor.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return Colors.white;
         if (states.contains(WidgetState.disabled)) {
-          return Colors.grey.shade400;
+          return AppColors.grey(400);
         }
-        return Colors.black87;
+        return AppColors.text;
       }),
       dayBackgroundColor: WidgetStateColor.resolveWith(
-        (states) =>
-            states.contains(WidgetState.selected) ? dark : Colors.transparent,
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandFill
+            : Colors.transparent,
       ),
-      dayOverlayColor: WidgetStatePropertyAll(accent.withValues(alpha: 0.6)),
+      dayOverlayColor: WidgetStatePropertyAll(
+        AppColors.accent.withValues(alpha: 0.6),
+      ),
       todayForegroundColor: WidgetStateColor.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return Colors.white;
         if (states.contains(WidgetState.disabled)) {
-          return Colors.grey.shade400;
+          return AppColors.grey(400);
         }
-        return dark;
+        return AppColors.brand;
       }),
       todayBackgroundColor: WidgetStateColor.resolveWith(
-        (states) =>
-            states.contains(WidgetState.selected) ? dark : Colors.transparent,
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandFill
+            : Colors.transparent,
       ),
-      todayBorder: const BorderSide(color: mid, width: 1.4),
+      todayBorder: BorderSide(color: AppColors.mid, width: 1.4),
       yearStyle: GoogleFonts.montserrat(
         fontSize: 14,
         fontWeight: FontWeight.w600,
       ),
       yearForegroundColor: WidgetStateColor.resolveWith(
-        (states) => states.contains(WidgetState.selected) ? Colors.white : dark,
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.white
+            : AppColors.brand,
       ),
       yearBackgroundColor: WidgetStateColor.resolveWith(
-        (states) =>
-            states.contains(WidgetState.selected) ? dark : Colors.transparent,
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandFill
+            : Colors.transparent,
       ),
       // Typing the date instead (the pencil): the same pill field as the
       // rest of the app.
       inputDecorationTheme: InputDecorationThemeData(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
           vertical: 14,
         ),
-        border: pill(Colors.grey.shade300),
-        enabledBorder: pill(Colors.grey.shade300),
-        focusedBorder: pill(mid, 1.4),
+        border: pill(AppColors.grey(300)),
+        enabledBorder: pill(AppColors.grey(300)),
+        focusedBorder: pill(AppColors.mid, 1.4),
         errorBorder: pill(Colors.redAccent, 1.2),
         focusedErrorBorder: pill(Colors.redAccent, 1.4),
       ),
@@ -382,17 +417,20 @@ class AppTheme {
   static TextStyle heading(double size) => GoogleFonts.montserrat(
     fontSize: size,
     fontWeight: FontWeight.bold,
-    color: Colors.black87,
+    color: AppColors.text,
   );
 
   static TextStyle label() => GoogleFonts.montserrat(
     fontSize: 14,
     fontWeight: FontWeight.w600,
-    color: Colors.black87,
+    color: AppColors.text,
   );
 
   static TextStyle body({Color? color, double size = 13.5}) =>
-      GoogleFonts.montserrat(fontSize: size, color: color ?? Colors.grey[700]);
+      GoogleFonts.montserrat(
+        fontSize: size,
+        color: color ?? AppColors.grey(700),
+      );
 
   // The "AgriTrade+" wordmark: the whole word in one colour — the brand's
   // dark green, or white where it sits on a dark background. Rendered by
@@ -405,7 +443,7 @@ class AppTheme {
         fontWeight: FontWeight.w700,
         letterSpacing: fontSize * 0.01,
         fontSize: fontSize,
-        color: light ? Colors.white : dark,
+        color: light ? Colors.white : AppColors.brand,
       );
 
   // Lilita One, bundled in assets/fonts (see pubspec.yaml), for the few
@@ -425,7 +463,7 @@ class AppTheme {
   // ---------- REUSABLE PIECES ----------
 
   static BoxDecoration authCard() => BoxDecoration(
-    color: Colors.white.withValues(alpha: 0.90),
+    color: AppColors.surface.withValues(alpha: 0.90),
     borderRadius: BorderRadius.circular(24),
     boxShadow: [
       BoxShadow(
@@ -437,7 +475,7 @@ class AppTheme {
   );
 
   static ButtonStyle primaryButton() => ElevatedButton.styleFrom(
-    backgroundColor: dark,
+    backgroundColor: AppColors.brandFill,
     foregroundColor: Colors.white,
     padding: buttonPadding,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
@@ -451,12 +489,13 @@ class AppTheme {
   // drives [focused]. Used by the login form.
   static BoxDecoration glowFieldWrapper({bool focused = false}) =>
       BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.circular(30),
         boxShadow: focused
             ? [
                 BoxShadow(
-                  color: mid.withValues(alpha: 0.18),
+                  color: AppColors.mid.withValues(alpha: 0.18),
                   blurRadius: 12,
                   spreadRadius: 0.5,
                 ),
@@ -484,28 +523,28 @@ class AppTheme {
   }) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      prefixIcon: Icon(icon, color: AppColors.grey()),
       prefixText: prefixText,
-      prefixStyle: const TextStyle(
-        color: dark,
+      prefixStyle: TextStyle(
+        color: AppColors.brand,
         fontWeight: FontWeight.w600,
         fontSize: 15,
       ),
       suffixIcon: suffix,
       filled: true,
-      fillColor: fieldFill,
+      fillColor: AppColors.field,
       errorText: errorText,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
-        borderSide: BorderSide.none,
+        borderSide: AppColors.outlineSide,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
-        borderSide: BorderSide.none,
+        borderSide: AppColors.outlineSide,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: mid, width: 1.4),
+        borderSide: BorderSide(color: AppColors.mid, width: 1.4),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),

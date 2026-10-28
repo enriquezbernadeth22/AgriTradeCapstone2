@@ -1,5 +1,4 @@
 import '../widgets/agri_app_bar.dart';
-import '../theme/app_theme.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -21,6 +20,7 @@ import 'chat_product_context.dart';
 import 'conversation_info_screen.dart';
 import 'conversation_tools_screens.dart';
 import '../services/chat_date_label.dart';
+import '../theme/app_colors.dart';
 
 /// A single conversation thread — real-time, Messenger-style.
 class ChatScreen extends StatefulWidget {
@@ -65,9 +65,6 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  static const Color _dark = AppTheme.dark;
-  static const Color _bg = Colors.white;
-
   final MessageService _messageService = MessageService();
   // The other person's public profile, live — their real name and photo.
   // What the opener passed in (widget.otherUserName / otherUserPhotoUrl) is
@@ -369,7 +366,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (isPending) {
       return Text(
         'Sending…',
-        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+        style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
       );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -384,14 +381,14 @@ class _ChatScreenState extends State<ChatScreen> {
             Icon(
               seen ? Icons.done_all_rounded : Icons.done_rounded,
               size: 12,
-              color: seen ? Colors.blue : Colors.grey[500],
+              color: seen ? Colors.blue : AppColors.grey(500),
             ),
             const SizedBox(width: 3),
             Text(
               seen ? 'Seen' : 'Sent',
               style: TextStyle(
                 fontSize: 10,
-                color: seen ? Colors.blue : Colors.grey[500],
+                color: seen ? Colors.blue : AppColors.grey(500),
               ),
             ),
           ],
@@ -418,7 +415,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ? _lastMessageStatus(time, isPending)
               : Text(
                   isPending ? 'Sending…' : 'Sent',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
                 ),
         ),
       ],
@@ -449,7 +446,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: AppColors.grey(200),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -457,7 +454,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
+                  color: AppColors.grey(700),
                 ),
               ),
             ),
@@ -500,7 +497,7 @@ class _ChatScreenState extends State<ChatScreen> {
               '$_name is typing…',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.grey[600],
+                color: AppColors.grey(600),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -737,7 +734,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(
         actions: [
           IconButton(
@@ -830,7 +827,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
 
                   return AgriRefreshIndicator(
-                    color: _dark,
+                    color: AppColors.brand,
                     onRefresh: () async {
                       await Future.delayed(const Duration(milliseconds: 700));
                       if (mounted) setState(() {});
@@ -844,7 +841,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 child: Text(
                                   'Say hello to $_name 👋',
                                   style: TextStyle(
-                                    color: Colors.grey[500],
+                                    color: AppColors.grey(500),
                                     fontSize: 14,
                                   ),
                                 ),
@@ -1065,7 +1062,7 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: imageOnly
                   ? null
                   : BoxDecoration(
-                      color: isMe ? _dark : Colors.white,
+                      color: isMe ? AppColors.brandFill : AppColors.surface,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
@@ -1092,12 +1089,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       margin: const EdgeInsets.only(bottom: 7),
                       decoration: BoxDecoration(
                         color: isMe
-                            ? Colors.white.withValues(alpha: 0.14)
-                            : AppTheme.tint,
+                            ? AppColors.surface.withValues(alpha: 0.14)
+                            : AppColors.tint,
                         borderRadius: BorderRadius.circular(8),
                         border: Border(
                           left: BorderSide(
-                            color: isMe ? Colors.white70 : _dark,
+                            color: isMe ? Colors.white70 : AppColors.brand,
                             width: 3,
                           ),
                         ),
@@ -1110,7 +1107,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ? 'You'
                                 : _replySenderLabel(replyTo),
                             style: TextStyle(
-                              color: isMe ? Colors.white : _dark,
+                              color: isMe ? Colors.white : AppColors.brand,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1120,7 +1117,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: isMe ? Colors.white70 : Colors.black54,
+                              color: isMe
+                                  ? Colors.white70
+                                  : AppColors.textSecondary,
                               fontSize: 11,
                             ),
                           ),
@@ -1137,24 +1136,23 @@ class _ChatScreenState extends State<ChatScreen> {
                         loadingBuilder: (context, child, progress) =>
                             progress == null
                             ? child
-                            : const SizedBox(
+                            : SizedBox(
                                 height: 120,
                                 child: Center(
                                   child: CircularProgressIndicator(
-                                    color: _dark,
+                                    color: AppColors.brand,
                                   ),
                                 ),
                               ),
-                        errorBuilder: (context, error, stackTrace) =>
-                            const SizedBox(
-                              height: 120,
-                              child: Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                        errorBuilder: (context, error, stackTrace) => SizedBox(
+                          height: 120,
+                          child: Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              color: AppColors.grey(),
                             ),
+                          ),
+                        ),
                       ),
                     ),
                   if (imageUrl != null &&
@@ -1165,7 +1163,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     Text(
                       text,
                       style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
+                        color: isMe ? Colors.white : AppColors.text,
                         fontSize: 14.5,
                         height: 1.3,
                       ),
@@ -1178,7 +1176,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   _formatBubbleTime(time),
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
                 ),
               ),
             if (likes.isNotEmpty)
@@ -1196,7 +1194,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? _lastMessageStatus(time, isPending)
                     : Text(
                         isPending ? 'Sending…' : 'Sent',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.grey(500),
+                        ),
                       ),
               ),
           ],
@@ -1270,7 +1271,7 @@ class _ChatScreenState extends State<ChatScreen> {
               maxWidth: MediaQuery.of(context).size.width * 0.72,
             ),
             decoration: BoxDecoration(
-              color: isMe ? _dark : Colors.white,
+              color: isMe ? AppColors.brandFill : AppColors.surface,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
@@ -1296,7 +1297,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     Icon(
                       Icons.location_on,
                       size: 18,
-                      color: isMe ? Colors.white : _dark,
+                      color: isMe ? Colors.white : AppColors.brand,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -1307,7 +1308,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isMe ? Colors.white : Colors.black87,
+                          color: isMe ? Colors.white : AppColors.text,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1327,8 +1328,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     icon: const Icon(Icons.map_outlined, size: 16),
                     label: const Text('View on Map'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: isMe ? Colors.white : _dark,
-                      side: BorderSide(color: isMe ? Colors.white70 : _dark),
+                      foregroundColor: isMe ? Colors.white : AppColors.brand,
+                      side: BorderSide(
+                        color: isMe ? Colors.white70 : AppColors.brand,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                   ),
@@ -1341,7 +1344,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 _formatBubbleTime(ts.toDate()),
-                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
               ),
             ),
         ],
@@ -1352,9 +1355,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _composer() {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE0E0E0), width: 1)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.adapt(const Color(0xFFE0E0E0)),
+            width: 1,
+          ),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1364,12 +1372,13 @@ class _ChatScreenState extends State<ChatScreen> {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.tint,
+                color: AppColors.tint,
+                border: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.reply_rounded, size: 17, color: _dark),
+                  Icon(Icons.reply_rounded, size: 17, color: AppColors.brand),
                   const SizedBox(width: 7),
                   Expanded(
                     child: Column(
@@ -1388,7 +1397,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[700],
+                            color: AppColors.grey(700),
                           ),
                         ),
                       ],

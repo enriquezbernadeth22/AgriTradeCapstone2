@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import 'agritrade_text.dart';
 import 'docked_nav_bar.dart';
 import 'notification_bell.dart';
+import '../theme/app_colors.dart';
 
 /// The header of every main tab, for both roles — Market / Explore,
 /// Messages, Orders, Profile — in two rows: the AgriTrade+ logo mark on
@@ -47,15 +48,15 @@ class PageHeader extends StatelessWidget {
   static const double _horizontalPadding = 16;
 
   /// The band's colour — the bottom bar's pure white.
-  static const Color background = DockedNavBar.color;
+  static Color get background => DockedNavBar.color;
 
   /// The colour of an icon on the band ([trailing] — the notification
   /// bell): dark green on the light band.
-  static const Color onBandColor = AppTheme.dark;
+  static Color get onBandColor => AppColors.brand;
 
   /// The dark green of the title, and of an icon placed beside it
   /// ([titleTrailing] — the menus).
-  static const Color titleColor = AppTheme.dark;
+  static Color get titleColor => AppColors.brand;
 
   // The size the logo's artwork appears at. logo.png is 612x408 with the
   // artwork taking only the middle 330x310 of it — the rest is transparent
@@ -91,6 +92,7 @@ class PageHeader extends StatelessWidget {
             // attached to the top edge rather than floating.
             decoration: BoxDecoration(
               color: background,
+              border: AppColors.cardBorder,
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(DockedNavBar.cornerRadius),
               ),
@@ -124,9 +126,9 @@ class PageHeader extends StatelessWidget {
                                 // Smooth, sharp scaling of the large artwork
                                 // down to header size.
                                 filterQuality: FilterQuality.high,
-                                errorBuilder: (c, e, s) => const Icon(
+                                errorBuilder: (c, e, s) => Icon(
                                   Icons.agriculture,
-                                  color: AppTheme.dark,
+                                  color: AppColors.brand,
                                   size: 20,
                                 ),
                               ),
@@ -278,7 +280,9 @@ class PageHeaderSafeArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: AppColors.isDark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       child: Column(
         children: [
           Container(

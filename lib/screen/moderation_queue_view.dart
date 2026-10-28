@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../data/report_reasons.dart';
 import 'admin_sub_nav.dart';
+import '../data/commodity_master_list.dart';
 import '../services/admin_perf.dart';
 import '../services/rsba_number.dart';
 import 'admin_filter_controls.dart';
@@ -23,6 +24,7 @@ import 'admin_dashboard_screen.dart'
         AdminEmptyState,
         AdminLoadingSpinner,
         AdminStreamError;
+import '../theme/app_colors.dart';
 
 /// Admin Moderation Queue — reviews reports submitted by Buyers/users
 /// against a Farmer's listing or a Farmer's account (the existing `reports`
@@ -111,7 +113,7 @@ Widget _sectionLabel(String label) {
       style: TextStyle(
         fontWeight: FontWeight.bold,
         fontSize: 12.5,
-        color: Colors.grey[600],
+        color: AppColors.grey(600),
         letterSpacing: 0.4,
       ),
     ),
@@ -130,7 +132,7 @@ Widget _detailRow(String label, String value) {
             label,
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
+              color: AppColors.grey(700),
             ),
           ),
         ),
@@ -160,7 +162,7 @@ class _ReportRow {
   final Map<String, dynamic> data;
   final String farmerId;
 
-  /// The farmer's Farmer ID as the portal shows it: their RSBA number.
+  /// The farmer's Farmer ID as the portal shows it: their RSBSA number.
   final String farmerRsba;
   final String farmerName;
   final String farmerBarangay;
@@ -363,7 +365,7 @@ class _ModerationQueueViewState extends State<ModerationQueueView>
                         id: doc.id,
                         data: data,
                         farmerId: farmerId,
-                        // Only a farmer has an RSBA number.
+                        // Only a farmer has an RSBSA number.
                         farmerRsba: farmerUser?['role'] == 'farmer'
                             ? (farmerIdOf(farmerUser) ?? kNoFarmerId)
                             : '—',
@@ -718,8 +720,8 @@ class _ReportFilterBar extends StatelessWidget {
     oneLine: true,
   );
 
-  static const double _targetWidth = 130;
-  static const double _reasonWidth = 160;
+  static const double _targetWidth = kAdminControlWidth;
+  static const double _reasonWidth = kAdminControlWidth;
   static const double _spacing = 12;
 
   // Reasons on record that neither reporter's list has: review reports,
@@ -951,7 +953,7 @@ class _ViolationsTable extends StatelessWidget {
             fontSize: 13,
           ),
           columns: const [
-            DataColumn(label: Text('RSBA No.')),
+            DataColumn(label: Text('RSBSA No.')),
             DataColumn(label: Text('Name')),
             DataColumn(label: Text('Confirmed Violations'), numeric: true),
             DataColumn(label: Text('Last Violation')),
@@ -1853,7 +1855,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                         return Text(
                           'No user is on record for this report.',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                             fontSize: 12.5,
                           ),
                         );
@@ -1873,7 +1875,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                         return Text(
                           'This user\'s account could not be found.',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                             fontSize: 12.5,
                           ),
                         );
@@ -1936,7 +1938,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                                           '${isFarmer ? 'Farmer' : 'Buyer'} · '
                                           'View account',
                                           style: TextStyle(
-                                            color: Colors.grey[600],
+                                            color: AppColors.grey(600),
                                             fontSize: 12,
                                           ),
                                         ),
@@ -1946,7 +1948,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                                   Icon(
                                     Icons.open_in_new_rounded,
                                     size: 16,
-                                    color: Colors.grey[600],
+                                    color: AppColors.grey(600),
                                   ),
                                 ],
                               ),
@@ -1958,7 +1960,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                           ),
                           if (isFarmer)
                             _detailRow(
-                              'RSBA No.',
+                              'RSBSA No.',
                               farmerIdOf(farmer) ?? kNoFarmerId,
                             ),
                           // A buyer's email is partly hidden, as it is
@@ -1984,7 +1986,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                                     'Account Status',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.grey[700],
+                                      color: AppColors.grey(700),
                                     ),
                                   ),
                                 ),
@@ -2046,7 +2048,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                                     'Related Listing',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.grey[700],
+                                      color: AppColors.grey(700),
                                     ),
                                   ),
                                 ),
@@ -2099,7 +2101,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                           return Text(
                             'No listing on record for this report.',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: AppColors.grey(600),
                               fontSize: 12.5,
                             ),
                           );
@@ -2120,14 +2122,14 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                           return Text(
                             'This listing no longer exists.',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: AppColors.grey(600),
                               fontSize: 12.5,
                             ),
                           );
                         }
                         final name = (product['name'] ?? '—').toString();
-                        final category = (product['category'] ?? '—')
-                            .toString();
+                        final saved = normalizeCategory(product['category']);
+                        final category = saved.isEmpty ? '—' : saved;
                         final desc = (product['description'] ?? '—').toString();
                         final price = product['price'];
                         final qty = product['quantity'];
@@ -2208,7 +2210,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                           return Text(
                             'No review is attached to this report.',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: AppColors.grey(600),
                               fontSize: 12.5,
                             ),
                           );
@@ -2229,7 +2231,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                           return Text(
                             'This review is no longer available.',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: AppColors.grey(600),
                               fontSize: 12.5,
                             ),
                           );
@@ -2281,7 +2283,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                         return Text(
                           'Could not load violation history.',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                             fontSize: 12.5,
                           ),
                         );
@@ -2332,7 +2334,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                         report: report,
                         title: 'Dismiss this report?',
                         actionLabel: 'Dismiss Report',
-                        actionColor: Colors.grey,
+                        actionColor: AppColors.grey(),
                         action: 'dismissed',
                         violationConfirmed: false,
                         requireReason: false,

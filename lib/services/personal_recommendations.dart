@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../data/commodity_master_list.dart';
 
 import 'product_recommendation_service.dart';
 
@@ -68,7 +69,7 @@ class PersonalRecommendations {
     for (final order in orders) {
       final status = (order['status'] ?? '').toString().toLowerCase();
       if (status == 'rejected' || status == 'cancelled') continue;
-      final category = _key(order['category']);
+      final category = _categoryKey(order['category']);
       if (category.isNotEmpty) {
         categoryWeight[category] = (categoryWeight[category] ?? 0) + 1;
       }
@@ -76,7 +77,7 @@ class PersonalRecommendations {
       if (commodity.isNotEmpty) boughtCommodities.add(commodity);
     }
     for (final id in likedIds) {
-      final category = _key(products[id]?['category']);
+      final category = _categoryKey(products[id]?['category']);
       if (category.isNotEmpty) {
         categoryWeight[category] =
             (categoryWeight[category] ?? 0) + _likeWeight;
@@ -105,7 +106,7 @@ class PersonalRecommendations {
       final score = <String, double>{};
       for (final e in candidates.entries) {
         final p = e.value;
-        final category = _key(p['category']);
+        final category = _categoryKey(p['category']);
         final commodity = _key(p['commodity'] ?? p['name']);
         final text = '${_key(p['name'])} $commodity $category';
         final categoryPart = topCategory == 0
@@ -135,7 +136,7 @@ class PersonalRecommendations {
     for (final sale in areaSales) {
       final quantity = 1.0; // each completed order counts once
       final name = _key(sale['productName']);
-      final category = _key(sale['category']);
+      final category = _categoryKey(sale['category']);
       if (name.isNotEmpty) {
         soldByProduct[name] = (soldByProduct[name] ?? 0) + quantity;
       }
@@ -159,7 +160,7 @@ class PersonalRecommendations {
               0.3 *
                   (topSold == 0
                       ? 0
-                      : (soldByCategory[_key(e.value['category'])] ?? 0) /
+                      : (soldByCategory[_categoryKey(e.value['category'])] ?? 0) /
                             topSold),
       };
       return (ids: sortedBy(score), basis: RecommendationBasis.area);
@@ -179,4 +180,9 @@ class PersonalRecommendations {
 
   static String _key(Object? raw) =>
       (raw ?? '').toString().trim().toLowerCase();
+
+  // A category, with root crops and spices as Vegetables (normalizeCategory),
+  // so older listings and orders match newer ones.
+  static String _categoryKey(Object? raw) =>
+      normalizeCategory(raw).toLowerCase();
 }

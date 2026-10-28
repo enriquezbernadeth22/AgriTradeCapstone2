@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/audit_report_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/busy_indicator.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette;
 import 'admin_filter_controls.dart';
 import 'export_options_dialog.dart' show ReportFormat;
+import '../theme/app_colors.dart';
 
 /// Which Audit Log entries go into the report.
 enum AuditExportScope { allMatching, onScreen, selected }
@@ -188,7 +188,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                   Text(
                     'Export Audit Log',
                     style: TextStyle(
-                      color: c.isDark ? c.textPrimary : AppTheme.dark,
+                      color: c.isDark ? c.textPrimary : AppColors.brand,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -638,7 +638,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                 value: value,
                 onChanged: (checked) => onChanged(checked ?? false),
                 activeColor: c.green,
-                checkColor: c.isDark ? Colors.black : Colors.white,
+                checkColor: c.isDark ? AppColors.textStrong : Colors.white,
                 side: BorderSide(color: c.textMuted, width: 1.4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),

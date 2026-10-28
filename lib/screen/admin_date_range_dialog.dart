@@ -6,7 +6,7 @@ import 'admin_filter_controls.dart';
 
 /// The portal's date range picker: a popup card in the portal's own look —
 /// the two dates on top, shortcuts for the usual ranges, one month at a
-/// time with arrows, the chosen days joined by a pale green band.
+/// time with arrows, the chosen days joined by a pale grey band.
 ///
 /// [palette] is for a caller that is itself a popup (which has no
 /// AdminThemeScope above it).
@@ -282,7 +282,8 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
                 ],
               ),
               const SizedBox(height: 4),
-              ..._weeks(c, action),
+              // The days in black and white; green is the button's alone.
+              ..._weeks(c, adminControlColor(c)),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -379,8 +380,8 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
 
   Widget _presetChip(AdminPalette c, String label, VoidCallback onTap) {
     return Material(
-      color: c.greenBg,
-      shape: const StadiumBorder(),
+      color: c.surface,
+      shape: StadiumBorder(side: BorderSide(color: c.border)),
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: onTap,
@@ -388,7 +389,7 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Text(
             label,
-            style: _text(adminActionColor(c), 11.5, FontWeight.w600),
+            style: _text(c.textPrimary, 11.5, FontWeight.w600),
           ),
         ),
       ),
@@ -456,7 +457,7 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
     final enabled = _selectable(day);
     final isToday = day == _day(DateTime.now());
     final chosen = isStart || (isEnd && _end != null);
-    final band = c.greenBg;
+    final band = c.surfaceAlt;
 
     final cell = SizedBox(
       height: 40,
@@ -493,7 +494,7 @@ class _AdminDateRangeDialogState extends State<AdminDateRangeDialog> {
               '${day.day}',
               style: _text(
                 chosen
-                    ? (c.isDark ? c.bg : Colors.white)
+                    ? adminOnControlColor(c)
                     : enabled
                     ? c.textPrimary
                     : c.textMuted.withValues(alpha: 0.45),

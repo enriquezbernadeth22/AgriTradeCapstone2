@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The look of every Back button in the app, and it follows the page's
 /// scroll position by itself:
@@ -86,8 +86,8 @@ class _AppBackIconState extends State<AppBackIcon> {
     final arrowColor = (!showCircle && onDark)
         ? Colors.white
         : widget.onBar
-        ? AppTheme.dark
-        : AppTheme.mid;
+        ? AppColors.brand
+        : AppColors.mid;
 
     return SizedBox(
       width: AppBackIcon.size,
@@ -102,7 +102,7 @@ class _AppBackIconState extends State<AppBackIcon> {
               curve: Curves.easeOut,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(

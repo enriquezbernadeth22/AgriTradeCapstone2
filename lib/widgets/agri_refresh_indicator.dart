@@ -1,18 +1,18 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Pull to refresh, with the app's own spinner: a plain green circle in a
 /// small white disc at the top while it loads.
 class AgriRefreshIndicator extends StatefulWidget {
   final Widget child;
   final Future<void> Function() onRefresh;
-  final Color color;
+  final Color? color;
 
   const AgriRefreshIndicator({
     super.key,
     required this.child,
     required this.onRefresh,
-    this.color = AppTheme.mid,
+    this.color,
   });
 
   @override
@@ -49,11 +49,13 @@ class _AgriRefreshIndicatorState extends State<AgriRefreshIndicator> {
                   height: 34,
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: widget.color.withValues(alpha: 0.2),
+                        color: (widget.color ?? AppColors.mid).withValues(
+                          alpha: 0.2,
+                        ),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -61,7 +63,9 @@ class _AgriRefreshIndicatorState extends State<AgriRefreshIndicator> {
                   ),
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(widget.color),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.color ?? AppColors.mid,
+                    ),
                   ),
                 ),
               ),
@@ -75,9 +79,9 @@ class _AgriRefreshIndicatorState extends State<AgriRefreshIndicator> {
 /// The app's small loading spinner: a plain green circle.
 class AgriLogoLoader extends StatelessWidget {
   final double size;
-  final Color color;
+  final Color? color;
 
-  const AgriLogoLoader({super.key, this.size = 18, this.color = AppTheme.mid});
+  const AgriLogoLoader({super.key, this.size = 18, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +90,7 @@ class AgriLogoLoader extends StatelessWidget {
       height: size,
       child: CircularProgressIndicator(
         strokeWidth: size >= 28 ? 2.5 : 2,
-        valueColor: AlwaysStoppedAnimation<Color>(color),
+        valueColor: AlwaysStoppedAnimation<Color>(color ?? AppColors.mid),
       ),
     );
   }

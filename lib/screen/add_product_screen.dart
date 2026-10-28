@@ -1,6 +1,7 @@
 import '../widgets/agri_app_bar.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/feedback_service.dart';
 import '../services/product_service.dart';
 import '../services/cloudinary_service.dart';
 import '../services/delivery_coverage.dart';
@@ -24,6 +26,7 @@ import '../widgets/update_stock_dialog.dart'
     show kMaxStock, stockInputFormatters;
 import '../widgets/profile_avatar.dart';
 import 'supported_products_screen.dart';
+import '../theme/app_colors.dart';
 
 class AddProductScreen extends StatefulWidget {
   final String? productId;
@@ -38,10 +41,24 @@ class AddProductScreen extends StatefulWidget {
 class _AddProductScreenState extends State<AddProductScreen> {
   // The login button's dark green (AppTheme.dark), used for the header, the
   // Post button and every other green on this screen; the only other green
-  // here is the pale tint (_lightGreenAccent).
-  static const Color _darkGreen = AppTheme.dark;
-  static const Color _lightGreenBg = Colors.white;
-  static const Color _lightGreenAccent = Color(0xFFDCEDC8);
+  // here is the pale tint (Color(0xFFDCEDC8)).
+
+  // ---------- Floating Post button ----------
+  // As on Register: the button floats at the bottom of the screen, with
+  // nothing behind it, while the form is longer than the screen, and
+  // settles into its own place at the end of the form (an empty gap of the
+  // same height, above the hint) once that place scrolls into view — see
+  // _postButtonBottom.
+  final _formScroll = ScrollController();
+  static const double _postButtonHeight = 46;
+  static const double _postFloatGap = 8;
+  // Under the button's place: the hint (_formEnd gives it this fixed
+  // height), then the form's own bottom padding. Fixed, so where the button
+  // rests is known from the scroll position alone.
+  static const double _formEndHintHeight = 30;
+  static const double _formBottomPadding = 12;
+  // Where the button was last drawn; see the check at the top of build.
+  double _drawnPostBottom = _postFloatGap;
 
   final _nameController = TextEditingController();
   // Autocomplete requires focusNode and textEditingController to be either
@@ -393,7 +410,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _descriptionController.text = data['description']?.toString() ?? '';
       final harvested = data['harvestDate'];
       if (harvested is Timestamp) _harvestDate = harvested.toDate();
-      final category = data['category']?.toString();
+      final category = normalizeCategory(data['category']);
       final commodity = data['commodity']?.toString();
       if (commodity != null &&
           CommodityRegistry.instance.find(commodity) != null) {
@@ -552,6 +569,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   void dispose() {
     CommodityRegistry.instance.removeListener(_onCommoditiesChanged);
+    _formScroll.dispose();
     _productsSub?.cancel();
     _ordersSub?.cancel();
     _marketPricesSub?.cancel();
@@ -634,9 +652,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop & rotate',
-            toolbarColor: _darkGreen,
+            toolbarColor: AppColors.brand,
             toolbarWidgetColor: Colors.white,
-            activeControlsWidgetColor: _darkGreen,
+            activeControlsWidgetColor: AppColors.brand,
             lockAspectRatio: false,
             initAspectRatio: CropAspectRatioPreset.original,
             aspectRatioPresets: const [
@@ -720,9 +738,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _imageUrl!,
       fit: fit,
       errorBuilder: (_, _, _) => Container(
-        color: _lightGreenAccent,
+        color: AppColors.accent,
         alignment: Alignment.center,
-        child: const Icon(Icons.broken_image_outlined, color: _darkGreen),
+        child: Icon(Icons.broken_image_outlined, color: AppColors.brand),
       ),
     );
   }
@@ -735,9 +753,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (previewContext) => Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: AppColors.textStrong,
           appBar: AppBar(
-            backgroundColor: Colors.black,
+            backgroundColor: AppColors.textStrong,
             foregroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
@@ -797,8 +815,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   // The Post/Update button. Every tap ends in visible feedback: a
-  // validation message, a price warning dialog, a save error, or the
-  // listing being posted — never silence. Anything unexpected thrown along
+  // validation message, a save error, or the listing being posted —
+  // never silence. Anything unexpected thrown along
   // the way is reported instead of being swallowed, and Post is re-enabled.
   Future<void> _save() async {
     // Closes the keyboard so the message isn't hidden behind it.
@@ -978,7 +996,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   // Order: required fields and field rules (_formIssue, top of the form
-  // down) → AI price warnings (advisory) → upload and save.
+  // down) → upload and save. The price is never checked against the
+  // suggested range.
   Future<void> _submit() async {
     final issue = _formIssue();
     if (issue != null) {
@@ -1096,6 +1115,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (!mounted) return;
     if (error == null) {
       _showMessage(_isEditing ? 'Product updated!' : 'Product posted!');
+      // A few posts in, the app asks for feedback (FeedbackService).
+      if (!_isEditing) {
+        unawaited(
+          FeedbackService.instance.recordAction(FeedbackTrigger.productPosted),
+        );
+      }
       _closeScreen();
     } else {
       _showError(error);
@@ -1160,7 +1185,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          backgroundColor: isError ? Colors.red.shade700 : _darkGreen,
+          backgroundColor: isError
+              ? AppColors.tone(Colors.red, 700)
+              : AppColors.brandFill,
           content: Row(
             children: [
               if (isError) ...[
@@ -1225,7 +1252,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline, size: 15, color: Colors.red.shade700),
+          Icon(
+            Icons.error_outline,
+            size: 15,
+            color: AppColors.tone(Colors.red, 700),
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -1233,7 +1264,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               style: GoogleFonts.montserrat(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
-                color: Colors.red.shade700,
+                color: AppColors.tone(Colors.red, 700),
                 height: 1.35,
               ),
             ),
@@ -1350,17 +1381,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.tint,
+        color: AppColors.tint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCEDC8)),
+        border: Border.all(color: AppColors.accent),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.health_and_safety_outlined,
             size: 18,
-            color: _darkGreen,
+            color: AppColors.brand,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1369,7 +1400,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               'send a photo of it in Messages.',
               style: GoogleFonts.montserrat(
                 fontSize: 11.5,
-                color: Colors.black87,
+                color: AppColors.text,
                 height: 1.35,
               ),
             ),
@@ -1386,7 +1417,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       decoration: BoxDecoration(
         color: Colors.amber.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.shade300),
+        border: Border.all(color: AppColors.tone(Colors.amber, 300)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1394,7 +1425,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           Icon(
             Icons.warning_amber_rounded,
             size: 18,
-            color: Colors.amber.shade800,
+            color: AppColors.tone(Colors.amber, 800),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1406,7 +1437,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   'selected commodities only — choose a product from the supported list.',
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
-                    color: Colors.black87,
+                    color: AppColors.text,
                     height: 1.35,
                   ),
                 ),
@@ -1416,7 +1447,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     'View Supported Products',
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
-                      color: _darkGreen,
+                      color: AppColors.brand,
                       fontWeight: FontWeight.bold,
                       decoration: TextDecoration.underline,
                     ),
@@ -1438,8 +1469,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.montserrat(color: Colors.black38, fontSize: 13.5),
-      prefixIcon: icon != null ? Icon(icon, color: _darkGreen) : null,
+      hintStyle: GoogleFonts.montserrat(
+        color: AppColors.textMuted,
+        fontSize: 13.5,
+      ),
+      prefixIcon: icon != null ? Icon(icon, color: AppColors.brand) : null,
       prefix: prefix,
       // Centered so a text suffix (the unit) lines up with the typed value
       // instead of sitting in the field's top corner.
@@ -1464,7 +1498,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         style: GoogleFonts.montserrat(
           fontSize: 13.5,
           fontWeight: FontWeight.w600,
-          color: Colors.black87,
+          color: AppColors.text,
         ),
       ),
     );
@@ -1500,7 +1534,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               padding: const EdgeInsets.fromLTRB(20, 6, 8, 6),
               child: Row(
                 children: [
-                  const Icon(Icons.event_outlined, size: 18, color: _darkGreen),
+                  Icon(Icons.event_outlined, size: 18, color: AppColors.brand),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1509,7 +1543,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           : DateFormat('MMM d, y').format(date),
                       style: GoogleFonts.montserrat(
                         fontSize: date == null ? 13.5 : 14,
-                        color: date == null ? Colors.black38 : Colors.black87,
+                        color: date == null
+                            ? AppColors.textMuted
+                            : AppColors.text,
                       ),
                     ),
                   ),
@@ -1537,7 +1573,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       'ago" and so on.',
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
               height: 1.35,
             ),
           ),
@@ -1554,9 +1590,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
-        color: AppTheme.tint,
+        color: AppColors.tint,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDCEDC8)),
+        border: Border.all(color: AppColors.accent),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1618,32 +1654,32 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       style: GoogleFonts.montserrat(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: _darkGreen,
+                        color: AppColors.brand,
                       ),
                     ),
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFDCEDC8)),
+                    backgroundColor: AppColors.surface,
+                    side: BorderSide(color: AppColors.accent),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    deleteIconColor: _darkGreen,
+                    deleteIconColor: AppColors.brand,
                     visualDensity: VisualDensity.compact,
                     onDeleted: () => setState(
                       () => _customAreas = [..._customAreas]..remove(area),
                     ),
                   ),
                 ActionChip(
-                  avatar: const Icon(Icons.add, size: 16, color: _darkGreen),
+                  avatar: Icon(Icons.add, size: 16, color: AppColors.brand),
                   label: Text(
                     _customAreas.isEmpty ? 'Select areas' : 'Add or remove',
                     style: GoogleFonts.montserrat(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: _darkGreen,
+                      color: AppColors.brand,
                     ),
                   ),
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: _darkGreen),
+                  backgroundColor: AppColors.surface,
+                  side: BorderSide(color: AppColors.brand),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -1706,7 +1742,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: _darkGreen,
+                      color: AppColors.brand,
                     ),
                   ),
                 ),
@@ -1720,7 +1756,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 style: GoogleFonts.montserrat(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.text,
                 ),
               ),
             ),
@@ -1731,7 +1767,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             'long-distance delivery.',
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
               height: 1.35,
             ),
           ),
@@ -1756,14 +1792,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
-                  ? _darkGreen
+                  ? AppColors.brand
                   : error
-                  ? Colors.red.shade400
-                  : const Color(0xFFE0E6DC),
+                  ? AppColors.tone(Colors.red, 400)
+                  : AppColors.adapt(const Color(0xFFE0E6DC)),
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -1774,7 +1810,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
                 size: 19,
-                color: selected ? _darkGreen : Colors.grey[500],
+                color: selected ? AppColors.brand : AppColors.grey(500),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1786,7 +1822,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       style: GoogleFonts.montserrat(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: AppColors.text,
                       ),
                     ),
                     if (subtitle != null)
@@ -1796,7 +1832,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.montserrat(
                           fontSize: 11.5,
-                          color: Colors.grey[600],
+                          color: AppColors.grey(600),
                         ),
                       ),
                   ],
@@ -1841,14 +1877,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     style: GoogleFonts.montserrat(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: AppColors.text,
                     ),
                   ),
                   Text(
                     'Farmer',
                     style: GoogleFonts.montserrat(
                       fontSize: 12.5,
-                      color: Colors.grey[600],
+                      color: AppColors.grey(600),
                     ),
                   ),
                 ],
@@ -1874,7 +1910,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 style: GoogleFonts.montserrat(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.text,
                 ),
               ),
               const SizedBox(width: 6),
@@ -1884,7 +1920,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 child: Icon(
                   Icons.info_outline,
                   size: 16,
-                  color: Colors.grey[600],
+                  color: AppColors.grey(600),
                 ),
               ),
             ],
@@ -1900,7 +1936,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Widget _imageEmpty() {
     return Material(
-      color: _lightGreenAccent.withValues(alpha: 0.25),
+      color: AppColors.accent.withValues(alpha: 0.25),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -1909,8 +1945,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
           painter: _DashedBorderPainter(
             // Red outline while the "photo required" error is showing.
             color: _hasIssue(_photoKey)
-                ? Colors.red.shade700
-                : _darkGreen.withValues(alpha: 0.45),
+                ? AppColors.tone(Colors.red, 700)
+                : AppColors.brand.withValues(alpha: 0.45),
             radius: 14,
           ),
           child: Padding(
@@ -1918,17 +1954,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
+                Icon(
                   Icons.photo_camera_outlined,
                   size: 28,
-                  color: _darkGreen,
+                  color: AppColors.brand,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Add product photo',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
-                    color: _darkGreen,
+                    color: AppColors.brand,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1938,7 +1974,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   'Tap to take a photo or choose from gallery',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
-                    color: Colors.grey[600],
+                    color: AppColors.grey(600),
                     fontSize: 11,
                   ),
                 ),
@@ -1954,9 +1990,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _lightGreenAccent, width: 1.2),
+        border: Border.all(color: AppColors.accent, width: 1.2),
       ),
       child: Row(
         children: [
@@ -1984,7 +2020,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           style: GoogleFonts.montserrat(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: AppColors.text,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1992,7 +2028,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           'Tap to preview, change or remove',
                           style: GoogleFonts.montserrat(
                             fontSize: 11,
-                            color: Colors.grey[600],
+                            color: AppColors.grey(600),
                           ),
                         ),
                       ],
@@ -2036,7 +2072,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: _lightGreenAccent.withValues(alpha: 0.5),
+        color: AppColors.accent.withValues(alpha: 0.5),
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -2044,7 +2080,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           child: SizedBox(
             width: 32,
             height: 32,
-            child: Icon(icon, color: _darkGreen, size: 17),
+            child: Icon(icon, color: AppColors.brand, size: 17),
           ),
         ),
       ),
@@ -2070,7 +2106,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
       return _recoShell(
         child: Text(
           'Type a product name above to see a price suggestion.',
-          style: GoogleFonts.montserrat(color: Colors.black54, fontSize: 12.5),
+          style: GoogleFonts.montserrat(
+            color: AppColors.textSecondary,
+            fontSize: 12.5,
+          ),
         ),
       );
     }
@@ -2080,7 +2119,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         child: Text(
           'AI-assisted price recommendations are only available for AgriTrade+\'s supported '
           'commodities (see Supported Products above) — "$typedName" isn\'t recognized as one yet.',
-          style: GoogleFonts.montserrat(color: Colors.black54, fontSize: 12.5),
+          style: GoogleFonts.montserrat(
+            color: AppColors.textSecondary,
+            fontSize: 12.5,
+          ),
         ),
       );
     }
@@ -2097,7 +2139,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             Text(
               'Price recommendation currently unavailable',
               style: GoogleFonts.montserrat(
-                color: Colors.black87,
+                color: AppColors.text,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -2107,7 +2149,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               'Not enough pricing data is available for this commodity yet. Please check again after '
               'the latest reference price has been provided or more marketplace data becomes available.',
               style: GoogleFonts.montserrat(
-                color: Colors.black54,
+                color: AppColors.textSecondary,
                 fontSize: 12,
                 height: 1.4,
               ),
@@ -2116,7 +2158,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             Text(
               'You can still set your own selling price below.',
               style: GoogleFonts.montserrat(
-                color: Colors.black45,
+                color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontStyle: FontStyle.italic,
               ),
@@ -2143,7 +2185,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         Text(
           'Reference price last updated: ${DateFormat('MMM d, y').format(result.referenceEffectiveDate!)}'
           '${result.referenceIsStale ? ' (may be outdated)' : ''}',
-          style: GoogleFonts.montserrat(color: Colors.black45, fontSize: 10.5),
+          style: GoogleFonts.montserrat(
+            color: AppColors.textMuted,
+            fontSize: 10.5,
+          ),
         ),
         const SizedBox(height: 8),
       ],
@@ -2154,7 +2199,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             : 'Based on the latest reference price, recent completed transactions, active listings, and '
                   'current AgriTrade+ marketplace activity.',
         style: GoogleFonts.montserrat(
-          color: Colors.black54,
+          color: AppColors.textSecondary,
           fontSize: 11.5,
           height: 1.4,
         ),
@@ -2163,7 +2208,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       Text(
         'Based on:',
         style: GoogleFonts.montserrat(
-          color: Colors.black87,
+          color: AppColors.text,
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
         ),
@@ -2199,7 +2244,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       Text(
         'This is an AI-assisted suggestion only — you always make the final pricing decision.',
         style: GoogleFonts.montserrat(
-          color: Colors.black45,
+          color: AppColors.textMuted,
           fontSize: 10.5,
           fontStyle: FontStyle.italic,
         ),
@@ -2215,7 +2260,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: _lightGreenAccent.withValues(alpha: 0.45),
+              color: AppColors.accent.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -2224,7 +2269,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 Text(
                   'Suggested Price',
                   style: GoogleFonts.montserrat(
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2237,7 +2282,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       TextSpan(
                         text: ' / $_currentUnit',
                         style: GoogleFonts.montserrat(
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -2245,7 +2290,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ],
                   ),
                   style: GoogleFonts.montserrat(
-                    color: _darkGreen,
+                    color: AppColors.brand,
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     height: 1.15,
@@ -2277,7 +2322,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ),
           if (_wholesaleEnabled) ...[
             const SizedBox(height: 8),
-            Divider(color: _darkGreen.withValues(alpha: 0.15)),
+            Divider(color: AppColors.brand.withValues(alpha: 0.15)),
             const SizedBox(height: 10),
             Builder(
               builder: (context) {
@@ -2292,7 +2337,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       Text(
                         'WHOLESALE PRICE RECOMMENDATION',
                         style: GoogleFonts.montserrat(
-                          color: Colors.black87,
+                          color: AppColors.text,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.4,
@@ -2302,7 +2347,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       Text(
                         'Wholesale price recommendation currently unavailable due to limited wholesale market data.',
                         style: GoogleFonts.montserrat(
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           fontSize: 11.5,
                           height: 1.4,
                         ),
@@ -2311,7 +2356,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       Text(
                         'You can set the wholesale price manually. AgriTrade+ will not create a discount or wholesale reference price automatically.',
                         style: GoogleFonts.montserrat(
-                          color: Colors.black45,
+                          color: AppColors.textMuted,
                           fontSize: 10.5,
                           height: 1.35,
                         ),
@@ -2327,7 +2372,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     Text(
                       'WHOLESALE SUGGESTED PRICE',
                       style: GoogleFonts.montserrat(
-                        color: Colors.black54,
+                        color: AppColors.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
@@ -2337,7 +2382,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     Text(
                       '₱${wholesaleSuggested.toStringAsFixed(2)} / $_currentUnit',
                       style: GoogleFonts.montserrat(
-                        color: _darkGreen,
+                        color: AppColors.brand,
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
@@ -2348,7 +2393,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ? 'Based only on wholesale-specific reference/market data.'
                           : 'Based on actual wholesale listings and completed wholesale transactions.',
                       style: GoogleFonts.montserrat(
-                        color: Colors.black45,
+                        color: AppColors.textMuted,
                         fontSize: 10.5,
                       ),
                     ),
@@ -2362,8 +2407,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _darkGreen,
-                        side: const BorderSide(color: _darkGreen),
+                        foregroundColor: AppColors.brand,
+                        side: BorderSide(color: AppColors.brand),
                       ),
                       child: Text(
                         'Use Wholesale Suggested Price',
@@ -2389,7 +2434,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _darkGreen,
+                backgroundColor: AppColors.brandFill,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -2430,7 +2475,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     'The suggested price is worked out from the latest reference commodity price and '
                     'current AgriTrade+ marketplace activity, whenever that data is available.',
                     style: GoogleFonts.montserrat(
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                       fontSize: 11.5,
                       height: 1.4,
                     ),
@@ -2439,7 +2484,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   Text(
                     'Based on:',
                     style: GoogleFonts.montserrat(
-                      color: Colors.black87,
+                      color: AppColors.text,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2456,7 +2501,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   Text(
                     'This is an AI-assisted suggestion only — you always make the final pricing decision.',
                     style: GoogleFonts.montserrat(
-                      color: Colors.black45,
+                      color: AppColors.textMuted,
                       fontSize: 10.5,
                       fontStyle: FontStyle.italic,
                     ),
@@ -2476,7 +2521,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         children: [
           Text(
             label,
-            style: GoogleFonts.montserrat(color: Colors.black54, fontSize: 12),
+            style: GoogleFonts.montserrat(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2484,7 +2532,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               value,
               textAlign: TextAlign.right,
               style: GoogleFonts.montserrat(
-                color: Colors.black87,
+                color: AppColors.text,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2500,10 +2548,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: _darkGreen.withValues(alpha: 0.35),
+          color: AppColors.brand.withValues(alpha: 0.35),
           width: 1.2,
         ),
       ),
@@ -2515,13 +2563,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
               Container(
                 width: 34,
                 height: 34,
-                decoration: const BoxDecoration(
-                  color: _lightGreenAccent,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome,
-                  color: _darkGreen,
+                  color: AppColors.brand,
                   size: 18,
                 ),
               ),
@@ -2530,7 +2578,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 child: Text(
                   'AI-Assisted Price Recommendation',
                   style: GoogleFonts.montserrat(
-                    color: Colors.black87,
+                    color: AppColors.text,
                     fontSize: 13.5,
                     fontWeight: FontWeight.bold,
                     height: 1.25,
@@ -2541,9 +2589,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(
+                icon: Icon(
                   Icons.error_outline,
-                  color: _darkGreen,
+                  color: AppColors.brand,
                   size: 20,
                 ),
                 tooltip: 'About this recommendation',
@@ -2564,15 +2612,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 2, right: 6),
-            child: Icon(Icons.check_circle, color: _darkGreen, size: 13),
+            child: Icon(Icons.check_circle, color: AppColors.brand, size: 13),
           ),
           Expanded(
             child: Text(
               text,
               style: GoogleFonts.montserrat(
-                color: Colors.black54,
+                color: AppColors.textSecondary,
                 fontSize: 11,
                 height: 1.35,
               ),
@@ -2589,6 +2637,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
     // always reflect what is on the form right now.
     _issue = _formIssue();
     final formComplete = _issue == null;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // The scroll extent can change without a scroll (a field appearing, the
+    // keyboard): move the button to match once laid out.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isArchived) return;
+      final bottom = _postButtonBottom(keyboardOpen);
+      if ((bottom - _drawnPostBottom).abs() > 0.5) setState(() {});
+    });
 
     return PopScope<Object?>(
       canPop: _allowPop,
@@ -2596,7 +2652,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         if (!didPop) _confirmExit();
       },
       child: Scaffold(
-        backgroundColor: _lightGreenBg,
+        backgroundColor: AppColors.page,
         appBar: AgriAppBar(
           onBack: _confirmExit,
           title: _isArchived
@@ -2621,516 +2677,602 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ],
           ],
         ),
-        // Archived: the only action is Restore, pinned under the details.
-        bottomNavigationBar: _isArchived
-            ? SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                  child: ElevatedButton.icon(
-                    onPressed: _loading ? null : _toggleArchive,
-                    icon: const Icon(Icons.unarchive_outlined, size: 20),
-                    label: Text(
-                      'Restore Product',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _darkGreen,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
+        bottomNavigationBar: _isArchived ? _restoreBar() : null,
+        body: SafeArea(
+          top: false,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _formScroll,
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  _formBottomPadding,
                 ),
-              )
-            : null,
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          // While archived the whole form ignores input (it still
-          // scrolls); a tap on it explains why instead.
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _isArchived ? _blockArchivedEdit : null,
-            child: AbsorbPointer(
-              absorbing: _isArchived,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _profileHeader(),
-                  if (_isArchived) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.archive_outlined,
-                            size: 18,
-                            color: Colors.orange[800],
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'This listing is archived and hidden from the marketplace. '
-                              '${ProductService.archivedReadOnlyMessage}',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 12,
-                                color: Colors.orange[900],
+                // While archived the whole form ignores input (it still
+                // scrolls); a tap on it explains why instead.
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _isArchived ? _blockArchivedEdit : null,
+                  child: AbsorbPointer(
+                    absorbing: _isArchived,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _profileHeader(),
+                        if (_isArchived) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.tone(Colors.orange, 50),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.tone(Colors.orange, 200),
                               ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.archive_outlined,
+                                  size: 18,
+                                  color: AppColors.tone(Colors.orange, 800),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'This listing is archived and hidden from the marketplace. '
+                                    '${ProductService.archivedReadOnlyMessage}',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 12,
+                                      color: AppColors.tone(Colors.orange, 900),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFE8ECE6),
-                  ),
-                  const SizedBox(height: 14),
+                        const SizedBox(height: 14),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.adapt(const Color(0xFFE8ECE6)),
+                        ),
+                        const SizedBox(height: 14),
 
-                  // ---- Single photo slot ----
-                  KeyedSubtree(key: _photoKey, child: _imageSlot()),
-                  _fieldError(_photoKey),
-                  const SizedBox(height: 14),
+                        // ---- Single photo slot ----
+                        KeyedSubtree(key: _photoKey, child: _imageSlot()),
+                        _fieldError(_photoKey),
+                        const SizedBox(height: 14),
 
-                  _label('Product Name', key: _nameKey),
-                  Autocomplete<String>(
-                    textEditingController: _nameController,
-                    focusNode: _nameFocusNode,
-                    optionsBuilder: (value) {
-                      final query = value.text.trim().toLowerCase();
-                      final names = CommodityRegistry.instance.activeNames;
-                      if (query.isEmpty) return names;
-                      return names.where(
-                        (c) => c.toLowerCase().contains(query),
-                      );
-                    },
-                    onSelected: (selection) => setState(() {
-                      _selectedCommodity = selection;
-                      _category = categoryOfCommodity(selection);
-                    }),
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onSubmitted) {
-                          return _GlowPlate(
-                            error: _hasIssue(_nameKey),
-                            child: TextField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              style: GoogleFonts.montserrat(fontSize: 14),
-                              decoration: _inputDecoration('e.g., Eggplant'),
-                            ),
-                          );
-                        },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(14),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              maxHeight: 220,
-                              maxWidth: 340,
-                            ),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (context, index) {
-                                final option = options.elementAt(index);
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(
-                                    option,
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 13.5,
+                        _label('Product Name', key: _nameKey),
+                        Autocomplete<String>(
+                          textEditingController: _nameController,
+                          focusNode: _nameFocusNode,
+                          optionsBuilder: (value) {
+                            final query = value.text.trim().toLowerCase();
+                            final names =
+                                CommodityRegistry.instance.activeNames;
+                            if (query.isEmpty) return names;
+                            return names.where(
+                              (c) => c.toLowerCase().contains(query),
+                            );
+                          },
+                          onSelected: (selection) => setState(() {
+                            _selectedCommodity = selection;
+                            _category = categoryOfCommodity(selection);
+                          }),
+                          fieldViewBuilder:
+                              (context, controller, focusNode, onSubmitted) {
+                                return _GlowPlate(
+                                  error: _hasIssue(_nameKey),
+                                  child: TextField(
+                                    controller: controller,
+                                    focusNode: focusNode,
+                                    // A tap anywhere else closes the
+                                    // suggestions (and the keyboard). A tap
+                                    // on a suggestion counts as inside.
+                                    onTapOutside: (_) => focusNode.unfocus(),
+                                    style: GoogleFonts.montserrat(fontSize: 14),
+                                    decoration: _inputDecoration(
+                                      'e.g., Eggplant',
                                     ),
                                   ),
-                                  subtitle: Text(
-                                    categoryOfCommodity(option) ?? '',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 10.5,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  onTap: () => onSelected(option),
                                 );
                               },
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Start typing to select a supported product.',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  _fieldError(_nameKey),
-                  const SizedBox(height: 8),
-                  _supportedProductsBanner(),
-                  const SizedBox(height: 12),
-
-                  // ---- Selling Option (Livestock only) ----
-                  if (_isLivestock) ...[
-                    _sellingOptionField(),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // ---- Category + Quantity side by side ----
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _label('Category'),
-                            _GlowPlate(
-                              child: InputDecorator(
-                                decoration: _inputDecoration(''),
-                                child: Text(
-                                  _category ?? 'Select a product name first',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.montserrat(
-                                    color: _category == null
-                                        ? Colors.black38
-                                        : Colors.black87,
-                                    fontSize: 14,
+                          optionsViewBuilder: (context, onSelected, options) {
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4,
+                                borderRadius: BorderRadius.circular(14),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 220,
+                                    maxWidth: 340,
+                                  ),
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (context, index) {
+                                      final option = options.elementAt(index);
+                                      return ListTile(
+                                        dense: true,
+                                        title: Text(
+                                          option,
+                                          style: GoogleFonts.montserrat(
+                                            fontSize: 13.5,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          categoryOfCommodity(option) ?? '',
+                                          style: GoogleFonts.montserrat(
+                                            fontSize: 10.5,
+                                            color: AppColors.grey(600),
+                                          ),
+                                        ),
+                                        onTap: () => onSelected(option),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
+                        const SizedBox(height: 4),
+                        Text(
+                          'Start typing to select a supported product.',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 11,
+                            color: AppColors.grey(600),
+                          ),
+                        ),
+                        _fieldError(_nameKey),
+                        const SizedBox(height: 8),
+                        _supportedProductsBanner(),
+                        const SizedBox(height: 12),
+
+                        // ---- Selling Option (Livestock only) ----
+                        if (_isLivestock) ...[
+                          _sellingOptionField(),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // ---- Category + Quantity side by side ----
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _label('Available Stock', key: _stockKey),
-                            _GlowPlate(
-                              error: _hasIssue(_stockKey),
-                              child: TextField(
-                                controller: _quantityController,
-                                focusNode: _quantityFocusNode,
-                                keyboardType: TextInputType.numberWithOptions(
-                                  decimal: !_isCountBasedUnit,
-                                ),
-                                // Numbers only, four digits at most (see
-                                // kMaxStock) — the unit is the read-only
-                                // suffix below, set by the selected product.
-                                inputFormatters: stockInputFormatters(
-                                  _isCountBasedUnit,
-                                ),
-                                style: GoogleFonts.montserrat(fontSize: 14),
-                                decoration: _inputDecoration(
-                                  '0',
-                                  suffix: Padding(
-                                    padding: const EdgeInsets.only(right: 18),
-                                    child: Center(
-                                      widthFactor: 1,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _label('Category'),
+                                  _GlowPlate(
+                                    child: InputDecorator(
+                                      decoration: _inputDecoration(''),
                                       child: Text(
-                                        _currentUnit,
+                                        _category ??
+                                            'Select a product name first',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.montserrat(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: _darkGreen,
+                                          color: _category == null
+                                              ? AppColors.textMuted
+                                              : AppColors.text,
+                                          fontSize: 14,
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _label('Available Stock', key: _stockKey),
+                                  _GlowPlate(
+                                    error: _hasIssue(_stockKey),
+                                    child: TextField(
+                                      controller: _quantityController,
+                                      focusNode: _quantityFocusNode,
+                                      keyboardType:
+                                          TextInputType.numberWithOptions(
+                                            decimal: !_isCountBasedUnit,
+                                          ),
+                                      // Numbers only, four digits at most (see
+                                      // kMaxStock) — the unit is the read-only
+                                      // suffix below, set by the selected product.
+                                      inputFormatters: stockInputFormatters(
+                                        _isCountBasedUnit,
+                                      ),
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: 14,
+                                      ),
+                                      decoration: _inputDecoration(
+                                        '0',
+                                        suffix: Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 18,
+                                          ),
+                                          child: Center(
+                                            widthFactor: 1,
+                                            child: Text(
+                                              _currentUnit,
+                                              style: GoogleFonts.montserrat(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.brand,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  _fieldError(_stockKey),
-                  const SizedBox(height: 18),
+                        _fieldError(_stockKey),
+                        const SizedBox(height: 18),
 
-                  // ---- Harvest date (produce only) ----
-                  if (categoryHasHarvestDate(_category)) ...[
-                    _harvestDateField(),
-                    const SizedBox(height: 18),
-                  ],
+                        // ---- Harvest date (produce only) ----
+                        if (categoryHasHarvestDate(_category)) ...[
+                          _harvestDateField(),
+                          const SizedBox(height: 18),
+                        ],
 
-                  // ---- AI price recommendation (by product name) ----
-                  _priceRecommendation(),
-                  const SizedBox(height: 18),
+                        // ---- AI price recommendation (by product name) ----
+                        _priceRecommendation(),
+                        const SizedBox(height: 18),
 
-                  // ---- Retail Price ----
-                  _label('Retail Price', key: _priceKey),
-                  _GlowPlate(
-                    error: _hasIssue(_priceKey),
-                    child: TextField(
-                      controller: _priceController,
-                      focusNode: _priceFocusNode,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      style: GoogleFonts.montserrat(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: _inputDecoration(
-                        '0.00',
-                        prefix: Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Text(
-                            '₱',
+                        // ---- Retail Price ----
+                        _label('Retail Price', key: _priceKey),
+                        _GlowPlate(
+                          error: _hasIssue(_priceKey),
+                          child: TextField(
+                            controller: _priceController,
+                            focusNode: _priceFocusNode,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             style: GoogleFonts.montserrat(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _darkGreen,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: _inputDecoration(
+                              '0.00',
+                              prefix: Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Text(
+                                  '₱',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.brand,
+                                  ),
+                                ),
+                              ),
+                              suffix: Padding(
+                                padding: const EdgeInsets.only(right: 14),
+                                child: Text(
+                                  '/ $_currentUnit',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 13,
+                                    color: AppColors.grey(600),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        suffix: Padding(
-                          padding: const EdgeInsets.only(right: 14),
-                          child: Text(
-                            '/ $_currentUnit',
+                        _fieldError(_priceKey),
+                        const SizedBox(height: 12),
+
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Offer Wholesale',
                             style: GoogleFonts.montserrat(
-                              fontSize: 13,
-                              color: Colors.grey[600],
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          subtitle: Text(
+                            'Set a lower bulk price once the buyer reaches your minimum quantity.',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 11.5,
+                              color: AppColors.grey(600),
+                            ),
+                          ),
+                          activeThumbColor: AppColors.brand,
+                          value: _wholesaleEnabled,
+                          onChanged: (value) => setState(() {
+                            _wholesaleEnabled = value;
+                            if (!value) _wholesalePriceController.clear();
+                          }),
                         ),
-                      ),
-                    ),
-                  ),
-                  _fieldError(_priceKey),
-                  const SizedBox(height: 12),
-
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Offer Wholesale',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Set a lower bulk price once the buyer reaches your minimum quantity.',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 11.5,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    activeThumbColor: _darkGreen,
-                    value: _wholesaleEnabled,
-                    onChanged: (value) => setState(() {
-                      _wholesaleEnabled = value;
-                      if (!value) _wholesalePriceController.clear();
-                    }),
-                  ),
-                  if (_wholesaleEnabled) ...[
-                    const SizedBox(height: 4),
-                    _label('Wholesale Price', key: _wholesalePriceKey),
-                    _GlowPlate(
-                      error: _hasIssue(_wholesalePriceKey),
-                      child: TextField(
-                        controller: _wholesalePriceController,
-                        focusNode: _wholesalePriceFocusNode,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        style: GoogleFonts.montserrat(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: _inputDecoration(
-                          '0.00',
-                          prefix: Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Text(
-                              '₱',
+                        if (_wholesaleEnabled) ...[
+                          const SizedBox(height: 4),
+                          _label('Wholesale Price', key: _wholesalePriceKey),
+                          _GlowPlate(
+                            error: _hasIssue(_wholesalePriceKey),
+                            child: TextField(
+                              controller: _wholesalePriceController,
+                              focusNode: _wholesalePriceFocusNode,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               style: GoogleFonts.montserrat(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: _darkGreen,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              decoration: _inputDecoration(
+                                '0.00',
+                                prefix: Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Text(
+                                    '₱',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.brand,
+                                    ),
+                                  ),
+                                ),
+                                suffix: Padding(
+                                  padding: const EdgeInsets.only(right: 14),
+                                  child: Text(
+                                    '/ $_currentUnit',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 13,
+                                      color: AppColors.grey(600),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          suffix: Padding(
-                            padding: const EdgeInsets.only(right: 14),
-                            child: Text(
-                              '/ $_currentUnit',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 13,
-                                color: Colors.grey[600],
+                          _fieldError(_wholesalePriceKey),
+                          const SizedBox(height: 12),
+                          _label(
+                            'Minimum Wholesale Quantity',
+                            key: _wholesaleMinKey,
+                          ),
+                          _GlowPlate(
+                            error: _hasIssue(_wholesaleMinKey),
+                            child: TextField(
+                              controller: _wholesaleMinimumController,
+                              focusNode: _wholesaleMinFocusNode,
+                              keyboardType: TextInputType.numberWithOptions(
+                                decimal: !_isCountBasedUnit,
+                              ),
+                              style: GoogleFonts.montserrat(fontSize: 14),
+                              decoration: _inputDecoration(
+                                'e.g., 20',
+                                suffix: Padding(
+                                  padding: const EdgeInsets.only(right: 14),
+                                  child: Text(
+                                    _currentUnit,
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 12.5,
+                                      color: AppColors.grey(600),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    _fieldError(_wholesalePriceKey),
-                    const SizedBox(height: 12),
-                    _label('Minimum Wholesale Quantity', key: _wholesaleMinKey),
-                    _GlowPlate(
-                      error: _hasIssue(_wholesaleMinKey),
-                      child: TextField(
-                        controller: _wholesaleMinimumController,
-                        focusNode: _wholesaleMinFocusNode,
-                        keyboardType: TextInputType.numberWithOptions(
-                          decimal: !_isCountBasedUnit,
-                        ),
-                        style: GoogleFonts.montserrat(fontSize: 14),
-                        decoration: _inputDecoration(
-                          'e.g., 20',
-                          suffix: Padding(
-                            padding: const EdgeInsets.only(right: 14),
-                            child: Text(
-                              _currentUnit,
-                              style: GoogleFonts.montserrat(
-                                fontSize: 12.5,
-                                color: Colors.grey[600],
-                              ),
+                          _fieldError(_wholesaleMinKey),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // ---- Description ----
+                        _label('Description'),
+                        // Multi-line, so a softer corner than the single-line pills.
+                        _GlowPlate(
+                          radius: 22,
+                          child: TextField(
+                            controller: _descriptionController,
+                            maxLines: 3,
+                            style: GoogleFonts.montserrat(fontSize: 14),
+                            decoration: _inputDecoration(
+                              'Tell buyers about how it was raised or grown...',
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    _fieldError(_wholesaleMinKey),
-                    const SizedBox(height: 12),
-                  ],
+                        const SizedBox(height: 8),
 
-                  // ---- Description ----
-                  _label('Description'),
-                  // Multi-line, so a softer corner than the single-line pills.
-                  _GlowPlate(
-                    radius: 22,
-                    child: TextField(
-                      controller: _descriptionController,
-                      maxLines: 3,
-                      style: GoogleFonts.montserrat(fontSize: 14),
-                      decoration: _inputDecoration(
-                        'Tell buyers about how it was raised or grown...',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // ---- Fulfillment ----
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Delivery Available',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    activeThumbColor: _darkGreen,
-                    value: _deliveryAvailable,
-                    onChanged: (v) => setState(() => _deliveryAvailable = v),
-                  ),
-                  if (_deliveryAvailable) _deliverySetup(),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Pick-up Available',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Buyers can collect the order from you.',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 11.5,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    activeThumbColor: _darkGreen,
-                    value: _pickupOnly,
-                    onChanged: (v) => setState(() => _pickupOnly = v),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ---- Post ----
-                  // Greyed out (disabled look) until every required field is
-                  // valid. It still responds to a tap, though: instead of
-                  // posting, that tap highlights the first missing/invalid field
-                  // and scrolls to it — a fully dead button would leave the
-                  // farmer hunting through the long form for what's missing.
-                  // A price outside the AI range never greys it out.
-                  if (!_isArchived && !formComplete && !_loading) ...[
-                    Text(
-                      'Complete the required fields to post.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 11.5,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (!_isArchived)
-                    ElevatedButton(
-                      onPressed: _loading ? null : _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: formComplete
-                            ? _darkGreen
-                            : Colors.grey.shade400,
-                        disabledBackgroundColor: Colors.grey.shade400,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 11),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              _isEditing ? 'Update' : 'Post',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        // ---- Fulfillment ----
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Delivery Available',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
+                          ),
+                          activeThumbColor: AppColors.brand,
+                          value: _deliveryAvailable,
+                          onChanged: (v) =>
+                              setState(() => _deliveryAvailable = v),
+                        ),
+                        if (_deliveryAvailable) _deliverySetup(),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Pick-up Available',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Buyers can collect the order from you.',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 11.5,
+                              color: AppColors.grey(600),
+                            ),
+                          ),
+                          activeThumbColor: AppColors.brand,
+                          value: _pickupOnly,
+                          onChanged: (v) => setState(() => _pickupOnly = v),
+                        ),
+                        if (_isArchived)
+                          const SizedBox(height: 12)
+                        else
+                          _formEnd(formComplete),
+                      ],
                     ),
-                  const SizedBox(height: 12),
-                ],
+                  ),
+                ),
               ),
-            ),
+              // ---- Post: the only thing that floats, with nothing behind
+              // it. It comes to rest in its own place at the end of the
+              // form (see _postButtonBottom).
+              if (!_isArchived)
+                ListenableBuilder(
+                  listenable: _formScroll,
+                  builder: (context, child) {
+                    _drawnPostBottom = _postButtonBottom(keyboardOpen);
+                    return Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: _drawnPostBottom,
+                      child: child!,
+                    );
+                  },
+                  child: _postButton(formComplete),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  // How far above the bottom of the form area the Post button sits:
+  // floating just above the edge, or — once its place at the end of the
+  // form has scrolled up into view — resting in that place. With the
+  // keyboard open it always stays in its place in the form, so it never
+  // covers the field being typed in. (The same as Register's button.)
+  double _postButtonBottom(bool keyboardOpen) {
+    if (!_formScroll.hasClients) return _postFloatGap;
+    final position = _formScroll.position;
+    if (!position.hasContentDimensions) return _postFloatGap;
+    final leftToScroll = position.maxScrollExtent - position.pixels;
+    final inPlace = _formEndHintHeight + _formBottomPadding - leftToScroll;
+    return keyboardOpen ? inPlace : math.max(_postFloatGap, inPlace);
+  }
+
+  // Post (or Update), drawn once, floating over the form with nothing
+  // behind it. Greyed out (disabled look) until every required field is
+  // valid. It still responds to a tap, though: instead of posting, that
+  // tap highlights the first missing/invalid field and scrolls to it — a
+  // fully dead button would leave the farmer hunting through the long form
+  // for what's missing. A price outside the AI range never greys it out.
+  Widget _postButton(bool formComplete) => SizedBox(
+    height: _postButtonHeight,
+    child: ElevatedButton(
+      onPressed: _loading ? null : _save,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: formComplete
+            ? AppColors.brandFill
+            : AppColors.grey(400),
+        disabledBackgroundColor: AppColors.grey(400),
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 0,
+      ),
+      child: _loading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+          : Text(
+              _isEditing ? 'Update' : 'Post',
+              style: GoogleFonts.montserrat(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+    ),
+  );
+
+  // The end of the form: the Post button's own place, then the hint. A
+  // fixed height (see _formEndHintHeight), whether or not the hint shows.
+  Widget _formEnd(bool formComplete) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const SizedBox(height: 4),
+      // Empty on purpose — the floating button comes to rest here.
+      const SizedBox(height: _postButtonHeight),
+      SizedBox(
+        height: _formEndHintHeight,
+        child: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.3,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: !formComplete && !_loading
+                ? Text(
+                    'Complete the required fields to post.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 11.5,
+                      color: AppColors.grey(600),
+                    ),
+                  )
+                : null,
+          ),
+        ),
+      ),
+    ],
+  );
+
+  // Archived: the only action is Restore, pinned under the details.
+  Widget _restoreBar() => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      child: ElevatedButton.icon(
+        onPressed: _loading ? null : _toggleArchive,
+        icon: const Icon(Icons.unarchive_outlined, size: 20),
+        label: Text(
+          'Restore Product',
+          style: GoogleFonts.montserrat(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brandFill,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          elevation: 0,
+        ),
+      ),
+    ),
+  );
 }
 
 /// The registration form's field plate (see GlowField) for this screen's
@@ -3163,7 +3305,7 @@ class _GlowPlateState extends State<_GlowPlate> {
         decoration: AppTheme.glowFieldWrapper(focused: _focused).copyWith(
           borderRadius: BorderRadius.circular(widget.radius),
           border: widget.error
-              ? Border.all(color: Colors.red.shade700, width: 1.4)
+              ? Border.all(color: AppColors.tone(Colors.red, 700), width: 1.4)
               : null,
         ),
         child: widget.child,

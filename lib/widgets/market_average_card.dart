@@ -4,9 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/commodity_master_list.dart';
 import '../services/market_price_helpers.dart';
-import '../theme/app_theme.dart';
 import 'market_card_shell.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// One supported commodity's Current Market Average.
 typedef MarketAverageRow = ({String commodity, String unit, double average});
@@ -104,7 +104,7 @@ class _MarketAverageCardState extends State<MarketAverageCard> {
               style: GoogleFonts.montserrat(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
           ),
@@ -117,14 +117,14 @@ class _MarketAverageCardState extends State<MarketAverageCard> {
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.dark,
+                    color: AppColors.brand,
                   ),
                 ),
                 TextSpan(
                   text: ' /${row.unit}',
                   style: GoogleFonts.montserrat(
                     fontSize: 11,
-                    color: Colors.grey[600],
+                    color: AppColors.grey(600),
                   ),
                 ),
               ],

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/app_localizations.dart';
-import '../theme/app_theme.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// First-run intro carousel — shown once on a fresh install, before the app
 /// routes to role selection or login. Both "Skip" and reaching the last card
@@ -75,7 +75,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final t = tr(context);
     final texts = _texts(t);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.textStrong,
       body: Stack(
         children: [
           PageView.builder(
@@ -179,8 +179,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           height: 7,
                           decoration: BoxDecoration(
                             color: active
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.4),
+                                ? AppColors.surface
+                                : AppColors.surface.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         );
@@ -195,7 +195,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: ElevatedButton(
                         onPressed: _submitting ? null : _next,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.dark,
+                          backgroundColor: AppColors.brandFill,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

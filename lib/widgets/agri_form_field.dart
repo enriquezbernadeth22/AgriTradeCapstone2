@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'glow_field.dart';
+import '../theme/app_colors.dart';
 
 /// A form field in the registration form's design, for use inside a
 /// [Form]: the label above the field (never inside it), the rounded white
@@ -78,14 +79,14 @@ class AgriFormField extends StatelessWidget {
                   Icon(
                     Icons.error_outline,
                     size: 14,
-                    color: Colors.red.shade700,
+                    color: AppColors.tone(Colors.red, 700),
                   ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       state.errorText!,
                       style: TextStyle(
-                        color: Colors.red.shade700,
+                        color: AppColors.tone(Colors.red, 700),
                         fontSize: 11,
                       ),
                     ),
@@ -96,7 +97,7 @@ class AgriFormField extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 caption!,
-                style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
+                style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
               ),
             ],
           ],

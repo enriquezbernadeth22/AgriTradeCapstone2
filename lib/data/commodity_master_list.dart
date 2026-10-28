@@ -36,9 +36,9 @@ class Commodity {
 const List<Commodity> _defaultCommodities = [
   Commodity('Rice', 'Grains', 'kg'),
   Commodity('Corn', 'Grains', 'kg'),
-  Commodity('Ube', 'Root Crops', 'kg'),
-  Commodity('Sweet Potato', 'Root Crops', 'kg'),
-  Commodity('Cassava', 'Root Crops', 'kg'),
+  Commodity('Ube', 'Vegetables', 'kg'),
+  Commodity('Sweet Potato', 'Vegetables', 'kg'),
+  Commodity('Cassava', 'Vegetables', 'kg'),
   Commodity('Eggplant', 'Vegetables', 'kg'),
   Commodity('Okra', 'Vegetables', 'kg'),
   Commodity('Sitaw', 'Vegetables', 'kg'),
@@ -46,8 +46,8 @@ const List<Commodity> _defaultCommodities = [
   Commodity('Squash', 'Vegetables', 'kg'),
   Commodity('Radish', 'Vegetables', 'kg'),
   Commodity('Malunggay', 'Vegetables', 'kg'),
-  Commodity('Ginger', 'Spices', 'kg'),
-  Commodity('Turmeric', 'Spices', 'kg'),
+  Commodity('Ginger', 'Vegetables', 'kg'),
+  Commodity('Turmeric', 'Vegetables', 'kg'),
   Commodity('Banana', 'Fruits', 'kg'),
   Commodity('Coconut', 'Fruits', 'piece'),
   Commodity('Swine', 'Livestock', 'kg liveweight'),
@@ -106,7 +106,8 @@ class CommodityRegistry extends ChangeNotifier {
       if (name.isEmpty) continue;
       final key = name.toLowerCase();
       final fallback = defaults[key];
-      final category = (data['category'] ?? '').toString().trim();
+      // Root crops and spices are Vegetables now (normalizeCategory).
+      final category = normalizeCategory(data['category']);
       // A price record with no category isn't a postable commodity yet.
       if (category.isEmpty && fallback == null) continue;
       final unit = (data['unit'] ?? '').toString().trim().toLowerCase();
@@ -263,4 +264,36 @@ String unitForListing(String commodity, SellingOption? option) =>
 String withSellingOption(String name, Map<String, dynamic>? data) {
   final option = sellingOptionOf(data);
   return option == null ? name : '$name (${option.label})';
+}
+
+/// The app's three built-in categories. The Admin adds any other (Grains,
+/// for rice and corn) by typing it on a commodity in Price Management.
+const List<String> kBuiltInCategories = ['Vegetables', 'Fruits', 'Livestock'];
+
+// Former categories of their own, now part of Vegetables.
+const Set<String> _vegetableKinds = {
+  'root crops',
+  'root crop',
+  'rootcrops',
+  'spices',
+  'spice',
+};
+
+/// [raw] as the category it is shown, filtered and counted under. Root
+/// crops and spices count as Vegetables, as at the market — they were
+/// categories of their own before, and listings, orders and prices saved
+/// then still say so. A built-in category in its usual spelling; any
+/// other (one the Admin added) as typed. Empty for none.
+String normalizeCategory(Object? raw) {
+  final text = (raw ?? '').toString().trim();
+  if (text.isEmpty) return '';
+  final key = text.toLowerCase().replaceAll(RegExp(r'[\s_-]+'), ' ');
+  if (_vegetableKinds.contains(key) ||
+      _vegetableKinds.contains(key.replaceAll(' ', ''))) {
+    return 'Vegetables';
+  }
+  for (final name in kBuiltInCategories) {
+    if (name.toLowerCase() == key) return name;
+  }
+  return text;
 }

@@ -1,10 +1,11 @@
-// The Admin Analytics Dashboard's Overview strip and Sales Performance
-// charts: real figures only, completed orders only, and an empty state —
-// never a chart of zeros — when the period has no sales.
+// The Admin Analytics Dashboard's Overview strip and sales figures: real
+// figures only, completed orders only, and an empty state — never a chart
+// of zeros — when the period has no sales.
 import 'package:agritrade/data/report_reasons.dart';
 import 'package:agritrade/screen/admin_dashboard_screen.dart'
     show AdminPalette, AdminThemeScope;
 import 'package:agritrade/screen/admin_overview_widgets.dart';
+import 'package:agritrade/screen/admin_price_trend_chart.dart';
 import 'package:agritrade/services/dashboard_analytics_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -159,90 +160,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Sales Performance says so when the product has no completed '
-      'orders in the period', (tester) async {
-    await pump(
-      tester,
-      AdminSalesPerformanceCard(
-        orders: [
-          {...order('pending', DateTime.now(), 500), 'productName': 'Corn'},
-        ],
-      ),
-    );
-    expect(tester.takeException(), isNull);
-    expect(find.textContaining('No completed orders of'), findsOneWidget);
-    expect(find.byType(LineChart), findsNothing);
-    expect(find.text('Last 6 Months'), findsOneWidget);
-    expect(find.text('All Categories'), findsOneWidget);
-  });
-
-  testWidgets('Sales Performance shows one product\'s demand month by '
-      'month, opening on the best seller, and its period filter changes '
-      'the months shown', (tester) async {
-    final today = DateTime.now();
-    final lastMonth = DateTime(today.year, today.month - 1, 10);
-    Map<String, dynamic> sale(
-      String product,
-      DateTime at,
-      num quantity,
-      num total,
-    ) => {
-      ...order('completed', at, total),
-      'productName': product,
-      'quantity': quantity,
-      'unit': 'kg',
-    };
-    await pump(
-      tester,
-      AdminSalesPerformanceCard(
-        orders: [
-          sale('Corn', lastMonth, 30, 900),
-          sale('Corn', today, 10, 300),
-          sale('Corn', today, 5, 150),
-          sale('Cassava', today, 4, 100),
-          {...order('cancelled', today, 9999), 'productName': 'Corn'},
-        ],
-      ),
-    );
-    expect(tester.takeException(), isNull);
-    // Corn sold the most, so it is shown first.
-    expect(find.text('Corn'), findsOneWidget);
-    expect(find.text('45 kg sold'), findsOneWidget);
-    expect(
-      find.textContaining('₱1,350.00 · 3 completed orders'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Best month: '), findsOneWidget);
-    List<FlSpot> points() => tester
-        .widget<LineChart>(find.byType(LineChart))
-        .data
-        .lineBarsData
-        .single
-        .spots;
-    expect(points().length, 6);
-    // 30 kg last month, down to 15 kg this month.
-    expect(points()[4].y, 30);
-    expect(points().last.y, 15);
-
-    await tester.tap(find.text('Last 6 Months'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Last 12 Months').last);
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(points().length, 12);
-
-    // A category narrows the products; it opens on its own best seller.
-    await tester.tap(find.text('All Categories'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Root Crops').last);
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('Cassava'), findsOneWidget);
-    expect(find.text('4 kg sold'), findsOneWidget);
-  });
-
   testWidgets('Sales by Category lists real categories and their shares, '
-      'and matches the Sales Performance card in height', (tester) async {
+      'and matches the Market Trend card in height', (tester) async {
     await pump(
       tester,
       Row(
@@ -250,8 +169,8 @@ void main() {
         children: [
           Expanded(
             flex: 3,
-            child: AdminSalesPerformanceCard(
-              orders: [order('completed', DateTime.now(), 100)],
+            child: AdminMarketDemandCard(
+              completedOrders: [order('completed', DateTime.now(), 100)],
             ),
           ),
           const SizedBox(width: 16),
@@ -275,7 +194,7 @@ void main() {
     expect(find.text('₱1,000.00'), findsOneWidget);
     expect(
       tester.getSize(find.byType(AdminSalesByCategoryCard)).height,
-      tester.getSize(find.byType(AdminSalesPerformanceCard)).height,
+      tester.getSize(find.byType(AdminMarketDemandCard)).height,
     );
 
     await tester.tap(find.text('Last 6 Months').last);

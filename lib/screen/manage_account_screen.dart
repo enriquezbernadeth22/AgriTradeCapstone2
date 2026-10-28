@@ -13,6 +13,7 @@ import 'privacy_policy_screen.dart';
 import 'sign_in_activity_screen.dart';
 import 'terms_and_conditions_screen.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// Manage Account, opened from the Profile tab's settings menu — the same
 /// screen for Farmers and Buyers: one plain list in sections (personal
@@ -59,7 +60,7 @@ class ManageAccountScreen extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: t.manageAccount),
       body: SafeArea(
         child: ListView(
@@ -126,7 +127,7 @@ class ManageAccountScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
-                    color: Colors.grey[500],
+                    color: AppColors.grey(500),
                   ),
                 );
               },
@@ -152,7 +153,7 @@ class _SectionLabel extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.6,
-        color: Colors.grey[600],
+        color: AppColors.grey(600),
       ),
     ),
   );
@@ -164,7 +165,7 @@ class _SectionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-    child: Divider(height: 1, color: Colors.grey[200]),
+    child: Divider(height: 1, color: AppColors.grey(200)),
   );
 }
 
@@ -186,20 +187,36 @@ class _SettingsRow extends StatelessWidget {
     this.badge,
   });
 
+  // The same text as the Notification Settings rows.
+  static TextStyle get _titleStyle =>
+      AppTheme.body(size: 14.5).copyWith(fontWeight: FontWeight.w700);
+  static TextStyle get _subtitleStyle => AppTheme.body(
+    size: 12.5,
+  ).copyWith(color: AppColors.grey(700), fontWeight: FontWeight.w600);
+
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: Icon(icon, color: AppTheme.dark),
+    leading: Icon(icon, color: AppColors.brand),
     title: badge == null
-        ? Text(title)
+        ? Text(title, style: _titleStyle)
         : Row(
             children: [
-              Flexible(child: Text(title, overflow: TextOverflow.ellipsis)),
+              Flexible(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: _titleStyle,
+                ),
+              ),
               const SizedBox(width: 8),
               badge!,
             ],
           ),
-    subtitle: Text(subtitle),
-    trailing: Icon(Icons.chevron_right, color: Colors.grey[500]),
+    subtitle: Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(subtitle, style: _subtitleStyle),
+    ),
+    trailing: Icon(Icons.chevron_right, color: AppColors.grey(500)),
     onTap: onTap,
   );
 }

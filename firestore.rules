@@ -925,5 +925,14 @@ service cloud.firestore {
         isAdmin();
       allow write: if false;
     }
+
+    // ---- Add Farmer, waiting for the farmer to confirm by email
+    // (functions/admin_create_farmer.js). The Admin Portal watches the
+    // invite it made; only the functions write here, and the link's token
+    // is kept only as a hash. ----
+    match /farmerInvites/{inviteId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
   }
 }

@@ -66,7 +66,6 @@ class ChartCaptureBoundary extends StatelessWidget {
 class DashboardChartKeys {
   DashboardChartKeys._();
 
-  static final salesOverview = GlobalKey();
   static final salesByCategory = GlobalKey();
   static final priceTrend = GlobalKey();
   static final registrations = GlobalKey();

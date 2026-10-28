@@ -1,4 +1,3 @@
-import '../theme/app_theme.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -22,6 +21,7 @@ import 'farmer_storefront_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../services/personal_recommendations.dart';
 import '../services/order_service.dart';
+import '../theme/app_colors.dart';
 
 /// The dedicated Buyer Search experience — opened by tapping the (non-
 /// editable) search bar on Explore, never an inline field on the
@@ -39,8 +39,6 @@ class BuyerSearchScreen extends StatefulWidget {
 }
 
 class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
-  static const Color _dark = AppTheme.dark;
-
   // Same buyer + same normalized query within this window logs only once
   // instead of once per submission — see _logSearchEvent. "Do not count 15
   // repeated searches in 30 seconds as 15 independent demand signals."
@@ -394,7 +392,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   Widget build(BuildContext context) {
     final showingResults = _activeQuery != null;
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       body: SafeArea(
         child: Column(
           children: [
@@ -441,10 +439,10 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   Widget _sectionHeading(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        color: AppColors.text,
       ),
     );
   }
@@ -461,21 +459,18 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppColors.grey(300)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 14, color: Colors.grey[500]),
+                  Icon(icon, size: 14, color: AppColors.grey(500)),
                   const SizedBox(width: 6),
                   Text(
                     term,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: Colors.black87,
-                    ),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.text),
                   ),
                 ],
               ),
@@ -513,7 +508,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
               TextButton(
                 onPressed: _clearRecentSearches,
                 style: TextButton.styleFrom(
-                  foregroundColor: _dark,
+                  foregroundColor: AppColors.brand,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -536,7 +531,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
             _recentSearchesError
                 ? 'Could not load recent searches.'
                 : 'No recent searches yet.',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            style: TextStyle(color: AppColors.grey(600), fontSize: 13),
           ),
           const SizedBox(height: 22),
         ],
@@ -660,9 +655,11 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
               onRetry: _listenToProducts,
             );
           }
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(color: _dark)),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.brand),
+            ),
           );
         }
         final docs = all
@@ -677,7 +674,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'No products available yet.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 13),
             ),
           );
         }
@@ -688,7 +685,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
             const SizedBox(height: 2),
             Text(
               _basisLabel(recommended.basis),
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 12),
             ),
             const SizedBox(height: 10),
             _productGrid(recommended.docs),
@@ -710,7 +707,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
               onRetry: _listenToProducts,
             );
           }
-          return const Center(child: CircularProgressIndicator(color: _dark));
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.brand),
+          );
         }
         var docs = [...all];
         docs = docs
@@ -822,10 +821,10 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: const Color(0xFFDCEDC8),
+          backgroundColor: AppColors.accent,
           backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
           child: photoUrl.isEmpty
-              ? const Icon(Icons.person, color: _dark)
+              ? Icon(Icons.person, color: AppColors.brand)
               : null,
         ),
         title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),

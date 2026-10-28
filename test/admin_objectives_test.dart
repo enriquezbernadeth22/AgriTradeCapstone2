@@ -148,7 +148,7 @@ void main() {
   });
 
   group('farmer ID', () {
-    test('is the RSBA number the farmer registered with', () {
+    test('is the RSBSA number the farmer registered with', () {
       expect(
         farmerIdOf({'rsbaNumber': ' ab12345678901234 '}),
         'AB12345678901234',

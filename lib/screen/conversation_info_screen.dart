@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../services/conversation_prefs_service.dart';
 import '../services/presence_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/report_user_dialog.dart';
@@ -14,6 +13,7 @@ import 'add_product_screen.dart';
 import 'conversation_tools_screens.dart';
 import 'farmer_storefront_screen.dart';
 import 'product_detail_screen.dart';
+import '../theme/app_colors.dart';
 
 /// Conversation Info, a full-screen page opened from the (i) in a chat's
 /// header — same for Farmer and Buyer. Shows who the other person is
@@ -121,7 +121,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: const AgriAppBar(title: 'Conversation Info'),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _profile,
@@ -183,9 +183,9 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                       label: (widget.productName ?? '').isNotEmpty
                           ? widget.productName!
                           : 'View product',
-                      trailing: const Icon(
+                      trailing: Icon(
                         Icons.chevron_right_rounded,
-                        color: Colors.black38,
+                        color: AppColors.textMuted,
                       ),
                       onTap: _openProduct,
                     ),
@@ -281,7 +281,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Colors.black87,
+            color: AppColors.text,
           ),
         ),
         const SizedBox(height: 4),
@@ -300,7 +300,9 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               parts.join(' · '),
               style: GoogleFonts.montserrat(
                 fontSize: 12.5,
-                color: online ? const Color(0xFF16A34A) : Colors.grey[600],
+                color: online
+                    ? AppColors.adapt(const Color(0xFF16A34A))
+                    : AppColors.grey(600),
                 fontWeight: FontWeight.w600,
               ),
             );
@@ -311,7 +313,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.place_outlined, size: 15, color: Colors.grey[600]),
+              Icon(Icons.place_outlined, size: 15, color: AppColors.grey(600)),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
@@ -319,7 +321,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     fontSize: 12.5,
-                    color: Colors.grey[700],
+                    color: AppColors.grey(700),
                   ),
                 ),
               ),
@@ -339,8 +341,8 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
             icon: const Icon(Icons.storefront_outlined, size: 18),
             label: const Text('View Storefront'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.dark,
-              side: const BorderSide(color: AppTheme.dark),
+              foregroundColor: AppColors.brand,
+              side: BorderSide(color: AppColors.brand),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
@@ -389,7 +391,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       style: GoogleFonts.montserrat(
         fontSize: 12,
         fontWeight: FontWeight.w700,
-        color: Colors.black54,
+        color: AppColors.textSecondary,
         letterSpacing: 0.2,
       ),
     ),
@@ -463,7 +465,8 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
   Widget _section({required List<Widget> children}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -484,7 +487,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppTheme.dark),
+          Icon(icon, size: 20, color: AppColors.brand),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -495,7 +498,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -503,7 +506,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                   value,
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
-                    color: Colors.black87,
+                    color: AppColors.text,
                     height: 1.35,
                   ),
                 ),
@@ -523,7 +526,9 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     Widget? trailing,
     bool destructive = false,
   }) {
-    final color = destructive ? Colors.red.shade700 : AppTheme.dark;
+    final color = destructive
+        ? AppColors.tone(Colors.red, 700)
+        : AppColors.brand;
     return ListTile(
       leading: Icon(icon, color: color),
       title: Text(
@@ -531,7 +536,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
         style: GoogleFonts.montserrat(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: destructive ? color : Colors.black87,
+          color: destructive ? color : AppColors.text,
         ),
       ),
       subtitle: subtitle == null
@@ -542,7 +547,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.montserrat(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppColors.grey(600),
               ),
             ),
       trailing: trailing,
@@ -608,7 +613,7 @@ class _NicknameDialogState extends State<_NicknameDialog> {
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
-              color: Colors.grey[600],
+              color: AppColors.grey(600),
             ),
           ),
         ],

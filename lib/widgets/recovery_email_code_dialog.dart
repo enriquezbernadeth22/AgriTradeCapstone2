@@ -6,6 +6,7 @@ import '../services/recovery_email_service.dart';
 import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
 import 'otp_code_field.dart';
+import '../theme/app_colors.dart';
 
 /// Verifies [email] as the account's recovery email: emails it a 6-digit
 /// code, then asks for that code. True once it is verified.
@@ -167,7 +168,7 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.55),
+                color: AppColors.accent.withValues(alpha: 0.55),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Text(
@@ -175,7 +176,7 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTheme.label().copyWith(
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -194,7 +195,10 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: AppTheme.body(size: 12, color: Colors.red.shade700),
+              style: AppTheme.body(
+                size: 12,
+                color: AppColors.tone(Colors.red, 700),
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -202,7 +206,7 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
             'The code expires in 10 minutes. Not in your inbox? Check your '
             'Spam or Junk folder.',
             textAlign: TextAlign.center,
-            style: AppTheme.body(size: 11.5, color: Colors.grey.shade600),
+            style: AppTheme.body(size: 11.5, color: AppColors.grey(600)),
           ),
           const SizedBox(height: 6),
           Center(
@@ -211,8 +215,8 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: Text(resendLabel),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.dark,
-                disabledForegroundColor: Colors.grey.shade500,
+                foregroundColor: AppColors.brand,
+                disabledForegroundColor: AppColors.grey(500),
                 textStyle: AppTheme.label().copyWith(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -246,11 +250,11 @@ class RecoveryEmailStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = verified ? AppTheme.mid : Colors.orange.shade800;
+    final color = verified ? AppColors.mid : AppColors.tone(Colors.orange, 800);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: verified ? AppTheme.accent : Colors.orange.shade50,
+        color: verified ? AppColors.accent : AppColors.tone(Colors.orange, 50),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(

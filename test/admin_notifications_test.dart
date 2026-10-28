@@ -101,7 +101,7 @@ void main() {
       'New farmer application',
       'New buyer account',
     ]);
-    expect(items[3].detail, 'Juan Cruz · RSBA No.: 123456789012345');
+    expect(items[3].detail, 'Juan Cruz · RSBSA No.: 123456789012345');
     expect(items[1].detail, contains('Not provided'));
   });
 

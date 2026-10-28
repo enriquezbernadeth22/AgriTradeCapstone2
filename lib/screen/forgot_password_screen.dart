@@ -10,6 +10,7 @@ import '../widgets/app_back_button.dart';
 import '../widgets/email_delivery_notice.dart';
 import '../widgets/email_request_leave_guard.dart';
 import '../widgets/glow_field.dart';
+import '../theme/app_colors.dart';
 
 /// Full-screen "forgot password" flow (farmer/buyer login door) — asks for
 /// the account's email, requests a reset link for it so the user can
@@ -59,19 +60,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   String? _resendError; // why the last resend did not go through
   String? _formError; // Admin page only: shown under the email field
 
-  final _emailFocus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.isAdmin) {
-      // The cursor moves here from the sign-in form it was opened from.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _emailFocus.requestFocus();
-      });
-    }
-  }
-
   @override
   void dispose() {
     // The mobile screen's EmailRequestLeaveGuard does this; the Admin form
@@ -79,7 +67,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (widget.isAdmin) _leaveConfirm.dismiss();
     _cooldownTimer?.cancel();
     _emailController.dispose();
-    _emailFocus.dispose();
     super.dispose();
   }
 
@@ -177,13 +164,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: AppTheme.accent.withValues(alpha: 0.6),
+            color: AppColors.accent.withValues(alpha: 0.6),
             shape: BoxShape.circle,
           ),
-          child: const Icon(
+          child: Icon(
             Icons.mark_email_read_outlined,
             size: 28,
-            color: AppTheme.mid,
+            color: AppColors.mid,
           ),
         ),
       ),
@@ -222,7 +209,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 11),
             side: BorderSide(
-              color: canResend ? AppTheme.mid : Colors.grey.shade300,
+              color: canResend ? AppColors.mid : AppColors.grey(300),
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
@@ -232,12 +219,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_sending) ...[
-                const SizedBox(
+                SizedBox(
                   height: 14,
                   width: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.grey,
+                    color: AppColors.grey(),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -249,7 +236,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ? 'Resend Reset Link in ${_cooldown}s'
                     : 'Resend Reset Link',
                 style: AppTheme.body(
-                  color: canResend ? AppTheme.mid : Colors.grey,
+                  color: canResend ? AppColors.mid : AppColors.grey(),
                   size: 14,
                 ).copyWith(fontWeight: FontWeight.w600),
               ),
@@ -263,13 +250,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
-            color: const Color(0xFFFDECEC),
+            color: AppColors.adapt(const Color(0xFFFDECEC)),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Text(
             _resendError!,
             style: AppTheme.body(
-              color: const Color(0xFFC62828),
+              color: AppColors.adapt(const Color(0xFFC62828)),
               size: 12.5,
             ).copyWith(height: 1.4),
           ),
@@ -284,12 +271,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // screen below; the request, cooldown and leave question are the same
   // code.
   // ================================================================
-  static const _adminGreen = AppTheme.dark;
-  static const _adminMuted = Color(0xFF6B7468);
-  static const _adminBorder = Color(0xFFDDE2DA);
   // The field and the buttons are pills, like the sign-in form's and the
   // mobile app's.
-  static const double _adminControlHeight = 48;
+  static const double _adminControlHeight = 46;
 
   TextStyle _mont(double size, {FontWeight? weight, Color? color}) =>
       GoogleFonts.montserrat(fontSize: size, fontWeight: weight, color: color);
@@ -301,7 +285,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         'assets/images/logo.png',
         height: 52,
         errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.agriculture, size: 44, color: _adminGreen),
+            Icon(Icons.agriculture, size: 44, color: AppColors.brand),
       ),
     ),
     const SizedBox(height: 6),
@@ -313,7 +297,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         style: _mont(
           11,
           weight: FontWeight.w700,
-          color: AppTheme.mid,
+          color: AppColors.mid,
         ).copyWith(letterSpacing: 2),
       ),
     ),
@@ -324,7 +308,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     padding: const EdgeInsets.only(top: 8),
     child: Text(
       message,
-      style: _mont(12.5, color: const Color(0xFFC62828)).copyWith(height: 1.4),
+      style: _mont(
+        12.5,
+        color: AppColors.adapt(const Color(0xFFC62828)),
+      ).copyWith(height: 1.4),
     ),
   );
 
@@ -338,9 +325,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     child: FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: _adminGreen,
+        backgroundColor: AppColors.brandFill,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: _adminGreen.withValues(alpha: 0.55),
+        disabledBackgroundColor: AppColors.brandFill.withValues(alpha: 0.55),
         disabledForegroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(_adminControlHeight / 2),
@@ -363,16 +350,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _adminReminder() => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Padding(
+      Padding(
         padding: EdgeInsets.only(top: 1),
-        child: Icon(Icons.info_outline, size: 15, color: _adminMuted),
+        child: Icon(
+          Icons.info_outline,
+          size: 15,
+          color: AppColors.adapt(const Color(0xFF6B7468)),
+        ),
       ),
       const SizedBox(width: 8),
       Expanded(
         child: Text(
           'Please check your Inbox and Spam or Junk folder. The email may '
           'take a few minutes to arrive.',
-          style: _mont(12, color: _adminMuted).copyWith(height: 1.45),
+          style: _mont(
+            12,
+            color: AppColors.adapt(const Color(0xFF6B7468)),
+          ).copyWith(height: 1.45),
         ),
       ),
     ],
@@ -381,47 +375,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   List<Widget> _adminForm() => [
     Text(
       'Forgot Password?',
-      style: _mont(22, weight: FontWeight.w700, color: _adminGreen),
+      style: _mont(22, weight: FontWeight.w700, color: AppColors.brand),
     ),
     const SizedBox(height: 8),
     Text(
       "Enter your registered Admin email address and we'll send you a link "
       'to reset your password.',
-      style: _mont(13, color: _adminMuted).copyWith(height: 1.5),
+      style: _mont(
+        13,
+        color: AppColors.adapt(const Color(0xFF6B7468)),
+      ).copyWith(height: 1.5),
     ),
     const SizedBox(height: 22),
     Text(
       'Email Address',
-      style: _mont(12.5, weight: FontWeight.w600, color: Colors.black87),
+      style: _mont(12.5, weight: FontWeight.w600, color: AppColors.text),
     ),
     const SizedBox(height: 8),
+    // The Admin login's own field (GlowField, compact): a white pill on a
+    // soft shadow with no outline, glowing green while typed in — 46 high,
+    // like the button under it. The cursor starts here.
     SizedBox(
+      key: const Key('admin-reset-field'),
       height: _adminControlHeight,
-      child: TextField(
+      child: GlowField(
         controller: _emailController,
-        focusNode: _emailFocus,
-        enabled: !_sending,
+        compact: true,
+        autofocus: true,
+        readOnly: _sending,
+        hint: 'Enter your admin email address',
+        icon: Icons.email_outlined,
         keyboardType: TextInputType.emailAddress,
         textInputAction: TextInputAction.done,
         autofillHints: const [AutofillHints.email],
         onSubmitted: (_) => _sendResetLink(),
-        style: _mont(14, color: Colors.black87),
-        decoration: InputDecoration(
-          hintText: 'Enter your admin email address',
-          hintStyle: _mont(13.5, color: const Color(0xFF9AA39A)),
-          prefixIcon: const Icon(
-            Icons.email_outlined,
-            size: 19,
-            color: _adminGreen,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 18),
-          border: _adminFieldBorder(_adminBorder),
-          enabledBorder: _adminFieldBorder(_adminBorder),
-          disabledBorder: _adminFieldBorder(_adminBorder),
-          focusedBorder: _adminFieldBorder(_adminGreen, width: 1.5),
-        ),
       ),
     ),
     if (_formError != null) _adminError(_formError!),
@@ -436,12 +423,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     _adminReminder(),
   ];
 
-  OutlineInputBorder _adminFieldBorder(Color color, {double width = 1}) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(_adminControlHeight / 2),
-        borderSide: BorderSide(color: color, width: width),
-      );
-
   // After the request has gone through. Says the same thing whether or
   // not the address has an account, and never that an email was delivered.
   List<Widget> _adminConfirmation() {
@@ -449,13 +430,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return [
       Text(
         'Check Your Email',
-        style: _mont(22, weight: FontWeight.w700, color: _adminGreen),
+        style: _mont(22, weight: FontWeight.w700, color: AppColors.brand),
       ),
       const SizedBox(height: 8),
       Text(
         "If an account exists with this email address, you'll receive a "
         'password reset link shortly.',
-        style: _mont(13, color: _adminMuted).copyWith(height: 1.5),
+        style: _mont(
+          13,
+          color: AppColors.adapt(const Color(0xFF6B7468)),
+        ).copyWith(height: 1.5),
       ),
       const SizedBox(height: 22),
       _adminPrimaryButton(
@@ -470,8 +454,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: OutlinedButton(
           onPressed: canResend ? _sendResetLink : null,
           style: OutlinedButton.styleFrom(
-            foregroundColor: _adminGreen,
-            side: BorderSide(color: canResend ? _adminGreen : _adminBorder),
+            foregroundColor: AppColors.brand,
+            side: BorderSide(
+              color: canResend
+                  ? AppColors.brand
+                  : AppColors.adapt(const Color(0xFFDDE2DA)),
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(_adminControlHeight / 2),
             ),
@@ -492,22 +480,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     ];
   }
 
+  // The form on the page itself, with no card around it, and as wide as
+  // the Admin sign-in form (360) — the same field and button sizes.
   Widget _adminCard() => ConstrainedBox(
-    constraints: const BoxConstraints(maxWidth: 420),
-    child: Container(
-      padding: const EdgeInsets.fromLTRB(28, 28, 28, 26),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFECEEE8)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    constraints: const BoxConstraints(maxWidth: 360),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,7 +521,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: IconButton(
         onPressed: _adminBack,
         tooltip: 'Back to Login',
-        color: _adminGreen,
+        color: AppColors.brand,
         icon: const Icon(Icons.arrow_back, size: 22),
       ),
     ),
@@ -608,7 +586,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       processing: _sending,
       confirm: _leaveConfirm,
       child: Scaffold(
-        backgroundColor: AppTheme.bgLight,
+        backgroundColor: AppColors.page,
         body: SafeArea(
           child: Stack(
             children: [
@@ -631,8 +609,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         errorBuilder: (context, error, stackTrace) => Container(
                           width: 70,
                           height: 70,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.dark,
+                          decoration: BoxDecoration(
+                            color: AppColors.brandFill,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -646,20 +624,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const Center(child: AgriTradeText(fontSize: 26)),
                     const SizedBox(height: 28),
                     if (!_sent) ...[
-                      const Text(
+                      Text(
                         'Reset your password',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.text,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         "Enter your account email and we'll send you a link to verify it's you and reset your password.",
                         style: TextStyle(
                           fontSize: 13.5,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           height: 1.45,
                         ),
                       ),

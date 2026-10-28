@@ -5,7 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// One stop of a first-time tour: a widget to point at (via [targetKey])
 /// plus the short hint shown next to it.
@@ -185,8 +185,8 @@ class _CoachHintsState extends State<_CoachHints>
     final arrow = Icon(
       above ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
       size: arrowSize,
-      color: AppTheme.accent,
-      shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+      color: AppColors.accent,
+      shadows: [Shadow(color: AppColors.textSecondary, blurRadius: 6)],
     );
     final last = _index == widget.steps.length - 1;
     final bubble = _HintBubble(
@@ -210,7 +210,7 @@ class _CoachHintsState extends State<_CoachHints>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppTheme.accent.withValues(alpha: 0.9),
+                color: AppColors.accent.withValues(alpha: 0.9),
                 width: 2.5,
               ),
             ),
@@ -260,7 +260,7 @@ class _HintBubble extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         decoration: BoxDecoration(
-          color: AppTheme.dark,
+          color: AppColors.brandFill,
           borderRadius: BorderRadius.circular(14),
           boxShadow: const [
             BoxShadow(
@@ -315,7 +315,7 @@ class _HintBubble extends StatelessWidget {
                 fontFamily: 'Montserrat',
                 fontSize: 10.5,
                 fontStyle: FontStyle.italic,
-                color: AppTheme.accent.withValues(alpha: 0.85),
+                color: AppColors.accent.withValues(alpha: 0.85),
               ),
             ),
           ],
@@ -495,7 +495,7 @@ class _SectionHintState extends State<_SectionHint>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppTheme.accent.withValues(alpha: 0.95),
+                color: AppColors.accent.withValues(alpha: 0.95),
                 width: 2.5,
               ),
             ),
@@ -505,10 +505,10 @@ class _SectionHintState extends State<_SectionHint>
         Positioned(
           left: card.center.dx - arrowSize / 2,
           top: card.top - arrowSize - 2 - lift,
-          child: const Icon(
+          child: Icon(
             Icons.arrow_downward_rounded,
             size: arrowSize,
-            color: AppTheme.mid,
+            color: AppColors.mid,
             shadows: [Shadow(color: Colors.white, blurRadius: 6)],
           ),
         ),

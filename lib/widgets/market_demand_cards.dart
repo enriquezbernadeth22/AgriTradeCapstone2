@@ -5,11 +5,11 @@ import 'package:intl/intl.dart';
 
 import '../data/commodity_master_list.dart';
 import '../services/market_demand_service.dart';
-import '../theme/app_theme.dart';
 import 'demand_badge.dart';
 import 'market_card_shell.dart';
 import 'retry_message.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// The Farmer Dashboard's marketplace-wide analytics: Best-Selling Products
 /// and, below it, Top Buyer Locations — both for [month], the same month
@@ -200,7 +200,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
       style: GoogleFonts.montserrat(
         fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: rank == 1 ? AppTheme.dark : Colors.grey[500],
+        color: rank == 1 ? AppColors.brand : AppColors.grey(500),
       ),
     ),
   );
@@ -244,7 +244,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     style: GoogleFonts.montserrat(
       fontSize: 13.5,
       fontWeight: FontWeight.w600,
-      color: Colors.black87,
+      color: AppColors.text,
     ),
   );
 
@@ -274,7 +274,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
           style: GoogleFonts.montserrat(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: AppTheme.dark,
+            color: AppColors.brand,
           ),
         ),
       ),

@@ -3,31 +3,31 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../services/market_demand_index.dart';
 import '../services/market_demand_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// How a demand level reads and its colour — the same on the Farmer's
 /// Best-Selling Products card and on the Buyer's product cards.
 (String label, Color color) demandLevelStyle(DemandLevel level) =>
     switch (level) {
-      DemandLevel.high => ('High', AppTheme.mid),
-      DemandLevel.moderate => ('Moderate', Colors.orange.shade800),
-      DemandLevel.low => ('Low', Colors.grey.shade700),
+      DemandLevel.high => ('High', AppColors.mid),
+      DemandLevel.moderate => ('Moderate', AppColors.tone(Colors.orange, 800)),
+      DemandLevel.low => ('Low', AppColors.grey(700)),
     };
 
 /// A demand trend's name, arrow and colour, shared the same way.
 (String label, IconData icon, Color color) demandTrendStyle(
   DemandTrend trend,
 ) => switch (trend) {
-  DemandTrend.rising => ('Rising', Icons.trending_up_rounded, AppTheme.mid),
+  DemandTrend.rising => ('Rising', Icons.trending_up_rounded, AppColors.mid),
   DemandTrend.stable => (
     'Stable',
     Icons.trending_flat_rounded,
-    Colors.grey.shade600,
+    AppColors.grey(600),
   ),
   DemandTrend.declining => (
     'Declining',
     Icons.trending_down_rounded,
-    Colors.red.shade700,
+    AppColors.tone(Colors.red, 700),
   ),
 };
 
@@ -58,7 +58,8 @@ class DemandBadge extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(6, 3, 8, 3),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
+              color: AppColors.surface.withValues(alpha: 0.94),
+              border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(

@@ -222,8 +222,9 @@ class PriceRecommendationService {
   // IQR outlier trim — "do not allow one unusually high or low listing to
   // distort the recommendation". Skipped under 4 points: too few to
   // define quartiles meaningfully, and trimming a tiny sample tends to
-  // remove real data rather than real outliers.
-  static List<double> _trimOutliers(List<double> values) {
+  // remove real data rather than real outliers. The Current Market Average
+  // is trimmed by this same rule (see computeLiveAverage).
+  static List<double> trimOutliers(List<double> values) {
     if (values.length < 4) return values;
     final sorted = [...values]..sort();
     double percentileAt(double p) {
@@ -282,14 +283,14 @@ class PriceRecommendationService {
     DateTime? now,
   }) {
     final effectiveNow = now ?? DateTime.now();
-    final cleanListings = _trimOutliers(listingPrices.where((p) => p > 0).toList());
+    final cleanListings = trimOutliers(listingPrices.where((p) => p > 0).toList());
 
     final validTxns = transactions.where((t) => t.price > 0).toList();
     final recentTxns = validTxns
         .where((t) => t.date != null && effectiveNow.difference(t.date!) <= recentTransactionWindow)
         .toList();
     final usableTxns = recentTxns.length >= 2 ? recentTxns : validTxns;
-    final txnPrices = _trimOutliers(usableTxns.map((t) => t.price).toList());
+    final txnPrices = trimOutliers(usableTxns.map((t) => t.price).toList());
 
     final listingCount = cleanListings.length;
     final transactionCount = txnPrices.length;

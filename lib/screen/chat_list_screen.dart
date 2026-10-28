@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import '../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +20,7 @@ import 'chat_navigation.dart';
 import 'message_search_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../l10n/tr.dart';
+import '../theme/app_colors.dart';
 
 /// Which conversations a [ChatListScreen] shows.
 enum ChatListMode {
@@ -51,8 +51,6 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  static const Color _dark = AppTheme.dark;
-
   final MessageService _messageService = MessageService();
   String _filter = 'all';
   final ConversationPrefs _prefs = ConversationPrefs.instance;
@@ -169,8 +167,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             stream: _conversationsStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: _dark),
+                return Center(
+                  child: CircularProgressIndicator(color: AppColors.brand),
                 );
               }
               if (snapshot.hasError) {
@@ -276,7 +274,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               }
 
               return AgriRefreshIndicator(
-                color: _dark,
+                color: AppColors.brand,
                 onRefresh: _refreshData,
                 // Flat rows on the page, a hairline between them — not
                 // floating cards.
@@ -291,7 +289,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     thickness: 1,
                     indent: 16,
                     endIndent: 16,
-                    color: Colors.grey[200],
+                    color: AppColors.grey(200),
                   ),
                   itemBuilder: (context, i) {
                     final doc = docs[i];
@@ -368,11 +366,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return Builder(
       builder: (buttonContext) => IconButton(
         tooltip: 'Manage messages',
-        icon: const Icon(
-          Icons.menu_rounded,
-          size: 24,
-          color: PageHeader.titleColor,
-        ),
+        icon: Icon(Icons.menu_rounded, size: 24, color: PageHeader.titleColor),
         onPressed: () => _openManageMenu(buttonContext),
       ),
     );
@@ -427,14 +421,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? _dark : Colors.white,
+          color: selected ? AppColors.brandFill : AppColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: selected ? _dark : const Color(0xFFE3E9DF)),
+          border: Border.all(
+            color: selected
+                ? AppColors.brand
+                : AppColors.adapt(const Color(0xFFE3E9DF)),
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.black54,
+            color: selected ? Colors.white : AppColors.textSecondary,
             fontSize: 12,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
@@ -545,6 +543,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     String? otherPhotoUrl,
     String location,
   ) {
+    // What this user calls the other person here: the nickname set in
+    // Conversation Info, else the real name — the same as the chat's
+    // header. The real name is still what the chat is opened with.
+    final shownName = _prefs.displayName(conversationId, otherName);
     final lastMessage = data['lastMessage']?.toString() ?? '';
     final lastSenderId = data['lastSenderId']?.toString() ?? '';
     final unreadMap = Map<String, dynamic>.from(data['unreadCount'] ?? {});
@@ -568,8 +570,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
         children: [
           SlidableAction(
             onPressed: (_) => _togglePinned(conversationId),
-            backgroundColor: AppTheme.tint,
-            foregroundColor: _dark,
+            backgroundColor: AppColors.tint,
+            foregroundColor: AppColors.brand,
             icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
             label: isPinned ? 'Unpin' : 'Pin',
           ),
@@ -580,8 +582,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
         children: [
           SlidableAction(
             onPressed: (_) => _toggleMuted(conversationId),
-            backgroundColor: const Color(0xFFF1F4F1),
-            foregroundColor: _dark,
+            backgroundColor: AppColors.adapt(const Color(0xFFF1F4F1)),
+            foregroundColor: AppColors.brand,
             icon: isMuted
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_off_outlined,
@@ -590,15 +592,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
           if (isArchived)
             SlidableAction(
               onPressed: (_) => _toggleArchived(conversationId, data, myUid),
-              backgroundColor: AppTheme.tint,
-              foregroundColor: _dark,
+              backgroundColor: AppColors.tint,
+              foregroundColor: AppColors.brand,
               icon: Icons.unarchive_outlined,
               label: 'Unarchive',
             )
           else
             SlidableAction(
               onPressed: (_) => _toggleArchived(conversationId, data, myUid),
-              backgroundColor: const Color(0xFFFFE8E6),
+              backgroundColor: AppColors.adapt(const Color(0xFFFFE8E6)),
               foregroundColor: Colors.redAccent,
               icon: Icons.archive_outlined,
               label: 'Archive',
@@ -647,7 +649,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            otherName,
+                            shownName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -655,7 +657,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               fontWeight: unread > 0
                                   ? FontWeight.bold
                                   : FontWeight.w600,
-                              color: Colors.black87,
+                              color: AppColors.text,
                             ),
                           ),
                         ),
@@ -664,7 +666,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             timeLabel,
                             style: TextStyle(
                               fontSize: 11,
-                              color: unread > 0 ? _dark : Colors.grey[500],
+                              color: unread > 0
+                                  ? AppColors.brand
+                                  : AppColors.grey(500),
                               fontWeight: unread > 0
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -678,7 +682,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         location,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.grey(500),
+                        ),
                       ),
                     ],
                     const SizedBox(height: 3),
@@ -692,8 +699,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               color: unread > 0
-                                  ? Colors.black87
-                                  : Colors.grey[600],
+                                  ? AppColors.text
+                                  : AppColors.grey(600),
                               fontWeight: unread > 0
                                   ? FontWeight.w600
                                   : FontWeight.normal,
@@ -707,8 +714,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               horizontal: 7,
                               vertical: 2,
                             ),
-                            decoration: const BoxDecoration(
-                              color: _dark,
+                            decoration: BoxDecoration(
+                              color: AppColors.brandFill,
                               shape: BoxShape.circle,
                             ),
                             constraints: const BoxConstraints(minWidth: 20),
@@ -751,7 +758,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final isArchived = _isArchived(conversationId, data, myUid);
     final action = await showAgriSheet<String>(
       context: context,
-      title: otherName,
+      title: _prefs.displayName(conversationId, otherName),
       builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [

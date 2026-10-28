@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'buyer_location_picker.dart';
 import 'glow_tap_field.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// Tap-to-open field backing the buyer location popup (see
 /// buyer_location_picker.dart) — only ever displays the readable address
@@ -46,12 +47,19 @@ class BuyerLocationField extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline, size: 14, color: Colors.red.shade700),
+              Icon(
+                Icons.error_outline,
+                size: 14,
+                color: AppColors.tone(Colors.red, 700),
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   errorText!,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 11),
+                  style: TextStyle(
+                    color: AppColors.tone(Colors.red, 700),
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],

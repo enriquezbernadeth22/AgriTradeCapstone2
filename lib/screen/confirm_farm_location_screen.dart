@@ -11,6 +11,7 @@ import '../services/geocoding_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/barangay_location_field.dart';
+import '../theme/app_colors.dart';
 
 /// What the farmer confirmed: the barangay, and the point it was read at.
 class FarmLocationResult {
@@ -235,7 +236,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
   TextStyle _text(double size, {Color? color, FontWeight? weight}) =>
       GoogleFonts.montserrat(
         fontSize: size,
-        color: color ?? Colors.black87,
+        color: color ?? AppColors.text,
         fontWeight: weight ?? FontWeight.w400,
         height: 1.4,
       );
@@ -259,14 +260,14 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
               ),
         ),
         // The pin: fixed in the middle, with its tip on the map's center.
-        const IgnorePointer(
+        IgnorePointer(
           child: Center(
             child: Padding(
               padding: EdgeInsets.only(bottom: 44),
               child: Icon(
                 Icons.location_on,
                 size: 48,
-                color: Color(0xFFD32F2F),
+                color: AppColors.adapt(const Color(0xFFD32F2F)),
               ),
             ),
           ),
@@ -278,13 +279,14 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
+              color: AppColors.surface.withValues(alpha: 0.94),
+              border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               'Move the map so the pin sits on your farm.',
               textAlign: TextAlign.center,
-              style: _text(12, color: Colors.black54),
+              style: _text(12, color: AppColors.textSecondary),
             ),
           ),
         ),
@@ -294,16 +296,16 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
           child: FloatingActionButton.small(
             heroTag: 'farm-location-recenter',
             tooltip: 'Use Current Location',
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.mid,
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.mid,
             onPressed: _recentering ? null : _recenter,
             child: _recentering
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppTheme.mid,
+                      color: AppColors.mid,
                     ),
                   )
                 : const Icon(Icons.my_location),
@@ -320,7 +322,10 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
       children: [
         SizedBox(
           width: 104,
-          child: Text(label, style: _text(12.5, color: Colors.black54)),
+          child: Text(
+            label,
+            style: _text(12.5, color: AppColors.textSecondary),
+          ),
         ),
         Expanded(
           child: Text(value, style: _text(13, weight: FontWeight.w600)),
@@ -338,8 +343,9 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: AppColors.cardBorder,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
@@ -356,12 +362,12 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
           if (_checking && reading == null)
             Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppTheme.mid,
+                    color: AppColors.mid,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -373,7 +379,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
               'This location is outside Laurel, Batangas.',
               style: _text(
                 14,
-                color: Colors.red.shade700,
+                color: AppColors.tone(Colors.red, 700),
                 weight: FontWeight.w700,
               ),
             ),
@@ -382,7 +388,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
               'Farmer registration is only open to farms in Laurel. Move '
               'the pin to your farm in Laurel, or go back and select your '
               'barangay from the list.',
-              style: _text(12.5, color: Colors.black54),
+              style: _text(12.5, color: AppColors.textSecondary),
             ),
           ] else ...[
             _line(
@@ -403,13 +409,13 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
                           'address — check your internet connection. You '
                           'can still select your Barangay to continue.'
                     : _fallbackMessage,
-                style: _text(12.5, color: Colors.orange.shade900),
+                style: _text(12.5, color: AppColors.tone(Colors.orange, 900)),
               ),
             ] else if (suggested) ...[
               const SizedBox(height: 4),
               Text(
                 'Please check that this is your barangay before confirming.',
-                style: _text(12, color: Colors.black54),
+                style: _text(12, color: AppColors.textSecondary),
               ),
             ],
             const SizedBox(height: 8),
@@ -426,7 +432,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
                   ),
                 ),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.mid,
+                  foregroundColor: AppColors.mid,
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(0, 34),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -451,7 +457,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
             child: Text(
               'Your exact position is not shown to buyers — only your barangay.',
               textAlign: TextAlign.center,
-              style: _text(11, color: Colors.black45),
+              style: _text(11, color: AppColors.textMuted),
             ),
           ),
         ],
@@ -462,7 +468,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: const AgriAppBar(title: 'Confirm Your Location'),
       body: SafeArea(
         top: false,

@@ -71,6 +71,14 @@ class DashboardDataService extends ChangeNotifier {
   bool get productsReady => _productsReady;
   bool get marketPricesReady => _marketPricesReady;
 
+  // Why a listener last failed, by collection, until it delivers again.
+  // [lastError] is any of the three, cleared by whichever lands next.
+  final Map<String, Object> _errors = {};
+
+  /// Why the orders listener failed, while it is down; null once orders
+  /// arrive again (after [refresh]).
+  Object? get ordersError => _errors['orders'];
+
   /// Starts the live listeners if they are not running (or one has failed)
   /// — safe to call on every build()/initState(). Completes once all three
   /// collections have arrived.
@@ -130,6 +138,7 @@ class DashboardDataService extends ChangeNotifier {
           (snapshot) {
             store(snapshot.docs);
             _lastError = null;
+            _errors.remove(name);
             if (_ordersReady && _productsReady && _marketPricesReady) {
               _lastFetchedAt = DateTime.now();
               _firstLoad?.complete();
@@ -142,6 +151,7 @@ class DashboardDataService extends ChangeNotifier {
             // the dashboard, and drop the dead listener so the next
             // ensureLoaded() opens a fresh one.
             _lastError = error;
+            _errors[name] = error;
             _subscriptions.remove(name)?.cancel();
             _firstLoad?.complete();
             _firstLoad = null;

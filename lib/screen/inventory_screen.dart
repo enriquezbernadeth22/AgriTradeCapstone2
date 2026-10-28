@@ -8,9 +8,9 @@ import '../data/commodity_master_list.dart';
 import '../services/market_price_helpers.dart';
 import '../services/order_service.dart';
 import '../services/product_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/retry_message.dart';
+import '../theme/app_colors.dart';
 
 /// Low Stock: 20% or less of the stock the farmer last set (when posting,
 /// restocking or editing the quantity — saved as the product's
@@ -124,7 +124,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       SnackBar(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppTheme.dark,
+        backgroundColor: AppColors.brandFill,
         content: Text(message),
       ),
     );
@@ -153,7 +153,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.surfaceAlt,
       appBar: const AgriAppBar(title: 'Inventory'),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _products,
@@ -168,13 +168,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             );
           }
           if (!productSnap.hasData) {
-            return const Center(
+            return Center(
               child: SizedBox(
                 width: 26,
                 height: 26,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: AppTheme.dark,
+                  color: AppColors.brand,
                 ),
               ),
             );
@@ -227,24 +227,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: AppColors.grey(200)),
           ),
           child: Row(
             children: [
-              _stat('${products.length}', 'Active Products', AppTheme.dark),
+              _stat('${products.length}', 'Active Products', AppColors.brand),
               _statDivider(),
               _stat(
                 '${count(StockStatus.lowStock)}',
                 'Low Stock',
-                Colors.orange.shade800,
+                AppColors.tone(Colors.orange, 800),
               ),
               _statDivider(),
               _stat(
                 '${count(StockStatus.outOfStock)}',
                 'Out of Stock',
-                Colors.red.shade700,
+                AppColors.tone(Colors.red, 700),
               ),
             ],
           ),
@@ -273,7 +273,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.montserrat(
                 fontSize: 12.5,
-                color: Colors.grey[600],
+                color: AppColors.grey(600),
                 height: 1.4,
               ),
             ),
@@ -300,14 +300,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: GoogleFonts.montserrat(fontSize: 11, color: Colors.grey[600]),
+          style: GoogleFonts.montserrat(
+            fontSize: 11,
+            color: AppColors.grey(600),
+          ),
         ),
       ],
     ),
   );
 
   Widget _statDivider() =>
-      Container(width: 1, height: 30, color: Colors.grey.shade200);
+      Container(width: 1, height: 30, color: AppColors.grey(200));
 
   Widget _filterChip(String label, StockStatus? value) {
     final selected = _filter == value;
@@ -316,10 +319,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.dark : Colors.white,
+          color: selected ? AppColors.brandFill : AppColors.surface,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: selected ? AppTheme.dark : Colors.grey.shade300,
+            color: selected ? AppColors.brand : AppColors.grey(300),
           ),
         ),
         child: Text(
@@ -327,7 +330,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : Colors.black87,
+            color: selected ? Colors.white : AppColors.text,
           ),
         ),
       ),
@@ -341,19 +344,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final status = stockStatusOfProduct(product);
     final imageUrl = (product['imageUrl'] ?? '').toString();
     final (String statusLabel, Color statusColor) = switch (status) {
-      StockStatus.inStock => ('IN STOCK', AppTheme.dark),
-      StockStatus.lowStock => ('LOW STOCK', Colors.orange.shade800),
-      StockStatus.outOfStock => ('OUT OF STOCK', Colors.red.shade700),
+      StockStatus.inStock => ('IN STOCK', AppColors.brand),
+      StockStatus.lowStock => ('LOW STOCK', AppColors.tone(Colors.orange, 800)),
+      StockStatus.outOfStock => (
+        'OUT OF STOCK',
+        AppColors.tone(Colors.red, 700),
+      ),
     };
     final fallback = Container(
-      color: AppTheme.accent,
+      color: AppColors.accent,
       alignment: Alignment.center,
       child: Text(
         name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: AppTheme.dark,
+          color: AppColors.brand,
         ),
       ),
     );
@@ -363,9 +369,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.grey(200)),
       ),
       child: Row(
         children: [
@@ -395,7 +401,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   style: GoogleFonts.montserrat(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -404,7 +410,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: AppColors.text,
                   ),
                 ),
                 if (sold != null && sold > 0)
@@ -412,7 +418,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     'Sold: ${formatStock(sold, unit)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 11,
-                      color: Colors.grey[600],
+                      color: AppColors.grey(600),
                     ),
                   ),
                 const SizedBox(height: 3),
@@ -442,11 +448,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
           TextButton(
             onPressed: () => _updateStock(id, product),
             style: TextButton.styleFrom(
-              foregroundColor: restock ? Colors.white : AppTheme.dark,
-              backgroundColor: restock ? AppTheme.dark : Colors.white,
+              foregroundColor: restock ? Colors.white : AppColors.brand,
+              backgroundColor: restock
+                  ? AppColors.brandFill
+                  : AppColors.surface,
               side: restock
                   ? BorderSide.none
-                  : BorderSide(color: Colors.grey.shade400),
+                  : BorderSide(color: AppColors.grey(400)),
               minimumSize: const Size(0, 32),
               padding: const EdgeInsets.symmetric(horizontal: 10),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -529,7 +537,7 @@ class _UpdateStockDialogState extends State<_UpdateStockDialog> {
             style: GoogleFonts.montserrat(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: AppColors.text,
             ),
           ),
           const SizedBox(height: 6),

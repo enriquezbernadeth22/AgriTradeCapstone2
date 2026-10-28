@@ -332,7 +332,7 @@ const List<AdminFaq> kDefaultAdminFaqs = [
     keywords: ['user account', 'review account', 'farmer', 'buyer', 'account'],
     answer:
         'Open User Accounts in the sidebar. Farmers lists approved farmers '
-        'with their RSBA No., barangay, listings and completed orders; Buyers '
+        'with their RSBSA No., barangay, listings and completed orders; Buyers '
         'lists buyer accounts with their email, moderation and account '
         'status. View account opens an account\'s details and moderation '
         'history. Farmers waiting for approval are in Verification.',
@@ -442,9 +442,9 @@ const List<AdminFaq> kDefaultAdminFaqs = [
     keywords: ['problem', 'complaint', 'issue', 'buyer', 'seller', 'report'],
     answer:
         'Reports that buyers and farmers send from the app arrive in the '
-        'Moderation Queue; handle them there. Support requests that buyers '
-        'send from the app are stored, but the Admin Portal does not show '
-        'them yet — how those are answered still needs to be confirmed.',
+        'Moderation Queue; handle them there. Other questions reach the '
+        'office through the support email shown in the app\'s Help & '
+        'Support.',
   ),
   AdminFaq(
     id: 'default-transactions-payments',

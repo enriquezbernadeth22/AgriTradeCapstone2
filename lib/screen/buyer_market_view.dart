@@ -1,5 +1,4 @@
 import '../widgets/agri_app_bar.dart';
-import '../theme/app_theme.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +10,7 @@ import '../services/location_permission_prompt.dart';
 import '../services/public_farm_location.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
+import '../theme/app_colors.dart';
 
 /// "Approx. 4.8 km away" — never presented as exact: one decimal below
 /// 10 km, whole kilometres beyond that. Null (no buyer location, or no
@@ -59,8 +59,6 @@ class BuyerMapView extends StatefulWidget {
 }
 
 class _BuyerMapViewState extends State<BuyerMapView> {
-  static const Color _dark = AppTheme.dark;
-
   // Close enough to read a barangay and its surroundings.
   static const double _farmZoom = 13.5;
 
@@ -238,7 +236,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     final farm = _farmPoint;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(
         title: 'Farm Location',
         // Returns to the Product Details this map was opened from.
@@ -248,7 +246,9 @@ class _BuyerMapViewState extends State<BuyerMapView> {
         children: [
           Positioned.fill(
             child: _loadingFarm
-                ? const Center(child: CircularProgressIndicator(color: _dark))
+                ? Center(
+                    child: CircularProgressIndicator(color: AppColors.brand),
+                  )
                 : farm == null
                 ? _unavailable()
                 : _mapFor(farm),
@@ -302,8 +302,8 @@ class _BuyerMapViewState extends State<BuyerMapView> {
           circleId: const CircleId('approximate_farm_area'),
           center: farm,
           radius: 700,
-          fillColor: _dark.withValues(alpha: 0.12),
-          strokeColor: _dark.withValues(alpha: 0.55),
+          fillColor: AppColors.brandFill.withValues(alpha: 0.12),
+          strokeColor: AppColors.brand.withValues(alpha: 0.55),
           strokeWidth: 1,
         ),
       },
@@ -314,7 +314,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
   // somewhere else. The saved area text is still shown in the card.
   Widget _unavailable() {
     return Container(
-      color: AppTheme.surface,
+      color: AppColors.surfaceAlt,
       alignment: const Alignment(0, -0.35),
       child: const AgriEmptyState(
         icon: Icons.location_off_outlined,
@@ -340,7 +340,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     return SafeArea(
       top: false,
       child: Material(
-        color: Colors.white,
+        color: AppColors.surface,
         elevation: 6,
         shadowColor: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(18),
@@ -366,10 +366,10 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                           name.isEmpty ? 'Farmer' : name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: AppColors.text,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -384,7 +384,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                           style: TextStyle(
                             fontSize: 12.5,
                             height: 1.3,
-                            color: Colors.grey[800],
+                            color: AppColors.grey(800),
                           ),
                         ),
                       ],
@@ -400,7 +400,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                         ? Icons.near_me_outlined
                         : Icons.location_disabled_outlined,
                     size: 17,
-                    color: hasDistance ? _dark : Colors.grey[700],
+                    color: hasDistance ? AppColors.brand : AppColors.grey(700),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -411,7 +411,9 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: hasDistance ? _dark : Colors.grey[800],
+                        color: hasDistance
+                            ? AppColors.brand
+                            : AppColors.grey(800),
                       ),
                     ),
                   ),
@@ -419,7 +421,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                     TextButton(
                       onPressed: _determinePosition,
                       style: TextButton.styleFrom(
-                        foregroundColor: _dark,
+                        foregroundColor: AppColors.brand,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -439,13 +441,17 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                 hasDistance
                     ? 'Distance is estimated using the farmer’s general barangay location.'
                     : (canRetry ? notice : 'Farm area could not be mapped.'),
-                style: TextStyle(fontSize: 11.5, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 11.5, color: AppColors.grey(700)),
               ),
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.lock_outline, size: 14, color: Colors.grey[700]),
+                  Icon(
+                    Icons.lock_outline,
+                    size: 14,
+                    color: AppColors.grey(700),
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -453,7 +459,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                       style: TextStyle(
                         fontSize: 11.5,
                         height: 1.35,
-                        color: Colors.grey[700],
+                        color: AppColors.grey(700),
                       ),
                     ),
                   ),

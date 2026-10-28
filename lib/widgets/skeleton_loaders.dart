@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shimmer.dart';
+import '../theme/app_colors.dart';
 
 // Skeleton placeholders for the farmer-side tabs. Each one mirrors the
 // dimensions of the real widget it stands in for (card padding, radius,
@@ -8,7 +9,8 @@ import 'shimmer.dart';
 // placeholder sweeps together.
 
 BoxDecoration _cardDecoration({double radius = 18}) => BoxDecoration(
-  color: Colors.white,
+  color: AppColors.surface,
+  border: AppColors.cardBorder,
   borderRadius: BorderRadius.circular(radius),
   boxShadow: [
     BoxShadow(
@@ -112,7 +114,7 @@ class MarketObjectiveCardSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBF6),
+        color: AppColors.adapt(const Color(0xFFF8FBF6)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

@@ -5,6 +5,7 @@ import '../services/admin_perf.dart';
 import '../services/dashboard_data_service.dart';
 import '../services/historical_demand_service.dart';
 import '../services/market_diagnostics_service.dart';
+import '../services/price_trend_service.dart';
 import 'admin_analytics_widgets.dart'
     show AdminCommoditySearchField, matchCommodities;
 import 'admin_dashboard_screen.dart'
@@ -15,19 +16,21 @@ import 'admin_dashboard_screen.dart'
         AdminLoadingSpinner,
         AdminQuickActionButton,
         AdminRadii;
+import 'admin_overview_widgets.dart' show AdminCardHeader;
 import 'admin_price_trend_chart.dart';
 import 'historical_demand_import.dart';
 
-/// Analytics Dashboard → Market Trends: for one commodity, its average
-/// price month by month, one year against another (see
-/// [AdminPriceTrendChart]); then what changed in
+/// Analytics Dashboard → Market Change Analysis: for one commodity, its
+/// average price month by month, one year against another (see
+/// [AdminPriceTrendSection]); then what changed in
 /// its demand, local supply and price over the last 30 days against the 30
 /// before, how this month compared in previous years, and the possible
 /// factors the data points to (see [MarketDiagnosticsService]).
 ///
 /// Read from AgriTrade+ completed orders and listings (the portal's shared
-/// live data) and the Admin's imported historical demand, which is
-/// imported from here too. Nothing is forecast.
+/// live data), Price Management's reference prices, and any imported
+/// historical demand from the year of the first completed order on —
+/// never an older year, as on the charts. Nothing is forecast.
 class AdminMarketTrendsCard extends StatefulWidget {
   const AdminMarketTrendsCard({super.key});
 
@@ -36,6 +39,18 @@ class AdminMarketTrendsCard extends StatefulWidget {
 }
 
 class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
+  // From this width the card has two columns (price chart | last 30 days).
+  static const double _twoColumnWidth = 900;
+
+  // Between the two columns (the line in its middle), or above and below
+  // the line between them when they are stacked.
+  static const double _gutter = 48;
+
+  // Whether the Import Historical Data button is shown. Hidden while there
+  // is no reliable source to import from; the import itself is kept, and
+  // setting this to true brings the button back.
+  static const bool _importEnabled = false;
+
   late final Stream<List<HistoricalDemandRecord>> _historical =
       AdminPerf.firstEvent(
         'market trends: historical_demand stream',
@@ -81,60 +96,37 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Full width, so the title sits on the left and the controls on
-              // the right, as on the other cards.
-              SizedBox(
-                width: double.infinity,
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
+              // The search (and the import, when shown) level with the title
+              // on the right, as on Market Demand and Price Trend vs.
+              // Baseline.
+              AdminCardHeader(
+                title: 'Market Change Analysis',
+                subtitle: commodity == null
+                    ? 'Price over the years, and the last 30 days'
+                    : '$commodity · price over the years, and the last 30 '
+                          'days',
+                stackBelow: 760,
+                trailing: Wrap(
+                  alignment: WrapAlignment.end,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 12,
-                  runSpacing: 12,
+                  runSpacing: 10,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Market Trends',
-                          style: TextStyle(
-                            color: c.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          commodity == null
-                              ? 'Price over the years, and the last 30 days'
-                              : '$commodity · price over the years, and the '
-                                    'last 30 days',
-                          style: TextStyle(
-                            color: c.textSecondary,
-                            fontSize: 12.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (names.isNotEmpty)
-                          AdminCommoditySearchField(
-                            key: ValueKey(commodity),
-                            commodities: names,
-                            selected: commodity,
-                            onSelected: (name) =>
-                                setState(() => _commodity = name),
-                          ),
-                        const SizedBox(width: 12),
-                        AdminQuickActionButton(
-                          icon: Icons.upload_file_outlined,
-                          label: 'Import Historical Data',
-                          onPressed: () => showHistoricalDemandImport(context),
-                        ),
-                      ],
-                    ),
+                    if (names.isNotEmpty)
+                      AdminCommoditySearchField(
+                        key: ValueKey(commodity),
+                        commodities: names,
+                        selected: commodity,
+                        hint: 'Search product',
+                        onSelected: (name) => setState(() => _commodity = name),
+                      ),
+                    if (_importEnabled)
+                      AdminQuickActionButton(
+                        icon: Icons.upload_file_outlined,
+                        label: 'Import Historical Data',
+                        filled: true,
+                        onPressed: () => showHistoricalDemandImport(context),
+                      ),
                   ],
                 ),
               ),
@@ -160,50 +152,77 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
                       for (final d in data.orders) d.data(),
                     ];
                     final products = [for (final d in data.products) d.data()];
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // The year-on-year price trend first, then the
-                        // last 30 days' changes.
-                        AdminPriceTrendChart(
+                    // Imported records from the year of the first completed
+                    // order on, as on the charts: an older year is never
+                    // shown, here or in the seasonal pattern.
+                    final firstYear = PriceTrendService.yearsOnRecord(
+                      completedOrders,
+                      DateTime.now(),
+                    ).first;
+                    final records = <HistoricalDemandRecord>[
+                      for (final record in historical.data ?? const [])
+                        if (record.year >= firstYear) record,
+                    ];
+                    // The price year against year, then what changed in
+                    // the last 30 days and possibly why.
+                    const last30Heading = AdminSubsectionHeader(
+                      title: 'Last 30 Days',
+                      subtitle: 'Against the 30 days before',
+                    );
+                    final last30 = _analysis(
+                      c,
+                      MarketDiagnosticsService.diagnose(
+                        commodity: commodity,
+                        historical: records,
+                        completedOrders: completedOrders,
+                        products: products,
+                      ),
+                      historicalMissing: historical.hasError,
+                      liveMissing: !data.hasLoadedOnce,
+                    );
+                    // Two columns: the price chart, and beside it the last
+                    // 30 days. On a narrow screen, one under the other.
+                    return LayoutBuilder(
+                      builder: (context, box) {
+                        final twoColumns = box.maxWidth >= _twoColumnWidth;
+                        return AdminPriceTrendSection(
                           commodity: commodity,
                           products: products,
                           completedOrders: completedOrders,
-                          historical: historical.data ?? const [],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          child: Divider(height: 1, color: c.border),
-                        ),
-                        Text(
-                          'Last 30 Days',
-                          style: TextStyle(
-                            color: c.textPrimary,
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Against the 30 days before',
-                          style: TextStyle(
-                            color: c.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _analysis(
-                          c,
-                          MarketDiagnosticsService.diagnose(
-                            commodity: commodity,
-                            historical: historical.data ?? const [],
-                            completedOrders: completedOrders,
-                            products: products,
-                          ),
-                          historicalMissing: historical.hasError,
-                          liveMissing: !data.hasLoadedOnce,
-                        ),
-                      ],
+                          historical: records,
+                          arrange: (heading, priceTrend) => twoColumns
+                              ? _twoColumns(
+                                  c,
+                                  [heading, last30Heading],
+                                  [priceTrend, last30],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    heading,
+                                    const SizedBox(
+                                      height: AdminSubsectionHeader.gapBelow,
+                                    ),
+                                    priceTrend,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: _gutter / 2,
+                                      ),
+                                      child: Divider(
+                                        height: 1,
+                                        thickness: 1,
+                                        color: c.border,
+                                      ),
+                                    ),
+                                    last30Heading,
+                                    const SizedBox(
+                                      height: AdminSubsectionHeader.gapBelow,
+                                    ),
+                                    last30,
+                                  ],
+                                ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -211,6 +230,52 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
           );
         },
       ),
+    );
+  }
+
+  // The two parts side by side: their headings on one row, as tall as the
+  // taller, so the chart and the tiles under them start on one line; a
+  // thin line between them, top to bottom. A table rather than rows, as
+  // its middle cells stretch to the row's height without measuring the
+  // chart ahead of time.
+  Widget _twoColumns(
+    AdminPalette c,
+    List<Widget> headings,
+    List<Widget> contents,
+  ) {
+    TableCell line() => TableCell(
+      verticalAlignment: TableCellVerticalAlignment.fill,
+      child: Center(child: Container(width: 1, color: c.border)),
+    );
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(3),
+        1: FixedColumnWidth(_gutter),
+        2: FlexColumnWidth(2),
+      },
+      children: [
+        TableRow(
+          children: [
+            for (final (i, heading) in headings.indexed) ...[
+              if (i > 0) line(),
+              Padding(
+                padding: const EdgeInsets.only(
+                  bottom: AdminSubsectionHeader.gapBelow,
+                ),
+                child: heading,
+              ),
+            ],
+          ],
+        ),
+        TableRow(
+          children: [
+            for (final (i, content) in contents.indexed) ...[
+              if (i > 0) line(),
+              content,
+            ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -256,13 +321,13 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
                 'analyze.',
           )
         else ...[
+          // The three changes at a glance — each tile's figures behind it
+          // on hover — and their possible factors; no long detail lines.
           _tiles(c, d),
-          const SizedBox(height: 14),
-          _detail(c, 'Demand', d.demandSummary),
-          _detail(c, 'Local Supply', d.supplySummary),
-          _detail(c, 'Market Price', d.priceSummary),
-          if (d.seasonalPattern.isNotEmpty)
-            _detail(c, 'Seasonal Pattern', d.seasonalPattern),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Divider(height: 1, thickness: 1, color: c.border),
+          ),
           _detail(
             c,
             'Possible Factors',
@@ -270,7 +335,6 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
                 ? 'The data on record points to no specific factor behind '
                       'these changes.'
                 : d.factors.map((f) => '• $f').join('\n'),
-            last: true,
           ),
         ],
       ],
@@ -297,16 +361,22 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
         label: 'Demand',
         value: word(d.demand, 'Increased', 'Decreased'),
         color: tone(d.demand),
+        detail: [
+          d.demandSummary,
+          if (d.seasonalPattern.isNotEmpty) d.seasonalPattern,
+        ].join('\n\n'),
       ),
       (
         label: 'Local Supply',
         value: word(d.supply, 'Increased', 'Decreased'),
         color: tone(d.supply),
+        detail: d.supplySummary,
       ),
       (
         label: 'Market Price',
         value: word(d.price, 'Increased', 'Decreased'),
         color: tone(d.price, upIsGood: false),
+        detail: d.priceSummary,
       ),
     ];
     return LayoutBuilder(
@@ -319,43 +389,48 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
           runSpacing: gap,
           children: [
             for (final tile in tiles)
-              Container(
-                width: width,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Color.alphaBlend(
-                    c.green.withValues(alpha: c.isDark ? 0.08 : 0.05),
-                    c.surface,
+              // The figures behind the word, on hover.
+              Tooltip(
+                message: tile.detail,
+                waitDuration: const Duration(milliseconds: 300),
+                child: Container(
+                  width: width,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
-                  borderRadius: BorderRadius.circular(AdminRadii.card),
-                  border: Border.all(color: c.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tile.label,
-                      style: TextStyle(
-                        color: c.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  decoration: BoxDecoration(
+                    color: Color.alphaBlend(
+                      c.green.withValues(alpha: c.isDark ? 0.08 : 0.05),
+                      c.surface,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      tile.value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: tile.color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                    borderRadius: BorderRadius.circular(AdminRadii.card),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tile.label,
+                        style: TextStyle(
+                          color: c.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        tile.value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: tile.color,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -364,39 +439,26 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
     );
   }
 
-  Widget _detail(
-    AdminPalette c,
-    String label,
-    String value, {
-    bool last = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: last ? null : Border(bottom: BorderSide(color: c.border)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 170,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: c.textSecondary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+  // A labelled block of text under the tiles, its label over it, both on
+  // the tiles' left edge.
+  Widget _detail(AdminPalette c, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: c.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: c.textPrimary, fontSize: 13, height: 1.4),
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(color: c.textSecondary, fontSize: 13, height: 1.5),
+        ),
+      ],
     );
   }
 }

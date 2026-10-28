@@ -7,6 +7,7 @@ import '../screen/confirm_farm_location_screen.dart';
 import '../services/location_permission_prompt.dart';
 import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
+import '../theme/app_colors.dart';
 
 /// Farmer-only barangay picker (buyers use BuyerLocationField instead, since
 /// buyer registration isn't restricted to Laurel): a field that opens a
@@ -184,12 +185,12 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
             TextButton.icon(
               onPressed: _locating ? null : _useMyLocation,
               icon: _locating
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppTheme.mid,
+                        color: AppColors.mid,
                       ),
                     )
                   : const Icon(Icons.my_location, size: 16),
@@ -198,7 +199,7 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
                 style: TextStyle(fontSize: 12.5),
               ),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.mid,
+                foregroundColor: AppColors.mid,
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -223,15 +224,15 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
                 decoration: AppTheme.glowFieldWrapper(),
                 child: Row(
                   children: [
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(left: 18, right: 12),
                       child: Icon(
                         Icons.location_on_outlined,
-                        color: AppTheme.mid,
+                        color: AppColors.mid,
                         size: 20,
                       ),
                     ),
-                    Container(height: 22, width: 1, color: Colors.black12),
+                    Container(height: 22, width: 1, color: AppColors.hairline),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -245,17 +246,17 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
                           style: GoogleFonts.montserrat(
                             fontSize: 15,
                             color: widget.value == null
-                                ? Colors.black45
-                                : Colors.black87,
+                                ? AppColors.textMuted
+                                : AppColors.text,
                           ),
                         ),
                       ),
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(right: 14),
                       child: Icon(
                         Icons.keyboard_arrow_down_rounded,
-                        color: Colors.black45,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ],
@@ -269,12 +270,19 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline, size: 14, color: Colors.red.shade700),
+              Icon(
+                Icons.error_outline,
+                size: 14,
+                color: AppColors.tone(Colors.red, 700),
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   widget.errorText!,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 11),
+                  style: TextStyle(
+                    color: AppColors.tone(Colors.red, 700),
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -340,7 +348,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.black12,
+                color: AppColors.hairline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -357,7 +365,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                           style: GoogleFonts.montserrat(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.dark,
+                            color: AppColors.brand,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -365,7 +373,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                           'Laurel, Batangas',
                           style: GoogleFonts.montserrat(
                             fontSize: 12,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -375,7 +383,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                     onPressed: () => Navigator.pop(context),
                     tooltip: 'Close',
                     icon: const Icon(Icons.close_rounded),
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ],
               ),
@@ -392,11 +400,11 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                   hintText: 'Search barangay',
                   hintStyle: GoogleFonts.montserrat(
                     fontSize: 14.5,
-                    color: Colors.black45,
+                    color: AppColors.textMuted,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search_rounded,
-                    color: AppTheme.mid,
+                    color: AppColors.mid,
                     size: 21,
                   ),
                   suffixIcon: _query.isEmpty
@@ -404,7 +412,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                       : IconButton(
                           tooltip: 'Clear search',
                           icon: const Icon(Icons.cancel_rounded, size: 18),
-                          color: Colors.black38,
+                          color: AppColors.textMuted,
                           onPressed: () {
                             _searchController.clear();
                             setState(() => _query = '');
@@ -412,7 +420,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                         ),
                   isDense: true,
                   filled: true,
-                  fillColor: const Color(0xFFF4F6F4),
+                  fillColor: AppColors.adapt(const Color(0xFFF4F6F4)),
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
@@ -424,15 +432,12 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
-                    borderSide: const BorderSide(
-                      color: AppTheme.mid,
-                      width: 1.2,
-                    ),
+                    borderSide: BorderSide(color: AppColors.mid, width: 1.2),
                   ),
                 ),
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE8EDE8)),
+            Divider(height: 1, color: AppColors.adapt(const Color(0xFFE8EDE8))),
             Flexible(
               child: matches.isEmpty
                   ? Padding(
@@ -442,7 +447,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                         textAlign: TextAlign.center,
                         style: GoogleFonts.montserrat(
                           fontSize: 13.5,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     )
@@ -453,11 +458,11 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                         bottom: 12 + media.viewPadding.bottom,
                       ),
                       itemCount: matches.length,
-                      separatorBuilder: (_, _) => const Divider(
+                      separatorBuilder: (_, _) => Divider(
                         height: 1,
                         indent: 56,
                         endIndent: 20,
-                        color: Color(0xFFEEF1EE),
+                        color: AppColors.adapt(const Color(0xFFEEF1EE)),
                       ),
                       itemBuilder: (context, index) {
                         final name = matches[index];
@@ -465,7 +470,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                         return ListTile(
                           onTap: () => Navigator.pop(context, name),
                           selected: isSelected,
-                          selectedTileColor: AppTheme.accent.withValues(
+                          selectedTileColor: AppColors.accent.withValues(
                             alpha: 0.35,
                           ),
                           contentPadding: const EdgeInsets.symmetric(
@@ -477,7 +482,9 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                             isSelected
                                 ? Icons.location_on
                                 : Icons.location_on_outlined,
-                            color: isSelected ? AppTheme.mid : Colors.black45,
+                            color: isSelected
+                                ? AppColors.mid
+                                : AppColors.textMuted,
                             size: 21,
                           ),
                           title: Text(
@@ -488,14 +495,14 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                                   ? FontWeight.w700
                                   : FontWeight.w500,
                               color: isSelected
-                                  ? AppTheme.dark
-                                  : Colors.black87,
+                                  ? AppColors.brand
+                                  : AppColors.text,
                             ),
                           ),
                           trailing: isSelected
-                              ? const Icon(
+                              ? Icon(
                                   Icons.check_circle_rounded,
-                                  color: AppTheme.mid,
+                                  color: AppColors.mid,
                                   size: 20,
                                 )
                               : null,

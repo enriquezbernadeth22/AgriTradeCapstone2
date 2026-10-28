@@ -1,10 +1,18 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../services/market_price_helpers.dart';
 import '../data/commodity_master_list.dart';
+import 'admin_filter_controls.dart'
+    show
+        AdminInputGlow,
+        adminFieldDecoration,
+        kAdminControlHeight,
+        kAdminControlWidth,
+        kAdminFontFamily;
 import 'admin_dashboard_screen.dart'
-    show AdminThemeScope, AdminPalette, AdminEmptyState, AdminRadii;
+    show AdminThemeScope, AdminPalette, AdminEmptyState;
 import 'admin_overview_widgets.dart'
     show AdminChartCard, AdminChartEmpty, adminGreenAt;
 
@@ -21,25 +29,26 @@ import 'admin_overview_widgets.dart'
 const double _marketCardBodyHeight = 288;
 
 // ---- Top-Selling Products (ranked horizontal bars, top 5) ----
-/// What buyers actually bought most: products ranked by the revenue of
-/// their completed orders, with the quantity sold. Ranked by revenue
-/// rather than quantity because quantities come in different units (kg,
-/// pieces, heads) and cannot be compared with each other.
+/// What buyers actually bought most: products ranked by how many completed
+/// orders they had, with the sales value and quantity sold. Ranked by
+/// orders, as the Farmer's Best-Selling Products, the Demand Forecast and
+/// the Demand Heatmap count demand — not by quantity, which comes in
+/// different units (kg, pieces, heads) that cannot be compared.
 class AdminTopProductsCard extends StatelessWidget {
-  final List<({String name, num revenue, num quantity})> products;
+  final List<({String name, int orders, num revenue, num quantity})> products;
   const AdminTopProductsCard({super.key, required this.products});
 
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
-    final maxRevenue = products.fold<double>(
+    final maxOrders = products.fold<int>(
       0,
-      (max, p) => p.revenue > max ? p.revenue.toDouble() : max,
+      (max, p) => p.orders > max ? p.orders : max,
     );
 
     return AdminChartCard(
       title: 'Top-Selling Products',
-      subtitle: 'Ranked by sales value of completed orders',
+      subtitle: 'Ranked by number of completed orders, all time',
       bodyHeight: _marketCardBodyHeight,
       child: products.isEmpty
           ? const AdminChartEmpty(
@@ -50,7 +59,7 @@ class AdminTopProductsCard extends StatelessWidget {
               children: [
                 for (var i = 0; i < products.length; i++) ...[
                   if (i > 0) const SizedBox(height: 8),
-                  _row(c, i, products[i], maxRevenue),
+                  _row(c, i, products[i], maxOrders),
                 ],
               ],
             ),
@@ -60,13 +69,13 @@ class AdminTopProductsCard extends StatelessWidget {
   Widget _row(
     AdminPalette c,
     int index,
-    ({String name, num revenue, num quantity}) p,
-    double maxRevenue,
+    ({String name, int orders, num revenue, num quantity}) p,
+    int maxOrders,
   ) {
     final isTop = index == 0;
-    final barValue = maxRevenue <= 0
+    final barValue = maxOrders <= 0
         ? 0.0
-        : (p.revenue / maxRevenue).clamp(0.03, 1.0);
+        : (p.orders / maxOrders).clamp(0.03, 1.0);
     // The same green steps as the charts above: strongest for #1.
     final strength = products.length == 1
         ? 1.0
@@ -112,7 +121,7 @@ class AdminTopProductsCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    formatPeso(p.revenue),
+                    '${p.orders} ${p.orders == 1 ? 'order' : 'orders'}',
                     style: TextStyle(
                       color: c.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -133,7 +142,8 @@ class AdminTopProductsCard extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                '${formatStock(p.quantity, unitForProductName(p.name))} sold',
+                '${formatStock(p.quantity, unitForProductName(p.name))} sold'
+                ' · ${formatPeso(p.revenue)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: c.textSecondary, fontSize: 11),
@@ -232,15 +242,19 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
       title: 'Price Trend vs. Baseline',
       subtitle: 'Weekly average price in completed orders',
       bodyHeight: _marketCardBodyHeight,
-      trailing: names.isEmpty
+      // Level with the title on the right, as on Market Demand and Market
+      // Change Analysis.
+      trailing: selected == null
           ? null
           : AdminCommoditySearchField(
               // Rebuilt when the selection changes, so the field shows it.
               key: ValueKey(selected),
               commodities: names,
               selected: selected,
+              hint: 'Search product',
               onSelected: (name) => setState(() => _selected = name),
             ),
+      trailingStackBelow: 560,
       child: selected == null
           ? const AdminChartEmpty(
               icon: Icons.show_chart,
@@ -343,24 +357,30 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
         if (weekly[i] != null) FlSpot(i.toDouble(), weekly[i]!),
     ];
     final values = [...spots.map((s) => s.y), ?baseline];
-    final rawMin = values.reduce((a, b) => a < b ? a : b);
-    final rawMax = values.reduce((a, b) => a > b ? a : b);
-    final pad = ((rawMax - rawMin).abs() < 1
-        ? rawMax * 0.1 + 1
-        : (rawMax - rawMin) * 0.2);
-    final minY = (rawMin - pad).clamp(0, double.infinity).toDouble();
-    final maxY = rawMax + pad;
+    final top = values.reduce((a, b) => a > b ? a : b);
+    final axis = priceTrendAxis(top);
     final lastIndex = (weekly.length - 1).toDouble();
+    final maxX = lastIndex < 1 ? 1.0 : lastIndex;
     final axisStyle = TextStyle(color: c.textSecondary, fontSize: 11);
+    final unit = unitForProductName(_selected ?? '');
+    String weekLabel(int i) {
+      final weeksAgo = weekly.length - 1 - i;
+      return weeksAgo == 0
+          ? 'This week'
+          : '$weeksAgo ${weeksAgo == 1 ? 'week' : 'weeks'} ago';
+    }
 
     return LineChartData(
-      minY: minY,
-      maxY: maxY,
+      // From zero, in round steps of ₱100 (larger ones for a pricier
+      // commodity): only those figures are labelled, so none overlap. The
+      // exact price is in the tooltip, on hover.
+      minY: 0,
+      maxY: axis.max,
       minX: 0,
-      maxX: lastIndex < 1 ? 1 : lastIndex,
+      maxX: maxX,
       gridData: FlGridData(
         drawVerticalLine: false,
-        horizontalInterval: ((maxY - minY) / 4).clamp(0.5, double.infinity),
+        horizontalInterval: axis.step,
         getDrawingHorizontalLine: (_) =>
             FlLine(color: c.border, strokeWidth: 1),
       ),
@@ -391,20 +411,81 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
-            reservedSize: 48,
-            getTitlesWidget: (value, meta) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '₱${value.toStringAsFixed(0)}',
-                textAlign: TextAlign.right,
-                style: axisStyle,
-              ),
-            ),
+            reservedSize: 56,
+            interval: axis.step,
+            getTitlesWidget: (value, meta) {
+              // Only the round steps — never an in-between edge figure.
+              if ((value / axis.step - (value / axis.step).round()).abs() >
+                  1e-6) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  '₱${NumberFormat('#,##0').format(value)}',
+                  textAlign: TextAlign.right,
+                  style: axisStyle,
+                ),
+              );
+            },
           ),
         ),
       ),
       borderData: FlBorderData(show: false),
-      lineTouchData: const LineTouchData(enabled: false),
+      // Hover (or tap) a week: its average price, and the baseline.
+      lineTouchData: LineTouchData(
+        // A thin guide down to the week, not a heavy bar.
+        getTouchedSpotIndicator: (bar, indexes) => [
+          for (final _ in indexes)
+            TouchedSpotIndicatorData(
+              FlLine(color: c.textMuted, strokeWidth: 1, dashArray: [4, 3]),
+              FlDotData(show: bar.dotData.show),
+            ),
+        ],
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipColor: (_) => c.textPrimary,
+          fitInsideHorizontally: true,
+          fitInsideVertically: true,
+          maxContentWidth: 240,
+          // One box per week: the week, its average and the baseline.
+          getTooltipItems: (touched) {
+            final trend = touched.where((s) => s.barIndex == 0).firstOrNull;
+            final first = trend ?? touched.first;
+            final lines = [
+              trend == null
+                  ? 'No completed sale'
+                  : 'Average ${formatPeso(trend.y)}',
+              if (baseline != null) 'Admin baseline ${formatPeso(baseline)}',
+              'per $unit',
+            ];
+            return [
+              for (final spot in touched)
+                identical(spot, first)
+                    ? LineTooltipItem(
+                        '${weekLabel(spot.x.round())}\n',
+                        const TextStyle(
+                          fontFamily: kAdminFontFamily,
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: lines.join('\n'),
+                            style: const TextStyle(
+                              fontFamily: kAdminFontFamily,
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      )
+                    : null,
+            ];
+          },
+        ),
+      ),
       lineBarsData: [
         // The trend: the dashboard's green.
         LineChartBarData(
@@ -421,11 +502,12 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
         ),
         // The baseline: a neutral dashed line, so it reads as a reference
         // rather than as a second series.
+        // A point every week (none drawn), so hovering any week shows it.
         if (baseline != null)
           LineChartBarData(
             spots: [
-              FlSpot(0, baseline),
-              FlSpot(lastIndex < 1 ? 1 : lastIndex, baseline),
+              for (var i = 0; i <= maxX.round(); i++)
+                FlSpot(i.toDouble(), baseline),
             ],
             isCurved: false,
             color: c.textSecondary,
@@ -438,6 +520,22 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
   }
 }
 
+/// The Price Trend card's price axis: from ₱0 to the first round step above
+/// [highest], in steps of ₱100 — or, for a pricier commodity (an animal per
+/// head), the smallest of ₱200, ₱500, ₱1,000, ₱2,000, ₱5,000, … that keeps
+/// it to five steps at most. Never with the line on the top edge.
+({double max, double step}) priceTrendAxis(double highest) {
+  const factors = [2.0, 2.5, 2.0]; // 100 → 200 → 500 → 1,000 → 2,000 → …
+  var step = 100.0;
+  for (var k = 0; highest / step > 5; k++) {
+    step *= factors[k % factors.length];
+  }
+  var max = (highest / step).ceil() * step;
+  if (max < step) max = step;
+  if (max - highest < step * 0.1) max += step;
+  return (max: max, step: step);
+}
+
 /// The commodity search on the Price Trend card: type to get matching
 /// commodities suggested, pick one to load its chart. Shows the current
 /// commodity until the admin starts typing.
@@ -445,21 +543,34 @@ class AdminCommoditySearchField extends StatelessWidget {
   final List<String> commodities;
   final String? selected;
   final ValueChanged<String> onSelected;
+  final String hint;
+  final double width;
+  final double height;
+
+  /// Told what is typed, as it is typed (before anything is picked).
+  final ValueChanged<String>? onQueryChanged;
+
+  /// What a screen reader says for the field.
+  final String? semanticLabel;
 
   const AdminCommoditySearchField({
     super.key,
     required this.commodities,
     required this.selected,
     required this.onSelected,
+    this.hint = 'Search commodity',
+    this.width = kAdminControlWidth,
+    this.height = kAdminControlHeight,
+    this.onQueryChanged,
+    this.semanticLabel,
   });
-
-  static const double _width = 240;
 
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
     return SizedBox(
-      width: _width,
+      width: width,
+      height: height,
       child: Autocomplete<String>(
         initialValue: TextEditingValue(text: selected ?? ''),
         // With the current commodity still in the field, list them all;
@@ -470,42 +581,31 @@ class AdminCommoditySearchField extends StatelessWidget {
         ),
         onSelected: onSelected,
         fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-          return TextField(
-            controller: controller,
-            focusNode: focusNode,
-            onSubmitted: (_) => onSubmitted(),
-            // Select the current name on focus, so typing replaces it.
-            onTap: () => controller.selection = TextSelection(
-              baseOffset: 0,
-              extentOffset: controller.text.length,
-            ),
-            style: TextStyle(color: c.textPrimary, fontSize: 13),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search commodity',
-              hintStyle: TextStyle(color: c.textMuted, fontSize: 13),
-              prefixIcon: Icon(Icons.search, size: 18, color: c.textSecondary),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 38,
-                minHeight: 36,
-              ),
-              filled: true,
-              fillColor: c.surface,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AdminRadii.pill),
-                borderSide: BorderSide(color: c.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AdminRadii.pill),
-                borderSide: BorderSide(color: c.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AdminRadii.pill),
-                borderSide: BorderSide(color: c.green, width: 1.5),
+          // The Admin login's field look (AdminInputGlow).
+          return AdminInputGlow(
+            // The field in the middle of the pill, level with the
+            // dropdowns'.
+            child: Center(
+              child: Semantics(
+                label: semanticLabel,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  onChanged: onQueryChanged,
+                  onSubmitted: (_) => onSubmitted(),
+                  // Select the current name on focus, so typing replaces it.
+                  onTap: () => controller.selection = TextSelection(
+                    baseOffset: 0,
+                    extentOffset: controller.text.length,
+                  ),
+                  style: TextStyle(color: c.textPrimary, fontSize: 13),
+                  decoration: adminFieldDecoration(
+                    c,
+                    hint: hint,
+                    icon: Icons.search,
+                    fixedHeight: true,
+                  ),
+                ),
               ),
             ),
           );
@@ -525,7 +625,7 @@ class AdminCommoditySearchField extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
-                    maxWidth: _width,
+                    maxWidth: 260,
                     maxHeight: 240,
                   ),
                   child: ListView.builder(
@@ -554,7 +654,7 @@ class AdminCommoditySearchField extends StatelessWidget {
                               fontWeight: isCurrent
                                   ? FontWeight.w600
                                   : FontWeight.w500,
-                              color: isCurrent ? c.green : c.textPrimary,
+                              color: c.textPrimary,
                             ),
                           ),
                         ),

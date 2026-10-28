@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// The bottom navigation bar of the Farmer and Buyer home screens: a small,
 /// solid white pill floating a little above the bottom edge, inset from
@@ -16,7 +16,7 @@ class DockedNavBar extends StatelessWidget {
 
   /// The bar's look — pure white, these corners, this shadow — which the
   /// tabs' header band (PageHeader) shares.
-  static const Color color = Colors.white;
+  static Color get color => AppColors.surface;
   static const double cornerRadius = 27;
   static final List<BoxShadow> shadow = [
     BoxShadow(
@@ -43,6 +43,7 @@ class DockedNavBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             borderRadius: _radius,
+            border: AppColors.cardBorder,
             boxShadow: shadow,
           ),
           // For the items' ripples. Not clipped: the farmer's + button
@@ -83,11 +84,13 @@ class NavBarItem extends StatelessWidget {
     this.decorateIcon,
   });
 
-  static const Color _unselected = Color(0xFFAAB4AC);
-
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppTheme.dark : _unselected;
+    final color = selected
+        ? AppColors.brand
+        : (AppColors.isDark
+              ? AppColors.grey(500)
+              : AppColors.adapt(const Color(0xFFAAB4AC)));
     final iconWidget = Icon(
       selected ? activeIcon : icon,
       color: color,
