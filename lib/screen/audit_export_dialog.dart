@@ -645,12 +645,6 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
               child: Checkbox(
                 value: value,
                 onChanged: (checked) => onChanged(checked ?? false),
-                activeColor: c.textPrimary,
-                checkColor: c.surface,
-                side: BorderSide(color: c.textMuted, width: 1.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
               ),

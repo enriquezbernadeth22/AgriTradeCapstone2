@@ -85,6 +85,11 @@ function checkFarmerDetails(input) {
     return { error: "Choose the farmer's barangay in Laurel." };
   }
 
+  if (!FARMER_TYPES.includes(text(data.farmerType))) {
+    return { error: "Choose what best describes the farmer." };
+  }
+  const farmerType = text(data.farmerType);
+
   const rsbaNumber = text(data.rsbaNumber).toUpperCase();
   if (rsbaNumber.length < RSBSA_MIN || rsbaNumber.length > RSBSA_MAX ||
       !/^[A-Z0-9]+$/.test(rsbaNumber)) {
@@ -111,6 +116,7 @@ function checkFarmerDetails(input) {
     email,
     mobileNumber,
     barangay,
+    farmerType,
     rsbaNumber,
     password,
     termsVersion: version(data.termsVersion),
@@ -118,4 +124,17 @@ function checkFarmerDetails(input) {
   };
 }
 
-module.exports = { LAUREL_BARANGAYS, checkFarmerDetails };
+// The same answers as kFarmerTypes in lib/data/account_types.dart.
+const FARMER_TYPES = ["Crop Farmer", "Livestock Farmer", "Both Crop and Livestock"];
+
+/**
+ * Whether a login's password changed after [sinceMs]. Firebase moves
+ * tokensValidAfterTime on every password change, including one made through
+ * the emailed reset link, which the app and the functions never see.
+ */
+function passwordChangedSince(tokensValidAfterTime, sinceMs) {
+  const changedAt = Date.parse(tokensValidAfterTime || "");
+  return Number.isFinite(changedAt) && Number.isFinite(sinceMs) && changedAt > sinceMs;
+}
+
+module.exports = { LAUREL_BARANGAYS, checkFarmerDetails, passwordChangedSince };

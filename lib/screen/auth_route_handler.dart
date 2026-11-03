@@ -14,6 +14,7 @@ import 'login_screen.dart';
 import 'pending_approval_screen.dart';
 import 'role_selection_screen.dart';
 import 'email_verification_screen.dart';
+import '../l10n/app_language.dart';
 
 /// Turns an [AuthRouteResult] into the actual navigation it implies —
 /// the one place every login entry point (LoginFormFields, the "continue
@@ -107,9 +108,9 @@ Future<void> _blockAndReturnToLogin(
     builder: (dialogContext) => AgriDialog(
       icon: Icons.lock_outline,
       tone: AgriTone.warning,
-      title: Text(result.title ?? 'Unable to Log In'),
+      title: Text(result.title ?? tl('Unable to Log In')),
       content: Text(
-        message ?? 'You are not able to access this at the moment.',
+        message ?? tl('You are not able to access this at the moment.'),
       ),
       actions: [
         AgriDialogButton(

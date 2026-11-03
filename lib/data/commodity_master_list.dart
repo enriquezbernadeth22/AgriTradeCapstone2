@@ -216,13 +216,15 @@ bool isCountBasedUnit(String unit) {
   return u == 'piece' || u == 'head';
 }
 
-/// How a livestock listing is sold, chosen in Add Product for every
-/// commodity the Admin files under Livestock: alive, in the commodity's own
-/// unit (kg liveweight or head), or slaughtered, always per kg. Saved on
-/// the listing and on its orders as 'sellingOption'.
+/// How a livestock listing is sold: live only, in the commodity's own unit
+/// (kg liveweight or head) — decided by the user, 2026-11-04. Saved on a
+/// livestock listing and on its orders as 'sellingOption': 'live'.
+///
+/// Listings and orders saved as 'slaughtered' before then are still read
+/// as such ([isSlaughtered]): named "… (Slaughtered)", and kept out of
+/// live prices and price suggestions.
 enum SellingOption {
-  live('live', 'Live'),
-  slaughtered('slaughtered', 'Slaughtered');
+  live('live', 'Live');
 
   const SellingOption(this.value, this.label);
 
@@ -231,39 +233,29 @@ enum SellingOption {
   final String label;
 }
 
-/// The unit of a slaughtered livestock listing.
-const String kSlaughteredUnit = 'kg';
-
 /// True for the Livestock category, whatever the Admin's capitals.
 bool isLivestockCategory(String? category) =>
     (category ?? '').trim().toLowerCase() == 'livestock';
 
 /// The selling option saved on a listing or an order, or null when it has
-/// none (not livestock, or a listing saved before the option existed —
-/// sold live).
+/// none (not livestock, a listing saved before the option existed, or an
+/// old slaughtered one — see [isSlaughtered]).
 SellingOption? sellingOptionOf(Map<String, dynamic>? data) =>
     switch ((data?['sellingOption'] ?? '').toString()) {
       'live' => SellingOption.live,
-      'slaughtered' => SellingOption.slaughtered,
       _ => null,
     };
 
-/// True when a listing or an order is for slaughtered livestock.
+/// True for a listing or order saved as slaughtered livestock, from before
+/// livestock was sold live only.
 bool isSlaughtered(Map<String, dynamic>? data) =>
-    sellingOptionOf(data) == SellingOption.slaughtered;
+    data?['sellingOption'] == 'slaughtered';
 
-/// The unit a listing of [commodity] is sold in: per kg when slaughtered,
-/// otherwise the commodity's own unit.
-String unitForListing(String commodity, SellingOption? option) =>
-    option == SellingOption.slaughtered
-    ? kSlaughteredUnit
-    : unitForCommodity(commodity);
-
-/// [name] with the selling option after it — "Swine (Live)",
-/// "Cattle (Slaughtered)" — or [name] alone when there is none.
+/// [name] as shown: an old slaughtered listing or order says so —
+/// "Cattle (Slaughtered)"; anything else (live livestock included) is
+/// [name] alone.
 String withSellingOption(String name, Map<String, dynamic>? data) {
-  final option = sellingOptionOf(data);
-  return option == null ? name : '$name (${option.label})';
+  return isSlaughtered(data) ? '$name (Slaughtered)' : name;
 }
 
 /// The app's three built-in categories. The Admin adds any other (Grains,

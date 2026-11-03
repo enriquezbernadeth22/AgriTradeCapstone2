@@ -32,6 +32,29 @@ void main() {
   double barHeight(WidgetTester tester) =>
       tester.getSize(find.byType(AgriAppBar)).height;
 
+  testWidgets('the bar is rectangular, with no rounded corners', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    final band = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byType(AgriAppBar),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).boxShadow != null,
+            ),
+          )
+          .first,
+    );
+    final look = band.decoration as BoxDecoration;
+    expect(look.borderRadius, isNull);
+    expect(look.boxShadow, isNotEmpty);
+  });
+
   testWidgets('scrolling down hides it, scrolling up brings it back', (
     tester,
   ) async {

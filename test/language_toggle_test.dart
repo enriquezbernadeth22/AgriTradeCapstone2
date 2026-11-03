@@ -1,4 +1,4 @@
-// The app is English only: onboarding has no language switch, and no logo.
+// Onboarding has no language switch, and keeps the logo and name at the top.
 import 'package:agritrade/l10n/app_localizations.dart';
 import 'package:agritrade/screen/onboarding_screen.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +27,9 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  testWidgets('onboarding has no language switch and no logo', (tester) async {
+  testWidgets('onboarding has no language switch, and shows the logo', (
+    tester,
+  ) async {
     phone(tester);
 
     await tester.pumpWidget(app(OnboardingScreen(onGetStarted: () async {})));
@@ -35,7 +37,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('E'), findsNothing);
     expect(find.text('F'), findsNothing);
-    expect(find.text('Fresh Products, Direct Trading'), findsOneWidget);
+    expect(find.text('Welcome to'), findsOneWidget);
+    expect(find.text('AgriTrade+'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (w) =>
@@ -43,7 +46,7 @@ void main() {
             w.image is AssetImage &&
             (w.image as AssetImage).assetName == 'assets/images/logo.png',
       ),
-      findsNothing,
+      findsOneWidget,
     );
   });
 }

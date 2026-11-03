@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/connectivity_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Wraps the whole app so it can warn the user the moment connectivity is
 /// lost while they're already inside it. AgriTrade+ requires live Firebase
@@ -93,8 +94,10 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
                       Flexible(
                         child: Text(
                           _offline
-                              ? 'You\'re offline — some features may be unavailable.'
-                              : 'Back online — refreshing…',
+                              ? tl(
+                                  'You\'re offline — some features may be unavailable.',
+                                )
+                              : tl('Back online — refreshing…'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,

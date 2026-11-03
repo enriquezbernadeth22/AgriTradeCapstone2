@@ -40,6 +40,11 @@ String formatOrderDateTimeLong(DateTime date) =>
 
 /// Why a confirmed order is being delayed — the values stored in
 /// orders/{id}.delay.reason, and what the app shows for each.
+/// How long the buyer has to confirm a shipped order ("Order Received")
+/// before the farmer may complete it. The same period as firestore.rules and
+/// BUYER_CONFIRM_DAYS in functions/order_reminder_logic.js.
+const Duration kBuyerConfirmWindow = Duration(days: 3);
+
 const Map<String, String> kOrderDelayReasons = {
   'weather': 'Weather / Natural Disaster',
   'transport': 'Road or Transportation Issue',
@@ -82,8 +87,8 @@ class OrderInfo {
 
   String get productId => _text('productId');
 
-  /// The product as ordered — livestock with how it was sold, e.g.
-  /// "Swine (Slaughtered)".
+  /// The product as ordered; an order from before livestock was sold live
+  /// only says if it was slaughtered, e.g. "Swine (Slaughtered)".
   String get productName {
     final name = _text('productName');
     return withSellingOption(
@@ -169,6 +174,27 @@ class OrderInfo {
 
   bool get isCancelled => status == 'cancelled';
   DateTime? get cancelledAt => _date('cancelledAt');
+
+  /// When the farmer may complete a shipped order the buyer has not
+  /// confirmed.
+  DateTime? get farmerCanCompleteAt =>
+      (shippedAt ?? updatedAt)?.add(kBuyerConfirmWindow);
+
+  /// Whether [now] is past [farmerCanCompleteAt].
+  bool farmerCanComplete(DateTime now) {
+    final from = farmerCanCompleteAt;
+    return from != null && !now.isBefore(from);
+  }
+
+  /// The farmer could not fill a confirmed order after all.
+  bool get cancelledByFarmer => data['cancelReason'] == 'farmer';
+
+  /// The farmer's reason, shown to the buyer.
+  String get cancelNote => (data['cancelNote'] ?? '').toString().trim();
+
+  /// Cancelled by nobody: the farmer did not answer in time, so the
+  /// expirePendingOrders Cloud Function ended it.
+  bool get expiredUnanswered => data['cancelReason'] == 'expired';
 
   // ---- Delay / reschedule (a confirmed order only) ----
   // The farmer reports a delay with a reason and a proposed new date; the

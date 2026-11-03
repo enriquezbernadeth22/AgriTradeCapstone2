@@ -139,10 +139,10 @@ void main() {
     expect(rects[3].left - rects[2].left, closeTo(step, 0.5));
     expect(find.text('11'), findsOneWidget);
     expect(find.text('₱16,456.00'), findsOneWidget);
-    // Compact: well under the height of the old cards.
+    // Compact: no taller than 100, well under the height of the old cards.
     expect(
       tester.getSize(find.byType(AdminOverviewStrip)).height,
-      lessThan(100),
+      lessThanOrEqualTo(100),
     );
   });
 

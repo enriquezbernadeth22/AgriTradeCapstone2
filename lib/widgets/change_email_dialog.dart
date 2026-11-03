@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 import '../services/admin_session_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -10,6 +11,7 @@ import 'agri_form_field.dart';
 import 'email_request_leave_guard.dart';
 import 'otp_code_field.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// "Change email" flow for a logged-in Admin with a password account
 /// (Admin Portal > Manage Account). First the new email and the current
@@ -25,10 +27,10 @@ Future<void> showChangeEmailDialog(BuildContext context) async {
     await _showNotice(
       context,
       icon: Icons.mail_outline_rounded,
-      title: 'Change Email',
-      message:
-          'This account logs in with Google, so its email is managed by '
-          'your Google Account and cannot be changed here.',
+      title: tl('Change Email'),
+      message: tl(
+        'This account logs in with Google, so its email is managed by your Google Account and cannot be changed here.',
+      ),
     );
     return;
   }
@@ -43,10 +45,11 @@ Future<void> showChangeEmailDialog(BuildContext context) async {
   await _showNotice(
     context,
     icon: Icons.mark_email_read_outlined,
-    title: 'Email changed',
-    message:
-        'Your email is now $changedTo.\n\nYou will be logged out. Please '
-        'log in again using your new email.',
+    title: tl('Email changed'),
+    message: tl(
+      'Your email is now {0}.\n\nYou will be logged out. Please log in again using your new email.',
+      [changedTo],
+    ),
   );
 
   // Firebase has already ended the account's sessions; leave cleanly now
@@ -72,7 +75,7 @@ Future<void> _showNotice(
     builder: (dialogContext) => AgriDialog(
       icon: icon,
       title: Text(title),
-      content: Text(message),
+      content: Text(tl(message)),
       actions: [
         AgriDialogButton(
           label: 'OK',
@@ -214,9 +217,9 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
     });
     _startCooldown(result.resendAfterSeconds);
     if (result.error == null) {
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(const SnackBar(content: Text('Verification code sent')));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        appSnackBar(tl('Verification code sent'), kind: MessageKind.success),
+      );
     }
   }
 
@@ -267,14 +270,14 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
   Widget _errorText() => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Text(
-      _error!,
+      tl(_error!),
       style: TextStyle(color: AppColors.tone(Colors.red, 700), fontSize: 12.5),
     ),
   );
 
   Widget _formDialog(BuildContext context) {
     return AgriDialog(
-      title: const Text('Change Email'),
+      title: Text(tl('Change Email')),
       scrollable: true,
       content: Form(
         key: _formKey,
@@ -284,33 +287,33 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
           children: [
             const SizedBox(height: 6),
             AgriFormField(
-              label: 'Current email',
+              label: tl('Current email'),
               controller: _currentEmailController,
-              hint: 'Your current email',
+              hint: tl('Your current email'),
               icon: Icons.mail_outline_rounded,
               readOnly: true,
             ),
             AgriFormField(
-              label: 'New email',
+              label: tl('New email'),
               controller: _newController,
-              hint: 'Enter your new email',
+              hint: tl('Enter your new email'),
               icon: Icons.alternate_email_rounded,
               keyboardType: TextInputType.emailAddress,
               autofocus: true,
-              caption: 'A verification code will be sent to this email.',
+              caption: tl('A verification code will be sent to this email.'),
               autovalidateMode: AutovalidateMode.always,
               validator: (value) => _newEmailError(value ?? ''),
             ),
             AgriFormField(
-              label: 'Current password',
+              label: tl('Current password'),
               controller: _passwordController,
-              hint: 'Enter your current password',
+              hint: tl('Enter your current password'),
               icon: Icons.lock_outline_rounded,
               obscureText: _obscure,
-              caption: 'Needed to confirm it is you.',
+              caption: tl('Needed to confirm it is you.'),
               onSubmitted: (_) => _saving ? null : _sendCode(),
               suffix: IconButton(
-                tooltip: _obscure ? 'Show password' : 'Hide password',
+                tooltip: _obscure ? tl('Show password') : tl('Hide password'),
                 icon: Icon(
                   _obscure
                       ? Icons.visibility_off_outlined
@@ -320,7 +323,7 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
                 onPressed: () => setState(() => _obscure = !_obscure),
               ),
               validator: (value) =>
-                  (value == null || value.isEmpty) ? 'Required' : null,
+                  (value == null || value.isEmpty) ? tl('Required') : null,
             ),
             if (_error != null) _errorText(),
           ],
@@ -328,11 +331,11 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
       ),
       actions: [
         AgriDialogButton(
-          label: 'Cancel',
+          label: tl('Cancel'),
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
         AgriDialogButton(
-          label: 'Send Code',
+          label: tl('Send Code'),
           kind: AgriButtonKind.primary,
           loading: _saving,
           onPressed: _saving ? null : _sendCode,
@@ -347,14 +350,14 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
     final canResend = _cooldown <= 0 && !_resending && !_saving;
     return AgriDialog(
       icon: Icons.mark_email_unread_outlined,
-      title: const Text('Verify New Email'),
+      title: Text(tl('Verify New Email')),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Enter the 6-digit code we sent to',
+            tl('Enter the 6-digit code we sent to'),
             style: AppTheme.body(size: 13.5),
             textAlign: TextAlign.center,
           ),
@@ -413,14 +416,14 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
         SizedBox(
           width: 128,
           child: AgriDialogButton(
-            label: 'Cancel',
+            label: tl('Cancel'),
             onPressed: _saving ? null : () => Navigator.of(context).pop(),
           ),
         ),
         SizedBox(
           width: 128,
           child: AgriDialogButton(
-            label: 'Verify',
+            label: tl('Verify'),
             kind: AgriButtonKind.primary,
             loading: _saving,
             onPressed: canVerify ? _verify : null,
@@ -455,11 +458,11 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
       ),
       child: Column(
         children: [
-          line(Icons.schedule_rounded, 'The code expires in 10 minutes.'),
+          line(Icons.schedule_rounded, tl('The code expires in 10 minutes.')),
           const SizedBox(height: 6),
           line(
             Icons.inbox_outlined,
-            'Not in your inbox? Check your Spam or Junk folder.',
+            tl('Not in your inbox? Check your Spam or Junk folder.'),
           ),
         ],
       ),
@@ -498,7 +501,11 @@ class _ChangeEmailDialogState extends State<_ChangeEmailDialog> {
       children: [
         link(Icons.refresh_rounded, resendLabel, canResend ? _resend : null),
         Container(width: 1, height: 16, color: AppColors.grey(300)),
-        link(Icons.edit_outlined, 'Change email', _saving ? null : _editEmail),
+        link(
+          Icons.edit_outlined,
+          tl('Change email'),
+          _saving ? null : _editEmail,
+        ),
       ],
     );
   }

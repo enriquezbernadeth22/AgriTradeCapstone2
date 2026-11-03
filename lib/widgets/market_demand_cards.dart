@@ -5,16 +5,24 @@ import 'package:intl/intl.dart';
 
 import '../data/commodity_master_list.dart';
 import '../services/market_demand_service.dart';
+import '../services/market_price_helpers.dart';
+import 'agri_dialog.dart';
 import 'demand_badge.dart';
 import 'market_card_shell.dart';
+import 'month_year_picker.dart';
 import 'retry_message.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The Farmer Dashboard's marketplace-wide analytics: Best-Selling Products
-/// and, below it, Top Buyer Locations — both for [month], the same month
-/// the Sales Performance card is showing. See [MarketDemandService] for
-/// what is counted and how demand level and trend are decided.
+/// and, below it, Top Buyer Locations. Both open on [month] (the current
+/// month, or the one picked on Sales Performance), and the Farmer can move
+/// them to another month with the selector on either card. A month with no
+/// completed orders says so: earlier figures are never shown under its
+/// label, and the card fills in live as soon as an order completes. See
+/// [MarketDemandService] for what is counted and how demand level and trend
+/// are decided.
 ///
 /// On the dashboard each card lists its first few rows and "View all";
 /// that opens a screen with just that card ([only]) listing every row
@@ -32,6 +40,14 @@ class MarketDemandCards extends StatefulWidget {
   /// Every row, on a card's own full-list screen.
   final bool showAll;
 
+  /// The `market_sales` records, without Firestore.
+  @visibleForTesting
+  final Stream<List<Map<String, dynamic>>>? salesStream;
+
+  /// Today, for tests.
+  @visibleForTesting
+  final DateTime? now;
+
   const MarketDemandCards({
     super.key,
     required this.month,
@@ -39,6 +55,8 @@ class MarketDemandCards extends StatefulWidget {
     this.locationsKey,
     this.only,
     this.showAll = false,
+    this.salesStream,
+    this.now,
   });
 
   @override
@@ -49,10 +67,33 @@ enum MarketDemandList { bestSellers, locations }
 
 class _MarketDemandCardsState extends State<MarketDemandCards> {
   // Created once — not on every dashboard rebuild.
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _sales = _salesStream();
+  late Stream<List<Map<String, dynamic>>> _sales = _salesStream();
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _salesStream() =>
-      FirebaseFirestore.instance.collection('market_sales').snapshots();
+  // The month each card shows, chosen on that card alone: picking a month
+  // on Best-Selling Products leaves Top Buyer Locations where it was. Both
+  // follow [MarketDemandCards.month] when that changes.
+  late final Map<MarketDemandList, DateTime> _months = {
+    for (final list in MarketDemandList.values) list: _monthOf(widget.month),
+  };
+
+  static DateTime _monthOf(DateTime date) => DateTime(date.year, date.month);
+
+  Stream<List<Map<String, dynamic>>> _salesStream() =>
+      widget.salesStream ??
+      FirebaseFirestore.instance
+          .collection('market_sales')
+          .snapshots()
+          .map((snapshot) => [for (final doc in snapshot.docs) doc.data()]);
+
+  @override
+  void didUpdateWidget(MarketDemandCards oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_monthOf(oldWidget.month) != _monthOf(widget.month)) {
+      for (final list in MarketDemandList.values) {
+        _months[list] = _monthOf(widget.month);
+      }
+    }
+  }
 
   bool _shows(MarketDemandList list) =>
       widget.only == null || widget.only == list;
@@ -60,41 +101,97 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
   void _openAll(MarketDemandList list, String title) => openMarketCardScreen(
     context,
     title: title,
-    child: MarketDemandCards(month: widget.month, only: list, showAll: true),
+    child: MarketDemandCards(
+      month: _months[list]!,
+      only: list,
+      showAll: true,
+      salesStream: widget.salesStream,
+      now: widget.now,
+    ),
   );
+
+  // The month on a card's corner. It opens the same calendar of months as
+  // Sales Performance, from the first sale on record to this month.
+  Future<void> _pickMonth(MarketDemandList list, List<DateTime> months) async {
+    final firstMonth = months.last;
+    final picked = await showMonthYearPicker(
+      context,
+      selectedMonth: _months[list]!,
+      firstMonth: firstMonth,
+      currentMonth: months.first,
+      note: tl(
+        'Available from {0}, based on the completed orders on record. Future months cannot be selected.',
+        [DateFormat('MMMM yyyy').format(firstMonth)],
+      ),
+    );
+    if (picked != null && mounted) setState(() => _months[list] = picked);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel = DateFormat('MMMM y').format(widget.month);
-    final tagLabel = DateFormat('MMM y').format(widget.month);
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _sales,
       builder: (context, snapshot) {
         if (snapshot.hasError && !snapshot.hasData) {
           return RetryMessage(
-            message:
-                'Could not load marketplace sales. Check your connection and retry.',
+            message: tl(
+              'Could not load marketplace sales. Check your connection and retry.',
+            ),
             onRetry: () => setState(() => _sales = _salesStream()),
           );
         }
         final loading = !snapshot.hasData;
-        final sales =
-            snapshot.data?.docs.map((doc) => doc.data()).toList() ??
-            const <Map<String, dynamic>>[];
+        final sales = snapshot.data ?? const <Map<String, dynamic>>[];
 
         // Also rebuilt when the Admin changes the commodity list, since
         // names, categories and units come from it.
         return ListenableBuilder(
           listenable: CommodityRegistry.instance,
           builder: (context, _) {
+            final bestSellersMonth = _months[MarketDemandList.bestSellers]!;
+            final locationsMonth = _months[MarketDemandList.locations]!;
             final bestSellers = MarketDemandService.bestSellers(
               sales: sales,
-              month: widget.month,
+              month: bestSellersMonth,
+              now: widget.now,
             );
             final locations = MarketDemandService.topBuyerLocations(
               sales: sales,
-              month: widget.month,
+              month: locationsMonth,
             );
+            // Each card's month pill, and its "View previous month" when it
+            // is empty, move that card only.
+            Widget monthTag(MarketDemandList list) {
+              final month = _months[list]!;
+              return MonthPickerPill(
+                month: month,
+                onTap: () => _pickMonth(
+                  list,
+                  MarketDemandService.monthsOnRecord(
+                    sales: sales,
+                    month: month,
+                    now: widget.now,
+                  ),
+                ),
+              );
+            }
+
+            // Offered only when there is an earlier month to go to.
+            VoidCallback? onPreviousMonth(MarketDemandList list) {
+              final month = _months[list]!;
+              final previous = DateTime(month.year, month.month - 1);
+              final months = MarketDemandService.monthsOnRecord(
+                sales: sales,
+                month: month,
+                now: widget.now,
+              );
+              return months.contains(previous)
+                  ? () => setState(() => _months[list] = previous)
+                  : null;
+            }
+
+            String monthLabel(DateTime month) =>
+                DateFormat('MMMM y').format(month);
             final bestSellersTitle = tr(context).bestSellingProducts;
             final locationsTitle = tr(context).topBuyerLocations;
             return Column(
@@ -107,13 +204,16 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
                       subtitle: tr(context).bestSellersSubtitle(
                         MarketDemandService.bestSellerLimit,
                       ),
-                      tag: tagLabel,
+                      tag: monthTag(MarketDemandList.bestSellers),
                       loading: loading,
                       emptyIcon: Icons.shopping_basket_outlined,
-                      emptyText:
-                          'No completed orders in $monthLabel yet. Popular '
-                          'products will appear here as buyers complete '
-                          'orders.',
+                      emptyText: tl(
+                        'No completed orders in {0} yet. Popular products will appear here as buyers complete orders.',
+                        [monthLabel(bestSellersMonth)],
+                      ),
+                      onPreviousMonth: onPreviousMonth(
+                        MarketDemandList.bestSellers,
+                      ),
                       rows: [
                         for (var i = 0; i < bestSellers.length; i++)
                           _bestSellerRow(i + 1, bestSellers[i]),
@@ -130,15 +230,27 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
                     key: widget.locationsKey,
                     child: _card(
                       title: locationsTitle,
-                      tag: tagLabel,
+                      tag: monthTag(MarketDemandList.locations),
                       loading: loading,
                       emptyIcon: Icons.map_outlined,
-                      emptyText:
-                          'No buyer locations on record for completed orders '
-                          'in $monthLabel yet.',
+                      emptyText: tl(
+                        'No buyer locations on record for completed orders in {0} yet.',
+                        [monthLabel(locationsMonth)],
+                      ),
+                      onPreviousMonth: onPreviousMonth(
+                        MarketDemandList.locations,
+                      ),
                       rows: [
                         for (var i = 0; i < locations.length; i++)
-                          _locationRow(i + 1, locations[i]),
+                          _locationRow(
+                            i + 1,
+                            locations[i],
+                            onTap: () => _showLocationDetails(
+                              locations[i],
+                              sales,
+                              locationsMonth,
+                            ),
+                          ),
                       ],
                       openAll: () =>
                           _openAll(MarketDemandList.locations, locationsTitle),
@@ -155,21 +267,29 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
   Widget _card({
     required String title,
     String? subtitle,
-    required String tag,
+    required Widget tag,
     required bool loading,
     required IconData emptyIcon,
     required String emptyText,
+    required VoidCallback? onPreviousMonth,
     required List<Widget> rows,
     required VoidCallback openAll,
   }) {
     return MarketCardShell(
       title: title,
       subtitle: subtitle,
-      tag: tag,
+      tagWidget: tag,
       child: loading
           ? const MarketCardLoading()
           : rows.isEmpty
-          ? MarketCardEmpty(icon: emptyIcon, message: emptyText)
+          ? MarketCardEmpty(
+              icon: emptyIcon,
+              message: emptyText,
+              actionLabel: onPreviousMonth == null
+                  ? null
+                  : tr(context).viewPreviousMonth,
+              onAction: onPreviousMonth,
+            )
           : marketCardRows(
               rows: rows,
               showAll: widget.showAll,
@@ -248,7 +368,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     ),
   );
 
-  // Rank, product, its trend arrow and demand — on one line.
+  // Rank, product, its trend arrow and the quantity sold — on one line.
   Widget _bestSellerRow(int rank, BestSeller item) {
     final (trend, icon, color) = demandTrendStyle(item.trend);
     return _line(rank, item.commodity, [
@@ -256,28 +376,95 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
         message: trend,
         child: Icon(icon, size: 18, color: color),
       ),
-      _demandTag(item.demand),
+      _pill(formatStock(item.quantity, item.unit), AppColors.brand),
     ]);
   }
 
   // Rank, area, demand and its share against the busiest area — on one
-  // line.
-  Widget _locationRow(int rank, BuyerLocation location) {
+  // line. Tapping it shows what buyers there ordered (see
+  // [_showLocationDetails]).
+  Widget _locationRow(
+    int rank,
+    BuyerLocation location, {
+    required VoidCallback onTap,
+  }) {
     final share = (location.relativeDemand.clamp(0.0, 1.0) * 100).round();
-    return _line(rank, location.area, [
-      _demandTag(location.demand),
-      SizedBox(
-        width: 38,
-        child: Text(
-          '$share%',
-          textAlign: TextAlign.right,
-          style: GoogleFonts.montserrat(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: AppColors.brand,
+    return Semantics(
+      button: true,
+      hint: tl('Show what buyers here ordered'),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: _line(rank, location.area, [
+          _demandTag(location.demand),
+          SizedBox(
+            width: 38,
+            child: Text(
+              '$share%',
+              textAlign: TextAlign.right,
+              style: GoogleFonts.montserrat(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.brand,
+              ),
+            ),
           ),
-        ),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: AppColors.grey(500),
+          ),
+        ]),
       ),
-    ]);
+    );
+  }
+
+  // The products buyers in one area ordered in the card's month, most
+  // completed orders first.
+  void _showLocationDetails(
+    BuyerLocation location,
+    List<Map<String, dynamic>> sales,
+    DateTime month,
+  ) {
+    final products = MarketDemandService.productsBoughtIn(
+      sales: sales,
+      month: month,
+      area: location.area,
+    );
+    showAgriSheet<void>(
+      context: context,
+      title: location.area,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            tl('Most ordered by buyers here in {0}', [
+              DateFormat('MMMM y').format(month),
+            ]),
+            style: GoogleFonts.montserrat(
+              fontSize: 12.5,
+              color: AppColors.grey(600),
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < products.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: AppColors.grey(200)),
+            _line(i + 1, products[i].commodity, [
+              Text(
+                products[i].orders == 1
+                    ? tl('1 order')
+                    : tl('{0} orders', [products[i].orders]),
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.brand,
+                ),
+              ),
+            ]),
+          ],
+        ],
+      ),
+    );
   }
 }

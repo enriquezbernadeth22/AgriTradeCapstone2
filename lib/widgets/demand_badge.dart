@@ -4,28 +4,41 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/market_demand_index.dart';
 import '../services/market_demand_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// How a demand level reads and its colour — the same on the Farmer's
 /// Best-Selling Products card and on the Buyer's product cards.
 (String label, Color color) demandLevelStyle(DemandLevel level) =>
     switch (level) {
-      DemandLevel.high => ('High', AppColors.mid),
-      DemandLevel.moderate => ('Moderate', AppColors.tone(Colors.orange, 800)),
-      DemandLevel.low => ('Low', AppColors.grey(700)),
+      DemandLevel.high => (tl('High'), AppColors.mid),
+      DemandLevel.moderate => (
+        tl('Moderate'),
+        AppColors.tone(Colors.orange, 800),
+      ),
+      DemandLevel.low => (tl('Low'), AppColors.grey(700)),
     };
 
 /// A demand trend's name, arrow and colour, shared the same way.
 (String label, IconData icon, Color color) demandTrendStyle(
   DemandTrend trend,
 ) => switch (trend) {
-  DemandTrend.rising => ('Rising', Icons.trending_up_rounded, AppColors.mid),
+  DemandTrend.rising => (
+    tl('Rising'),
+    Icons.trending_up_rounded,
+    AppColors.mid,
+  ),
+  DemandTrend.newEntry => (
+    tl('New this month'),
+    Icons.fiber_new_outlined,
+    AppColors.grey(600),
+  ),
   DemandTrend.stable => (
-    'Stable',
+    tl('Stable'),
     Icons.trending_flat_rounded,
     AppColors.grey(600),
   ),
   DemandTrend.declining => (
-    'Declining',
+    tl('Declining'),
     Icons.trending_down_rounded,
     AppColors.tone(Colors.red, 700),
   ),
@@ -53,7 +66,7 @@ class DemandBadge extends StatelessWidget {
         final (level, levelColor) = demandLevelStyle(best.demand);
         final (trend, icon, trendColor) = demandTrendStyle(best.trend);
         return Semantics(
-          label: '$level demand, $trend',
+          label: tl('{0} demand, {1}', [level, trend]),
           excludeSemantics: true,
           child: Container(
             padding: const EdgeInsets.fromLTRB(6, 3, 8, 3),
@@ -75,7 +88,7 @@ class DemandBadge extends StatelessWidget {
                 Icon(icon, size: 14, color: trendColor),
                 const SizedBox(width: 3),
                 Text(
-                  '$level demand',
+                  tl('{0} demand', [level]),
                   style: GoogleFonts.montserrat(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,

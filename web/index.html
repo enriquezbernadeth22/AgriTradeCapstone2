@@ -32,8 +32,64 @@
   <title>AgriTrade+</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBbYUgbR0tHaSfrujL8184AXYOCTP5W6NE"></script>
+  <!--
+    What shows while Flutter downloads, so the page is never blank. It matches
+    the Admin's Dark Mode (saved by the app in this browser) and goes when
+    Flutter draws its first frame.
+  -->
+  <style>
+    html, body { height: 100%; margin: 0; background: #F8F9FA; }
+    html.dark, html.dark body { background: #111315; }
+    #app-splash {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #F8F9FA; color: #1C1F23;
+      font-family: Montserrat, "Segoe UI", Roboto, Arial, sans-serif;
+      transition: opacity .25s ease;
+    }
+    html.dark #app-splash { background: #111315; color: #F1F3F5; }
+    #app-splash.done { opacity: 0; pointer-events: none; }
+    #app-splash img { width: 96px; height: 96px; object-fit: contain; }
+    #app-splash p { margin: 14px 0 22px; font-size: 26px; font-weight: 700; }
+    #app-splash .track {
+      position: relative; width: 200px; height: 4px; overflow: hidden;
+      border-radius: 2px; background: #E2E5E9;
+    }
+    html.dark #app-splash .track { background: #30353B; }
+    #app-splash .track::after {
+      content: ""; position: absolute; top: 0; bottom: 0; left: -40%;
+      width: 40%; border-radius: 2px; background: #24833D;
+      animation: app-splash-move 1.3s ease-in-out infinite;
+    }
+    html.dark #app-splash .track::after { background: #5DBB74; }
+    @keyframes app-splash-move { to { left: 100%; } }
+    @media (prefers-reduced-motion: reduce) {
+      #app-splash .track::after { animation: none; left: 0; width: 100%; }
+    }
+  </style>
+  <script>
+    try {
+      if (localStorage.getItem('flutter.admin_dark_mode') === 'true') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) { /* Private browsing: light, then. */ }
+  </script>
 </head>
 <body>
+  <div id="app-splash" role="status" aria-label="Loading AgriTrade+">
+    <img src="reset-password/logo.png" alt="">
+    <p>AgriTrade+</p>
+    <div class="track"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('app-splash');
+      if (!splash) return;
+      splash.classList.add('done');
+      setTimeout(function () { splash.remove(); }, 300);
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

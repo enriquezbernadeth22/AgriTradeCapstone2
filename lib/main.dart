@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'theme/app_theme.dart';
@@ -10,16 +12,26 @@ import 'services/account_status_watcher.dart';
 import 'services/session_timeout_service.dart';
 import 'services/feedback_service.dart';
 import 'theme/theme_controller.dart';
+import 'l10n/app_language.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// The orientations the mobile app allows: upright only.
+const List<DeviceOrientation> kAppOrientations = [DeviceOrientation.portraitUp];
 
 Future<void> main() async {
   // Tells Flutter to get itself ready before we run any setup code.
   WidgetsFlutterBinding.ensureInitialized();
 
+  // The mobile app stays upright when the phone is turned, as most shopping
+  // and chat apps do: its screens are laid out for portrait. The Admin
+  // Portal (web) is left to the browser window.
+  if (!kIsWeb) await SystemChrome.setPreferredOrientations(kAppOrientations);
+
   // Light or dark (Settings → Appearance), in place before the first
   // frame so the app never flashes the wrong one.
   await ThemeController.instance.load();
+  await LanguageController.instance.load();
 
   // Starts watching for a 30-day-plus background inactivity period — see
   // SessionTimeoutService for why this is the only thing that should ever
@@ -46,10 +58,13 @@ class AgriTradeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuilt when Appearance changes (ThemeController).
-    return ValueListenableBuilder<AppearanceMode>(
-      valueListenable: ThemeController.instance,
-      builder: (context, _, _) => _app(),
+    // Rebuilt when Appearance or the language changes.
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        ThemeController.instance,
+        LanguageController.instance,
+      ]),
+      builder: (context, _) => _app(),
     );
   }
 
@@ -65,10 +80,9 @@ class AgriTradeApp extends StatelessWidget {
       // dark, as AppColors is set (Settings → Appearance).
       theme: AppTheme.themeData(),
 
-      // English only. The texts still come from the translation files
-      // (lib/l10n), so a Filipino version can be added later by
-      // translating app_tl.arb and offering a language choice again.
-      locale: const Locale('en'),
+      // English or Tagalog, chosen in the app's settings. The Admin Portal
+      // never changes it, so it stays in English.
+      locale: LanguageController.instance.locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

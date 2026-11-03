@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 import '../widgets/agri_dialog.dart';
 
@@ -15,6 +16,7 @@ import 'auth_routing_service.dart' show suspensionEndOf;
 import 'connectivity_service.dart';
 import 'order_format.dart';
 import '../screen/sign_in_activity_screen.dart';
+import '../widgets/change_password_dialog.dart';
 
 /// Where a notification of a given `type` should take the user. Used by
 /// three entry points that must never drift out of sync on this decision:
@@ -109,6 +111,9 @@ class NotificationNavigationService {
         );
         return;
 
+      case 'password_change_reminder':
+        await showChangePasswordDialog(context);
+        return;
       case 'security_new_device':
         // An alert about a sign-in that already happened — opens the
         // account's own device list, with that device pointed out.
@@ -331,6 +336,7 @@ class NotificationNavigationService {
         online
             ? 'This order is no longer available.'
             : 'Could not load this order. Check your connection and try again.',
+        kind: online ? MessageKind.warning : MessageKind.error,
       );
       return;
     }
@@ -363,9 +369,11 @@ class NotificationNavigationService {
     );
   }
 
-  static void _showMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  static void _showMessage(
+    BuildContext context,
+    String message, {
+    required MessageKind kind,
+  }) {
+    showAppMessage(context, message, kind: kind);
   }
 }

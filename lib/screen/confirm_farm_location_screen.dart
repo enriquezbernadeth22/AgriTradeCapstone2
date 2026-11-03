@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -12,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/barangay_location_field.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// What the farmer confirmed: the barangay, and the point it was read at.
 class FarmLocationResult {
@@ -202,8 +204,9 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not get your current location. Try again.'),
+        appSnackBar(
+          tl('Could not get your current location. Try again.'),
+          kind: MessageKind.error,
         ),
       );
     } finally {
@@ -284,7 +287,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              'Move the map so the pin sits on your farm.',
+              tl('Move the map so the pin sits on your farm.'),
               textAlign: TextAlign.center,
               style: _text(12, color: AppColors.textSecondary),
             ),
@@ -295,7 +298,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
           bottom: 12,
           child: FloatingActionButton.small(
             heroTag: 'farm-location-recenter',
-            tooltip: 'Use Current Location',
+            tooltip: tl('Use Current Location'),
             backgroundColor: AppColors.surface,
             foregroundColor: AppColors.mid,
             onPressed: _recentering ? null : _recenter,
@@ -371,12 +374,12 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('Checking this location…', style: _text(13)),
+                Text(tl('Checking this location…'), style: _text(13)),
               ],
             )
           else if (outside) ...[
             Text(
-              'This location is outside Laurel, Batangas.',
+              tl('This location is outside Laurel, Batangas.'),
               style: _text(
                 14,
                 color: AppColors.tone(Colors.red, 700),
@@ -385,36 +388,38 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Farmer registration is only open to farms in Laurel. Move '
-              'the pin to your farm in Laurel, or go back and select your '
-              'barangay from the list.',
+              tl(
+                'Farmer registration is only open to farms in Laurel. Move the pin to your farm in Laurel, or go back and select your barangay from the list.',
+              ),
               style: _text(12.5, color: AppColors.textSecondary),
             ),
           ] else ...[
             _line(
-              'Barangay',
+              tl('Barangay'),
               _barangay == null
-                  ? 'Not selected'
+                  ? tl('Not selected')
                   : suggested
-                  ? '$_barangay (suggested)'
+                  ? tl('{0} (suggested)', [_barangay])
                   : _barangay!,
             ),
-            _line('Municipality', reading?.municipality ?? 'Laurel'),
-            _line('Province', reading?.province ?? 'Batangas'),
+            _line(tl('Municipality'), reading?.municipality ?? 'Laurel'),
+            _line(tl('Province'), reading?.province ?? 'Batangas'),
             if (_barangay == null && !_checking) ...[
               const SizedBox(height: 4),
               Text(
                 reading?.lookedUp == false
-                    ? "We found your location, but couldn't look up its "
-                          'address — check your internet connection. You '
-                          'can still select your Barangay to continue.'
+                    ? tl(
+                        'We found your location, but couldn\'t look up its address — check your internet connection. You can still select your Barangay to continue.',
+                      )
                     : _fallbackMessage,
                 style: _text(12.5, color: AppColors.tone(Colors.orange, 900)),
               ),
             ] else if (suggested) ...[
               const SizedBox(height: 4),
               Text(
-                'Please check that this is your barangay before confirming.',
+                tl(
+                  'Please check that this is your barangay before confirming.',
+                ),
                 style: _text(12, color: AppColors.textSecondary),
               ),
             ],
@@ -425,7 +430,9 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
                 onPressed: _pickBarangay,
                 icon: const Icon(Icons.list_alt_rounded, size: 18),
                 label: Text(
-                  _barangay == null ? 'Select Barangay' : 'Change Barangay',
+                  _barangay == null
+                      ? tl('Select Barangay')
+                      : tl('Change Barangay'),
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -449,13 +456,15 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
               style: AppTheme.primaryButton().copyWith(
                 padding: const WidgetStatePropertyAll(EdgeInsets.zero),
               ),
-              child: Text('Confirm Location', style: AppTheme.buttonText()),
+              child: Text(tl('Confirm Location'), style: AppTheme.buttonText()),
             ),
           ),
           const SizedBox(height: 6),
           Center(
             child: Text(
-              'Your exact position is not shown to buyers — only your barangay.',
+              tl(
+                'Your exact position is not shown to buyers — only your barangay.',
+              ),
               textAlign: TextAlign.center,
               style: _text(11, color: AppColors.textMuted),
             ),
@@ -469,7 +478,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: const AgriAppBar(title: 'Confirm Your Location'),
+      appBar: AgriAppBar(title: tl('Confirm Your Location')),
       body: SafeArea(
         top: false,
         child: Column(

@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -47,6 +49,18 @@ class AppTheme {
       useMaterial3: true,
       // Light or dark, from Settings → Appearance (AppColors).
       brightness: brightness,
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        side: BorderSide(color: AppColors.textMuted, width: 1.4),
+        fillColor: WidgetStateProperty.resolveWith(
+          // Near-black when ticked; green in dark mode, where near-black
+          // would vanish into the page.
+          (states) => states.contains(WidgetState.selected)
+              ? (dark ? AppColors.brandFill : const Color(0xFF1C1F23))
+              : Colors.transparent,
+        ),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
+      ),
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppTheme.mid,
         brightness: brightness,
@@ -123,13 +137,21 @@ class AppTheme {
         style: IconButton.styleFrom(shape: const StadiumBorder()),
       ),
 
-      // Default look for every TextField: curved edges — a pill on one
-      // line, rounded corners on a several-line box.
+      // Default look for every TextField: a pill on one line, rounded
+      // corners on a several-line box (see PillInputBorder).
+      // Every text field looks like Log In's: white, a thin grey outline, and
+      // while typed in no outline but a soft green glow (fieldFocusBorder).
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.field,
+        fillColor: AppColors.surface,
+        isDense: true,
+        // Wide enough that the text stays clear of the pill's round ends.
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 14,
+        ),
         hintStyle: GoogleFonts.montserrat(
-          fontSize: 13.5,
+          fontSize: 14,
           color: AppColors.grey(),
         ),
         errorStyle: GoogleFonts.montserrat(fontSize: 11.5),
@@ -140,18 +162,9 @@ class AppTheme {
           fontWeight: FontWeight.w500,
           color: AppColors.grey(600),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: AppColors.outlineSide,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: AppColors.outlineSide,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: AppColors.mid, width: 1.4),
-        ),
+        border: fieldBorder,
+        enabledBorder: fieldBorder,
+        focusedBorder: fieldFocusBorder,
       ),
 
       // Fallback popup look for any dialog/sheet not built with
@@ -390,7 +403,7 @@ class AppTheme {
         ),
         border: pill(AppColors.grey(300)),
         enabledBorder: pill(AppColors.grey(300)),
-        focusedBorder: pill(AppColors.mid, 1.4),
+        focusedBorder: fieldFocusBorder,
         errorBorder: pill(Colors.redAccent, 1.2),
         focusedErrorBorder: pill(Colors.redAccent, 1.4),
       ),
@@ -450,10 +463,243 @@ class AppTheme {
   // display headings that use it ("Verify Your Email").
   static const String brandFontFamily = 'LilitaOne';
 
-  // Buttons app-wide are slim pills, in proportion with the small bottom
-  // bar: 14px bold text, about 40 high.
+  // Buttons app-wide are pills with 14px semibold text.
   static TextStyle buttonText() =>
-      GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.bold);
+      GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
+
+  // ==========================================================
+  // FORMS
+  // ----------------------------------------------------------
+  // One look for every form screen (Log In, Forgot Password, registration,
+  // the Google profile form, Edit Profile, Change Password, and any new
+  // one), in this order of emphasis: the page title, its description, the
+  // field labels, the fields, the primary button, then links.
+  // ==========================================================
+
+  /// A form screen's title: the first thing read on it.
+  static TextStyle pageTitle({Color? color}) => GoogleFonts.montserrat(
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    color: color ?? AppColors.text,
+    height: 1.25,
+  );
+
+  /// The line or two under a page title: support only, muted.
+  static TextStyle pageDescription() => GoogleFonts.montserrat(
+    fontSize: 13.5,
+    color: AppColors.textSecondary,
+    height: 1.45,
+  );
+
+  /// A secondary action in a form ("Forgot Password?", "Create One.",
+  /// "Back to Login", "Update"): dark green, quieter than the primary button.
+  static TextStyle formLink({double size = 13.5}) => GoogleFonts.montserrat(
+    fontSize: size,
+    fontWeight: FontWeight.w600,
+    color: AppColors.brand,
+  );
+
+  /// Size of the text typed into a form field, and of its placeholder.
+  static const double formTextSize = 14;
+
+  /// A form field's placeholder: muted.
+  static TextStyle formHint() =>
+      GoogleFonts.montserrat(fontSize: formTextSize, color: AppColors.grey());
+
+  /// Every form field and dropdown is this tall.
+  static const double formFieldHeight = 48;
+
+  /// Every primary and secondary button in a form is this tall.
+  static const double formButtonHeight = 50;
+
+  /// The icon at the start of a field: one size, and quieter than the text.
+  static const double formIconSize = 20;
+  static Color get formIconColor => AppColors.grey(600);
+
+  /// The left and right margin of a form page.
+  static const double formPageMargin = 24;
+
+  /// Between a label and its field.
+  static const double formLabelGap = 8;
+
+  /// Between one field and the next label.
+  static const double formFieldGap = 16;
+
+  /// Between the parts of a form (the title block, the fields, the button).
+  static const double formSectionGap = 24;
+
+  // The outline of every field and dropdown at rest, and while typed in.
+  static BorderSide get _formOutline =>
+      BorderSide(color: AppColors.grey(300), width: 1.2);
+
+  /// Every text field's outline at rest, as on Log In: a thin light grey
+  /// pill (rounded corners when several lines tall).
+  static PillInputBorder get fieldBorder =>
+      PillInputBorder(borderSide: _formOutline);
+
+  /// Every text field while typed in, as on Log In: no outline, a soft
+  /// green glow around it (see [GlowInputBorder]).
+  static const GlowInputBorder fieldFocusBorder = GlowInputBorder(
+    borderSide: _formOutlineHidden,
+  );
+  static BorderSide get _formOutlineFocused =>
+      BorderSide(color: AppColors.mid, width: 1.4);
+  // The outline's room kept, nothing drawn: a field on a glow plate, typed in.
+  static const BorderSide _formOutlineHidden = BorderSide(
+    color: Colors.transparent,
+    width: 1.2,
+  );
+  static const BorderSide _formOutlineError = BorderSide(
+    color: Colors.redAccent,
+    width: 1.2,
+  );
+
+  // The icon at the start of a field, a thin line, and any fixed prefix
+  // ("+63 "), always showing: the same as GlowField, so a field built on
+  // InputDecoration looks the same. (InputDecoration's own prefixText shows
+  // only once the field is focused or filled.) The gap after it matches
+  // GlowField's, as the decoration adds a little of its own.
+  static Widget _formLeadingIcon(IconData icon, String? prefixText) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const SizedBox(width: 18),
+      Icon(icon, color: formIconColor, size: formIconSize),
+      const SizedBox(width: 12),
+      Container(width: 1, height: 22, color: AppColors.hairline),
+      if (prefixText != null) ...[
+        const SizedBox(width: 12),
+        Text(
+          prefixText,
+          style: GoogleFonts.montserrat(
+            color: AppColors.brand,
+            fontWeight: FontWeight.w600,
+            fontSize: formTextSize,
+          ),
+        ),
+      ],
+      const SizedBox(width: _formLeadingGap),
+    ],
+  );
+
+  // Between the leading part and the text, on top of the decoration's own.
+  static const double _formLeadingGap = 8;
+
+  /// A form field on InputDecoration (a plain TextField, or one with a
+  /// helper, a counter or a chip at the end), looking the same as GlowField:
+  /// a white pill [formFieldHeight] tall with a light grey outline, the icon,
+  /// a thin line, then the text.
+  ///
+  /// With [onGlowPlate] (inside a FormFieldGlow) it has no outline while
+  /// typed in: the plate's glow shows instead, as on GlowField. Without one
+  /// the outline turns green. Show an error or a note under such a field
+  /// on its own line, not in [errorText] or [helperText], so the glow goes
+  /// round the field alone.
+  static InputDecoration formFieldDecoration({
+    required IconData icon,
+    String? hint,
+    Widget? suffix,
+    String? errorText,
+    String? prefixText,
+    String? helperText,
+    bool onGlowPlate = false,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: formHint(),
+      prefixIcon: _formLeadingIcon(icon, prefixText),
+      prefixIconConstraints: const BoxConstraints(minHeight: formFieldHeight),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: AppColors.surface,
+      errorText: errorText,
+      errorMaxLines: 3,
+      helperText: helperText,
+      helperStyle: GoogleFonts.montserrat(
+        color: AppColors.grey(600),
+        fontSize: 11.5,
+      ),
+      helperMaxLines: 3,
+      isDense: true,
+      contentPadding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
+      border: PillInputBorder(borderSide: _formOutline),
+      enabledBorder: PillInputBorder(borderSide: _formOutline),
+      disabledBorder: PillInputBorder(borderSide: _formOutline),
+      // On a glow plate the plate glows; otherwise the field itself does.
+      focusedBorder: onGlowPlate
+          ? const PillInputBorder(borderSide: _formOutlineHidden)
+          : fieldFocusBorder,
+      errorBorder: const PillInputBorder(borderSide: _formOutlineError),
+      focusedErrorBorder: const PillInputBorder(
+        borderSide: BorderSide(color: Colors.redAccent, width: 1.4),
+      ),
+    );
+  }
+
+  /// A form field with no icon, such as a chat's message box: white with a
+  /// thin grey outline, and — inside a FormFieldGlow — no outline while
+  /// typed in, the plate's soft green glow instead (as on Log In).
+  static InputDecoration plainFieldDecoration({String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: formHint(),
+      isDense: true,
+      filled: true,
+      fillColor: AppColors.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      border: PillInputBorder(borderSide: _formOutline),
+      enabledBorder: PillInputBorder(borderSide: _formOutline),
+      disabledBorder: PillInputBorder(borderSide: _formOutline),
+      focusedBorder: const PillInputBorder(borderSide: _formOutlineHidden),
+    );
+  }
+
+  /// A dropdown in a form: the same as [formFieldDecoration], on a rounded
+  /// rectangle rather than a pill, so its list reads as a list.
+  static InputDecoration formDropdownDecoration({
+    required IconData icon,
+    String? hint,
+    Widget? suffix,
+    String? errorText,
+    bool onGlowPlate = false,
+  }) {
+    OutlineInputBorder outline(BorderSide side) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(dropdownRadius),
+      borderSide: side,
+    );
+    return formFieldDecoration(
+      icon: icon,
+      hint: hint,
+      suffix: suffix,
+      errorText: errorText,
+    ).copyWith(
+      // A dense dropdown's own line is 24 tall: 12 above and below makes
+      // [formFieldHeight], the same as a text field.
+      contentPadding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+      border: outline(_formOutline),
+      enabledBorder: outline(_formOutline),
+      disabledBorder: outline(_formOutline),
+      focusedBorder: outline(
+        onGlowPlate ? _formOutlineHidden : _formOutlineFocused,
+      ),
+      errorBorder: outline(_formOutlineError),
+      focusedErrorBorder: outline(
+        const BorderSide(color: Colors.redAccent, width: 1.4),
+      ),
+    );
+  }
+
+  /// The secondary button in a form (Continue with Google, Cancel): white,
+  /// outlined in grey, dark text — never as strong as [primaryButton].
+  static ButtonStyle secondaryButton() => OutlinedButton.styleFrom(
+    foregroundColor: AppColors.text,
+    backgroundColor: AppColors.surface,
+    minimumSize: const Size(0, formButtonHeight),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    // Dark enough to see the whole button on white, also while it is
+    // waiting to be usable (Resend Reset Link's countdown).
+    side: BorderSide(color: AppColors.grey(400), width: 1.2),
+    shape: const StadiumBorder(),
+  );
 
   static const EdgeInsets buttonPadding = EdgeInsets.symmetric(
     vertical: 11,
@@ -474,24 +720,33 @@ class AppTheme {
     ],
   );
 
+  /// The one main action of a form (Log In, Send Reset Link, Register, Save
+  /// Changes): dark green with white text, [formButtonHeight] tall — the
+  /// strongest thing on the page after its title.
   static ButtonStyle primaryButton() => ElevatedButton.styleFrom(
     backgroundColor: AppColors.brandFill,
     foregroundColor: Colors.white,
-    padding: buttonPadding,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+    disabledForegroundColor: Colors.white70,
+    // Dark mode: a plain grey when it cannot be pressed, clearly apart from
+    // the green one.
+    disabledBackgroundColor: AppColors.isDark ? AppColors.grey(300) : null,
+    minimumSize: const Size(0, formButtonHeight),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    elevation: 0,
+    shape: const StadiumBorder(),
   );
 
-  // ---------- LOGIN-STYLE "GLOW" FIELD ----------
-  // Pill-shaped, borderless field on its own white plate. At rest it only
-  // has a faint lift shadow; the brand-green glow (in place of the usual
-  // blue-glow neumorphic look) switches on around it while it's focused —
-  // see the field wrapping this in LoginFormFields for the FocusNode that
-  // drives [focused]. Used by the login form.
+  // ---------- GLOW FIELD ----------
+  // GlowField's plate: the form field look (see FORMS above) — a white pill.
+  // While typed in it is the Admin login's field: the outline goes and a
+  // soft green glow, with a slight lift, shows around it instead. Its
+  // outline is [glowFieldOutline], drawn on top (foregroundDecoration) so
+  // that it adds nothing to the field's height. FormFieldGlow gives a field
+  // built on InputDecoration the same plate.
   static BoxDecoration glowFieldWrapper({bool focused = false}) =>
       BoxDecoration(
         color: AppColors.surface,
-        border: AppColors.cardBorder,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(pillRadius),
         boxShadow: focused
             ? [
                 BoxShadow(
@@ -505,55 +760,297 @@ class AppTheme {
                   offset: const Offset(0, 3),
                 ),
               ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+            : null,
       );
 
+  /// GlowField's outline: light grey at rest, none while typed in (the
+  /// glow of [glowFieldWrapper] shows instead). For a foregroundDecoration.
+  static BoxDecoration glowFieldOutline({
+    bool focused = false,
+    double radius = pillRadius,
+  }) => BoxDecoration(
+    border: focused ? null : Border.fromBorderSide(_formOutline),
+    borderRadius: BorderRadius.circular(radius),
+  );
+
+  /// Outline shared by the registration form's dropdowns.
+  static OutlineInputBorder registrationDropdownBorder({
+    bool focused = false,
+  }) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(dropdownRadius),
+    borderSide: focused ? _formOutlineFocused : _formOutline,
+  );
+
+  /// A form field with an icon: the same as [formFieldDecoration].
   static InputDecoration inputBox({
     required String hint,
     required IconData icon,
     Widget? suffix,
     String? errorText,
     String? prefixText,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      prefixIcon: Icon(icon, color: AppColors.grey()),
-      prefixText: prefixText,
-      prefixStyle: TextStyle(
-        color: AppColors.brand,
-        fontWeight: FontWeight.w600,
-        fontSize: 15,
-      ),
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: AppColors.field,
-      errorText: errorText,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: AppColors.outlineSide,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: AppColors.outlineSide,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: BorderSide(color: AppColors.mid, width: 1.4),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.4),
+    bool onGlowPlate = false,
+  }) => formFieldDecoration(
+    icon: icon,
+    hint: hint,
+    suffix: suffix,
+    errorText: errorText,
+    prefixText: prefixText,
+    onGlowPlate: onGlowPlate,
+  );
+
+  /// The corner radius that turns a box of any height into a pill: Flutter
+  /// shrinks a radius larger than half the box's height to fit it.
+  static const double pillRadius = 999;
+
+  /// Dropdowns are rounded rectangles, unlike the pill text fields: this is
+  /// the radius of a full-size one in a form, [compactDropdownRadius] of a
+  /// small one in a toolbar or on a card.
+  static const double dropdownRadius = 15;
+  static const double compactDropdownRadius = 8;
+
+  /// [base] with its outlines, or the theme's, on a dropdown's corners.
+  static InputDecoration dropdownDecoration(
+    BuildContext context, [
+    InputDecoration base = const InputDecoration(),
+  ]) {
+    final theme = Theme.of(context).inputDecorationTheme;
+    OutlineInputBorder? shaped(InputBorder? border) => border == null
+        ? null
+        : OutlineInputBorder(
+            borderRadius: BorderRadius.circular(dropdownRadius),
+            borderSide: border.borderSide,
+          );
+    return base.copyWith(
+      border: shaped(base.border ?? theme.border),
+      enabledBorder: shaped(base.enabledBorder ?? theme.enabledBorder),
+      focusedBorder: shaped(base.focusedBorder ?? theme.focusedBorder),
+      errorBorder: shaped(base.errorBorder ?? theme.errorBorder),
+      focusedErrorBorder: shaped(
+        base.focusedErrorBorder ?? theme.focusedErrorBorder,
       ),
     );
   }
+}
+
+/// A text field's outline: a pill while the field is one line tall, and
+/// rounded corners once it grows to several lines, where a pill's round
+/// ends would cut into the lines of text. The shape is worked out from the
+/// field's height each time it is painted, so a field that grows as the
+/// user types (chat, a review reply) turns from one into the other.
+class PillInputBorder extends OutlineInputBorder {
+  const PillInputBorder({super.borderSide, super.gapPadding});
+
+  // Up to this tall, a field is one line and is drawn as a pill.
+  static const double _singleLineMaxHeight = 64;
+
+  // The corners of a field several lines tall.
+  static const double _multilineRadius = 16;
+
+  // The plain outline this border draws for a field of [rect]'s size.
+  OutlineInputBorder _sizedTo(Rect rect) => OutlineInputBorder(
+    borderSide: borderSide,
+    gapPadding: gapPadding,
+    borderRadius: BorderRadius.circular(
+      rect.height <= _singleLineMaxHeight ? rect.height / 2 : _multilineRadius,
+    ),
+  );
+
+  // The field fills its state colours in through copyWith and animates
+  // between them through lerp and scale; each keeps this adaptive shape,
+  // where OutlineInputBorder's own would drop back to a fixed radius.
+  @override
+  PillInputBorder copyWith({
+    BorderSide? borderSide,
+    BorderRadius? borderRadius,
+    double? gapPadding,
+  }) => PillInputBorder(
+    borderSide: borderSide ?? this.borderSide,
+    gapPadding: gapPadding ?? this.gapPadding,
+  );
+
+  @override
+  PillInputBorder scale(double t) => PillInputBorder(
+    borderSide: borderSide.scale(t),
+    gapPadding: gapPadding * t,
+  );
+
+  @override
+  ShapeBorder? lerpFrom(ShapeBorder? a, double t) {
+    // Leaving a typed-in field: its glow fades out as the outline returns.
+    if (a is GlowInputBorder && this is! GlowInputBorder) {
+      if (t >= 1) return this;
+      return GlowInputBorder(
+        borderSide: BorderSide.lerp(a.borderSide, borderSide, t),
+        gapPadding: gapPadding,
+        glow: a.glow * (1 - t),
+      );
+    }
+    if (a is PillInputBorder) {
+      return PillInputBorder(
+        borderSide: BorderSide.lerp(a.borderSide, borderSide, t),
+        gapPadding: a.gapPadding,
+      );
+    }
+    return super.lerpFrom(a, t);
+  }
+
+  @override
+  ShapeBorder? lerpTo(ShapeBorder? b, double t) {
+    if (b is PillInputBorder) {
+      return PillInputBorder(
+        borderSide: BorderSide.lerp(borderSide, b.borderSide, t),
+        gapPadding: b.gapPadding,
+      );
+    }
+    return super.lerpTo(b, t);
+  }
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      _sizedTo(rect).getInnerPath(rect, textDirection: textDirection);
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      _sizedTo(rect).getOuterPath(rect, textDirection: textDirection);
+
+  @override
+  void paintInterior(
+    Canvas canvas,
+    Rect rect,
+    Paint paint, {
+    TextDirection? textDirection,
+  }) => _sizedTo(
+    rect,
+  ).paintInterior(canvas, rect, paint, textDirection: textDirection);
+
+  @override
+  void paint(
+    Canvas canvas,
+    Rect rect, {
+    double? gapStart,
+    double gapExtent = 0.0,
+    double gapPercentage = 0.0,
+    TextDirection? textDirection,
+  }) => _sizedTo(rect).paint(
+    canvas,
+    rect,
+    gapStart: gapStart,
+    gapExtent: gapExtent,
+    gapPercentage: gapPercentage,
+    textDirection: textDirection,
+  );
+}
+
+/// A field's border while it is typed in, as on Log In: no outline (its
+/// [borderSide] is see-through), a soft green glow and a slight shadow
+/// around the field instead — the same as GlowField's plate
+/// ([AppTheme.glowFieldWrapper]), but on any TextField, through its
+/// InputDecoration. [glow] (0 to 1) fades it in and out as focus moves.
+class GlowInputBorder extends PillInputBorder {
+  const GlowInputBorder({super.borderSide, super.gapPadding, this.glow = 1});
+
+  final double glow;
+
+  @override
+  GlowInputBorder copyWith({
+    BorderSide? borderSide,
+    BorderRadius? borderRadius,
+    double? gapPadding,
+  }) => GlowInputBorder(
+    borderSide: borderSide ?? this.borderSide,
+    gapPadding: gapPadding ?? this.gapPadding,
+    glow: glow,
+  );
+
+  @override
+  GlowInputBorder scale(double t) => GlowInputBorder(
+    borderSide: borderSide.scale(t),
+    gapPadding: gapPadding * t,
+    glow: glow,
+  );
+
+  @override
+  ShapeBorder? lerpFrom(ShapeBorder? a, double t) {
+    if (a is PillInputBorder) {
+      return GlowInputBorder(
+        borderSide: BorderSide.lerp(a.borderSide, borderSide, t),
+        gapPadding: gapPadding,
+        glow: lerpDouble(a is GlowInputBorder ? a.glow : 0, glow, t)!,
+      );
+    }
+    return super.lerpFrom(a, t);
+  }
+
+  @override
+  ShapeBorder? lerpTo(ShapeBorder? b, double t) {
+    if (b is PillInputBorder) {
+      return GlowInputBorder(
+        borderSide: BorderSide.lerp(borderSide, b.borderSide, t),
+        gapPadding: b.gapPadding,
+        glow: lerpDouble(glow, b is GlowInputBorder ? b.glow : 0, t)!,
+      );
+    }
+    return super.lerpTo(b, t);
+  }
+
+  @override
+  void paint(
+    Canvas canvas,
+    Rect rect, {
+    double? gapStart,
+    double gapExtent = 0.0,
+    double gapPercentage = 0.0,
+    TextDirection? textDirection,
+  }) {
+    if (glow > 0) {
+      final shape = getOuterPath(rect, textDirection: textDirection);
+      // Only outside the field, so the glow never tints what is typed.
+      canvas.save();
+      canvas.clipPath(
+        Path.combine(
+          PathOperation.difference,
+          Path()..addRect(rect.inflate(24)),
+          shape,
+        ),
+      );
+      // The same two shadows as GlowField's plate (glowFieldWrapper).
+      canvas.drawPath(
+        shape,
+        Paint()
+          ..color = AppColors.mid.withValues(alpha: 0.18 * glow)
+          ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal,
+            Shadow.convertRadiusToSigma(12),
+          ),
+      );
+      canvas.drawPath(
+        shape.shift(const Offset(0, 3)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.06 * glow)
+          ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal,
+            Shadow.convertRadiusToSigma(8),
+          ),
+      );
+      canvas.restore();
+    }
+    super.paint(
+      canvas,
+      rect,
+      gapStart: gapStart,
+      gapExtent: gapExtent,
+      gapPercentage: gapPercentage,
+      textDirection: textDirection,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlowInputBorder &&
+      other.borderSide == borderSide &&
+      other.gapPadding == gapPadding &&
+      other.glow == glow;
+
+  @override
+  int get hashCode => Object.hash(borderSide, gapPadding, glow);
 }

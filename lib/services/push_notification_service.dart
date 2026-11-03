@@ -46,6 +46,57 @@ class PushNotificationService {
   /// in functions/push_payload.js).
   static const String newDeviceType = 'security_new_device';
 
+  /// The notification type of the reminder to change a default password.
+  static const String passwordReminderType = 'password_change_reminder';
+
+  /// How often an Admin-added farmer is reminded to change the default
+  /// password, until they do.
+  static const Duration passwordReminderInterval = Duration(minutes: 10);
+
+  static const int _passwordReminderId = 7301;
+
+  /// Repeats by itself, with the app open or closed, until
+  /// [stopPasswordReminder]. Android may delay one while the phone sleeps.
+  Future<void> startPasswordReminder() async {
+    if (kIsWeb) return;
+    await _initLocalNotifications();
+    await _localNotifications.periodicallyShowWithDuration(
+      id: _passwordReminderId,
+      title: 'Change your password',
+      body: 'You are still using the default password from the office.',
+      repeatDurationInterval: passwordReminderInterval,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          _securityChannel.id,
+          _securityChannel.name,
+          channelDescription: _securityChannel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: jsonEncode({'type': passwordReminderType, 'data': {}}),
+    );
+  }
+
+  /// Ends the reminder: the password was changed, or the account logged out.
+  static Future<void> stopPasswordReminder() async {
+    if (kIsWeb) return;
+    try {
+      await _localNotifications.cancel(id: _passwordReminderId);
+    } catch (_) {
+      // Nothing was scheduled on this phone.
+    }
+  }
+
+  /// Makes sure local notifications can be shown, with the same tap
+  /// handling as every other (for a chat upload's progress, see
+  /// UploadProgressNotification).
+  Future<void> prepareLocalNotifications() async {
+    if (kIsWeb) return;
+    await _initLocalNotifications();
+  }
+
   // One listener for the app's whole run, however many times setupFCM is
   // called (it is, on every route into Home and from Notifications).
   static StreamSubscription<String>? _tokenRefreshSub;

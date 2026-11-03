@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 
 import '../services/saved_products_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The Liked Products heart: an outline in dark green when the product is
 /// not liked, a filled red heart when it is, with a small bounce on tap.
@@ -49,7 +51,9 @@ class _LikeHeartState extends State<LikeHeart>
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: widget.liked ? 'Remove from Liked Products' : 'Like product',
+      message: widget.liked
+          ? tl('Remove from Liked Products')
+          : tl('Like product'),
       child: Material(
         color: AppColors.surface,
         shape: const CircleBorder(),
@@ -94,14 +98,13 @@ Future<void> toggleLikedProduct(BuildContext context, String productId) async {
   messenger
     ..clearSnackBars()
     ..showSnackBar(
-      SnackBar(
+      appSnackBar(
+        result.error ??
+            (result.liked
+                ? tl('Added to Liked Products')
+                : tl('Removed from Liked Products')),
+        kind: result.error == null ? MessageKind.success : MessageKind.error,
         duration: const Duration(seconds: 2),
-        content: Text(
-          result.error ??
-              (result.liked
-                  ? 'Added to Liked Products'
-                  : 'Removed from Liked Products'),
-        ),
       ),
     );
 }

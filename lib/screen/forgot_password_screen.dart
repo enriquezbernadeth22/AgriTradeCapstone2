@@ -1,16 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/audit_log_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agritrade_text.dart';
-import '../widgets/app_back_button.dart';
+import '../widgets/agri_app_bar.dart';
 import '../widgets/email_delivery_notice.dart';
 import '../widgets/email_request_leave_guard.dart';
 import '../widgets/glow_field.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
+import '../l10n/tr.dart';
 
 /// Full-screen "forgot password" flow (farmer/buyer login door) — asks for
 /// the account's email, requests a reset link for it so the user can
@@ -103,7 +106,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailController.text.trim();
     // Checked before anything is sent: something@domain.tld, no spaces.
     if (!_emailFormat.hasMatch(email)) {
-      _showFormError('Enter a valid email address.');
+      _showFormError(tl('Enter a valid email address.'));
       return;
     }
     setState(() {
@@ -125,9 +128,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (widget.isAdmin) {
       setState(() => _formError = message);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      showAppMessage(context, tl(message), kind: MessageKind.error);
     }
   }
 
@@ -175,30 +176,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       ),
       const SizedBox(height: 14),
-      Center(child: Text('Check Your Email', style: AppTheme.heading(21))),
+      Center(
+        child: Text(
+          tl('Check Your Email'),
+          textAlign: TextAlign.center,
+          style: AppTheme.pageTitle(),
+        ),
+      ),
       const SizedBox(height: 8),
       Text(
         // The same words whether or not the address has an account.
-        "If an account exists with this email address, you'll receive a "
-        'password reset link shortly. Please check your Inbox and Spam or '
-        'Junk folder.',
+        tl(
+          'If an account exists with this email address, you\'ll receive a password reset link shortly. Please check your Inbox and Spam or Junk folder.',
+        ),
         textAlign: TextAlign.center,
-        style: AppTheme.body(size: 13.5).copyWith(height: 1.45),
+        style: AppTheme.pageDescription(),
       ),
       const SizedBox(height: 18),
-      const EmailDeliveryNotice(
-        text:
-            'The email may take a few minutes to arrive. If your account '
-            'logs in with Google, use Continue with Google instead.',
+      EmailDeliveryNotice(
+        text: tl(
+          'The email may take a few minutes to arrive. If your account logs in with Google, use Continue with Google instead.',
+        ),
       ),
-      const SizedBox(height: 22),
+      const SizedBox(height: AppTheme.formSectionGap),
       SizedBox(
         width: double.infinity,
         child: ElevatedButton(
           // maybePop, so it asks first if a resend is still being sent.
           onPressed: () => Navigator.maybePop(context),
           style: AppTheme.primaryButton(),
-          child: Text('Back to Login', style: AppTheme.buttonText()),
+          child: Text(tl('Back to Login'), style: AppTheme.buttonText()),
         ),
       ),
       const SizedBox(height: 10),
@@ -206,15 +213,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         width: double.infinity,
         child: OutlinedButton(
           onPressed: canResend ? _sendResetLink : null,
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            side: BorderSide(
-              color: canResend ? AppColors.mid : AppColors.grey(300),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-          ),
+          style: AppTheme.secondaryButton(),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -231,14 +230,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ],
               Text(
                 _sending
-                    ? 'Sending…'
+                    ? tl('Sending…')
                     : _cooldown > 0
-                    ? 'Resend Reset Link in ${_cooldown}s'
-                    : 'Resend Reset Link',
-                style: AppTheme.body(
-                  color: canResend ? AppColors.mid : AppColors.grey(),
-                  size: 14,
-                ).copyWith(fontWeight: FontWeight.w600),
+                    ? tl('Resend Reset Link in {0}s', [_cooldown])
+                    : tl('Resend Reset Link'),
+                style: AppTheme.buttonText().copyWith(
+                  color: canResend ? AppColors.text : AppColors.grey(),
+                ),
               ),
             ],
           ),
@@ -307,7 +305,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _adminError(String message) => Padding(
     padding: const EdgeInsets.only(top: 8),
     child: Text(
-      message,
+      tl(message),
       style: _mont(
         12.5,
         color: AppColors.adapt(const Color(0xFFC62828)),
@@ -361,8 +359,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       const SizedBox(width: 8),
       Expanded(
         child: Text(
-          'Please check your Inbox and Spam or Junk folder. The email may '
-          'take a few minutes to arrive.',
+          tl(
+            'Please check your Inbox and Spam or Junk folder. The email may take a few minutes to arrive.',
+          ),
           style: _mont(
             12,
             color: AppColors.adapt(const Color(0xFF6B7468)),
@@ -374,13 +373,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   List<Widget> _adminForm() => [
     Text(
-      'Forgot Password?',
+      tl('Forgot Password?'),
       style: _mont(22, weight: FontWeight.w700, color: AppColors.brand),
     ),
     const SizedBox(height: 8),
     Text(
-      "Enter your registered Admin email address and we'll send you a link "
-      'to reset your password.',
+      tl(
+        'Enter your registered Admin email address and we\'ll send you a link to reset your password.',
+      ),
       style: _mont(
         13,
         color: AppColors.adapt(const Color(0xFF6B7468)),
@@ -403,7 +403,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         compact: true,
         autofocus: true,
         readOnly: _sending,
-        hint: 'Enter your admin email address',
+        hint: tl('Enter your admin email address'),
         icon: Icons.email_outlined,
         keyboardType: TextInputType.emailAddress,
         textInputAction: TextInputAction.done,
@@ -414,7 +414,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (_formError != null) _adminError(_formError!),
     const SizedBox(height: 18),
     _adminPrimaryButton(
-      label: 'Send Reset Link',
+      label: tl('Send Reset Link'),
       // Disabled while a request is out, so it cannot be sent twice.
       onPressed: _sending ? null : _sendResetLink,
       loading: _sending,
@@ -429,13 +429,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final canResend = !_sending && _cooldown <= 0;
     return [
       Text(
-        'Check Your Email',
+        tl('Check Your Email'),
         style: _mont(22, weight: FontWeight.w700, color: AppColors.brand),
       ),
       const SizedBox(height: 8),
       Text(
-        "If an account exists with this email address, you'll receive a "
-        'password reset link shortly.',
+        tl(
+          'If an account exists with this email address, you\'ll receive a password reset link shortly.',
+        ),
         style: _mont(
           13,
           color: AppColors.adapt(const Color(0xFF6B7468)),
@@ -443,7 +444,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       const SizedBox(height: 22),
       _adminPrimaryButton(
-        label: 'Back to Login',
+        label: tl('Back to Login'),
         // Asks first if a resend is still being sent.
         onPressed: _adminBack,
       ),
@@ -466,10 +467,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
           child: Text(
             _sending
-                ? 'Sending…'
+                ? tl('Sending…')
                 : _cooldown > 0
-                ? 'Resend Reset Link in ${_cooldown}s'
-                : 'Resend Reset Link',
+                ? tl('Resend Reset Link in {0}s', [_cooldown])
+                : tl('Resend Reset Link'),
             style: _mont(14, weight: FontWeight.w600),
           ),
         ),
@@ -520,7 +521,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       // Arrow only; the tooltip says where it goes.
       child: IconButton(
         onPressed: _adminBack,
-        tooltip: 'Back to Login',
+        tooltip: tl('Back to Login'),
         color: AppColors.brand,
         icon: const Icon(Icons.arrow_back, size: 22),
       ),
@@ -587,107 +588,65 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       confirm: _leaveConfirm,
       child: Scaffold(
         backgroundColor: AppColors.page,
+        appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
         body: SafeArea(
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Room for the floating Back button above.
-                    const SizedBox(height: 4 + AppBackButton.size),
-                    const SizedBox(height: 12),
-                    // logo.png has a wide transparent margin around the
-                    // artwork: shown larger, and only the artwork's own
-                    // height is kept, so the wordmark sits right under it.
-                    Align(
-                      heightFactor: 0.76,
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        height: 100,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: AppColors.brandFill,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.agriculture,
-                            size: 38,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.formPageMargin,
+              AppTheme.formSectionGap,
+              AppTheme.formPageMargin,
+              AppTheme.formSectionGap,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!_sent) ...[
+                  Text(tl('Reset your password'), style: AppTheme.pageTitle()),
+                  const SizedBox(height: 8),
+                  Text(
+                    tl(
+                      'Enter your account email and we\'ll send you a link to verify it\'s you and reset your password.',
                     ),
-                    const Center(child: AgriTradeText(fontSize: 26)),
-                    const SizedBox(height: 28),
-                    if (!_sent) ...[
-                      Text(
-                        'Reset your password',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Enter your account email and we'll send you a link to verify it's you and reset your password.",
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          color: AppColors.textSecondary,
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      const Text(
-                        'Email Address',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      GlowField(
-                        controller: _emailController,
-                        hint: 'you@example.com',
-                        icon: Icons.email_outlined,
-                        autofocus: true,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.email],
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _sending ? null : _sendResetLink,
-                          style: AppTheme.primaryButton(),
-                          child: _sending
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Send Reset Link',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ] else
-                      ..._confirmation(),
-                  ],
-                ),
-              ),
-              // Floats above the form so it stays put while the page scrolls.
-              const Positioned(top: 8, left: 12, child: AppBackButton()),
-            ],
+                    style: AppTheme.pageDescription(),
+                  ),
+                  const SizedBox(height: AppTheme.formSectionGap),
+                  Text(tr(context).emailAddress, style: AppTheme.label()),
+                  const SizedBox(height: AppTheme.formLabelGap),
+                  GlowField(
+                    controller: _emailController,
+                    hint: 'you@example.com',
+                    icon: Icons.email_outlined,
+                    autofocus: true,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.email],
+                  ),
+                  const SizedBox(height: AppTheme.formSectionGap),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _sending ? null : _sendResetLink,
+                      style: AppTheme.primaryButton(),
+                      child: _sending
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              tl('Send Reset Link'),
+                              style: AppTheme.buttonText(),
+                            ),
+                    ),
+                  ),
+                ] else
+                  ..._confirmation(),
+              ],
+            ),
           ),
         ),
       ),

@@ -20,12 +20,7 @@ class LoginScreen extends StatefulWidget {
   final String? flashMessage;
   final bool disableBackNavigation;
 
-  /// The Admin was sent here because the account signed in on another
-  /// device: says so in a popup once the page is up.
-  final bool adminSessionEnded;
-
-  /// With [adminSessionEnded]: this browser was signed out from Active
-  /// Sessions on another device, and the popup says that instead.
+  /// This browser was signed out from Active Sessions on another device.
   final bool adminSessionRevoked;
 
   const LoginScreen({
@@ -33,7 +28,6 @@ class LoginScreen extends StatefulWidget {
     this.role,
     this.flashMessage,
     this.disableBackNavigation = false,
-    this.adminSessionEnded = false,
     this.adminSessionRevoked = false,
   });
 
@@ -47,13 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.adminSessionEnded) {
+    if (widget.adminSessionRevoked) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          showAdminSessionEndedDialog(
-            context,
-            revoked: widget.adminSessionRevoked,
-          );
+          showAdminSessionEndedDialog(context);
         }
       });
     }
@@ -170,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 26),
+                        const SizedBox(height: AppTheme.formSectionGap),
                         LoginFormFields(role: widget.role),
                         // Makes no sense for admin accounts (created
                         // manually via the Firebase Console), so hidden
@@ -184,10 +175,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               alignment: WrapAlignment.center,
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                RichText(
-                                  text: TextSpan(
-                                    text: tr(context).noAccountSignUp,
-                                    style: TextStyle(color: AppColors.text),
+                                Text(
+                                  tr(context).noAccountSignUp,
+                                  style: AppTheme.pageDescription().copyWith(
+                                    color: AppColors.text,
                                   ),
                                 ),
                                 GestureDetector(
@@ -204,14 +195,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 14,
                                     ),
-                                    child: RichText(
-                                      text: TextSpan(
-                                        text: tr(context).createOne,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.brand,
-                                        ),
-                                      ),
+                                    child: Text(
+                                      tr(context).createOne,
+                                      style: AppTheme.formLink(),
                                     ),
                                   ),
                                 ),
@@ -257,20 +243,13 @@ class _LoginHeader extends StatelessWidget {
       children: [
         Text(
           tr(context).loginButton,
-          style: TextStyle(
-            fontSize: 28,
-            color: AppColors.brand,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTheme.pageTitle(color: AppColors.brand),
         ),
         const SizedBox(height: 6),
         Text(
           roleLabel ?? tr(context).loginSubtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.grey(600),
-            fontWeight: FontWeight.w500,
-          ),
+          textAlign: TextAlign.center,
+          style: AppTheme.pageDescription(),
         ),
       ],
     );

@@ -11,9 +11,11 @@ import '../l10n/app_localizations.dart';
 import '../services/order_seen_service.dart';
 import 'agri_dialog.dart';
 import 'agri_refresh_indicator.dart';
+import 'docked_nav_bar.dart';
 import 'retry_message.dart';
 import 'agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // The Orders body shared by the Farmer and Buyer sides (see OrdersView):
 // plain text status tabs with a green underline, a red corner badge for
@@ -411,7 +413,7 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
                 Positioned(
                   left: 16,
                   right: 16,
-                  bottom: 20,
+                  bottom: DockedNavBar.listEndPadding(context) + 8,
                   child: _SwipeTutorialCard(onDismiss: _dismissTutorial),
                 ),
             ],
@@ -489,7 +491,12 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
         builder: (context, constraints) => ListView(
           key: PageStorageKey<String>('orders-${tab.value}'),
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
+          padding: EdgeInsets.fromLTRB(
+            14,
+            10,
+            14,
+            DockedNavBar.listEndPadding(context),
+          ),
           children: [
             ...header,
             if (items.isEmpty)
@@ -528,7 +535,7 @@ class _TabLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: unseen > 0 ? '$label, $unseen new' : label,
+      label: unseen > 0 ? tl('{0}, {1} new', [label, unseen]) : label,
       excludeSemantics: true,
       child: Stack(
         clipBehavior: Clip.none,
@@ -581,6 +588,7 @@ class _EmptyState extends StatelessWidget {
     // The app-wide empty state; Orders is where its look comes from.
     return AgriEmptyState(
       icon: tab.emptyIcon,
+      art: kEmptyProduceArt,
       title: tab.emptyTitleIn(context),
       subtitle: subtitle,
       action: action,
@@ -705,7 +713,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Swipe between order statuses',
+                          tl('Swipe between order statuses'),
                           style: GoogleFonts.montserrat(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w700,
@@ -714,8 +722,9 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Swipe left or right to quickly move between '
-                          'Pending, Confirmed, Shipped, and Completed orders.',
+                          tl(
+                            'Swipe left or right to quickly move between Pending, Confirmed, Shipped, and Completed orders.',
+                          ),
                           style: GoogleFonts.montserrat(
                             fontSize: 12.5,
                             color: AppColors.text,
@@ -736,7 +745,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                       foregroundColor: AppColors.textSecondary,
                     ),
                     child: Text(
-                      'Skip',
+                      tl('Skip'),
                       style: GoogleFonts.montserrat(fontSize: 13),
                     ),
                   ),
@@ -752,7 +761,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                       ),
                     ),
                     child: Text(
-                      'Got it',
+                      tl('Got it'),
                       style: GoogleFonts.montserrat(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,

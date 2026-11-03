@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../theme/app_theme.dart';
+import '../widgets/admin_loading_scope.dart';
 
 // The date range picker is part of this kit.
 export 'admin_date_range_dialog.dart'
@@ -446,7 +447,7 @@ class AdminPillToggle<T> extends StatelessWidget {
                   child: Text(
                     option.label,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: option.value == value
                           ? adminOnActionColor(c)
@@ -463,7 +464,9 @@ class AdminPillToggle<T> extends StatelessWidget {
 }
 
 /// The decoration of a text field several lines tall, in a dialog: the
-/// portal's field colours and corners, with its label at the top.
+/// portal's field colours, with its label at the top. It keeps rounded
+/// corners rather than the single-line fields' pill, whose round ends
+/// would cut into the lines of text.
 InputDecoration adminMultilineDecoration(
   BuildContext context, {
   String? labelText,
@@ -524,6 +527,7 @@ class AdminLoadingBar extends StatefulWidget {
 
 class _AdminLoadingBarState extends State<AdminLoadingBar>
     with SingleTickerProviderStateMixin {
+  AdminLoadingScope? _loadingScope;
   late final AnimationController _wait = AnimationController(
     vsync: this,
     duration: AdminLoadingBar._longest,
@@ -532,6 +536,13 @@ class _AdminLoadingBarState extends State<AdminLoadingBar>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final scope = AdminLoadingScope.maybeOf(context);
+    if (scope?.page != _loadingScope?.page ||
+        scope?.onChanged != _loadingScope?.onChanged) {
+      _report(_loadingScope, false);
+      _loadingScope = scope;
+      _report(_loadingScope, true);
+    }
     if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
       _wait.stop();
     } else if (!_wait.isAnimating && !_wait.isCompleted) {
@@ -539,8 +550,17 @@ class _AdminLoadingBarState extends State<AdminLoadingBar>
     }
   }
 
+  void _report(AdminLoadingScope? scope, bool loading) {
+    if (scope == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (loading && !mounted) return;
+      scope.report(this, loading);
+    });
+  }
+
   @override
   void dispose() {
+    _report(_loadingScope, false);
     _wait.dispose();
     super.dispose();
   }
@@ -1683,7 +1703,7 @@ class _AdminYearCalendarState extends State<_AdminYearCalendar> {
   @override
   Widget build(BuildContext context) {
     final c = widget.palette;
-    final action = adminControlColor(c);
+    final action = adminActionColor(c);
     final start = widget.firstYear + 12 * _page;
     final end = start + 11;
     Widget arrow(IconData icon, String tooltip, bool enabled, int step) =>
@@ -1757,6 +1777,20 @@ class _AdminYearCalendarState extends State<_AdminYearCalendar> {
                                   borderRadius: BorderRadius.circular(
                                     AdminRadii.pill,
                                   ),
+                                  overlayColor:
+                                      WidgetStateProperty.resolveWith((states) {
+                                        // Keep the selected green pill crisp;
+                                        // use a quiet neutral hover for others.
+                                        if (selected) return Colors.transparent;
+                                        if (states.contains(WidgetState.pressed)) {
+                                          return c.border;
+                                        }
+                                        if (states.contains(WidgetState.hovered) ||
+                                            states.contains(WidgetState.focused)) {
+                                          return c.surfaceAlt;
+                                        }
+                                        return Colors.transparent;
+                                      }),
                                   onTap: out
                                       ? null
                                       : () => Navigator.of(context).pop(year),

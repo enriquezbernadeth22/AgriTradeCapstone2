@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// "Public Location Preview" on farmer registration: once a barangay is
 /// chosen, exactly what buyers will see — the barangay, then the
@@ -56,7 +57,7 @@ class PublicLocationPreview extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Public Location Preview',
+                      tl('Public Location Preview'),
                       style: TextStyle(
                         fontFamily: _font,
                         fontSize: 13.5,
@@ -65,7 +66,7 @@ class PublicLocationPreview extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'What buyers will see',
+                      tl('What buyers will see'),
                       style: TextStyle(
                         fontFamily: _font,
                         fontSize: 11.5,
@@ -143,7 +144,7 @@ class PublicLocationPreview extends StatelessWidget {
               SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Your exact coordinates will not be displayed publicly.',
+                  tl('Your exact coordinates will not be displayed publicly.'),
                   style: TextStyle(
                     fontFamily: _font,
                     fontSize: 11.5,

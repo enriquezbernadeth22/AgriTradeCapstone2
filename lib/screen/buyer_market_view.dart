@@ -11,6 +11,7 @@ import '../services/public_farm_location.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// "Approx. 4.8 km away" — never presented as exact: one decimal below
 /// 10 km, whole kilometres beyond that. Null (no buyer location, or no
@@ -131,15 +132,18 @@ class _BuyerMapViewState extends State<BuyerMapView> {
       }
       if (!mounted) return;
       if (!granted) {
-        setState(() => _locationNotice = 'Allow location to see the distance.');
+        setState(
+          () => _locationNotice = tl('Allow location to see the distance.'),
+        );
         return;
       }
 
       if (!await Geolocator.isLocationServiceEnabled()) {
         if (!mounted) return;
         setState(
-          () => _locationNotice =
-              'Turn on location services to see the distance.',
+          () => _locationNotice = tl(
+            'Turn on location services to see the distance.',
+          ),
         );
         return;
       }
@@ -177,7 +181,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
       if (kDebugMode) debugPrint('FarmLocation: buyer position NOT found');
       if (!mounted) return;
       setState(
-        () => _locationNotice = 'Could not get your location right now.',
+        () => _locationNotice = tl('Could not get your location right now.'),
       );
     }
   }
@@ -238,7 +242,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     return Scaffold(
       backgroundColor: AppColors.page,
       appBar: AgriAppBar(
-        title: 'Farm Location',
+        title: tl('Farm Location'),
         // Returns to the Product Details this map was opened from.
         onBack: () => Navigator.of(context).pop(),
       ),
@@ -291,7 +295,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
             BitmapDescriptor.hueGreen,
           ),
           infoWindow: InfoWindow(
-            title: 'Approximate Farm Location',
+            title: tl('Approximate Farm Location'),
             snippet: _farm?.area,
           ),
         ),
@@ -316,10 +320,10 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     return Container(
       color: AppColors.surfaceAlt,
       alignment: const Alignment(0, -0.35),
-      child: const AgriEmptyState(
+      child: AgriEmptyState(
         icon: Icons.location_off_outlined,
-        title: 'Farm location unavailable',
-        subtitle: 'We could not place this farmer’s area on the map.',
+        title: tl('Farm location unavailable'),
+        subtitle: tl('We could not place this farmer’s area on the map.'),
         padding: EdgeInsets.all(32),
       ),
     );
@@ -363,7 +367,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          name.isEmpty ? 'Farmer' : name,
+                          name.isEmpty ? tl('Farmer') : name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -377,8 +381,8 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                           area.isNotEmpty
                               ? area
                               : (_loadingFarm
-                                    ? 'Loading farm area…'
-                                    : 'General location not set'),
+                                    ? tl('Loading farm area…')
+                                    : tl('General location not set')),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -426,8 +430,8 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text(
-                        'Try Again',
+                      child: Text(
+                        tl('Try Again'),
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
@@ -439,8 +443,12 @@ class _BuyerMapViewState extends State<BuyerMapView> {
               const SizedBox(height: 2),
               Text(
                 hasDistance
-                    ? 'Distance is estimated using the farmer’s general barangay location.'
-                    : (canRetry ? notice : 'Farm area could not be mapped.'),
+                    ? tl(
+                        'Distance is estimated using the farmer’s general barangay location.',
+                      )
+                    : (canRetry
+                          ? notice
+                          : tl('Farm area could not be mapped.')),
                 style: TextStyle(fontSize: 11.5, color: AppColors.grey(700)),
               ),
               const SizedBox(height: 8),
@@ -455,7 +463,9 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'The map shows only the farmer’s general barangay area. Exact farm location is private.',
+                      tl(
+                        'The map shows only the farmer’s general barangay area. Exact farm location is private.',
+                      ),
                       style: TextStyle(
                         fontSize: 11.5,
                         height: 1.35,

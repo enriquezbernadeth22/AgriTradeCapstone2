@@ -10,11 +10,10 @@ import '../theme/app_colors.dart';
 
 /// The header of every inner screen (anything opened on top of the main
 /// tabs — the tabs themselves use PageHeader). One widget, so the screens
-/// cannot drift apart: the same band as the tabs' header — the bottom
-/// bar's design (pure white, its rounded corners at the bottom, its soft
-/// shadow) attached to the top edge — with a dark green title and icons,
-/// the same height, Back button and title position. The status bar above
-/// it is the same white.
+/// cannot drift apart: the same rectangular band as the tabs' header —
+/// the bottom bar's pure white and soft shadow, attached to the top edge —
+/// with a dark green title and icons, the same height, Back button and
+/// title position. The status bar above it is the same white.
 ///
 /// It gets out of the way while reading: scrolling down the page slides
 /// the bar up out of sight (the green status bar strip stays), and any
@@ -88,9 +87,6 @@ class AgriAppBar extends StatefulWidget implements PreferredSizeWidget {
 
 class _AgriAppBarState extends State<AgriAppBar> {
   static const Duration _slide = Duration(milliseconds: 220);
-  static const BorderRadius _corners = BorderRadius.vertical(
-    bottom: Radius.circular(DockedNavBar.cornerRadius),
-  );
 
   ScrollNotificationObserverState? _observer;
   bool _hidden = false;
@@ -213,19 +209,18 @@ class _AgriAppBarState extends State<AgriAppBar> {
               curve: Curves.easeOutCubic,
               alignment: Alignment.bottomCenter,
               heightFactor: _hidden ? 0 : 1,
+              // Rectangular like the tabs' header: white with the bottom
+              // bar's soft shadow, and in Dark Mode a line along its lower
+              // edge only.
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AgriAppBar.background,
-                  border: AppColors.cardBorder,
-                  borderRadius: _corners,
+                  border: AppColors.cardBorder == null
+                      ? null
+                      : Border(bottom: AppColors.outlineSide),
                   boxShadow: DockedNavBar.shadow,
                 ),
-                child: Material(
-                  type: MaterialType.transparency,
-                  shape: const RoundedRectangleBorder(borderRadius: _corners),
-                  clipBehavior: Clip.antiAlias,
-                  child: SizedBox(height: AgriAppBar.height, child: bar),
-                ),
+                child: SizedBox(height: AgriAppBar.height, child: bar),
               ),
             ),
           ),

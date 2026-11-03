@@ -1,6 +1,7 @@
 // One-time migration for completed orders recorded in market_sales before
-// recordMarketSale stored the order type, category and buyer area that the
-// Farmer Dashboard's Best-Selling Products / Top Buyer Locations use. Run
+// recordMarketSale stored the order type, price per unit, category and buyer
+// area that the Farmer Dashboard's Best-Selling Products / Top Buyer Locations
+// and the Add Product price recommendation use. Run
 // from an authenticated environment with Firebase Admin ADC:
 //   node functions/backfill_market_sales.js
 // Reads completed orders and their buyers' municipality; writes only the
@@ -8,6 +9,7 @@
 // in index.js) — never who the buyer or seller was. Safe to run again.
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
+const { saleBuyerArea, salePricePerUnit } = require("./market_sale_logic");
 
 if (!getApps().length) initializeApp();
 const db = getFirestore();
@@ -45,8 +47,9 @@ async function main() {
           unit: (order.unit || "").toString().trim(),
           status: "completed",
           pricingType: order.pricingType === "wholesale" ? "wholesale" : "retail",
+          pricePerUnit: salePricePerUnit(order),
           category: (order.category || "").toString().trim(),
-          buyerArea: await buyerArea(order.buyerId),
+          buyerArea: saleBuyerArea(order, null) || await buyerArea(order.buyerId),
           ...(completedAt ? { completedAt } : {}),
         },
         { merge: true }

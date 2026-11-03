@@ -48,6 +48,8 @@ dependencies:
   crypto: ^3.0.7
   device_info_plus: ^13.3.0
   package_info_plus: ^10.2.2
+  video_player: ^2.14.1
+  gal: ^2.3.3
 
 dev_dependencies:
   flutter_test:
@@ -62,11 +64,11 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/images/onboard.png
+    - assets/images/farmer&buyer.png
+    - assets/images/onboarding/
     - assets/images/logo_report.png
     - assets/images/google_logo.svg
-    - assets/images/onboarding_1_farming.png
-    - assets/images/onboarding_2_connection.png
-    - assets/images/onboarding_3_marketplace.png
     - assets/images/login_landscape.png
     - assets/images/bg_adminside.png
     - assets/images/bg_admin.png

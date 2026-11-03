@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../screen/role_selection_screen.dart';
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // ============================================================
 // Role Mismatch dialog
@@ -72,7 +73,7 @@ Future<void> showRoleMismatchDialog(
 
                 // ---- Title ----
                 Text(
-                  'Role Mismatch Detected!',
+                  tl('Role Mismatch Detected!'),
                   style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.bold,
@@ -91,7 +92,7 @@ Future<void> showRoleMismatchDialog(
                       height: 1.4,
                     ),
                     children: [
-                      const TextSpan(text: 'This account is registered as '),
+                      TextSpan(text: tl('This account is registered as ')),
                       TextSpan(
                         text: roleLabel,
                         style: TextStyle(
@@ -100,9 +101,10 @@ Future<void> showRoleMismatchDialog(
                         ),
                       ),
                       TextSpan(
-                        text:
-                            '. Please continue using the $roleLabel role '
-                            'to access your account.',
+                        text: tl(
+                          '. Please continue using the {0} role to access your account.',
+                          [roleLabel],
+                        ),
                       ),
                     ],
                   ),
@@ -125,7 +127,7 @@ Future<void> showRoleMismatchDialog(
                       elevation: 0,
                     ),
                     child: Text(
-                      'Go to $roleLabel Login',
+                      tl('Go to {0} Login', [roleLabel]),
                       style: const TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.bold,
@@ -139,7 +141,7 @@ Future<void> showRoleMismatchDialog(
                 TextButton(
                   onPressed: () => goToRoleSelection(dialogContext),
                   child: Text(
-                    'Back to Role Selection',
+                    tl('Back to Role Selection'),
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,

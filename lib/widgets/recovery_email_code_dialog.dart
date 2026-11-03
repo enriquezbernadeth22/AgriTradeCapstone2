@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 
 import '../services/recovery_email_service.dart';
 import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
 import 'otp_code_field.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Verifies [email] as the account's recovery email: emails it a 6-digit
 /// code, then asks for that code. True once it is verified.
@@ -23,13 +25,15 @@ Future<bool> verifyRecoveryEmail(
   final request = await recovery.requestCode(email);
   if (request.verified) {
     messenger.showSnackBar(
-      const SnackBar(content: Text('Recovery email verified.')),
+      appSnackBar(tl('Recovery email verified.'), kind: MessageKind.success),
     );
     return true;
   }
   if (request.error != null || !context.mounted) {
     if (request.error != null) {
-      messenger.showSnackBar(SnackBar(content: Text(request.error!)));
+      messenger.showSnackBar(
+        appSnackBar(request.error!, kind: MessageKind.error),
+      );
     }
     return false;
   }
@@ -44,7 +48,7 @@ Future<bool> verifyRecoveryEmail(
   );
   if (verified == true) {
     messenger.showSnackBar(
-      const SnackBar(content: Text('Recovery email verified.')),
+      appSnackBar(tl('Recovery email verified.'), kind: MessageKind.success),
     );
   }
   return verified == true;
@@ -152,14 +156,14 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
         : 'Resend code';
     return AgriDialog(
       icon: Icons.mark_email_unread_outlined,
-      title: const Text('Verify Recovery Email'),
+      title: Text(tl('Verify Recovery Email')),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Enter the 6-digit code we sent to',
+            tl('Enter the 6-digit code we sent to'),
             style: AppTheme.body(size: 13.5),
             textAlign: TextAlign.center,
           ),
@@ -193,7 +197,7 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(
-              _error!,
+              tl(_error!),
               textAlign: TextAlign.center,
               style: AppTheme.body(
                 size: 12,
@@ -203,8 +207,9 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
           ],
           const SizedBox(height: 12),
           Text(
-            'The code expires in 10 minutes. Not in your inbox? Check your '
-            'Spam or Junk folder.',
+            tl(
+              'The code expires in 10 minutes. Not in your inbox? Check your Spam or Junk folder.',
+            ),
             textAlign: TextAlign.center,
             style: AppTheme.body(size: 11.5, color: AppColors.grey(600)),
           ),
@@ -228,11 +233,11 @@ class _RecoveryEmailCodeDialogState extends State<RecoveryEmailCodeDialog> {
       ),
       actions: [
         AgriDialogButton(
-          label: 'Cancel',
+          label: tl('Cancel'),
           onPressed: _saving ? null : () => Navigator.of(context).pop(false),
         ),
         AgriDialogButton(
-          label: 'Verify',
+          label: tl('Verify'),
           kind: AgriButtonKind.primary,
           loading: _saving,
           onPressed: canVerify ? _verify : null,
@@ -267,7 +272,7 @@ class RecoveryEmailStatusChip extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            verified ? 'Verified' : 'Not verified',
+            verified ? 'Verified' : tl('Not verified'),
             style: AppTheme.label().copyWith(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,

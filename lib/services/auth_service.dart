@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/legal_policies.dart' show kPrivacyPolicy, kTermsOfService;
 import 'presence_service.dart';
 import 'push_notification_service.dart';
+import '../data/account_types.dart';
 
 /// Everything collected on the registration form that still needs to be
 /// written to Firestore once email verification actually succeeds — see
@@ -33,6 +34,8 @@ class PendingRegistrationProfile {
   final String? lastName;
   final String? mobileNumber;
   final bool supportedProductsAcknowledged;
+  // "What best describes you" (see account_types.dart).
+  final String? accountType;
   // Farmer-only.
   final String? barangay;
   final String? certificateUrl;
@@ -46,6 +49,7 @@ class PendingRegistrationProfile {
     this.lastName,
     this.mobileNumber,
     this.supportedProductsAcknowledged = false,
+    this.accountType,
     this.barangay,
     this.certificateUrl,
     this.rsbaNumber,
@@ -58,6 +62,7 @@ class PendingRegistrationProfile {
     'lastName': lastName,
     'mobileNumber': mobileNumber,
     'supportedProductsAcknowledged': supportedProductsAcknowledged,
+    'accountType': accountType,
     'barangay': barangay,
     'certificateUrl': certificateUrl,
     'rsbaNumber': rsbaNumber,
@@ -72,6 +77,7 @@ class PendingRegistrationProfile {
         mobileNumber: json['mobileNumber'] as String?,
         supportedProductsAcknowledged:
             json['supportedProductsAcknowledged'] as bool? ?? false,
+        accountType: json['accountType'] as String?,
         barangay: json['barangay'] as String?,
         certificateUrl: json['certificateUrl'] as String?,
         rsbaNumber: json['rsbaNumber'] as String?,
@@ -249,6 +255,8 @@ class AuthService {
     // Already in "+63XXXXXXXXXX" form (see RegisterScreen._register) — this
     // is contact info only, never used for phone-number auth/OTP.
     String? mobileNumber,
+    // "What best describes you" (see account_types.dart).
+    String? accountType,
     // Farmer-only.
     bool supportedProductsAcknowledged = false,
     String? barangay,
@@ -295,6 +303,7 @@ class AuthService {
           'supportedProductsAcknowledged': supportedProductsAcknowledged,
         if (isFarmer)
           'supportedProductsAcknowledgedAt': FieldValue.serverTimestamp(),
+        accountTypeField(role): ?accountType,
         if (isFarmer && barangay != null) 'barangay': barangay,
         if (isFarmer) 'municipality': 'Laurel',
         if (isFarmer) 'province': 'Batangas',
@@ -364,63 +373,6 @@ class AuthService {
     } catch (_) {}
   }
 
-  Future<String?> saveVerificationDocument({
-    required String uid,
-    required String documentUrl,
-    required String barangay,
-    required String fullName,
-  }) async {
-    try {
-      final db = FirebaseFirestore.instance;
-
-      await db.collection('verificationDocs').doc(uid).set({
-        'document': documentUrl,
-        'submittedAt': FieldValue.serverTimestamp(),
-        'status': 'pending',
-        'fullName': fullName.trim(),
-        'userId': uid,
-      }, SetOptions(merge: true));
-
-      await db.collection('users').doc(uid).update({
-        'barangay': barangay,
-        'municipality': 'Laurel',
-        'province': 'Batangas',
-        'approvalStatus': 'pending',
-        'hasVerificationDoc': true,
-      });
-
-      return null;
-    } catch (e) {
-      return 'Could not save the document. Please try again.';
-    }
-  }
-
-  // Buyers have no verification step (see signUp's approvalStatus
-  // comment) and aren't restricted to Laurel the way farmers are — the
-  // buyer location popup (see buyer_location_picker.dart), shown when
-  // placing an order, either reverse-geocodes a GPS fix or reads a
-  // Region/Province/City/Barangay picked from a PSGC-backed drill-down.
-  //
-  /// Exact coordinates live under users/{uid}/private/geo, not on the main
-  /// user doc — that doc is readable by any signed-in user (needed for
-  /// public profile fields like name/barangay), so an exact pin must never
-  /// be a field on it. Only the owner and an admin can read this
-  /// subcollection (see firestore.rules); every other screen that needs a
-  /// buyer's or farmer's approximate location uses barangay/municipality
-  /// text or a server-aggregated point instead. The readable region/
-  /// province/city/barangay, by contrast, are stored on the main doc —
-  /// same as a farmer's barangay already is — since the admin Demand
-  /// Heatmap and this buyer's own profile ("Saved Location") both need to
-  /// read them, and they're already not sensitive precise-location data.
-  ///
-  /// [latitude]/[longitude] are omitted when the buyer picked their
-  /// location manually and the forward-geocode fallback failed — that's
-  /// non-fatal, since the readable address is what actually matters here;
-  /// a coordinate is only a bonus for the Demand Heatmap/approximate
-  /// distance. Pass only the fields that changed; omitted ones are left
-  /// untouched on the existing doc (e.g. "Edit Location" picking a new
-  /// barangay without re-detecting GPS doesn't erase a previously saved
-  /// pin).
   Future<String?> saveBuyerLocation({
     required String uid,
     double? latitude,
@@ -605,8 +557,15 @@ class AuthService {
     String? photoUrl,
     // Already in "+63XXXXXXXXXX" form — see signUp's mobileNumber doc.
     String? mobileNumber,
+    // "What best describes you" (see account_types.dart).
+    String? accountType,
+    // Farmer-only, as in completeRegistration: what the Admin checks.
+    String? barangay,
+    String? rsbaNumber,
     bool supportedProductsAcknowledged = false,
   }) async {
+    final isFarmer = role == 'farmer';
+    final rsba = isFarmer ? (rsbaNumber ?? '').trim() : '';
     try {
       await _auth.currentUser?.updateDisplayName(fullName.trim());
       if (photoUrl != null && photoUrl.isNotEmpty) {
@@ -626,6 +585,11 @@ class AuthService {
         'approvalStatus': role == 'farmer' ? 'pending' : 'approved',
         'isVerified': role != 'farmer',
         'authProvider': 'google',
+        accountTypeField(role): ?accountType,
+        if (isFarmer && barangay != null) 'barangay': barangay,
+        if (isFarmer) 'municipality': 'Laurel',
+        if (isFarmer) 'province': 'Batangas',
+        if (rsba.isNotEmpty) 'rsbaNumber': rsba,
         if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
         'createdAt': FieldValue.serverTimestamp(),
         'termsAccepted': true,
@@ -933,6 +897,7 @@ class AuthService {
     bool keepPushToken = false,
   }) async {
     final leaving = _auth.currentUser;
+    await PushNotificationService.stopPasswordReminder();
     debugPrint(
       '[Auth] signOut() called — reason: $reason '
       '(uid: ${leaving?.uid}, email: ${leaving?.email})',

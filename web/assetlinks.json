@@ -5,7 +5,7 @@
       "namespace": "android_app",
       "package_name": "com.example.agritrade",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_THE_APP_SIGNING_CERTIFICATE_SHA256_FINGERPRINT"
+        "A7:B3:A2:18:D4:98:8C:A0:F1:49:A5:32:C0:78:83:D1:68:32:3C:A1:7F:42:44:49:FD:8D:4D:F4:DB:46:CC:C6"
       ]
     }
   }

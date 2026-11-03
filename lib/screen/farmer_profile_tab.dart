@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/product_share_service.dart';
 import '../services/market_price_helpers.dart';
 import '../services/review_stats.dart';
 import '../data/commodity_master_list.dart';
-import 'role_selection_screen.dart';
 import 'add_product_screen.dart';
 import 'farmer_edit_profile_screen.dart';
-import 'help_support_screen.dart';
 import 'farmer_reviews_screen.dart';
+import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
-import '../widgets/profile_settings_menu.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/update_stock_dialog.dart';
 import '../widgets/shimmer.dart';
@@ -23,6 +21,8 @@ import '../widgets/retry_message.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../l10n/app_language.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
 class ProfileTab extends StatefulWidget {
@@ -59,60 +59,6 @@ class _ProfileTabState extends State<ProfileTab> {
 
   Future<void> _refreshData() async {
     await Future.delayed(const Duration(milliseconds: 700));
-  }
-
-  Future<void> _handleLogout(BuildContext context) async {
-    final confirm = await showAgriConfirm(
-      context: context,
-      icon: Icons.logout,
-      tone: AgriTone.destructive,
-      title: tr(context).logOut,
-      message: tr(context).logOutConfirm,
-      confirmLabel: tr(context).logOut,
-    );
-    if (!confirm) return;
-
-    await AuthService().logOut();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-      (route) => false,
-    );
-  }
-
-  // ---- Settings (gear) menu beside the Profile title ----
-  // Share My Store first, then settings and help, and Log Out last — in
-  // red, after a divider.
-  Widget _profileMenu(BuildContext context) => ProfileSettingsMenu(
-    onShareStore: () => _shareStore(context),
-    onHelp: () => Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const HelpSupportScreen(farmer: true)),
-    ),
-    onLogout: () => _handleLogout(context),
-  );
-
-  Future<void> _shareStore(BuildContext context) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final shared = await ProductShareService.shareStore(context, uid);
-      if (!shared) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Add a product first. There is nothing to share yet.',
-            ),
-          ),
-        );
-      }
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Could not share your store. Try again.')),
-      );
-    }
   }
 
   // ---- Avatar with an edit badge sitting on top of it ----
@@ -192,7 +138,7 @@ class _ProfileTabState extends State<ProfileTab> {
             children: [
               Expanded(
                 child: Text(
-                  'MY PRODUCTS',
+                  tl('MY PRODUCTS'),
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -254,8 +200,9 @@ class _ProfileTabState extends State<ProfileTab> {
                 }
                 if (snap.hasError) {
                   return RetryMessage(
-                    message:
-                        'Could not load your listings. Check your connection and retry.',
+                    message: tl(
+                      'Could not load your listings. Check your connection and retry.',
+                    ),
                     onRetry: () => setState(() {}),
                   );
                 }
@@ -272,8 +219,10 @@ class _ProfileTabState extends State<ProfileTab> {
                         padding: const EdgeInsets.all(20),
                         child: Text(
                           showArchived
-                              ? "You don't have any archived products."
-                              : "You haven't posted any active products yet.",
+                              ? tl('You don\'t have any archived products.')
+                              : tl(
+                                  'You haven\'t posted any active products yet.',
+                                ),
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.grey(600),
@@ -363,7 +312,7 @@ class _ProfileTabState extends State<ProfileTab> {
     );
 
     return PopupMenuButton<String>(
-      tooltip: 'Sort your products',
+      tooltip: tl('Sort your products'),
       position: PopupMenuPosition.under,
       color: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -372,13 +321,13 @@ class _ProfileTabState extends State<ProfileTab> {
       itemBuilder: (context) => [
         heading('SORT BY'),
         for (final sort in _ProductSort.values)
-          choice(sort.name, sort.label, sort == _sort),
+          choice(sort.name, tl(sort.label), sort == _sort),
       ],
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 5, 8, 5),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.compactDropdownRadius),
           border: Border.all(color: AppColors.grey(300)),
         ),
         child: Row(
@@ -389,7 +338,7 @@ class _ProfileTabState extends State<ProfileTab> {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 150),
               child: Text(
-                _sort.short,
+                tl(_sort.short),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -580,7 +529,7 @@ class _ProfileTabState extends State<ProfileTab> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isArchived ? 'ARCHIVED' : 'OUT OF STOCK',
+                    isArchived ? tl('ARCHIVED') : tl('OUT OF STOCK'),
                     style: TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.bold,
@@ -621,7 +570,9 @@ class _ProfileTabState extends State<ProfileTab> {
                           ),
                           const SizedBox(width: 3),
                           Text(
-                            saveCount == 1 ? '1 like' : '$saveCount likes',
+                            saveCount == 1
+                                ? tl('1 like')
+                                : tl('{0} likes', [saveCount]),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -638,7 +589,7 @@ class _ProfileTabState extends State<ProfileTab> {
           // dropped from this product's own ⋮ button.
           trailing: Builder(
             builder: (buttonContext) => IconButton(
-              tooltip: 'Product actions',
+              tooltip: tl('Product actions'),
               visualDensity: VisualDensity.compact,
               icon: Icon(Icons.more_vert, color: AppColors.grey(500)),
               onPressed: () => _openProductMenu(
@@ -665,15 +616,14 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.brandFill,
-        content: Text(message),
-      ),
-    );
+  // Unless said otherwise, a message here is a problem (such as a stock
+  // amount that is not allowed).
+  void _snack(
+    BuildContext context,
+    String message, {
+    MessageKind kind = MessageKind.error,
+  }) {
+    showAppMessage(context, tl(message), kind: kind);
   }
 
   // Active listing: Share, Edit, Update Quantity, Archive. An archived
@@ -691,38 +641,38 @@ class _ProfileTabState extends State<ProfileTab> {
     final action = await showAgriPopupMenu<String>(
       anchorContext: buttonContext,
       items: isArchived
-          ? const [
+          ? [
               AgriMenuItem(
                 value: 'view',
                 icon: Icons.visibility_outlined,
-                label: 'View Details',
+                label: tl('View Details'),
               ),
               AgriMenuItem(
                 value: 'archive',
                 icon: Icons.unarchive_outlined,
-                label: 'Restore Listing',
+                label: tl('Restore Listing'),
               ),
             ]
-          : const [
+          : [
               AgriMenuItem(
                 value: 'share',
                 icon: Icons.share_outlined,
-                label: 'Share Product',
+                label: tl('Share Product'),
               ),
               AgriMenuItem(
                 value: 'edit',
                 icon: Icons.edit_outlined,
-                label: 'Edit Product',
+                label: tl('Edit Product'),
               ),
               AgriMenuItem(
                 value: 'quantity',
                 icon: Icons.inventory_2_outlined,
-                label: 'Update Quantity',
+                label: tl('Update Quantity'),
               ),
               AgriMenuItem(
                 value: 'archive',
                 icon: Icons.archive_outlined,
-                label: 'Archive Listing',
+                label: tl('Archive Listing'),
               ),
             ],
     );
@@ -760,9 +710,11 @@ class _ProfileTabState extends State<ProfileTab> {
         builder: (dialogContext) => AgriDialog(
           icon: Icons.archive_outlined,
           tone: AgriTone.warning,
-          title: const Text('Cannot archive product'),
-          content: const Text(
-            'This product has orders that are not finished yet. Resolve or complete those orders before archiving this product.',
+          title: Text(tl('Cannot archive product')),
+          content: Text(
+            tl(
+              'This product has orders that are not finished yet. Resolve or complete those orders before archiving this product.',
+            ),
           ),
           actions: [
             AgriDialogButton(
@@ -779,8 +731,11 @@ class _ProfileTabState extends State<ProfileTab> {
       context,
       error ??
           (archive
-              ? 'Listing archived — hidden from the marketplace until you restore it.'
-              : 'Listing restored — visible in the marketplace again.'),
+              ? tl(
+                  'Listing archived — hidden from the marketplace until you restore it.',
+                )
+              : tl('Listing restored — visible in the marketplace again.')),
+      kind: error == null ? MessageKind.success : MessageKind.error,
     );
   }
 
@@ -812,7 +767,11 @@ class _ProfileTabState extends State<ProfileTab> {
     if (!context.mounted) return;
     _snack(
       context,
-      error ?? 'Available Stock updated to ${formatStock(newQuantity, unit)}.',
+      error ??
+          tl('Available Stock updated to {0}.', [
+            formatStock(newQuantity, unit),
+          ]),
+      kind: error == null ? MessageKind.success : MessageKind.error,
     );
   }
 
@@ -907,7 +866,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Overall Product Rating',
+                      tl('Overall Product Rating'),
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.grey(600),
@@ -930,7 +889,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         ],
                       ),
                       Text(
-                        'Based on ${reviewCountLabel(summary.count)}',
+                        tl('Based on {0}', [reviewCountLabel(summary.count)]),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.grey(600),
@@ -979,13 +938,12 @@ class _ProfileTabState extends State<ProfileTab> {
             onRefresh: _refreshData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 90),
+              padding: EdgeInsets.only(
+                bottom: DockedNavBar.listEndPadding(context),
+              ),
               child: Column(
                 children: [
-                  PageTitle(
-                    title: tr(context).navProfile,
-                    trailing: _profileMenu(context),
-                  ),
+                  PageTitle(title: tr(context).navProfile),
 
                   // ---- Avatar with edit badge ----
                   _avatarWithEditBadge(context),
@@ -1001,7 +959,7 @@ class _ProfileTabState extends State<ProfileTab> {
                               .map((v) => v?.toString().trim() ?? '')
                               .firstWhere(
                                 (v) => v.isNotEmpty,
-                                orElse: () => 'Farmer',
+                                orElse: () => tl('Farmer'),
                               );
                       return Text(
                         name,

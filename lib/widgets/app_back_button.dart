@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The look of every Back button in the app, and it follows the page's
 /// scroll position by itself:
@@ -153,7 +154,7 @@ class AppBackButton extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onPressed ?? () => Navigator.of(context).maybePop(),
-              child: const Tooltip(message: 'Back', child: SizedBox.expand()),
+              child: Tooltip(message: tl('Back'), child: SizedBox.expand()),
             ),
           ),
         ),

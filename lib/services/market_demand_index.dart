@@ -6,10 +6,9 @@ import 'package:flutter/foundation.dart';
 import '../data/commodity_master_list.dart';
 import 'market_demand_service.dart';
 
-/// This month's Best-Selling Products, by commodity, for the Buyer's
-/// product cards (see DemandBadge) — worked out exactly as the Farmer's
-/// Market tab card does ([MarketDemandService.bestSellers]), so the two
-/// always agree.
+/// This month's demand, by commodity, for the Buyer's product cards (see
+/// DemandBadge): the commodities with the most completed orders
+/// ([MarketDemandService.demandLeaders]).
 ///
 /// One `market_sales` subscription for the whole app, started by the first
 /// card that asks; a card never opens its own.
@@ -22,8 +21,8 @@ class MarketDemandIndex extends ChangeNotifier {
   Map<String, BestSeller> _byCommodity = const {};
   bool _watchingRegistry = false;
 
-  /// The Best-Selling entry for [productName]'s commodity, or null when it
-  /// isn't on this month's list (or the sales have not loaded yet).
+  /// The demand entry for [productName]'s commodity, or null when it isn't
+  /// on this month's list (or the sales have not loaded yet).
   BestSeller? forProduct(String productName) {
     _listen();
     final commodity = matchSupportedCommodity(productName) ?? productName;
@@ -66,12 +65,12 @@ class MarketDemandIndex extends ChangeNotifier {
   }
 
   void _rebuild() {
-    final bestSellers = MarketDemandService.bestSellers(
+    final leaders = MarketDemandService.demandLeaders(
       sales: _sales,
       month: DateTime.now(),
     );
     _byCommodity = {
-      for (final item in bestSellers) item.commodity.toLowerCase(): item,
+      for (final item in leaders) item.commodity.toLowerCase(): item,
     };
     notifyListeners();
   }

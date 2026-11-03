@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 
 import '../services/order_format.dart';
 import '../widgets/retry_message.dart';
@@ -10,6 +11,7 @@ import 'order_details_screen.dart';
 import 'product_detail_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The reviews this buyer has written. Every review belongs to one of
 /// their own completed orders — a review's document id is that order's id,
@@ -44,7 +46,10 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
     final data = doc?.data();
     if (data == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This listing is no longer available.')),
+        appSnackBar(
+          tl('This listing is no longer available.'),
+          kind: MessageKind.warning,
+        ),
       );
       return;
     }
@@ -70,14 +75,15 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: buyerSubScreenAppBar('My Reviews'),
+      appBar: buyerSubScreenAppBar(tl('My Reviews')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _reviews,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return RetryMessage(
-              message:
-                  'Could not load your reviews. Check your connection and try again.',
+              message: tl(
+                'Could not load your reviews. Check your connection and try again.',
+              ),
               onRetry: () => setState(() {}),
             );
           }
@@ -112,7 +118,7 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
 
   Widget _reviewCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
-    final productName = (data['productName'] ?? 'Product').toString();
+    final productName = (data['productName'] ?? tl('Product')).toString();
     final productId = (data['productId'] ?? '').toString();
     final rating = (data['rating'] as num?)?.toDouble() ?? 0;
     final comment = (data['comment'] ?? '').toString().trim();
@@ -190,7 +196,7 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Farmer's reply",
+                    tl('Farmer\'s reply'),
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
@@ -216,13 +222,13 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
                 TextButton.icon(
                   onPressed: () => _openProduct(productId),
                   icon: const Icon(Icons.storefront_outlined, size: 16),
-                  label: const Text('View product'),
+                  label: Text(tl('View product')),
                   style: _linkStyle,
                 ),
               TextButton.icon(
                 onPressed: () => _openOrder(doc.id),
                 icon: const Icon(Icons.receipt_long_outlined, size: 16),
-                label: const Text('View order'),
+                label: Text(tl('View order')),
                 style: _linkStyle,
               ),
             ],
@@ -245,13 +251,13 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
   );
 
   Widget _empty() {
-    return const Center(
+    return Center(
       child: AgriEmptyState(
         icon: Icons.rate_review_outlined,
-        title: 'No reviews yet',
-        subtitle:
-            'Once an order is completed, you can review the product from '
-            'your Orders.',
+        title: tl('No reviews yet'),
+        subtitle: tl(
+          'Once an order is completed, you can review the product from your Orders.',
+        ),
         padding: EdgeInsets.all(32),
       ),
     );

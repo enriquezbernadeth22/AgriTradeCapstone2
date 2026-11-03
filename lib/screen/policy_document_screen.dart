@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/legal_policies.dart';
 import '../widgets/agri_app_bar.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// One policy from lib/data/legal_policies.dart as a full page of the
 /// mobile app: its title, version and dates, then each section. Used for
@@ -94,7 +95,7 @@ class PolicyDocumentBody extends StatelessWidget {
           const SizedBox(height: 14),
         ],
         Text(
-          'Version ${document.version}',
+          tl('Version {0}', [document.version]),
           style: body(color: AppColors.textMuted, size: 11),
         ),
       ],
@@ -126,7 +127,7 @@ Future<void> showPolicyDocumentDialog(
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
+            child: Text(tl('Close')),
           ),
         ],
       );

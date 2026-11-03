@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,7 +15,7 @@ import '../services/push_notification_service.dart';
 import '../services/session_timeout_service.dart';
 import '../widgets/branded_loading_screen.dart';
 import '../widgets/no_internet_screen.dart';
-import '../widgets/walking_farmer_loader.dart';
+import '../widgets/sprout_loading_bar.dart';
 
 /// Gatekeeper shown right after the native splash: a fresh install sees the
 /// onboarding carousel first, then every launch — first-run or not — sends
@@ -44,6 +46,10 @@ class AppRouter extends StatefulWidget {
 class _AppRouterState extends State<AppRouter> {
   static const _onboardingCompleteKey = 'onboarding_complete';
 
+  // The longest the splash waits on one network step before showing "No
+  // internet" with Retry instead.
+  static const _networkLimit = Duration(seconds: 10);
+
   bool? _needsOnboarding;
   bool _offline = false;
 
@@ -66,27 +72,38 @@ class _AppRouterState extends State<AppRouter> {
       // Returning device: onboarding already happened on some earlier
       // launch, so this is just a silent token refresh, not a first-open
       // permission ask — requestPermission() no-ops with no dialog once the
-      // user has already answered it once.
-      try {
-        await PushNotificationService().setupFCM();
-      } catch (_) {
-        // Non-fatal — must never block routing.
-      }
-      if (!mounted) return;
+      // user has already answered it once. Not waited for: saving the token
+      // waits on the server, and on a weak connection that held the splash
+      // at 100% with no end. It never decides where the app goes.
+      unawaited(
+        PushNotificationService().setupFCM().catchError((Object _) {
+          // Non-fatal — must never block routing.
+        }),
+      );
       _route();
     } else {
-      if (!await _afterWalk()) return;
+      // The pictures are decoded while the loading bar fills, so each page's
+      // entrance plays on its picture rather than before it shows. A slow
+      // phone waits at most two seconds past the fill for them, and a
+      // picture that fails never holds the splash.
+      final art = OnboardingScreen.precacheArt(context);
+      if (!await _afterFill()) return;
+      try {
+        await art.timeout(const Duration(seconds: 2));
+      } catch (_) {
+        // Too slow, or failed: the pages show their pictures as they come.
+      }
+      if (!mounted) return;
       setState(() => _needsOnboarding = true);
     }
   }
 
-  // The splash stays up until the farmer has walked all the way across,
-  // even when a fast phone has finished loading sooner (loading runs during
-  // the walk, so a slow start never waits longer). Only the first time in
-  // an app run; "No internet" is never held back. False when this screen
-  // is gone by then.
-  Future<bool> _afterWalk() async {
-    await WalkingFarmerLoader.untilWalkDone();
+  // The splash stays up until its loading bar is full, even when a fast
+  // phone has finished loading sooner (loading runs while it fills, so a
+  // slow start never waits longer). Only the first time in an app run; "No
+  // internet" is never held back. False when this screen is gone by then.
+  Future<bool> _afterFill() async {
+    await SproutLoadingBar.untilFilled();
     return mounted;
   }
 
@@ -125,7 +142,9 @@ class _AppRouterState extends State<AppRouter> {
     }
 
     try {
-      await user.reload();
+      // A weak connection can leave this waiting with no end, and the splash
+      // with it: past the limit it counts as offline, with Retry.
+      await user.reload().timeout(_networkLimit);
     } on FirebaseAuthException catch (e) {
       // The saved session is no longer valid (account disabled or deleted,
       // or its token was revoked/expired) — that is not a connection
@@ -159,7 +178,9 @@ class _AppRouterState extends State<AppRouter> {
       return;
     }
     if (refreshedUser.emailVerified) {
-      final verificationError = await AuthService().refreshVerifiedEmailToken();
+      final verificationError = await AuthService()
+          .refreshVerifiedEmailToken()
+          .timeout(_networkLimit, onTimeout: () => 'timed out');
       if (verificationError != null) {
         if (!mounted) return;
         setState(() => _offline = true);
@@ -205,13 +226,13 @@ class _AppRouterState extends State<AppRouter> {
       emailVerified: refreshedUser.emailVerified,
       authenticatedEmail: refreshedUser.email,
     );
-    if (!await _afterWalk()) return;
+    if (!await _afterFill()) return;
     if (!mounted) return;
     await applyAuthRouteResult(context, result);
   }
 
   Future<void> _goTo(Widget screen) async {
-    if (!await _afterWalk()) return;
+    if (!await _afterFill()) return;
     if (!mounted) return;
     Navigator.pushReplacement(context, fadeSlideRoute(screen));
   }

@@ -31,47 +31,27 @@ Future<void> _open(WidgetTester tester, {AddFarmerBackend? backend}) async {
 }
 
 void main() {
-  group('the generated password', () {
-    test('is made from the first and last name, exactly 12 characters', () {
-      String gen(String first, String last) => memorableFarmerPassword(
-        firstName: first,
-        lastName: last,
-        random: Random(1),
-      )!;
-      // Both names when they fit…
-      expect(gen('Ana', 'Go'), matches(RegExp(r'^AnaGo@\d{6}$')));
-      // …else the first initial and the last name.
-      expect(gen('juan', 'dela cruz'), matches(RegExp(r'^JDelaCruz@\d{2}$')));
-      expect(gen('Maria', 'Santos'), matches(RegExp(r'^MSantos@\d{4}$')));
-      for (final password in [
-        gen('Ana', 'Go'),
-        gen('juan', 'dela cruz'),
-        gen('Maria', 'Santos'),
-      ]) {
-        expect(password, hasLength(12));
-        expect(PasswordRules.meetsAll(password), isTrue, reason: password);
-      }
-    });
-
-    test('meets the rules for long and odd names', () {
-      for (final (first, last) in [
-        ('Ma. Teresa', 'Villanueva-Macaraeg'),
-        ('A.', 'B.'),
-        ('JOSE', 'NG'),
-        ("D'Angelo", "O'Neil"),
-      ]) {
-        final password = memorableFarmerPassword(
-          firstName: first,
-          lastName: last,
-        )!;
+  group('the default password', () {
+    test('is exactly 12 random characters that meet the password rules', () {
+      final rng = Random(1);
+      final passwords = {
+        for (var i = 0; i < 300; i++) generateFarmerPassword(random: rng),
+      };
+      expect(passwords, hasLength(300));
+      for (final password in passwords) {
         expect(password, hasLength(12), reason: password);
         expect(PasswordRules.meetsAll(password), isTrue, reason: password);
       }
     });
 
-    test('needs both names', () {
-      expect(memorableFarmerPassword(firstName: '', lastName: 'Cruz'), isNull);
-      expect(memorableFarmerPassword(firstName: 'Juan', lastName: ''), isNull);
+    test('leaves out characters that look alike', () {
+      final rng = Random(2);
+      for (var i = 0; i < 300; i++) {
+        expect(
+          generateFarmerPassword(random: rng),
+          isNot(matches(RegExp(r'[0O1lI]'))),
+        );
+      }
     });
   });
 
@@ -93,24 +73,30 @@ void main() {
       findsOneWidget,
     );
     expect(find.text("Choose the farmer's barangay."), findsOneWidget);
+    expect(find.text('Choose what best describes the farmer.'), findsOneWidget);
     expect(find.textContaining('Enter the RSBSA number'), findsOneWidget);
-    expect(find.textContaining('The password needs 12+'), findsOneWidget);
+    // The password is already filled in with the default one.
+    expect(find.textContaining('The password needs 12+'), findsNothing);
     expect(
       find.textContaining('Confirm that the farmer agreed'),
       findsOneWidget,
     );
   });
 
-  testWidgets('Generate asks for the first and last name first', (
-    tester,
-  ) async {
+  testWidgets('the dialog opens with a default password, and Generate '
+      'makes a new one', (tester) async {
     await _open(tester);
+    String password() => tester
+        .widgetList<TextField>(find.byType(TextField))
+        .map((field) => field.controller?.text ?? '')
+        .firstWhere(PasswordRules.meetsAll);
+
+    final first = password();
+    expect(first, hasLength(12));
+
     await tester.tap(find.text('Generate'));
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Fill in the First name and Last name first'),
-      findsOneWidget,
-    );
+    expect(password(), isNot(first));
   });
 
   testWidgets('the Terms of Service opens from the agreement line, the '
@@ -167,11 +153,18 @@ void main() {
       await tester.enterText(fields.at(4), '041234567890123');
       await tester.enterText(fields.at(5), 'JDelaCruz@47');
       await tester.enterText(fields.at(6), 'JDelaCruz@47');
-      await tester.ensureVisible(find.byType(DropdownButtonFormField<String>));
+      final dropdowns = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdowns.first);
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(dropdowns.first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Gulod').last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(dropdowns.last);
+      await tester.pumpAndSettle();
+      await tester.tap(dropdowns.last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crop Farmer').last);
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(Checkbox));
       await tester.pumpAndSettle();

@@ -125,6 +125,15 @@ void main() {
     expect(tester.getRect(loginLink).bottom, lessThanOrEqualTo(720));
   });
 
+  testWidgets('the title and "Registering as" are centred on the page', (
+    tester,
+  ) async {
+    await pumpForm(tester);
+    for (final text in ['Create Account', 'Registering as Farmer']) {
+      expect(tester.getCenter(find.text(text)).dx, closeTo(600 / 2, 1));
+    }
+  });
+
   testWidgets('the farmer form is in the agreed order', (tester) async {
     await pumpForm(tester);
     double top(Finder finder) => tester.getRect(finder).top;

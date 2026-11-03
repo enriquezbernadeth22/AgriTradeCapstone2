@@ -1,10 +1,13 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/feedback_service.dart';
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../l10n/app_language.dart';
 
 /// The longest comment the team's email takes (functions/app_feedback_logic.js).
 const int kFeedbackMaxLength = 1000;
@@ -30,7 +33,7 @@ Future<bool> showFeedbackSheet(
   final sent = await showAgriSheet<bool>(
     context: context,
     isScrollControlled: true,
-    title: prompted ? 'Enjoying AgriTrade+?' : 'Send Feedback',
+    title: prompted ? tl('Enjoying AgriTrade+?') : tl('Send Feedback'),
     builder: (_) => _FeedbackForm(
       trigger: trigger,
       prompted: prompted,
@@ -39,7 +42,10 @@ Future<bool> showFeedbackSheet(
   );
   if (sent == true) {
     messenger?.showSnackBar(
-      const SnackBar(content: Text('Thank you for your feedback!')),
+      appSnackBar(
+        tl('Thank you for your feedback!'),
+        kind: MessageKind.success,
+      ),
     );
   }
   return sent == true;
@@ -71,13 +77,13 @@ class _FeedbackFormState extends State<_FeedbackForm> {
   bool _sending = false;
   String? _error;
 
-  static const _ratingWords = [
+  static List<String> get _ratingWords => [
     '',
-    'Poor',
-    'Fair',
-    'Good',
-    'Very good',
-    'Excellent',
+    tl('Poor'),
+    tl('Fair'),
+    tl('Good'),
+    tl('Very good'),
+    tl('Excellent'),
   ];
 
   @override
@@ -134,10 +140,12 @@ class _FeedbackFormState extends State<_FeedbackForm> {
         children: [
           Text(
             widget.prompted
-                ? 'Give us feedback: how is the app working for you? It goes '
-                      'straight to the AgriTrade+ team.'
-                : 'Tell the AgriTrade+ team what you like or what we can '
-                      'improve. It is sent to our email.',
+                ? tl(
+                    'Give us feedback: how is the app working for you? It goes straight to the AgriTrade+ team.',
+                  )
+                : tl(
+                    'Tell the AgriTrade+ team what you like or what we can improve. It is sent to our email.',
+                  ),
             style: body,
           ),
           const SizedBox(height: 14),
@@ -146,7 +154,7 @@ class _FeedbackFormState extends State<_FeedbackForm> {
             children: [
               for (var star = 1; star <= 5; star++)
                 IconButton(
-                  tooltip: '$star star${star == 1 ? '' : 's'}',
+                  tooltip: tl('{0} star{1}', [star, star == 1 ? '' : 's']),
                   visualDensity: VisualDensity.compact,
                   onPressed: _sending
                       ? null
@@ -169,7 +177,7 @@ class _FeedbackFormState extends State<_FeedbackForm> {
           SizedBox(
             height: 18,
             child: Text(
-              _rating == 0 ? 'Tap a star to rate' : _ratingWords[_rating],
+              _rating == 0 ? tl('Tap a star to rate') : _ratingWords[_rating],
               textAlign: TextAlign.center,
               style: GoogleFonts.montserrat(
                 fontSize: 12,
@@ -186,35 +194,29 @@ class _FeedbackFormState extends State<_FeedbackForm> {
             maxLines: 5,
             maxLength: kFeedbackMaxLength,
             textCapitalization: TextCapitalization.sentences,
-            style: GoogleFonts.montserrat(fontSize: 13),
+            style: GoogleFonts.montserrat(fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'Your comments or suggestions (optional)',
+              hintText: tl('Your comments or suggestions (optional)'),
               hintStyle: GoogleFonts.montserrat(
-                fontSize: 12.5,
+                fontSize: 14,
                 color: AppColors.grey(500),
               ),
               filled: true,
               fillColor: AppColors.surface,
-              contentPadding: const EdgeInsets.all(12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.grey(300)),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.grey(300)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.brand, width: 1.4),
-              ),
+              border: AppTheme.fieldBorder,
+              enabledBorder: AppTheme.fieldBorder,
+              focusedBorder: AppTheme.fieldFocusBorder,
             ),
           ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                _error!,
+                tl(_error!),
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   color: AppColors.tone(Colors.red, 700),
@@ -226,7 +228,7 @@ class _FeedbackFormState extends State<_FeedbackForm> {
             children: [
               Expanded(
                 child: AgriDialogButton(
-                  label: widget.prompted ? 'Not now' : 'Cancel',
+                  label: widget.prompted ? tl('Not now') : tl('Cancel'),
                   onPressed: _sending
                       ? null
                       : () => Navigator.of(context).pop(false),
@@ -235,7 +237,7 @@ class _FeedbackFormState extends State<_FeedbackForm> {
               const SizedBox(width: 10),
               Expanded(
                 child: AgriDialogButton(
-                  label: 'Send',
+                  label: tl('Send'),
                   kind: AgriButtonKind.primary,
                   loading: _sending,
                   onPressed: _rating == 0 ? null : _send,

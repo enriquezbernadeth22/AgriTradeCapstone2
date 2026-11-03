@@ -25,9 +25,13 @@
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>NSCameraUsageDescription</key>
-		<string>AgriTrade uses the camera so you can send photos in chat and upload product images.</string>
+		<string>AgriTrade uses the camera so you can send photos and videos in chat and upload product images.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>AgriTrade uses the microphone to record sound with a video you send in chat.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>AgriTrade accesses selected photos so you can send images in chat and upload product images.</string>
+		<string>AgriTrade accesses selected photos so you can send images and videos in chat and upload product images.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>AgriTrade saves a photo from a chat to your Photos when you tap Save.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>AgriTrade uses your location to show how far away nearby farms are, and to share your location in a chat when you choose to, for delivery or pick-up.</string>
 		<key>FlutterDeepLinkingEnabled</key>
@@ -75,8 +79,6 @@
 		<key>UISupportedInterfaceOrientations</key>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
-			<string>UIInterfaceOrientationLandscapeLeft</string>
-			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>UISupportedInterfaceOrientations~ipad</key>
 		<array>

@@ -4,6 +4,7 @@ import 'buyer_location_picker.dart';
 import 'glow_tap_field.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Tap-to-open field backing the buyer location popup (see
 /// buyer_location_picker.dart) — only ever displays the readable address
@@ -38,7 +39,7 @@ class BuyerLocationField extends StatelessWidget {
         GlowTapField(
           icon: Icons.location_on_outlined,
           value: value?.readable,
-          hint: 'Tap to set your location',
+          hint: tl('Tap to set your location'),
           trailing: Icons.chevron_right,
           onTap: () => _open(context),
         ),

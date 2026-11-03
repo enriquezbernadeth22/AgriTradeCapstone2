@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../screen/login_screen.dart';
 import '../screen/page_transitions.dart';
-import '../screen/register_screen.dart';
+import '../screen/choose_role_screen.dart';
 import '../services/registration_guard.dart';
 import 'agri_dialog.dart';
+import '../l10n/app_language.dart';
 
 /// What the person chose in [showExistingAccountDialog].
 enum ExistingAccountChoice { cancel, login, differentEmail }
@@ -14,33 +15,33 @@ enum ExistingAccountChoice { cancel, login, differentEmail }
   ExistingAccount account,
 ) => switch (account) {
   ExistingAccount.farmerPending => (
-    title: 'Application already submitted',
-    message:
-        'Your Farmer application is already under review. Please log in '
-        'to check your application status.',
+    title: tl('Application already submitted'),
+    message: tl(
+      'Your Farmer application is already under review. Please log in to check your application status.',
+    ),
     cancellable: true,
   ),
   ExistingAccount.farmerApproved => (
-    title: 'Account already registered',
-    message:
-        'This email is already registered as an approved Farmer. Please '
-        'log in to continue.',
+    title: tl('Account already registered'),
+    message: tl(
+      'This email is already registered as an approved Farmer. Please log in to continue.',
+    ),
     cancellable: false,
   ),
   // There is no resubmission in the app: the application's status, and
   // the office's reason, are shown after signing in.
   ExistingAccount.farmerRejected => (
-    title: 'Application not approved',
-    message:
-        'Your previous Farmer application was not approved. Please sign '
-        'in to see your application status and the reason given.',
+    title: tl('Application not approved'),
+    message: tl(
+      'Your previous Farmer application was not approved. Please sign in to see your application status and the reason given.',
+    ),
     cancellable: true,
   ),
   ExistingAccount.registered || ExistingAccount.none => (
-    title: 'Account already registered',
-    message:
-        'This email already has an AgriTrade+ account. Please log in to '
-        'continue.',
+    title: tl('Account already registered'),
+    message: tl(
+      'This email already has an AgriTrade+ account. Please log in to continue.',
+    ),
     cancellable: true,
   ),
 };
@@ -62,26 +63,26 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
       icon: Icons.info_outline_rounded,
       title: Text(copy.title),
       content: Text(copy.message),
-      // One layout whichever of the buttons below it has: Go to Login on
+      // One layout whichever of the buttons below it has: Back to Login on
       // top, then the others, all the same slim size.
       stackedActions: true,
       actions: [
         if (copy.cancellable)
           AgriDialogButton(
-            label: 'Cancel',
+            label: tl('Cancel'),
             onPressed: () =>
                 Navigator.of(dialogContext).pop(ExistingAccountChoice.cancel),
           ),
         if (offerDifferentEmail)
           AgriDialogButton(
-            label: 'Register a different email',
+            label: tl('Register a different email'),
             kind: AgriButtonKind.secondary,
             onPressed: () => Navigator.of(
               dialogContext,
             ).pop(ExistingAccountChoice.differentEmail),
           ),
         AgriDialogButton(
-          label: 'Go to Login',
+          label: tl('Back to Login'),
           kind: AgriButtonKind.primary,
           onPressed: () =>
               Navigator.of(dialogContext).pop(ExistingAccountChoice.login),
@@ -92,11 +93,12 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
   return choice ?? ExistingAccountChoice.cancel;
 }
 
-/// "Create one": opens the registration form, unless the account last
-/// used on this phone already exists — then says so first.
+/// "Create one": opens the choice of role and then the registration form,
+/// unless the account last used on this phone already exists — then says so
+/// first.
 ///
 /// [onLoginPage] is true when this is called from the login page itself,
-/// where "Go to Login" has nowhere further to go.
+/// where "Back to Login" simply closes the dialog.
 Future<void> openRegistration(
   BuildContext context, {
   String? role,
@@ -134,10 +136,5 @@ Future<void> openRegistration(
       }
     }
   }
-  Navigator.push(
-    context,
-    slideRoute(
-      role != null ? RegisterScreen(initialRole: role) : const RegisterScreen(),
-    ),
-  );
+  Navigator.push(context, slideRoute(const ChooseRoleScreen()));
 }

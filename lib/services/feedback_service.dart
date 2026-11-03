@@ -11,7 +11,7 @@ import '../widgets/feedback_sheet.dart';
 
 /// Why the feedback sheet was opened — named in the team's email.
 enum FeedbackTrigger {
-  /// Profile → Send Feedback.
+  /// Settings → Send Feedback.
   menu('menu'),
 
   /// Asked after the farmer posted products.

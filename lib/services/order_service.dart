@@ -187,8 +187,11 @@ class OrderService {
           // still has it after the listing is edited or deleted.
           'category': frozenCategory,
           if (frozenCommodity.isNotEmpty) 'commodity': frozenCommodity,
-          // Livestock: sold live or slaughtered, as listed when ordered.
-          'sellingOption': ?sellingOptionOf(productData)?.value,
+          // Livestock: as listed when ordered — live, or slaughtered for a
+          // listing from before livestock was sold live only.
+          'sellingOption': ?(isSlaughtered(productData)
+              ? 'slaughtered'
+              : sellingOptionOf(productData)?.value),
           'imageUrl': imageUrl,
           'quantity': q,
           'unit': realUnit,
@@ -302,7 +305,10 @@ class OrderService {
         transaction.update(orderRef, {
           'status': next,
           'updatedAt': FieldValue.serverTimestamp(),
-          if (next == 'completed') 'completedAt': FieldValue.serverTimestamp(),
+          if (next == 'completed') ...{
+            'completedAt': FieldValue.serverTimestamp(),
+            'completedBy': 'farmer',
+          },
         });
       });
       // Confirming is what lets the two sides see each other's number for
@@ -435,6 +441,46 @@ class OrderService {
       return e.message;
     } catch (_) {
       return 'Could not accept the new date. Please try again.';
+    }
+  }
+
+  /// Farmer: cancel a confirmed order they cannot fill after all. The buyer
+  /// is told [reason]; the reserved quantity goes back to the listing through
+  /// the handleOrderReschedule Cloud Function.
+  Future<String?> cancelConfirmedOrder(String id, String reason) async {
+    final offlineError = await requireOnlineOrError();
+    if (offlineError != null) return offlineError;
+    try {
+      await _orders.doc(id).update({
+        'status': 'cancelled',
+        'cancelReason': 'farmer',
+        'cancelNote': reason.trim(),
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } catch (_) {
+      return 'Could not cancel the order. Please try again.';
+    }
+  }
+
+  /// Buyer: cancel an order the farmer has not answered yet. The reserved
+  /// quantity goes back to the listing through the handleOrderReschedule
+  /// Cloud Function, as in [cancelDelayedOrder]. Refused by the rules once
+  /// the farmer has answered.
+  Future<String?> cancelPendingOrder(String id) async {
+    final offlineError = await requireOnlineOrError();
+    if (offlineError != null) return offlineError;
+    try {
+      await _orders.doc(id).update({
+        'status': 'cancelled',
+        'cancelReason': 'buyer',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } catch (_) {
+      return 'This order can no longer be cancelled. The farmer may have just answered it.';
     }
   }
 

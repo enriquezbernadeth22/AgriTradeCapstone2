@@ -3,35 +3,36 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'coach_mark.dart';
+import '../l10n/app_language.dart';
 
 /// What each card on the Farmer's Market tab shows, and whose data it is,
 /// in the order the cards come down the page. The first is the farmer's
 /// own; the rest cover the whole marketplace, which is why they can already
 /// have figures on a brand-new account.
-const List<({String title, String message})> kMarketGuideItems = [
+List<({String title, String message})> get kMarketGuideItems => [
   (
-    title: 'Sales Performance',
-    message:
-        'Your own sales: revenue from your completed orders. It stays '
-        'empty until your first order is completed.',
+    title: tl('Sales Performance'),
+    message: tl(
+      'Your own sales: revenue from your completed orders. It stays empty until your first order is completed.',
+    ),
   ),
   (
-    title: 'Current Market Average',
-    message:
-        'Whole marketplace: what other farmers are asking right now for '
-        'each product. Use it as a guide when setting your price.',
+    title: tl('Current Market Average'),
+    message: tl(
+      'Whole marketplace: what other farmers are asking right now for each product. Use it as a guide when setting your price.',
+    ),
   ),
   (
-    title: 'Best-Selling Products',
-    message:
-        'Whole marketplace: the products buyers purchased most across '
-        'AgriTrade+ this month.',
+    title: tl('Best-Selling Products'),
+    message: tl(
+      'Whole marketplace: the products buyers purchased most across AgriTrade+ this month.',
+    ),
   ),
   (
-    title: 'Top Buyer Locations',
-    message:
-        'Whole marketplace: the areas where the most completed orders came '
-        'from this month.',
+    title: tl('Top Buyer Locations'),
+    message: tl(
+      'Whole marketplace: the areas where the most completed orders came from this month. Tap an area to see what buyers there ordered.',
+    ),
   ),
 ];
 

@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../widgets/docked_nav_bar.dart';
 import '../widgets/notification_bell.dart';
 import 'dart:async';
 
@@ -6,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/commodity_master_list.dart';
+import '../services/buyer_area_watcher.dart';
+import '../services/delivery_coverage.dart';
 import '../services/product_service.dart';
 import '../services/product_recommendation_service.dart';
 import '../services/product_visibility_service.dart';
@@ -19,8 +22,12 @@ import 'product_detail_screen.dart';
 import '../widgets/explore_product_card.dart';
 import '../widgets/save_product_button.dart';
 import '../widgets/agri_empty_state.dart';
+import '../widgets/explore_banner.dart';
+import '../widgets/new_posts_pill.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../l10n/app_language.dart';
 
 class BuyerExploreScreen extends StatefulWidget {
   /// The notification bell in this tab's header; [bellKey] lets the
@@ -82,10 +89,11 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
 
   String _selectedBarangay = 'All Locations';
 
-  // New posts wait for a refresh: the feed shows the listings that were
+  // New posts wait for the buyer: the feed shows the listings that were
   // there when Explore opened ([_shownIds]); one posted while the buyer is
-  // browsing appears only after pulling to refresh (or the next time the
-  // app is opened), so the grid never jumps under their finger. Changes to
+  // browsing is announced by the "new posts" pill (NewPostsPill) and
+  // appears when they tap it or pull to refresh (or the next time the app
+  // is opened), so the grid never jumps under their finger. Changes to
   // listings already shown (stock, price, removal) still apply at once.
   Set<String>? _shownIds;
 
@@ -122,6 +130,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     LikedProducts.instance
       ..start()
       ..addListener(_onLikesChanged);
+    // Listings that deliver to the buyer's area come first; reorder when
+    // the area arrives or changes.
+    BuyerAreaWatcher.instance.addListener(_onAreaChanged);
     _usersSub = FirebaseFirestore.instance
         .collection('publicProfiles')
         .snapshots()
@@ -152,20 +163,43 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   void dispose() {
     _usersSub?.cancel();
     _grid.dispose();
+    BuyerAreaWatcher.instance.removeListener(_onAreaChanged);
     LikedProducts.instance.removeListener(_onLikesChanged);
     super.dispose();
   }
 
-  // Pull to refresh: brings in the posts made since the feed was loaded,
-  // at the top.
+  void _onAreaChanged() {
+    if (mounted) setState(() {});
+  }
+
+  // Brings in the posts made since the feed was loaded, at the top.
+  void _bringInNewPosts() {
+    final shown = _shownIds ?? const <String>{};
+    _freshIds = _latestIds.difference(shown);
+    _shownIds = {..._latestIds};
+  }
+
+  // Pull to refresh.
   Future<void> _refreshProducts() async {
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
+    setState(_bringInNewPosts);
+  }
+
+  // The "new posts" pill: the same as pulling to refresh, then back to the
+  // top of the grid, where the new posts now are.
+  void _showNewPosts() {
     setState(() {
-      final shown = _shownIds ?? const <String>{};
-      _freshIds = _latestIds.difference(shown);
-      _shownIds = {..._latestIds};
+      _bringInNewPosts();
+      _filtersHidden = false;
     });
+    if (_grid.hasClients) {
+      _grid.animateTo(
+        0,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
@@ -245,7 +279,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             child: _FilterPill(
               // Shown as just "All" — the stored value stays 'All Postings',
               // which the filtering compares against.
-              label: category == 'All Postings' ? 'All' : category,
+              label: category == 'All Postings' ? tl('All') : tl(category),
               selected: category == _selectedCategory,
               onTap: () => setState(() => _selectedCategory = category),
             ),
@@ -271,7 +305,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
         alignment: Alignment.centerLeft,
         child: _FilterPill(
           key: _locationPillKey,
-          label: _selectedBarangay,
+          label: tl(_selectedBarangay),
           selected: active,
           trailing: Icons.keyboard_arrow_down_rounded,
           onTap: () => _pickLocation(['All Locations', ...barangays]),
@@ -357,7 +391,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             height: rowHeight,
             padding: EdgeInsets.zero,
             child: _LocationOption(
-              label: option,
+              label: tl(option),
               selected: option == _selectedBarangay,
               height: rowHeight,
             ),
@@ -380,43 +414,51 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
         }
         if (snapshot.hasError) {
           return RetryMessage(
-            message:
-                'Could not load products. Check your connection and try again.',
+            message: tl(
+              'Could not load products. Check your connection and try again.',
+            ),
             onRetry: () => setState(() {
               _products = _productService.allProductsStream();
               _shownIds = null;
             }),
           );
         }
-        var docs = snapshot.data?.docs ?? [];
+        final all = snapshot.data?.docs ?? [];
 
         // What opening Explore found is what is shown; later posts wait for
-        // a refresh (see _shownIds).
-        _latestIds = {for (final d in docs) d.id};
+        // the pill or a refresh (see _shownIds).
+        _latestIds = {for (final d in all) d.id};
         final shown = _shownIds ??= {..._latestIds};
-        docs = docs
-            .where(
-              (doc) =>
-                  shown.contains(doc.id) &&
-                  doc.data()['isArchived'] != true &&
-                  doc.data()['isSuspended'] != true,
-            )
-            .toList();
 
-        if (_selectedCategory != 'All Postings') {
-          docs = docs.where((doc) {
-            // Root crops and spices are Vegetables (normalizeCategory).
-            final category = normalizeCategory(doc.data()['category']);
-            return category.toLowerCase() == _selectedCategory.toLowerCase();
-          }).toList();
+        // On sale, and in the category and barangay the buyer picked.
+        bool listed(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+          final data = doc.data();
+          if (data['isArchived'] == true || data['isSuspended'] == true) {
+            return false;
+          }
+          if (_selectedCategory != 'All Postings' &&
+              // Root crops and spices are Vegetables (normalizeCategory).
+              normalizeCategory(data['category']).toLowerCase() !=
+                  _selectedCategory.toLowerCase()) {
+            return false;
+          }
+          if (_selectedBarangay != 'All Locations' &&
+              _barangayByFarmerUid[(data['farmerId'] ?? '').toString()] !=
+                  _selectedBarangay) {
+            return false;
+          }
+          return true;
         }
 
-        if (_selectedBarangay != 'All Locations') {
-          docs = docs.where((doc) {
-            final farmerId = (doc.data()['farmerId'] ?? '').toString();
-            return _barangayByFarmerUid[farmerId] == _selectedBarangay;
-          }).toList();
-        }
+        var docs = [
+          for (final d in all)
+            if (shown.contains(d.id) && listed(d)) d,
+        ];
+        // Posted since, and waiting: counted on the pill only when the buyer
+        // would see them, so tapping it never brings in nothing.
+        final waiting = all
+            .where((d) => !shown.contains(d.id) && listed(d))
+            .length;
 
         // Rank by demand + seller credibility + interaction (prescriptive
         // analytics: which listings get priority visibility). Ties — most
@@ -456,6 +498,13 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             );
           });
         }
+        // Then the buyer's area first: listings whose delivery reaches it,
+        // each group still in the order above; nothing else is hidden.
+        docs = deliveringFirst(
+          docs,
+          BuyerAreaWatcher.instance.area,
+          (d) => d.data(),
+        );
         // The posts the last refresh brought in come first, newest first.
         if (_freshIds.isNotEmpty) {
           final fresh = docs.where((d) => _freshIds.contains(d.id)).toList()
@@ -463,101 +512,153 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
           docs = [...fresh, ...docs.where((d) => !_freshIds.contains(d.id))];
         }
 
+        // The "new posts" pill floats over the top of the feed (or of the
+        // empty message, when nothing was on offer yet).
+        Widget withNewPostsPill(Widget feed) => Stack(
+          children: [
+            Positioned.fill(child: feed),
+            Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: NewPostsPill(count: waiting, onTap: _showNewPosts),
+              ),
+            ),
+          ],
+        );
+
         if (docs.isEmpty) {
           final isFiltered =
               _selectedBarangay != 'All Locations' ||
               _selectedCategory != 'All Postings';
 
-          return Center(
-            child: AgriEmptyState(
-              icon: isFiltered ? Icons.search_off_rounded : Icons.eco_outlined,
-              title: _selectedBarangay != 'All Locations'
-                  ? 'No listings yet in $_selectedBarangay'
-                  : 'No products available yet',
-              subtitle: isFiltered
-                  ? 'Try a different search or clear your filters to see '
-                        'everything on offer.'
-                  : 'New marketplace listings will appear here once farmers '
-                        'post products.',
-              padding: const EdgeInsets.all(32),
-              action: !isFiltered
-                  ? null
-                  : OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _selectedBarangay = 'All Locations';
-                          _selectedCategory = 'All Postings';
-                        });
-                      },
-                      icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
-                      label: const Text('Clear filters'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.brand,
-                        side: BorderSide(color: AppColors.brand),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
+          return withNewPostsPill(
+            Center(
+              child: AgriEmptyState(
+                icon: isFiltered
+                    ? Icons.search_off_rounded
+                    : Icons.eco_outlined,
+                // A filtered search keeps its icon; an empty marketplace
+                // gets the produce picture.
+                art: isFiltered ? null : kEmptyProduceArt,
+                title: _selectedBarangay != 'All Locations'
+                    ? tl('No listings yet in {0}', [_selectedBarangay])
+                    : tl('No products available yet'),
+                subtitle: isFiltered
+                    ? tl(
+                        'Try a different search or clear your filters to see everything on offer.',
+                      )
+                    : tl(
+                        'New marketplace listings will appear here once farmers post products.',
+                      ),
+                padding: const EdgeInsets.all(32),
+                action: !isFiltered
+                    ? null
+                    : OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedBarangay = 'All Locations';
+                            _selectedCategory = 'All Postings';
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.filter_alt_off_outlined,
+                          size: 18,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                        label: Text(tl('Clear filters')),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.brand,
+                          side: BorderSide(color: AppColors.brand),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
                         ),
                       ),
-                    ),
+              ),
             ),
           );
         }
 
-        return AgriRefreshIndicator(
-          color: AppColors.brand,
-          onRefresh: _refreshProducts,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const padding = 12.0;
-              const spacing = 12.0;
-              // Card height follows the column width and the system text
-              // size (see ExploreProductCard.extentFor) rather than a fixed
-              // aspect ratio, which is what used to overflow on narrow
-              // phones.
-              final cardWidth =
-                  (constraints.maxWidth - padding * 2 - spacing) / 2;
-              return NotificationListener<ScrollNotification>(
-                onNotification: _onGridScroll,
-                child: GridView.builder(
-                  controller: _grid,
-                  padding: const EdgeInsets.fromLTRB(padding, 4, padding, 12),
-                  itemCount: docs.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: spacing,
-                    mainAxisSpacing: spacing,
-                    mainAxisExtent: ExploreProductCard.extentFor(
-                      cardWidth,
-                      MediaQuery.textScalerOf(context),
-                    ),
-                  ),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data();
-                    return ExploreProductCard(
-                      data: data,
-                      saved: LikedProducts.instance.contains(doc.id),
-                      onToggleSave: LikedProducts.instance.canLike
-                          ? () => toggleLikedProduct(context, doc.id)
-                          : null,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductDetailScreen(
-                            productId: doc.id,
-                            data: data,
-                          ),
+        return withNewPostsPill(
+          AgriRefreshIndicator(
+            color: AppColors.brand,
+            onRefresh: _refreshProducts,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const padding = 12.0;
+                const spacing = 12.0;
+                // Card height follows the column width and the system text
+                // size (see ExploreProductCard.extentFor) rather than a fixed
+                // aspect ratio, which is what used to overflow on narrow
+                // phones.
+                final cardWidth =
+                    (constraints.maxWidth - padding * 2 - spacing) / 2;
+                // The banner tops the whole marketplace only, not a
+                // filtered view.
+                final showBanner =
+                    _selectedBarangay == 'All Locations' &&
+                    _selectedCategory == 'All Postings';
+                return NotificationListener<ScrollNotification>(
+                  onNotification: _onGridScroll,
+                  child: CustomScrollView(
+                    controller: _grid,
+                    slivers: [
+                      if (showBanner)
+                        const SliverPadding(
+                          padding: EdgeInsets.fromLTRB(padding, 4, padding, 12),
+                          sliver: SliverToBoxAdapter(child: ExploreBanner()),
+                        ),
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          padding,
+                          showBanner ? 0 : 4,
+                          padding,
+                          DockedNavBar.listEndPadding(context),
+                        ),
+                        sliver: SliverGrid.builder(
+                          itemCount: docs.length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: spacing,
+                                mainAxisSpacing: spacing,
+                                mainAxisExtent: ExploreProductCard.extentFor(
+                                  cardWidth,
+                                  MediaQuery.textScalerOf(context),
+                                ),
+                              ),
+                          itemBuilder: (context, index) {
+                            final doc = docs[index];
+                            final data = doc.data();
+                            return ExploreProductCard(
+                              data: data,
+                              saved: LikedProducts.instance.contains(doc.id),
+                              onToggleSave: LikedProducts.instance.canLike
+                                  ? () => toggleLikedProduct(context, doc.id)
+                                  : null,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProductDetailScreen(
+                                    productId: doc.id,
+                                    data: data,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
@@ -586,7 +687,14 @@ class _FilterPill extends StatelessWidget {
     final foreground = selected ? Colors.white : AppColors.brand;
     return Material(
       color: selected ? AppColors.brandFill : AppColors.surface,
-      shape: StadiumBorder(
+      // With a [trailing] arrow it opens a list, so it takes a dropdown's
+      // corners; the category filters stay pills.
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          trailing == null
+              ? AppTheme.pillRadius
+              : AppTheme.compactDropdownRadius,
+        ),
         side: BorderSide(
           color: selected
               ? AppColors.brand

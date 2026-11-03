@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -8,6 +9,7 @@ import '../services/device_trust_service.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// One device the account has signed in on, as shown in the list.
 class SignInDevice {
@@ -37,7 +39,7 @@ class SignInDevice {
     final name = (data['deviceName'] ?? '').toString().trim();
     return SignInDevice(
       id: doc.id,
-      name: name.isEmpty ? 'Unknown device' : name,
+      name: name.isEmpty ? tl('Unknown device') : name,
       platform: (data['platform'] ?? '').toString().trim(),
       firstSeen: date('firstSeenAt'),
       lastSeen: date('lastSeenAt'),
@@ -123,27 +125,27 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
       context: context,
       icon: Icons.phonelink_erase_outlined,
       tone: AgriTone.destructive,
-      title: 'Remove this device?',
-      message:
-          '${device.name} will be taken off your list, and you will be '
-          'alerted if it logs in again.\n\n'
-          'This does not sign that device out. If you do not recognize '
-          'it, change your password.',
-      confirmLabel: 'Remove',
+      title: tl('Remove this device?'),
+      message: tl(
+        '{0} will be taken off your list, and you will be alerted if it logs in again.\n\nThis does not sign that device out. If you do not recognize it, change your password.',
+        [device.name],
+      ),
+      confirmLabel: tl('Remove'),
     );
     if (!confirmed || !mounted) return;
     try {
       await (widget.removeDevice?.call(device.id) ??
           _collection?.doc(device.id).delete());
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Device removed.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(tl('Device removed.'), kind: MessageKind.success),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not remove the device. Please try again.'),
+        appSnackBar(
+          tl('Could not remove the device. Please try again.'),
+          kind: MessageKind.error,
         ),
       );
     }
@@ -168,7 +170,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      'New Device Login Alerts',
+                      tl('New Device Login Alerts'),
                       style: _text(
                         13.5,
                         color: AppColors.brand,
@@ -186,7 +188,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'On',
+                      tl('On'),
                       style: _text(
                         11,
                         color: Colors.white,
@@ -198,9 +200,9 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'When your account is logged in to on a device not listed '
-                'here, we email you and send a notification. The login '
-                'itself is not blocked.',
+                tl(
+                  'When your account is logged in to on a device not listed here, we email you and send a notification. The login itself is not blocked.',
+                ),
                 style: _text(12, color: AppColors.textSecondary),
               ),
             ],
@@ -247,7 +249,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                 if (isCurrent || highlighted) ...[
                   const SizedBox(height: 2),
                   Text(
-                    isCurrent ? 'This device' : 'New login',
+                    isCurrent ? tl('This device') : tl('New login'),
                     style: _text(
                       11.5,
                       color: isCurrent
@@ -264,11 +266,11 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                     style: _text(12, color: AppColors.textSecondary),
                   ),
                 Text(
-                  'First logged in: ${_when(device.firstSeen)}',
+                  tl('First logged in: {0}', [_when(device.firstSeen)]),
                   style: _text(12, color: AppColors.textSecondary),
                 ),
                 Text(
-                  'Last active: ${_when(device.lastSeen)}',
+                  tl('Last active: {0}', [_when(device.lastSeen)]),
                   style: _text(12, color: AppColors.textSecondary),
                 ),
               ],
@@ -281,7 +283,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                 foregroundColor: AppColors.tone(Colors.red, 700),
               ),
               child: Text(
-                'Remove',
+                tl('Remove'),
                 style: GoogleFonts.montserrat(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -297,7 +299,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      appBar: const AgriAppBar(title: 'Devices & Login Activity'),
+      appBar: AgriAppBar(title: tl('Devices & Login Activity')),
       body: FutureBuilder<String>(
         future: _currentDeviceId,
         builder: (context, idSnap) {
@@ -311,7 +313,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                   _alertsCard(),
                   const SizedBox(height: 18),
                   Text(
-                    'DEVICES SIGNED IN TO THIS ACCOUNT',
+                    tl('DEVICES SIGNED IN TO THIS ACCOUNT'),
                     style: _text(
                       10.5,
                       color: AppColors.grey(600),
@@ -321,7 +323,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                   const SizedBox(height: 10),
                   if (snapshot.hasError)
                     Text(
-                      'Could not load your devices. Please try again.',
+                      tl('Could not load your devices. Please try again.'),
                       style: _text(13, color: AppColors.textSecondary),
                     )
                   else if (devices == null)
@@ -333,7 +335,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                     )
                   else if (devices.isEmpty)
                     Text(
-                      'No devices recorded yet.',
+                      tl('No devices recorded yet.'),
                       style: _text(13, color: AppColors.textSecondary),
                     )
                   else
@@ -343,9 +345,9 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
                   Text(
                     // Change Password itself is one step back, beside this
                     // screen in the account settings.
-                    'See a device you do not recognize? Change your password '
-                    'in your account settings so it can no longer be used to '
-                    'log in.',
+                    tl(
+                      'See a device you do not recognize? Change your password in your account settings so it can no longer be used to log in.',
+                    ),
                     style: _text(12, color: AppColors.textSecondary),
                   ),
                 ],

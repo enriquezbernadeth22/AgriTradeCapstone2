@@ -107,8 +107,8 @@ exports.adminCreateFarmer = onCall(
     const details = checkFarmerDetails(request.data);
     if (details.error) throw new HttpsError("invalid-argument", details.error);
     const {
-      firstName, lastName, fullName, email, mobileNumber, barangay, rsbaNumber,
-      password, termsVersion, privacyVersion,
+      firstName, lastName, fullName, email, mobileNumber, barangay, farmerType,
+      rsbaNumber, password, termsVersion, privacyVersion,
     } = details;
 
     // Asking again replaces an earlier invite for this email still waiting.
@@ -165,6 +165,7 @@ exports.adminCreateFarmer = onCall(
         email,
         mobileNumber,
         barangay,
+        farmerType,
         rsbaNumber,
         ...(termsVersion ? { termsVersion } : {}),
         ...(privacyVersion ? { privacyVersion } : {}),
@@ -256,9 +257,14 @@ function writeAccount(tx, ref, invite) {
     municipality: "Laurel",
     province: "Batangas",
     rsbaNumber,
+    ...(invite.farmerType ? { farmerType: invite.farmerType } : {}),
     addedByAdmin: true,
     addedBy: admin.uid || null,
     confirmedByFarmerAt: FieldValue.serverTimestamp(),
+    // The password came from the office, so the app asks them to change it
+    // (see checkPasswordChangeRequired in password_change_otp.js).
+    mustChangePassword: true,
+    mustChangePasswordSince: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp(),
     // Agreed with the office, as registration records it in the app.
     termsAccepted: true,

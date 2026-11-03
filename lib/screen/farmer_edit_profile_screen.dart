@@ -1,4 +1,5 @@
 import '../widgets/agri_app_bar.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import '../widgets/recovery_email_code_dialog.dart';
 import 'dart:io';
 
@@ -18,6 +19,11 @@ import '../widgets/buyer_location_picker.dart';
 import 'set_farm_location_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../l10n/app_language.dart';
+import '../data/account_types.dart';
+import '../widgets/registration_role_details.dart';
+import '../widgets/glow_field.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -39,6 +45,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   XFile? _pickedPhoto;
   String? _photoUrl;
   String? _role;
+  // "What best describes you" (see account_types.dart).
+  String? _accountType;
   double? _latitude;
   double? _longitude;
   // A buyer's saved region/province/city/barangay, for reopening the
@@ -105,6 +113,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _recoveryEmailController.addListener(() => setState(() {}));
         _photoUrl = data['photoUrl']?.toString();
         _role = data['role']?.toString();
+        _accountType = accountTypeOf(data);
         // Combine barangay/municipality/province into one display string,
         // matching how ProfileTab shows location. Adjust field names here
         // if your schema differs.
@@ -169,7 +178,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     // Required, like at registration — it is what Place Order starts from.
     if (phoneDigits.isEmpty) {
-      _showMessage('Mobile number is required.');
+      _showMessage(tl('Mobile number is required.'));
       return;
     }
     if (!isValidPhMobile(phoneDigits)) {
@@ -177,12 +186,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
     if (name.isEmpty) {
-      _showMessage('Please enter your full name.');
+      _showMessage(tl('Please enter your full name.'));
       return;
     }
     if (recoveryEmail.isNotEmpty &&
         !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(recoveryEmail)) {
-      _showMessage('Please enter a valid recovery email.');
+      _showMessage(tl('Please enter a valid recovery email.'));
       return;
     }
     if (_sameAsLogin(recoveryEmail)) {
@@ -201,6 +210,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           // (Registration, Place Order) and 'phone' (the admin views).
           'phone': phone,
           'mobileNumber': phone,
+          if (_role != null && _accountType != null)
+            accountTypeField(_role!): _accountType,
           'location': location, // simple combined string; split into
           // barangay/municipality/province fields instead if your
           // schema needs them separately.
@@ -245,12 +256,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _savedRecoveryEmail = '';
           _recoveryEmailVerified = false;
         }
-        _showMessage('Profile updated!');
+        _showMessage(tl('Profile updated!'), kind: MessageKind.success);
       }
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      _showMessage('Could not save changes. Please try again.');
+      _showMessage(tl('Could not save changes. Please try again.'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -298,35 +309,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.brandFill,
-        content: Text(
-          message,
-          style: GoogleFonts.montserrat(color: Colors.white),
-        ),
-      ),
-    );
+  // Unless said otherwise, a message here is a problem with the form.
+  void _showMessage(String message, {MessageKind kind = MessageKind.error}) {
+    showAppMessage(context, tl(message), kind: kind);
   }
 
   Future<ImageSource?> _showImageSourceSheet() async {
     return showAgriSheet<ImageSource>(
       context: context,
-      title: 'Choose Photo',
+      title: tl('Choose Photo'),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AgriSheetAction(
             icon: Icons.photo_camera_outlined,
-            label: 'Take Photo',
+            label: tl('Take Photo'),
             onTap: () => Navigator.pop(context, ImageSource.camera),
           ),
           AgriSheetAction(
             icon: Icons.photo_library_outlined,
-            label: 'Choose from Gallery',
+            label: tl('Choose from Gallery'),
             onTap: () => Navigator.pop(context, ImageSource.gallery),
           ),
           const SizedBox(height: 8),
@@ -350,7 +352,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void showComingSoon(String feature) =>
-      _showMessage('$feature — coming soon.');
+      _showMessage(tl('{0} — coming soon.', [feature]), kind: MessageKind.info);
 
   // The buyer's location: the same popup as Place Order and Delivery &
   // Pickup, saved the same way — the readable area on the profile, the
@@ -385,7 +387,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _locationController.text = picked.readable;
       }
     });
-    _showMessage(error ?? 'Location updated.');
+    _showMessage(
+      error ?? tl('Location updated.'),
+      kind: error == null ? MessageKind.success : MessageKind.error,
+    );
   }
 
   Future<void> _openLocationPicker() async {
@@ -405,7 +410,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _pinPlace = null;
     });
     _lookUpPinPlace();
-    _showMessage('Farm location saved!');
+    _showMessage(tl('Farm location saved!'), kind: MessageKind.success);
   }
 
   Widget _farmLocationSection() {
@@ -413,9 +418,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.tint,
+        color: AppColors.softTint,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.accent, width: 1.2),
+        border: Border.all(color: AppColors.softTintBorder, width: 1.2),
       ),
       child: Row(
         children: [
@@ -430,7 +435,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Farm Location',
+                  tl('Farm Location'),
                   style: GoogleFonts.montserrat(
                     fontWeight: FontWeight.bold,
                     fontSize: 13.5,
@@ -444,8 +449,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ? (_pinPlace ??
                             (_locationController.text.trim().isNotEmpty
                                 ? _locationController.text.trim()
-                                : 'Set on the map'))
-                      : 'Not pinned yet — buyers and admin can\'t see your farm on the map.',
+                                : tl('Set on the map')))
+                      : tl(
+                          'Not pinned yet — buyers and admin can\'t see your farm on the map.',
+                        ),
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
                     color: AppColors.grey(600),
@@ -457,7 +464,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           TextButton(
             onPressed: _openLocationPicker,
             child: Text(
-              hasLocation ? 'Update' : 'Set on Map',
+              hasLocation ? tl('Update') : tl('Set on Map'),
               style: GoogleFonts.montserrat(
                 fontWeight: FontWeight.bold,
                 fontSize: 12.5,
@@ -470,39 +477,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration(IconData icon) {
-    return InputDecoration(
-      prefixIcon: Icon(icon, color: AppColors.brand, size: 20),
-      filled: true,
-      fillColor: AppColors.surface,
-      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: BorderSide(color: AppColors.accent, width: 1.2),
+  // The app's form field and label (AppTheme's FORMS section).
+  // Each field sits on a FormFieldGlow: the soft green glow while typed
+  // in, as on GlowField and the Admin login.
+  InputDecoration _fieldDecoration(IconData icon) =>
+      AppTheme.formFieldDecoration(icon: icon, onGlowPlate: true);
+
+  // A note or an error on its own line under a field, outside its glow.
+  Widget _fieldNote(String text, {bool error = false}) => Padding(
+    padding: const EdgeInsets.only(top: 6, left: 4),
+    child: Text(
+      text,
+      style: GoogleFonts.montserrat(
+        fontSize: error ? 11 : 11.5,
+        color: error ? AppColors.tone(Colors.red, 700) : AppColors.grey(600),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: BorderSide(color: AppColors.accent, width: 1.2),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: BorderSide(color: AppColors.brand, width: 1.6),
-      ),
-    );
-  }
+    ),
+  );
 
   Widget _fieldLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 6),
-      child: Text(
-        text,
-        style: GoogleFonts.montserrat(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
-          color: AppColors.grey(600),
-          letterSpacing: 0.5,
-        ),
-      ),
+      padding: const EdgeInsets.only(bottom: AppTheme.formLabelGap),
+      child: Text(text, style: AppTheme.label()),
     );
   }
 
@@ -558,7 +554,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         GestureDetector(
           onTap: _pickProfilePhoto,
           child: Text(
-            'Change Photo',
+            tl('Change Photo'),
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
@@ -579,22 +575,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? Center(child: CircularProgressIndicator(color: AppColors.brand))
           : SingleChildScrollView(
               // Room between the header and the photo.
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.formPageMargin,
+                AppTheme.formSectionGap,
+                AppTheme.formPageMargin,
+                AppTheme.formSectionGap,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _avatarWithEditBadge(),
                   const SizedBox(height: 24),
 
-                  _fieldLabel('FULL NAME'),
-                  TextField(
-                    controller: _nameController,
-                    style: GoogleFonts.montserrat(fontSize: 14),
-                    decoration: _fieldDecoration(Icons.person_outline),
+                  _fieldLabel(tl('Full Name')),
+                  FormFieldGlow(
+                    child: TextField(
+                      controller: _nameController,
+                      style: GoogleFonts.montserrat(fontSize: 14),
+                      decoration: _fieldDecoration(Icons.person_outline),
+                    ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel('EMAIL ADDRESS'),
+                  _fieldLabel(tr(context).emailAddress),
                   TextField(
                     controller: _emailController,
                     enabled:
@@ -605,44 +608,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     decoration: _fieldDecoration(Icons.mail_outline),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel('RECOVERY EMAIL'),
-                  TextField(
-                    controller: _recoveryEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: GoogleFonts.montserrat(fontSize: 14),
-                    decoration: _fieldDecoration(Icons.security_outlined)
-                        .copyWith(
-                          hintText: 'Add a backup email',
-                          // Verified / Not verified only for a second
-                          // address (not the login email): Verified once
-                          // its code was entered, a newly typed one not yet.
-                          suffixIcon: !_hasOwnRecoveryEmail
-                              ? null
-                              : Padding(
-                                  padding: const EdgeInsets.only(right: 10),
-                                  child: RecoveryEmailStatusChip(
-                                    verified:
-                                        _recoveryEmailVerified &&
-                                        !_recoveryChanged,
+                  _fieldLabel(tl('Recovery Email')),
+                  FormFieldGlow(
+                    child: TextField(
+                      controller: _recoveryEmailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: GoogleFonts.montserrat(fontSize: 14),
+                      decoration: _fieldDecoration(Icons.security_outlined)
+                          .copyWith(
+                            hintText: tl('Add a backup email'),
+                            // Verified / Not verified only for a second
+                            // address (not the login email): Verified once
+                            // its code was entered, a newly typed one not yet.
+                            suffixIcon: !_hasOwnRecoveryEmail
+                                ? null
+                                : Padding(
+                                    padding: const EdgeInsets.only(right: 10),
+                                    child: RecoveryEmailStatusChip(
+                                      verified:
+                                          _recoveryEmailVerified &&
+                                          !_recoveryChanged,
+                                    ),
                                   ),
-                                ),
-                          suffixIconConstraints: const BoxConstraints(),
-                          errorText: _sameAsLogin(_recoveryEmailController.text)
-                              ? _sameAsLoginMessage
-                              : null,
-                          helperText:
-                              !_hasOwnRecoveryEmail ||
-                                  (_recoveryEmailVerified && !_recoveryChanged)
-                              ? null
-                              : 'We will email it a 6-digit code to verify it.',
-                          helperStyle: TextStyle(
-                            color: AppColors.grey(600),
-                            fontSize: 11,
+                            suffixIconConstraints: const BoxConstraints(),
                           ),
-                        ),
+                    ),
                   ),
+                  if (_sameAsLogin(_recoveryEmailController.text))
+                    _fieldNote(tl(_sameAsLoginMessage), error: true)
+                  else if (_hasOwnRecoveryEmail &&
+                      !(_recoveryEmailVerified && !_recoveryChanged))
+                    _fieldNote(
+                      tl('We will email it a 6-digit code to verify it.'),
+                    ),
                   // A saved but unverified address can be verified now.
                   if (!_recoveryEmailVerified &&
                       !_recoveryChanged &&
@@ -664,7 +664,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 Icons.mark_email_read_outlined,
                                 size: 16,
                               ),
-                        label: const Text('Verify now'),
+                        label: Text(tl('Verify now')),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.brand,
                           textStyle: GoogleFonts.montserrat(
@@ -674,82 +674,94 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel('PHONE NUMBER'),
-                  TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    inputFormatters: kPhMobileInputFormatters,
-                    style: GoogleFonts.montserrat(fontSize: 14),
-                    decoration: _fieldDecoration(Icons.call_outlined).copyWith(
-                      // Fixed, not editable: only the 10 digits after it are.
-                      prefixText: kPhMobilePrefix,
-                      prefixStyle: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.brand,
+                  _fieldLabel(tl('Phone Number')),
+                  FormFieldGlow(
+                    child: TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: kPhMobileInputFormatters,
+                      style: GoogleFonts.montserrat(fontSize: 14),
+                      // The +63 is fixed, not editable: only the 10 digits
+                      // after it are.
+                      decoration: AppTheme.formFieldDecoration(
+                        icon: Icons.call_outlined,
+                        prefixText: kPhMobilePrefix,
+                        hint: kPhMobileHint,
+                        onGlowPlate: true,
                       ),
-                      hintText: kPhMobileHint,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel('LOCATION'),
+                  if (_role != null) ...[
+                    RegistrationRoleDetails(
+                      isFarmer: _role == 'farmer',
+                      value: _accountType,
+                      onChanged: (value) =>
+                          setState(() => _accountType = value),
+                    ),
+                    const SizedBox(height: AppTheme.formFieldGap),
+                  ],
+
+                  _fieldLabel(tl('Location')),
                   if (_role == 'buyer')
                     Builder(
-                      builder: (fieldContext) => TextField(
-                        controller: _locationController,
-                        readOnly: true,
-                        onTap: () => _editBuyerLocation(fieldContext),
-                        style: GoogleFonts.montserrat(fontSize: 14),
-                        decoration: _fieldDecoration(Icons.location_on_outlined)
-                            .copyWith(
-                              hintText: 'Tap to set your location',
-                              suffixIcon: _savingLocation
-                                  ? Padding(
-                                      padding: EdgeInsets.all(14),
-                                      child: SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.brand,
+                      builder: (fieldContext) => FormFieldGlow(
+                        radius: AppTheme.dropdownRadius,
+                        child: TextField(
+                          controller: _locationController,
+                          readOnly: true,
+                          onTap: () => _editBuyerLocation(fieldContext),
+                          style: GoogleFonts.montserrat(fontSize: 14),
+                          decoration:
+                              AppTheme.formDropdownDecoration(
+                                icon: Icons.location_on_outlined,
+                                hint: tl('Tap to set your location'),
+                                onGlowPlate: true,
+                              ).copyWith(
+                                suffixIcon: _savingLocation
+                                    ? Padding(
+                                        padding: EdgeInsets.all(14),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.brand,
+                                          ),
                                         ),
+                                      )
+                                    : Icon(
+                                        Icons.expand_more_rounded,
+                                        color: AppTheme.formIconColor,
+                                        size: AppTheme.formIconSize,
                                       ),
-                                    )
-                                  : Icon(
-                                      Icons.keyboard_arrow_down_rounded,
-                                      color: AppColors.grey(),
-                                    ),
-                            ),
+                              ),
+                        ),
                       ),
                     )
                   else
-                    TextField(
-                      controller: _locationController,
-                      style: GoogleFonts.montserrat(fontSize: 14),
-                      decoration: _fieldDecoration(Icons.location_on_outlined),
+                    FormFieldGlow(
+                      child: TextField(
+                        controller: _locationController,
+                        style: GoogleFonts.montserrat(fontSize: 14),
+                        decoration: _fieldDecoration(
+                          Icons.location_on_outlined,
+                        ),
+                      ),
                     ),
 
                   if (_role == 'farmer') ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: AppTheme.formFieldGap),
                     _farmLocationSection(),
                   ],
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppTheme.formSectionGap),
 
                   ElevatedButton(
                     onPressed: _loading ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brandFill,
-                      disabledBackgroundColor: AppColors.grey(400),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
+                    style: AppTheme.primaryButton(),
                     child: _loading
                         ? const SizedBox(
                             width: 22,
@@ -761,10 +773,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           )
                         : Text(
                             tr(context).saveChanges,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: AppTheme.buttonText(),
                           ),
                   ),
                 ],

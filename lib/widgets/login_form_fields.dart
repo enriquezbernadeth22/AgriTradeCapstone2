@@ -8,17 +8,18 @@ import '../services/admin_session_service.dart';
 import '../services/audit_log_service.dart';
 import '../services/first_entry_after_approval.dart';
 import '../services/registration_guard.dart';
-import 'admin_session_dialogs.dart';
 import '../theme/app_theme.dart';
 import '../screen/auth_route_handler.dart';
 import '../screen/forgot_password_screen.dart';
-import '../screen/google_complete_profile_screen.dart';
+import '../screen/choose_role_screen.dart';
 import '../screen/page_transitions.dart';
+import 'app_scaffold_messenger.dart';
 import 'glow_field.dart';
 import 'login_lockout_dialog.dart';
 import 'role_mismatch_dialog.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The email/password sign-in form — fields, Forgot Password, and the
 /// submit button — plus the whole sign-in flow behind it. Shared by
@@ -96,32 +97,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
   Widget _loginErrorText() {
     final message = _loginError;
     if (message == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(top: 1),
-            child: Icon(
-              Icons.warning_amber_rounded,
-              size: 15,
-              color: AppColors.adapt(const Color(0xFFC62828)),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              message,
-              style: AppTheme.body(
-                color: AppColors.adapt(const Color(0xFFC62828)),
-                size: 12.5,
-              ).copyWith(height: 1.35, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
+    return LoginAttemptsWarning(message: message);
   }
 
   @override
@@ -135,7 +111,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
-      _showMessage('Please enter your email and password.');
+      _showMessage(tl('Please enter your email and password.'));
       return;
     }
     setState(() {
@@ -216,18 +192,17 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
     // rule. See AuthRoutingService for the actual decision logic.
     final uid = _authService.currentUid;
     final result = uid == null
-        ? const AuthRouteResult(
+        ? AuthRouteResult(
             decision: AuthRouteDecision.error,
-            message: 'Something went wrong. Please try again.',
+            message: tl('Something went wrong. Please try again.'),
           )
         : await AuthRoutingService.decide(uid);
     if (!mounted) return;
 
     if (_isAdmin) {
       if (result.decision == AuthRouteDecision.adminDashboard) {
-        // One active Admin session at a time: asks first when the account
-        // is in use on another device, then makes this one the session.
-        if (!await _claimAdminSession(uid!)) {
+        // Record this browser's session without ending other devices' sessions.
+        if (!await _recordAdminSession(uid!)) {
           if (mounted) setState(() => _loading = false);
           return;
         }
@@ -285,31 +260,9 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
     await applyAuthRouteResult(context, result, announceSignIn: true);
   }
 
-  // The Admin Portal allows one active session per Admin account (see
-  // AdminSessionService). If the account is in use on another device the
-  // Admin is asked first; Cancel signs this device back out and stays on
-  // the login page. False when the sign-in was cancelled.
-  //
-  // The account is never locked by this, and a session record that cannot
-  // be read does not keep the Admin out.
-  Future<bool> _claimAdminSession(String uid) async {
-    Map<String, dynamic>? record;
-    try {
-      record = await AdminSessionService.readRecord(uid);
-    } catch (_) {
-      record = null;
-    }
-    final localId = await AdminSessionService.localId(uid);
-    if (!mounted) return false;
-    if (adminSessionActiveElsewhere(record, localId, now: DateTime.now())) {
-      final proceed = await showAdminSessionConflictDialog(context);
-      if (!proceed) {
-        await _authService.signOut(
-          reason: 'admin login cancelled: account active on another device',
-        );
-        return false;
-      }
-    }
+  // Records this browser's Admin sign-in. Other browser sessions remain
+  // signed in and are recorded separately by the Admin session function.
+  Future<bool> _recordAdminSession(String uid) async {
     await AdminSessionService.start(uid);
     return true;
   }
@@ -327,7 +280,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
       case GoogleSignInOutcome.error:
         setState(() => _googleLoading = false);
         _showMessage(
-          result.message ?? 'Google login failed. Please try again.',
+          result.message ?? tl('Google login failed. Please try again.'),
         );
         return;
 
@@ -352,18 +305,9 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
           return;
         }
         setState(() => _googleLoading = false);
-        Navigator.push(
-          context,
-          slideRoute(
-            GoogleCompleteProfileScreen(
-              uid: result.uid!,
-              email: result.email ?? '',
-              initialName: result.displayName,
-              initialPhotoUrl: result.photoUrl,
-              initialRole: widget.role ?? 'buyer',
-            ),
-          ),
-        );
+        // A new Google account picks Buyer or Farmer first, as a password
+        // sign-up does; that screen then opens the short profile form.
+        Navigator.push(context, slideRoute(ChooseRoleScreen(google: result)));
         return;
 
       case GoogleSignInOutcome.signedIn:
@@ -393,7 +337,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
         // password path.
         if (_isAdmin) {
           if (routeResult.decision == AuthRouteDecision.adminDashboard) {
-            if (!await _claimAdminSession(result.uid!)) {
+            if (!await _recordAdminSession(result.uid!)) {
               if (mounted) setState(() => _googleLoading = false);
               return;
             }
@@ -430,10 +374,10 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
     }
   }
 
+  // Every message here is a problem to fix (a missing field, a failed log
+  // in), so all are errors.
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showAppMessage(context, tl(message), kind: MessageKind.error);
   }
 
   void _openForgotPassword() {
@@ -517,8 +461,8 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
-                  'Forgot Password?',
+                child: Text(
+                  tl('Forgot Password?'),
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -530,7 +474,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             child: GlowField(
               controller: _passwordController,
               obscureText: _obscurePassword,
-              hint: 'Enter your password',
+              hint: tl('Enter your password'),
               icon: Icons.lock_outline,
               compact: true,
               textInputAction: TextInputAction.done,
@@ -539,7 +483,9 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               suffix: IconButton(
                 visualDensity: VisualDensity.compact,
                 iconSize: 19,
-                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                tooltip: _obscurePassword
+                    ? tl('Show password')
+                    : tl('Hide password'),
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   color: AppColors.grey(600),
@@ -581,7 +527,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               ),
               const SizedBox(width: 6),
               Text(
-                'Authorized administrators only',
+                tl('Authorized administrators only'),
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.adapt(const Color(0xFF6B7468)),
@@ -602,11 +548,8 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            tr(context).emailAddress,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
+          Text(tr(context).emailAddress, style: AppTheme.label()),
+          const SizedBox(height: AppTheme.formLabelGap),
           GlowField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -616,28 +559,21 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             onSubmitted: (_) => FocusScope.of(context).nextFocus(),
             autofillHints: const [AutofillHints.email, AutofillHints.username],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppTheme.formFieldGap),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                tr(context).password,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              Text(tr(context).password, style: AppTheme.label()),
               GestureDetector(
                 onTap: _openForgotPassword,
                 child: Text(
                   tr(context).forgotPassword,
-                  style: TextStyle(
-                    color: AppColors.brand,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTheme.formLink(size: 13),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.formLabelGap),
           GlowField(
             controller: _passwordController,
             obscureText: _obscurePassword,
@@ -656,7 +592,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             ),
           ),
           _loginErrorText(),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppTheme.formSectionGap),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -701,13 +637,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                 onPressed: (_loading || _googleLoading)
                     ? null
                     : _continueWithGoogle,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  side: BorderSide(color: AppColors.grey(300)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
+                style: AppTheme.secondaryButton(),
                 child: _googleLoading
                     ? SizedBox(
                         height: 20,
@@ -727,10 +657,8 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            'Continue with Google',
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
+                            tl('Continue with Google'),
+                            style: AppTheme.buttonText().copyWith(
                               color: AppColors.text,
                             ),
                           ),
@@ -740,6 +668,42 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// "Incorrect email or password. You have N attempts left." under the
+/// Password field, on one line: small, and shrunk a little more on a narrow
+/// phone (or in the longer Tagalog) rather than wrapping.
+class LoginAttemptsWarning extends StatelessWidget {
+  final String message;
+
+  const LoginAttemptsWarning({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.adapt(const Color(0xFFC62828));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber_rounded, size: 13, color: color),
+            const SizedBox(width: 5),
+            Text(
+              tl(message),
+              maxLines: 1,
+              style: AppTheme.body(
+                color: color,
+                size: 11,
+              ).copyWith(fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
       ),
     );
   }

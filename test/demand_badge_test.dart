@@ -39,14 +39,14 @@ void main() {
     CommodityRegistry.instance.applyAdminRecords(const []);
   });
 
-  testWidgets('a top seller shows High demand with its trend arrow', (
+  testWidgets('a top seller shows High demand with its trend', (
     tester,
   ) async {
     // A listing name is matched to its commodity, as on the farmer's card.
     await _show(tester, 'Fresh Native Tomato');
     expect(find.text('High demand'), findsOneWidget);
-    // Nothing sold last month: rising.
-    expect(find.byIcon(Icons.trending_up_rounded), findsOneWidget);
+    // Nothing sold last month, so it is new rather than rising.
+    expect(find.byIcon(Icons.fiber_new_outlined), findsOneWidget);
   });
 
   testWidgets('a moderate seller shows Moderate demand', (tester) async {

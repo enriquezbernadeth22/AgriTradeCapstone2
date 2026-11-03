@@ -1,6 +1,7 @@
 import '../widgets/agri_app_bar.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 import '../widgets/agri_dialog.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/cloudinary_service.dart';
 import '../services/review_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 class AddReviewScreen extends StatefulWidget {
   final String orderId;
@@ -48,18 +50,18 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   Future<void> _pickImage() async {
     final source = await showAgriSheet<ImageSource>(
       context: context,
-      title: 'Add a photo',
+      title: tl('Add a photo'),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AgriSheetAction(
             icon: Icons.camera_alt_outlined,
-            label: 'Take a photo',
+            label: tl('Take a photo'),
             onTap: () => Navigator.pop(context, ImageSource.camera),
           ),
           AgriSheetAction(
             icon: Icons.photo_library_outlined,
-            label: 'Choose from gallery',
+            label: tl('Choose from gallery'),
             onTap: () => Navigator.pop(context, ImageSource.gallery),
           ),
           const SizedBox(height: 8),
@@ -84,14 +86,20 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
     if (_submitting) return;
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please choose a star rating.')),
+        appSnackBar(
+          tl('Please choose a star rating.'),
+          kind: MessageKind.error,
+        ),
       );
       return;
     }
     final comment = _commentController.text.trim();
     if (comment.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a review description.')),
+        appSnackBar(
+          tl('Please add a review description.'),
+          kind: MessageKind.error,
+        ),
       );
       return;
     }
@@ -108,7 +116,10 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
         if (!mounted) return;
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not upload review image.')),
+          appSnackBar(
+            tl('Could not upload review image.'),
+            kind: MessageKind.error,
+          ),
         );
         return;
       }
@@ -128,12 +139,17 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
     setState(() => _submitting = false);
 
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(appSnackBar(err, kind: MessageKind.error));
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Review submitted. Thank you!')),
+      appSnackBar(
+        tl('Review submitted. Thank you!'),
+        kind: MessageKind.success,
+      ),
     );
     Navigator.pop(context, true);
   }
@@ -171,7 +187,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AgriAppBar(title: 'Add Review'),
+      appBar: AgriAppBar(title: tl('Add Review')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -233,8 +249,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Your Rating (required)',
+            Text(
+              tl('Your Rating (required)'),
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
@@ -245,26 +261,27 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
             Center(
               child: Text(
                 _rating == 0
-                    ? 'Choose 0.5 to 5 stars'
-                    : '${_rating.toStringAsFixed(1)} out of 5',
+                    ? tl('Choose 0.5 to 5 stars')
+                    : tl('{0} out of 5', [_rating.toStringAsFixed(1)]),
                 style: TextStyle(color: AppColors.grey(600), fontSize: 12),
               ),
             ),
             const SizedBox(height: 16),
-            Text('Description', style: AppTheme.label()),
+            Text(tl('Description'), style: AppTheme.label()),
             const SizedBox(height: 8),
             // The app's standard field (AppTheme), like every other, with
             // the "n/50" count under its right edge; typing stops at the
             // limit.
             TextField(
               controller: _commentController,
+              style: const TextStyle(fontSize: 14),
               minLines: 3,
               maxLines: 4,
               maxLength: ReviewService.maxCommentLength,
               maxLengthEnforcement: MaxLengthEnforcement.enforced,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Share your experience with this product…',
+              decoration: InputDecoration(
+                hintText: tl('Share your experience with this product…'),
               ),
             ),
             const SizedBox(height: 12),
@@ -273,8 +290,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
               icon: const Icon(Icons.add_a_photo_outlined),
               label: Text(
                 _selectedImage == null
-                    ? 'Add Image (Optional)'
-                    : 'Change Image',
+                    ? tl('Add Image (Optional)')
+                    : tl('Change Image'),
               ),
             ),
             if (_selectedImage != null) ...[
@@ -312,7 +329,9 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(_submitting ? 'Submitting...' : 'Submit Review'),
+                child: Text(
+                  _submitting ? tl('Submitting...') : tl('Submit Review'),
+                ),
               ),
             ),
           ],

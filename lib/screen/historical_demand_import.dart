@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:excel/excel.dart' hide Border, BorderStyle;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 
 import '../data/commodity_master_list.dart';
 import '../services/historical_demand_service.dart';
@@ -34,11 +35,10 @@ Future<int> showHistoricalDemandImport(BuildContext context) async {
         : readCsvTable(utf8.decode(bytes, allowMalformed: true));
   } catch (_) {
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Could not read that file. Use an .xlsx or .csv file with a '
-          'header row.',
-        ),
+      appSnackBar(
+        'Could not read that file. Use an .xlsx or .csv file with a '
+        'header row.',
+        kind: MessageKind.error,
       ),
     );
     return 0;
@@ -60,11 +60,10 @@ Future<int> showHistoricalDemandImport(BuildContext context) async {
   );
   if (saved != null && saved > 0) {
     messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          'Imported $saved historical demand '
-          '${saved == 1 ? 'record' : 'records'}.',
-        ),
+      appSnackBar(
+        'Imported $saved historical demand '
+        '${saved == 1 ? 'record' : 'records'}.',
+        kind: MessageKind.success,
       ),
     );
   }

@@ -18,12 +18,17 @@ import '../data/commodity_master_list.dart';
 
 enum DemandLevel { high, moderate, low }
 
-enum DemandTrend { rising, stable, declining }
+/// [newEntry]: nothing in the month before to compare with, so neither
+/// rising nor falling can honestly be said.
+enum DemandTrend { rising, stable, declining, newEntry }
 
 class BestSeller {
   final String commodity;
   final String category;
   final String unit;
+
+  /// How much was sold in [unit] in the month.
+  final num quantity;
 
   /// True/false when the order type is on record for these sales; null for
   /// sales recorded before it was kept.
@@ -39,6 +44,7 @@ class BestSeller {
     required this.commodity,
     required this.category,
     required this.unit,
+    required this.quantity,
     required this.mostlyWholesale,
     required this.topBuyerArea,
     required this.demand,
@@ -71,6 +77,7 @@ class MarketSale {
   final bool? wholesale;
   final String area;
   final DateTime date;
+  final num quantity;
 
   const MarketSale(
     this.commodity,
@@ -79,13 +86,18 @@ class MarketSale {
     this.wholesale,
     this.area,
     this.date,
+    this.quantity,
   );
 }
 
 class MarketDemandService {
   const MarketDemandService._();
 
-  static const int bestSellerLimit = 10;
+  /// How many Best-Selling Products are listed.
+  static const int bestSellerLimit = 5;
+
+  /// How many commodities get the Buyer's demand badge.
+  static const int demandLeaderLimit = 10;
   static const int locationLimit = 10;
 
   static List<MarketSale> parseSales(Iterable<Map<String, dynamic>> records) {
@@ -105,6 +117,7 @@ class MarketDemandService {
           normalizeCategory(record['category']);
       final unit = (record['unit'] ?? '').toString().trim();
       final pricing = (record['pricingType'] ?? '').toString().toLowerCase();
+      final quantity = record['quantity'];
       sales.add(
         MarketSale(
           commodity,
@@ -113,6 +126,9 @@ class MarketDemandService {
           pricing.isEmpty ? null : pricing == 'wholesale',
           (record['buyerArea'] ?? '').toString().trim(),
           date.toDate(),
+          quantity is num
+              ? quantity
+              : num.tryParse(quantity?.toString() ?? '') ?? 0,
         ),
       );
     }
@@ -132,11 +148,11 @@ class MarketDemandService {
     return DemandLevel.low;
   }
 
-  /// Completed orders this period against the same stretch of the month
-  /// before: more than 10% up is Rising, more than 10% down is Declining.
-  static DemandTrend _trend(int current, int previous) {
+  /// This period against the same stretch of the month before: more than
+  /// 10% up is Rising, more than 10% down is Declining.
+  static DemandTrend _trend(num current, num previous) {
     if (previous == 0) {
-      return current > 0 ? DemandTrend.rising : DemandTrend.stable;
+      return current > 0 ? DemandTrend.newEntry : DemandTrend.stable;
     }
     final change = (current - previous) / previous;
     if (change > 0.10) return DemandTrend.rising;
@@ -160,23 +176,141 @@ class MarketDemandService {
     return best;
   }
 
-  /// The top commodities by completed orders in [month], across every
-  /// farmer. Ranked by number of completed orders — quantities aren't
-  /// comparable between a per-kg and a per-head commodity.
+  /// The months a card can show, newest first: from the first completed
+  /// sale on record to the current month, which is always included. [month]
+  /// stays on the list even if it is older than every sale.
+  static List<DateTime> monthsOnRecord({
+    required Iterable<Map<String, dynamic>> sales,
+    required DateTime month,
+    DateTime? now,
+  }) {
+    final today = now ?? DateTime.now();
+    final current = DateTime(today.year, today.month);
+    var first = DateTime(month.year, month.month);
+    for (final sale in parseSales(sales)) {
+      final saleMonth = DateTime(sale.date.year, sale.date.month);
+      if (saleMonth.isBefore(first)) first = saleMonth;
+    }
+    return [
+      for (
+        var cursor = current;
+        !cursor.isBefore(first);
+        cursor = DateTime(cursor.year, cursor.month - 1)
+      )
+        cursor,
+    ];
+  }
+
+  /// Best-Selling Products in [month], across every farmer: product and
+  /// unit groups ranked by quantity sold, the same way as the Admin's
+  /// Top-Selling Products. Unlike units are never added together. Demand
+  /// and trend stay based on completed orders, as everywhere else.
   static List<BestSeller> bestSellers({
     required Iterable<Map<String, dynamic>> sales,
     required DateTime month,
     DateTime? now,
   }) {
     final all = parseSales(sales);
-    final today = now ?? DateTime.now();
+    final demand = {
+      for (final item in _rankedByOrders(all, month, now ?? DateTime.now()))
+        item.commodity.toLowerCase(): item,
+    };
+
+    final inPrevious = _previousStretch(month, now ?? DateTime.now());
+    final groups = <String, List<MarketSale>>{};
+    final soldBefore = <String, num>{};
+    for (final sale in all) {
+      final key = '${sale.commodity.toLowerCase()}|${sale.unit.toLowerCase()}';
+      if (_inMonth(sale.date, month)) {
+        groups.putIfAbsent(key, () => []).add(sale);
+      } else if (inPrevious(sale.date)) {
+        soldBefore[key] = (soldBefore[key] ?? 0) + sale.quantity;
+      }
+    }
+
+    num sold(List<MarketSale> orders) =>
+        orders.fold<num>(0, (total, sale) => total + sale.quantity);
+    final ranked = groups.values.toList()
+      ..sort((a, b) {
+        final byQuantity = sold(b).compareTo(sold(a));
+        if (byQuantity != 0) return byQuantity;
+        final byOrders = b.length.compareTo(a.length);
+        return byOrders != 0
+            ? byOrders
+            : a.first.commodity.compareTo(b.first.commodity);
+      });
+
+    return [
+      for (final orders in ranked.take(bestSellerLimit))
+        () {
+          final first = orders.first;
+          final key =
+              '${first.commodity.toLowerCase()}|${first.unit.toLowerCase()}';
+          return _entry(
+            orders,
+            unit: first.unit,
+            demand: demand[first.commodity.toLowerCase()]!.demand,
+            // Against what was sold before, like the ranking it sits beside.
+            trend: _trend(sold(orders), soldBefore[key] ?? 0),
+          );
+        }(),
+    ];
+  }
+
+  /// The commodities with the most completed orders in [month], across
+  /// every farmer: the Buyer's demand badge. Ranked by number of completed
+  /// orders, because demand is counted in orders everywhere in the app.
+  static List<BestSeller> demandLeaders({
+    required Iterable<Map<String, dynamic>> sales,
+    required DateTime month,
+    DateTime? now,
+  }) => _rankedByOrders(
+    parseSales(sales),
+    month,
+    now ?? DateTime.now(),
+  ).take(demandLeaderLimit).toList();
+
+  static BestSeller _entry(
+    List<MarketSale> orders, {
+    required String unit,
+    required DemandLevel demand,
+    required DemandTrend trend,
+  }) {
+    final typed = orders.where((s) => s.wholesale != null).toList();
+    final wholesale = typed.where((s) => s.wholesale!).length;
+    return BestSeller(
+      commodity: orders.first.commodity,
+      category: orders.first.category,
+      unit: unit,
+      quantity: orders.fold<num>(0, (total, sale) => total + sale.quantity),
+      mostlyWholesale: typed.isEmpty
+          ? null
+          : wholesale > typed.length - wholesale,
+      topBuyerArea: _mostCommon(orders.map((s) => s.area)),
+      demand: demand,
+      trend: trend,
+    );
+  }
+
+  // The month before [month]. For the month still in progress, compare like
+  // with like: the same number of days of it, not all of it.
+  static bool Function(DateTime) _previousStretch(
+    DateTime month,
+    DateTime today,
+  ) {
     final previousMonth = DateTime(month.year, month.month - 1);
-    // For the month still in progress, compare like with like: the same
-    // number of days of the previous month, not all of it.
     final isCurrentMonth = _inMonth(today, month);
-    bool inPrevious(DateTime date) =>
+    return (date) =>
         _inMonth(date, previousMonth) &&
         (!isCurrentMonth || date.day <= today.day);
+  }
+
+  static List<BestSeller> _rankedByOrders(
+    List<MarketSale> all,
+    DateTime month,
+    DateTime today,
+  ) {
+    final inPrevious = _previousStretch(month, today);
 
     final byCommodity = <String, List<MarketSale>>{};
     final previousCount = <String, int>{};
@@ -200,23 +334,38 @@ class MarketDemandService {
     final topOrders = ranked.first.value.length;
 
     return [
+      for (final entry in ranked)
+        _entry(
+          entry.value,
+          unit: _mostCommon(entry.value.map((s) => s.unit)),
+          demand: _level(entry.value.length, topOrders),
+          trend: _trend(entry.value.length, previousCount[entry.key] ?? 0),
+        ),
+    ];
+  }
+
+  /// What buyers in [area] ordered in [month]: commodities by number of
+  /// completed orders, most first (ties by name), at most
+  /// [bestSellerLimit] — the details behind one Top Buyer Locations row.
+  /// Counted in orders, as the locations themselves are ranked.
+  static List<({String commodity, int orders})> productsBoughtIn({
+    required Iterable<Map<String, dynamic>> sales,
+    required DateTime month,
+    required String area,
+  }) {
+    final orders = <String, int>{};
+    for (final sale in parseSales(sales)) {
+      if (sale.area != area || !_inMonth(sale.date, month)) continue;
+      orders[sale.commodity] = (orders[sale.commodity] ?? 0) + 1;
+    }
+    final ranked = orders.entries.toList()
+      ..sort((a, b) {
+        final byOrders = b.value.compareTo(a.value);
+        return byOrders != 0 ? byOrders : a.key.compareTo(b.key);
+      });
+    return [
       for (final entry in ranked.take(bestSellerLimit))
-        () {
-          final orders = entry.value;
-          final typed = orders.where((s) => s.wholesale != null).toList();
-          final wholesale = typed.where((s) => s.wholesale!).length;
-          return BestSeller(
-            commodity: orders.first.commodity,
-            category: orders.first.category,
-            unit: _mostCommon(orders.map((s) => s.unit)),
-            mostlyWholesale: typed.isEmpty
-                ? null
-                : wholesale > typed.length - wholesale,
-            topBuyerArea: _mostCommon(orders.map((s) => s.area)),
-            demand: _level(orders.length, topOrders),
-            trend: _trend(orders.length, previousCount[entry.key] ?? 0),
-          );
-        }(),
+        (commodity: entry.key, orders: entry.value),
     ];
   }
 

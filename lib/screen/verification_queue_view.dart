@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,7 @@ import 'admin_dashboard_screen.dart'
     show AdminEmptyState, AdminPalette, AdminStatusBadge, AdminThemeScope;
 import 'admin_overview_widgets.dart';
 import '../theme/app_colors.dart';
+import '../data/account_types.dart';
 
 /// Which applications the page lists, chosen with its summary cards.
 enum _QueueFilter { pending, approved, rejected }
@@ -389,6 +391,15 @@ class _VerificationQueueViewState extends State<VerificationQueueView> {
 
 /// One application waiting for a decision, as a review card: who applied
 /// (photo or initials, name, "Pending Review"), the details to check —
+/// Whether an application can be checked at all: it has an RSBSA number, or
+/// on an older application a document. Without either it cannot be approved.
+bool hasSomethingToCheck(
+  Map<String, dynamic> profile,
+  Map<String, dynamic>? verif,
+) =>
+    farmerIdOf(profile, verif) != null ||
+    (verif?['document'] ?? '').toString().isNotEmpty;
+
 /// RSBSA No., email, barangay and when it was submitted — anything that
 /// needs a second look, and View Details / Reject / Approve.
 class FarmerApplicationCard extends StatelessWidget {
@@ -434,8 +445,7 @@ class FarmerApplicationCard extends StatelessWidget {
     // the Admin checks against the registry before approving — the app
     // itself does not verify it.
     final farmerId = farmerIdOf(profile, verif);
-    // Nothing to check an application against: no number and no document.
-    final nothingToCheck = farmerId == null && document.isEmpty;
+    final nothingToCheck = !hasSomethingToCheck(profile, verif);
 
     final c = AdminThemeScope.of(context).palette;
     final warnings = [
@@ -550,6 +560,11 @@ class FarmerApplicationCard extends StatelessWidget {
           value: farmerId ?? kNoFarmerId,
           emphasis: true,
           valueColor: farmerId == null ? c.red : null,
+        ),
+        _ApplicationField(
+          icon: Icons.agriculture_outlined,
+          label: 'Farmer Type',
+          value: accountTypeOf(profile) ?? kAccountTypeNotSpecified,
         ),
         _ApplicationField(
           icon: Icons.mail_outline_rounded,
@@ -930,9 +945,9 @@ Future<void> _setFarmerApproval(
 }) async {
   if (!await ConnectivityService.instance.checkNow()) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+      );
     }
     return;
   }
@@ -948,8 +963,9 @@ Future<void> _setFarmerApproval(
   if (adminUid != null && adminUid == uid) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You cannot approve or reject your own account.'),
+        appSnackBar(
+          'You cannot approve or reject your own account.',
+          kind: MessageKind.error,
         ),
       );
     }
@@ -1005,17 +1021,16 @@ Future<void> _setFarmerApproval(
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          approved ? 'Farmer approved successfully!' : 'Application rejected.',
-        ),
+      appSnackBar(
+        approved ? 'Farmer approved successfully!' : 'Application rejected.',
+        kind: MessageKind.success,
       ),
     );
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Error updating farmer: $e')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      appSnackBar('Error updating farmer: $e', kind: MessageKind.error),
+    );
   }
 }
 
@@ -1189,6 +1204,10 @@ class _FarmerVerificationDetailDialogState
                         'RSBSA No.',
                         farmerIdOf(user, verif) ?? kNoFarmerId,
                       ),
+                      _detailRow(
+                        'Farmer Type',
+                        accountTypeOf(user) ?? kAccountTypeNotSpecified,
+                      ),
                       _detailRow('Email', email),
                       _detailRow('Phone Number', phone),
                       _detailRow('Barangay', barangay),
@@ -1262,11 +1281,14 @@ class _FarmerVerificationDetailDialogState
                     },
                     child: const Text('Reject'),
                   ),
+                  // As on the card: never with nothing to check.
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      approveFarmerAccount(context, uid, fullName);
-                    },
+                    onPressed: !hasSomethingToCheck(user, verif)
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            approveFarmerAccount(context, uid, fullName);
+                          },
                     child: const Text('Approve'),
                   ),
                 ],

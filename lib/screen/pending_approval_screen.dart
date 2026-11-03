@@ -30,6 +30,7 @@ import '../widgets/agritrade_text.dart';
 import '../services/first_entry_after_approval.dart';
 import 'login_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 class PendingApprovalScreen extends StatefulWidget {
   final bool justVerified;
@@ -170,7 +171,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   }
 
   Future<void> _logInAfterApproval() => _redirectToLogin(
-    'Your application is approved. Please log in to continue.',
+    tl('Your application is approved. Please log in to continue.'),
   );
 
   @override
@@ -302,10 +303,10 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
 
                   Text(
                     rejected
-                        ? 'Application not approved'
+                        ? tl('Application not approved')
                         : approved
-                        ? 'Application approved'
-                        : 'Application under review',
+                        ? tl('Application approved')
+                        : tl('Application under review'),
                     style: AppTheme.heading(20),
                     textAlign: TextAlign.center,
                   ),
@@ -313,16 +314,16 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
 
                   Text(
                     rejected
-                        ? 'The Agricultural Office of Laurel, Batangas did not '
-                              'approve your application. Please contact their office '
-                              'for clarification.'
+                        ? tl(
+                            'The Agricultural Office of Laurel, Batangas did not approve your application. Please contact their office for clarification.',
+                          )
                         : approved
-                        ? 'The Agricultural Office of Laurel, Batangas has '
-                              'approved your farmer application. Log in to '
-                              'start selling on AgriTrade+.'
-                        : 'The Agricultural Office of Laurel, Batangas is '
-                              'reviewing your application. You can start '
-                              'selling once it is approved.',
+                        ? tl(
+                            'The Agricultural Office of Laurel, Batangas has approved your farmer application. Log in to start selling on AgriTrade+.',
+                          )
+                        : tl(
+                            'The Agricultural Office of Laurel, Batangas is reviewing your application. You can start selling once it is approved.',
+                          ),
                     style: AppTheme.body(size: 13.5),
                     textAlign: TextAlign.center,
                   ),
@@ -342,7 +343,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Reason',
+                            tl('Reason'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -370,14 +371,14 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                       ),
                       child: Column(
                         children: [
-                          const _StepRow(label: 'Email verified', done: true),
+                          _StepRow(label: tl('Email verified'), done: true),
                           const SizedBox(height: 10),
-                          const _StepRow(
-                            label: 'Application submitted',
+                          _StepRow(
+                            label: tl('Application submitted'),
                             done: true,
                           ),
                           const SizedBox(height: 10),
-                          _StepRow(label: 'Admin approval', done: approved),
+                          _StepRow(label: tl('Admin approval'), done: approved),
                         ],
                       ),
                     ),
@@ -403,7 +404,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                                 ),
                               )
                             : Text(
-                                'Log In to Continue',
+                                tl('Log In to Continue'),
                                 style: AppTheme.buttonText(),
                               ),
                       ),
@@ -432,8 +433,9 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Admin approval typically takes up to 24 hours. '
-                              "We'll notify you as soon as a decision is made.",
+                              tl(
+                                'Admin approval typically takes up to 24 hours. We\'ll notify you as soon as a decision is made.',
+                              ),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -466,8 +468,8 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                             const SizedBox(width: 8),
                             Text(
                               _checkingStatus
-                                  ? 'Checking status…'
-                                  : 'Check status',
+                                  ? tl('Checking status…')
+                                  : tl('Check status'),
                               style: AppTheme.buttonText(),
                             ),
                           ],
@@ -488,7 +490,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Text(
-                              'Back to login page',
+                              tl('Back to login page'),
                               style: AppTheme.body(size: 13),
                             ),
                     ),

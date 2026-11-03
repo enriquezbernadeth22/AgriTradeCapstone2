@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 
 import '../services/audit_log_service.dart';
@@ -18,6 +19,7 @@ import 'admin_dashboard_screen.dart'
         AdminStatusBadge,
         AdminStreamError;
 import 'admin_filter_controls.dart';
+import '../data/account_types.dart';
 
 /// Where a farmer's application stands. Buyers have no application: their
 /// account is verified by email alone.
@@ -39,6 +41,9 @@ class AdminAccountRow {
   final String email;
   final String role;
   final String area;
+
+  /// "What best describes you", or [kAccountTypeNotSpecified].
+  final String accountType;
   final bool emailVerified;
 
   /// Null for a buyer.
@@ -63,6 +68,7 @@ class AdminAccountRow {
     required this.email,
     required this.role,
     required this.area,
+    this.accountType = kAccountTypeNotSpecified,
     required this.emailVerified,
     required this.identity,
     required this.accountStatus,
@@ -116,6 +122,7 @@ class AdminAccountRow {
         text(['barangay']),
         text(['municipality', 'province']),
       ].where((s) => s.isNotEmpty).join(', '),
+      accountType: accountTypeOf(data) ?? kAccountTypeNotSpecified,
       // The app's own email code, a verified email link, or a Google
       // sign-in (whose address Google has already verified).
       emailVerified:
@@ -232,12 +239,11 @@ Future<bool> adminSetAccountsSuspended(
   ];
   if (targets.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          suspend
-              ? 'None of the selected accounts is active.'
-              : 'None of the selected accounts is suspended.',
-        ),
+      appSnackBar(
+        suspend
+            ? 'None of the selected accounts is active.'
+            : 'None of the selected accounts is suspended.',
+        kind: MessageKind.warning,
       ),
     );
     return false;
@@ -530,9 +536,9 @@ Future<bool> adminSetAccountsSuspended(
   if (confirmed != true || !context.mounted) return false;
   if (!await ConnectivityService.instance.checkNow()) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+      );
     }
     return false;
   }
@@ -574,20 +580,19 @@ Future<bool> adminSetAccountsSuspended(
     );
     if (!context.mounted) return true;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          suspend
-              ? 'Suspended $label · ${suspensionUntilLabel(until).toLowerCase()}.'
-              : 'Reactivated $label.',
-        ),
+      appSnackBar(
+        suspend
+            ? 'Suspended $label · ${suspensionUntilLabel(until).toLowerCase()}.'
+            : 'Reactivated $label.',
+        kind: MessageKind.success,
       ),
     );
     return true;
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not update: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar('Could not update: $error', kind: MessageKind.error),
+      );
     }
     return false;
   } finally {
@@ -804,7 +809,7 @@ class _AdminUserAccountsViewState extends State<AdminUserAccountsView>
                 adminTableHeaderColor(c),
               ),
               dataRowColor: adminTableRowColor(c),
-              columnSpacing: kAdminTableColumnSpacing,
+              columnSpacing: 10,
               horizontalMargin: kAdminTableMargin,
               headingTextStyle: adminTableHeaderStyle(c),
               dataTextStyle: TextStyle(
@@ -813,17 +818,48 @@ class _AdminUserAccountsViewState extends State<AdminUserAccountsView>
                 fontSize: 13,
               ),
               columns: [
-                const DataColumn(label: Text('Name')),
-                if (!buyersOnly) const DataColumn(label: Text('Role')),
-                const DataColumn(label: Text('Email')),
-                const DataColumn(label: Text('Area')),
-                const DataColumn(label: Text('Registered')),
-                const DataColumn(label: Text('Email Status')),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(220),
+                  label: _accountHeader('Name', 196),
+                ),
                 if (!buyersOnly)
-                  const DataColumn(label: Text('Farmer Application')),
-                const DataColumn(label: Text('Moderation Status')),
-                const DataColumn(label: Text('Account Status')),
-                const DataColumn(label: Text('Actions')),
+                  DataColumn(
+                    columnWidth: const FixedColumnWidth(65),
+                    label: _accountHeader('Role', 41),
+                  ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(210),
+                  label: _accountHeader('Email', 186),
+                ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(150),
+                  label: _accountHeader('Area', 126),
+                ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(110),
+                  label: _accountHeader('Registered', 86),
+                ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(128),
+                  label: _accountHeader('Email Status', 104),
+                ),
+                if (!buyersOnly)
+                  DataColumn(
+                    columnWidth: const FixedColumnWidth(145),
+                    label: _accountHeader('Farmer Application', 121),
+                  ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(145),
+                  label: _accountHeader('Moderation Status', 121),
+                ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(120),
+                  label: _accountHeader('Account Status', 96),
+                ),
+                DataColumn(
+                  columnWidth: const FixedColumnWidth(64),
+                  label: _accountHeader('Actions', 40),
+                ),
               ],
               rows: [
                 for (final row in visible)
@@ -851,8 +887,9 @@ class _AdminUserAccountsViewState extends State<AdminUserAccountsView>
                               radius: 14,
                             ),
                             const SizedBox(width: 10),
-                            Text(
+                            _accountCellText(
                               row.name.isEmpty ? '—' : row.name,
+                              width: 130,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -863,22 +900,25 @@ class _AdminUserAccountsViewState extends State<AdminUserAccountsView>
                       if (!buyersOnly)
                         DataCell(Text(row.isBuyer ? 'Buyer' : 'Farmer')),
                       DataCell(
-                        Text(
+                        _accountCellText(
                           row.email.isEmpty ? '—' : row.displayEmail,
+                          width: 186,
                           style: secondary,
                         ),
                       ),
                       DataCell(
-                        Text(
+                        _accountCellText(
                           row.area.isEmpty ? 'Not saved' : row.area,
+                          width: 126,
                           style: secondary,
                         ),
                       ),
                       DataCell(
-                        Text(
+                        _accountCellText(
                           row.registered == null
                               ? '—'
                               : DateFormat('MMM d, y').format(row.registered!),
+                          width: 86,
                           style: secondary,
                         ),
                       ),
@@ -947,6 +987,52 @@ class _AdminUserAccountsViewState extends State<AdminUserAccountsView>
       ),
     );
   }
+
+  Widget _accountHeader(String text, double width) => Tooltip(
+    message: text,
+    waitDuration: const Duration(milliseconds: 350),
+    decoration: _accountTooltipDecoration,
+    textStyle: _accountTooltipTextStyle,
+    child: SizedBox(
+      width: width,
+      child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+    ),
+  );
+
+  Widget _accountCellText(
+    String value, {
+    required double width,
+    TextStyle? style,
+  }) => Tooltip(
+    message: value,
+    waitDuration: const Duration(milliseconds: 350),
+    decoration: _accountTooltipDecoration,
+    textStyle: _accountTooltipTextStyle,
+    child: SizedBox(
+      width: width,
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
+    ),
+  );
+
+  static const BoxDecoration _accountTooltipDecoration = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.all(Radius.circular(8)),
+    border: Border.fromBorderSide(BorderSide(color: Color(0xFFD6D9DD))),
+    boxShadow: [
+      BoxShadow(color: Color(0x1F000000), blurRadius: 8, offset: Offset(0, 2)),
+    ],
+  );
+
+  static const TextStyle _accountTooltipTextStyle = TextStyle(
+    fontFamily: kAdminFontFamily,
+    color: Color(0xFF1C1F23),
+    fontSize: 12,
+  );
 
   Widget _identityBadge(AdminPalette c, AdminAccountRow row) {
     final identity = row.identity;

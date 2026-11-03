@@ -15,13 +15,13 @@ import 'terms_and_conditions_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 
-/// Manage Account, opened from the Profile tab's settings menu — the same
+/// Manage Account, opened from the Settings sheet — the same
 /// screen for Farmers and Buyers: one plain list in sections (personal
 /// information, the account's security, the legal pages)
 /// with the app version at the foot.
 ///
 /// Notification Settings, Help & Support and Log Out are not here: they
-/// are in the Profile tab's settings menu already.
+/// are in the Settings sheet already.
 class ManageAccountScreen extends StatelessWidget {
   /// Whether the recovery email is verified (null: none added — the login
   /// email does not count as one). Defaults to

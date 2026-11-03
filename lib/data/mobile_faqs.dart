@@ -51,8 +51,8 @@ const List<MobileFaq> _farmerFaqs = [
   ),
   MobileFaq(
     'How can buyers find my products?',
-    'Your active products appear in the marketplace. To send them to '
-        'buyers yourself, open Profile › settings (gear) › Share My Store.',
+    'Your active products appear in the marketplace. To send one to buyers '
+        'yourself, tap the ⋮ beside it on your Profile and choose Share Product.',
   ),
   MobileFaq(
     'Why do I need approval before selling?',
@@ -103,7 +103,7 @@ const List<MobileFaq> _buyerFaqs = [
 const List<MobileFaq> _sharedFaqs = [
   MobileFaq(
     'How do I change my password?',
-    'Open Profile › settings (gear) › Manage Account › Change Password. '
+    'Tap the settings gear at the top › Manage Account › Change Password. '
         'Enter your current password, then the new one: at least 12 '
         'characters, with an uppercase and a lowercase letter, a number and '
         'a symbol. Then enter the 6-digit code we email you. Other devices '

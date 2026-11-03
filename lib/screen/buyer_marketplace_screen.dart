@@ -11,13 +11,17 @@ import '../widgets/swipeable_tabs.dart';
 import '../widgets/unread_messages_dot.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
+import '../widgets/settings_sheet.dart';
 import 'buyer_explore_screen.dart';
 import 'chat_list_screen.dart';
 import 'buyer_orders_screen.dart';
 import 'buyer_profile_screen.dart';
+import 'help_support_screen.dart';
 import 'notifications_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../widgets/profile_photo_prompt.dart';
+import '../l10n/app_language.dart';
 
 // A one-shot "command channel", not persisted UI state — see the matching
 // comment on globalFarmerTabIndex in farmer_home_screen.dart.
@@ -70,6 +74,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
   // waits for the first-time walkthrough so the two never appear on top of
   // each other.
   Future<void> _onEnteredApp() async {
+    await ProfilePhotoPrompt.onEnteredApp(context);
     await _showWalkthrough();
     if (!mounted) return;
     await NotificationPermissionPrompt.instance.onEnteredApp(context);
@@ -97,18 +102,31 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
       steps: [
         CoachMarkStep(
           targetKey: _notificationsKey,
-          title: 'Stay updated',
-          message: 'New messages from farmers and order updates show up here.',
+          title: tl('Stay updated'),
+          message: tl(
+            'New messages from farmers and order updates show up here.',
+          ),
         ),
         CoachMarkStep(
           targetKey: _ordersTabKey,
-          title: 'Track your orders',
-          message:
-              'Everything you order shows up here, from pending to delivered.',
+          title: tl('Track your orders'),
+          message: tl(
+            'Everything you order shows up here, from pending to delivered.',
+          ),
         ),
       ],
     );
   }
+
+  // The gear in every tab's header.
+  void _openSettings() => showSettingsSheet(
+    context,
+    onHelp: () => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HelpSupportScreen(farmer: false)),
+    ),
+    onLogout: () => _logout(context),
+  );
 
   Future<void> _logout(BuildContext context) async {
     final confirm = await showAgriConfirm(
@@ -145,10 +163,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
         onBrowseMarketplace: () => setState(() => _navIndex = 0),
         showStatus: _ordersStatus,
       ),
-      BuyerProfileScreen(
-        onLogout: () => _logout(context),
-        onOpenCompletedOrders: () => _openOrders('completed'),
-      ),
+      BuyerProfileScreen(onOpenCompletedOrders: () => _openOrders('completed')),
     ];
 
     return PopScope(
@@ -156,7 +171,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         // Like the farmer's: Back returns to Explore first, then offers to
-        // close the app — it never logs out (that is in the settings menu).
+        // close the app — it never logs out (that is in the Settings sheet).
         if (_navIndex != 0) {
           setState(() => _navIndex = 0);
           return;
@@ -175,6 +190,8 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.page,
+        // The page runs on behind the floating bar, with no band around it.
+        extendBody: true,
         // No app bar: every tab starts with its own header row — logo and
         // title, see PageHeader.
         // The status bar strip is the header's green (PageHeaderSafeArea).
@@ -185,11 +202,13 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
           // goes back to the top.
           child: HomeLogoAction(
             onTap: _goHome,
-            // Every tab's header has the notification bell.
+            // Every tab's header has the notification bell and the
+            // Settings gear.
             onNotifications: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
+            onSettings: _openSettings,
             child: SwipeableTabs(
               index: _navIndex,
               onIndexChanged: (i) => setState(() => _navIndex = i),

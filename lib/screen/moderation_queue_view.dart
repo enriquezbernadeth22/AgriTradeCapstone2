@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -98,9 +99,9 @@ String _formatDate(Timestamp? t) =>
 Future<bool> _ensureOnline(BuildContext context) async {
   if (await ConnectivityService.instance.checkNow()) return true;
   if (context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+    );
   }
   return false;
 }
@@ -1162,7 +1163,10 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start the review: $error')),
+          appSnackBar(
+            'Could not start the review: $error',
+            kind: MessageKind.error,
+          ),
         );
       }
     }
@@ -1326,15 +1330,18 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${adminDecisionLabel(action)}.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(
+          '${adminDecisionLabel(action)}.',
+          kind: MessageKind.success,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ).showSnackBar(appSnackBar('Error: $e', kind: MessageKind.error));
     }
   }
 
@@ -1378,15 +1385,15 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
       );
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Account reactivated.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar('Account reactivated.', kind: MessageKind.success),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ).showSnackBar(appSnackBar('Error: $e', kind: MessageKind.error));
     }
   }
 
@@ -1468,14 +1475,17 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
         _busy = false;
         _restoredListings.add(productId);
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Listing restored.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar('Listing restored.', kind: MessageKind.success),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is StateError ? e.message : 'Error: $e')),
+        appSnackBar(
+          e is StateError ? e.message : 'Error: $e',
+          kind: MessageKind.error,
+        ),
       );
     }
   }

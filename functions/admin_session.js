@@ -1,18 +1,16 @@
 // ---------------------------------------------------------------
-// The Admin Portal's single active session.
+// Admin sessions across browsers.
 //
-// An Admin account may be signed in to the portal from one browser at a
-// time. Firebase Authentication still does the signing in; this only
-// records WHICH browser session is the active one:
+// An Admin account may be signed in to the portal from multiple browsers.
+// Firebase Authentication signs each one in; this records each session:
 //
 //   adminSessions/{adminUid}                  the active session
 //   adminSessions/{adminUid}/history/{id}     each session, when it
 //                                             started and how it ended
 //
-// Signing in from a second browser makes that one the active session; the
-// first sees its session id is no longer the active one and signs itself
-// out (the portal watches the document — see AdminSessionService in the
-// app). The account itself is never suspended or disabled by this.
+// Signing in from another browser adds a separate history entry and does
+// not sign out the earlier browser. The root record is a summary of the
+// latest sign-in only.
 //
 // Everything is written here, through the Admin SDK: the browser's user
 // agent and IP address can only be trusted when the server reads them, and
@@ -31,7 +29,6 @@ const templates = require("./email_templates");
 const { parseUserAgent } = require("./user_agent");
 const {
   isValidSessionId,
-  planStart,
   deviceLabel,
   signedInBeforeRevocation,
   isRecentLogin,
@@ -157,9 +154,7 @@ async function startSession(request, admin, sessionId, silent) {
   ]);
   const newDevice = !any.empty && seen.empty;
 
-  const plan = await db.runTransaction(async (tx) => {
-    const current = await tx.get(sessionRef);
-    const planned = planStart(current.exists ? current.data() : null, sessionId);
+  await db.runTransaction(async (tx) => {
     tx.set(sessionRef, {
       activeSessionId: sessionId,
       loginAt: FieldValue.serverTimestamp(),
@@ -186,18 +181,9 @@ async function startSession(request, admin, sessionId, silent) {
       // not a sign-in, and is not announced as one.
       announced: !silent,
     }, { merge: true });
-    if (planned.previousSessionId) {
-      tx.set(history.doc(planned.previousSessionId), {
-        sessionId: planned.previousSessionId,
-        status: "ended",
-        endedAt: FieldValue.serverTimestamp(),
-        endReason: planned.replaced ? "replaced" : "superseded",
-      }, { merge: true });
-    }
-    return planned;
   });
 
-  if (silent) return { ok: true, replaced: plan.replaced, newDevice: false, email: "not-needed" };
+  if (silent) return { ok: true, newDevice: false, email: "not-needed" };
 
   const audit = db.collection("audit_logs");
   const writes = [];
@@ -208,27 +194,35 @@ async function startSession(request, admin, sessionId, silent) {
       sessionId, device, ip,
     })));
   }
-  if (plan.replaced) {
-    writes.push(audit.add(auditEntry(request, admin, {
-      action: "SESSION_REPLACED",
-      details: "A new Admin session was started and the previous active session was ended.",
-      sessionId, device, ip,
-    })));
-  }
   await Promise.all(writes);
 
   const email = await sendSignInAlert(uid, sessionId, admin, device);
-  return { ok: true, replaced: plan.replaced, newDevice, email };
+  return { ok: true, newDevice, email };
 }
 
-// Logout: the session is over, and the next sign-in has nothing to
-// replace. Only the session that is still the active one can end it.
+async function touchSession(uid, sessionId) {
+  const sessionRef = db.collection("adminSessions").doc(uid);
+  const historyRef = sessionRef.collection("history").doc(sessionId);
+  await db.runTransaction(async (tx) => {
+    const history = await tx.get(historyRef);
+    const current = await tx.get(sessionRef);
+    if (!history.exists || history.get("status") !== "active") return;
+    tx.update(historyRef, { lastActiveAt: FieldValue.serverTimestamp() });
+    if (current.exists && current.get("activeSessionId") === sessionId) {
+      tx.update(sessionRef, { lastActiveAt: FieldValue.serverTimestamp() });
+    }
+  });
+  return { ok: true };
+}
+
+// Logout ends only the browser session that made this request.
 async function endSession(uid, sessionId) {
   const sessionRef = db.collection("adminSessions").doc(uid);
   await db.runTransaction(async (tx) => {
     const current = await tx.get(sessionRef);
-    if (!current.exists || current.get("activeSessionId") !== sessionId) return;
-    tx.update(sessionRef, { sessionStatus: "ended", endedAt: FieldValue.serverTimestamp() });
+    if (current.exists && current.get("activeSessionId") === sessionId) {
+      tx.update(sessionRef, { sessionStatus: "ended", endedAt: FieldValue.serverTimestamp() });
+    }
     tx.set(sessionRef.collection("history").doc(sessionId), {
       sessionId,
       status: "ended",
@@ -242,7 +236,7 @@ async function endSession(uid, sessionId) {
 exports.adminSession = onCall({ region: REGION, secrets: MAIL_SECRETS }, async (request) => {
   const op = request.data && request.data.op;
   const sessionId = request.data && request.data.sessionId;
-  if (op !== "start" && op !== "end") {
+  if (op !== "start" && op !== "end" && op !== "touch") {
     throw new HttpsError("invalid-argument", "Unsupported session operation.");
   }
   if (!isValidSessionId(sessionId)) {
@@ -250,6 +244,7 @@ exports.adminSession = onCall({ region: REGION, secrets: MAIL_SECRETS }, async (
   }
   const admin = await requireActiveAdmin(request);
   if (op === "end") return endSession(request.auth.uid, sessionId);
+  if (op === "touch") return touchSession(request.auth.uid, sessionId);
   return startSession(request, admin, sessionId, request.data.silent === true);
 });
 

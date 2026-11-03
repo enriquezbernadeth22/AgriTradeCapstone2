@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 
 import '../services/message_service.dart';
 import '../services/order_format.dart';
@@ -14,6 +15,7 @@ import 'chat_screen.dart';
 import 'order_details_screen.dart';
 import 'order_receipt_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Everything a user can do to an order from the Orders list, the order
 /// details screen or a receipt card in Messages. The business rules stay in
@@ -25,22 +27,33 @@ class OrderActions {
   static final OrderService _orders = OrderService();
   static final MessageService _messages = MessageService();
 
-  static void _snack(ScaffoldMessengerState messenger, String message) {
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.brandFill,
-        content: Text(message),
-      ),
+  static void _snack(
+    ScaffoldMessengerState messenger,
+    String message, {
+    required MessageKind kind,
+  }) {
+    messenger.showSnackBar(appSnackBar(tl(message), kind: kind));
+  }
+
+  // What an action came to: its [error] in red, or [done] in green.
+  static void _result(
+    ScaffoldMessengerState messenger,
+    String? error,
+    String done,
+  ) {
+    _snack(
+      messenger,
+      error ?? done,
+      kind: error == null ? MessageKind.success : MessageKind.error,
     );
   }
 
   /// The role-specific buttons for [order], most important last. Shared by
   /// the list card and the details screen so they never disagree. Only
   /// transitions the order workflow actually supports are offered: the
-  /// farmer moves an order forward (or reports a delay); a buyer only
-  /// answers a proposed new date — accept it or cancel.
+  /// farmer moves an order forward, reports a delay or cancels a confirmed
+  /// order with a reason; a buyer can cancel until the farmer answers, answers
+  /// a proposed new date, and confirms what was sent.
   static List<OrderCardAction> actionsFor(
     BuildContext context,
     OrderInfo order,
@@ -51,7 +64,7 @@ class OrderActions {
         if (role == OrderRole.buyer && !order.reviewed)
           OrderCardAction('Review', () => review(context, order)),
         OrderCardAction(
-          'View Receipt',
+          tl('View Receipt'),
           () => viewReceipt(context, order.id),
           kind: OrderActionKind.primary,
         ),
@@ -62,23 +75,33 @@ class OrderActions {
       if (order.status == 'shipped') {
         return [
           OrderCardAction(
-            'Order Received',
+            tl('Order Received'),
             () => confirmReceived(context, order),
             kind: OrderActionKind.primary,
           ),
         ];
       }
-      // A proposed new date is the one thing a buyer answers: accept it,
+      // Until the farmer answers, the buyer can change their mind.
+      if (order.status == 'pending') {
+        return [
+          OrderCardAction(
+            tl('Cancel Order'),
+            () => cancelPending(context, order),
+            kind: OrderActionKind.destructive,
+          ),
+        ];
+      }
+      // A proposed new date is the other thing a buyer answers: accept it,
       // or cancel. (Message Farmer is on the order details screen.)
       if (!order.isDelayed) return const [];
       return [
         OrderCardAction(
-          'Cancel Order',
+          tl('Cancel Order'),
           () => cancelDelayed(context, order),
           kind: OrderActionKind.destructive,
         ),
         OrderCardAction(
-          'Accept New Date',
+          tl('Accept New Date'),
           () => acceptNewDate(context, order),
           kind: OrderActionKind.primary,
         ),
@@ -87,35 +110,47 @@ class OrderActions {
     return switch (order.status) {
       'pending' => [
         OrderCardAction(
-          'Reject',
+          tl('Reject'),
           () => reject(context, order),
           kind: OrderActionKind.destructive,
         ),
         OrderCardAction(
-          'Accept',
+          tl('Accept'),
           () => accept(context, order),
           kind: OrderActionKind.primary,
         ),
       ],
       'confirmed' => [
+        OrderCardAction(
+          tl('Cancel Order'),
+          () => cancelConfirmed(context, order),
+          kind: OrderActionKind.destructive,
+        ),
         // Weather, transport, supply… — propose a new date instead of
         // letting the order silently run late.
         OrderCardAction(
-          order.isDelayed ? 'Update Delay' : 'Report Delay',
+          order.isDelayed ? tl('Update Delay') : tl('Report Delay'),
           () => reportDelay(context, order),
         ),
         OrderCardAction(
-          order.isPickup ? 'Ready for Pick-up' : 'Mark as Shipped',
+          order.isPickup ? tl('Ready for Pick-up') : tl('Mark as Shipped'),
           () => markShipped(context, order),
           kind: OrderActionKind.primary,
         ),
       ],
       'shipped' => [
-        OrderCardAction(
-          'Mark as Completed',
-          () => markCompleted(context, order),
-          kind: OrderActionKind.primary,
-        ),
+        // The buyer confirms first; see kBuyerConfirmWindow.
+        if (order.farmerCanComplete(DateTime.now()))
+          OrderCardAction(
+            tl('Mark as Completed'),
+            () => markCompleted(context, order),
+            kind: OrderActionKind.primary,
+          )
+        else
+          OrderCardAction(
+            tl('Waiting for Buyer'),
+            () => explainWaiting(context, order),
+          ),
       ],
       _ => const [],
     };
@@ -126,15 +161,17 @@ class OrderActions {
     final ok = await showAgriConfirm(
       context: context,
       icon: Icons.assignment_turned_in_outlined,
-      title: 'Accept this order?',
-      message:
-          '${order.quantityLabel} of ${order.productName} for '
-          '${order.buyerName}.',
-      confirmLabel: 'Accept',
+      title: tl('Accept this order?'),
+      message: tl('{0} of {1} for {2}.', [
+        order.quantityLabel,
+        order.productName,
+        order.buyerName,
+      ]),
+      confirmLabel: tl('Accept'),
     );
     if (!ok) return;
     final err = await _orders.updateStatus(order.id, 'confirmed');
-    _snack(messenger, err ?? 'Order confirmed.');
+    _result(messenger, err, tl('Order confirmed.'));
   }
 
   static Future<void> reject(BuildContext context, OrderInfo order) async {
@@ -143,13 +180,13 @@ class OrderActions {
       context: context,
       icon: Icons.cancel_outlined,
       tone: AgriTone.destructive,
-      title: 'Reject this order?',
-      message: 'The item quantity will be returned to your inventory.',
-      confirmLabel: 'Reject',
+      title: tl('Reject this order?'),
+      message: tl('The item quantity will be returned to your inventory.'),
+      confirmLabel: tl('Reject'),
     );
     if (!ok) return;
     final err = await _orders.rejectOrder(order.id);
-    _snack(messenger, err ?? 'Order rejected.');
+    _result(messenger, err, tl('Order rejected.'));
   }
 
   // ---- Delay / reschedule ----
@@ -165,7 +202,7 @@ class OrderActions {
     final report = await showAgriSheet<DelayReport>(
       context: context,
       isScrollControlled: true,
-      title: 'Report Delay / Reschedule',
+      title: tl('Report Delay / Reschedule'),
       builder: (_) => ReportDelaySheet(order: order),
     );
     if (report == null) return;
@@ -177,9 +214,10 @@ class OrderActions {
       proposedDate: report.proposedDate,
       note: report.note,
     );
-    _snack(
+    _result(
       messenger,
-      err ?? 'Delay reported. Waiting for ${order.buyerName} to respond.',
+      err,
+      tl('Delay reported. Waiting for {0} to respond.', [order.buyerName]),
     );
   }
 
@@ -193,16 +231,20 @@ class OrderActions {
     final ok = await showAgriConfirm(
       context: context,
       icon: Icons.inventory_2_outlined,
-      title: 'Received your order?',
-      message:
-          'Confirm that you have received ${order.quantityLabel} of '
-          '${order.productName}. This completes the order and issues its '
-          'receipt.',
-      confirmLabel: 'Received',
+      title: tl('Received your order?'),
+      message: tl(
+        'Confirm that you have received {0} of {1}. This completes the order and issues its receipt.',
+        [order.quantityLabel, order.productName],
+      ),
+      confirmLabel: tl('Received'),
     );
     if (!ok) return;
     final err = await _orders.confirmReceived(order.id);
-    _snack(messenger, err ?? 'Order completed. Your receipt is now available.');
+    _result(
+      messenger,
+      err,
+      tl('Order completed. Your receipt is now available.'),
+    );
   }
 
   /// Buyer: accept the farmer's proposed date.
@@ -215,21 +257,81 @@ class OrderActions {
     final ok = await showAgriConfirm(
       context: context,
       icon: Icons.event_available_outlined,
-      title: 'Accept the new date?',
-      message:
-          '${order.sellerName} proposed '
-          '${date == null ? 'a new date' : MaterialLocalizations.of(context).formatMediumDate(date)} '
-          'for your ${order.productName} order. Your order stays as it is — '
-          'only the date changes.',
+      title: tl('Accept the new date?'),
+      message: tl(
+        '{0} proposed {1} for your {2} order. Your order stays as it is — only the date changes.',
+        [
+          order.sellerName,
+          date == null
+              ? 'a new date'
+              : MaterialLocalizations.of(context).formatMediumDate(date),
+          order.productName,
+        ],
+      ),
       // Short labels, so the two buttons stay one line each.
-      confirmLabel: 'Accept',
+      confirmLabel: tl('Accept'),
     );
     if (!ok) return;
     final err = await _orders.acceptProposedDate(order.id);
-    _snack(messenger, err ?? 'New date accepted.');
+    _result(messenger, err, tl('New date accepted.'));
   }
 
   /// Buyer: cancel an order instead of accepting its new date.
+  // Why the farmer cannot complete it yet, and from when they can.
+  static void explainWaiting(BuildContext context, OrderInfo order) {
+    final from = order.farmerCanCompleteAt;
+    _snack(
+      ScaffoldMessenger.of(context),
+      tl(
+        'Waiting for {0} to tap Order Received. If they do not, you can complete it from {1}.',
+        [
+          order.buyerName,
+          from == null
+              ? ''
+              : MaterialLocalizations.of(context).formatMediumDate(from),
+        ],
+      ),
+      kind: MessageKind.info,
+    );
+  }
+
+  static Future<void> cancelConfirmed(
+    BuildContext context,
+    OrderInfo order,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final reason = await showAgriSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      title: tl('Cancel this order?'),
+      builder: (_) => const CancelOrderSheet(),
+    );
+    if (reason == null) return;
+    final err = await _orders.cancelConfirmedOrder(order.id, reason);
+    _result(messenger, err, tl('Order cancelled.'));
+  }
+
+  static Future<void> cancelPending(
+    BuildContext context,
+    OrderInfo order,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showAgriConfirm(
+      context: context,
+      icon: Icons.cancel_outlined,
+      tone: AgriTone.destructive,
+      title: tl('Cancel this order?'),
+      message: tl('Your {0} order will be cancelled. This cannot be undone.', [
+        order.productName,
+      ]),
+      cancelLabel: tl('Keep Order'),
+      confirmLabel: tl('Cancel Order'),
+    );
+    if (!ok) return;
+    final err = await _orders.cancelPendingOrder(order.id);
+    _result(messenger, err, tl('Order cancelled.'));
+  }
+
   static Future<void> cancelDelayed(
     BuildContext context,
     OrderInfo order,
@@ -239,16 +341,16 @@ class OrderActions {
       context: context,
       icon: Icons.cancel_outlined,
       tone: AgriTone.destructive,
-      title: 'Cancel this order?',
-      message:
-          'Your ${order.productName} order will be cancelled. This cannot '
-          'be undone.',
-      cancelLabel: 'Keep Order',
-      confirmLabel: 'Cancel Order',
+      title: tl('Cancel this order?'),
+      message: tl('Your {0} order will be cancelled. This cannot be undone.', [
+        order.productName,
+      ]),
+      cancelLabel: tl('Keep Order'),
+      confirmLabel: tl('Cancel Order'),
     );
     if (!ok) return;
     final err = await _orders.cancelDelayedOrder(order.id);
-    _snack(messenger, err ?? 'Order cancelled.');
+    _result(messenger, err, tl('Order cancelled.'));
   }
 
   static Future<void> markShipped(BuildContext context, OrderInfo order) async {
@@ -258,20 +360,26 @@ class OrderActions {
       icon: order.isPickup
           ? Icons.inventory_2_outlined
           : Icons.local_shipping_outlined,
-      title: order.isPickup ? 'Ready for pick-up?' : 'Mark as shipped?',
+      title: order.isPickup ? tl('Ready for pick-up?') : tl('Mark as shipped?'),
       message: order.isPickup
-          ? '${order.productName} is ready for ${order.buyerName} to pick up.'
-          : '${order.productName} is on its way to ${order.buyerName}.',
-      confirmLabel: 'Confirm',
+          ? tl('{0} is ready for {1} to pick up.', [
+              order.productName,
+              order.buyerName,
+            ])
+          : tl('{0} is on its way to {1}.', [
+              order.productName,
+              order.buyerName,
+            ]),
+      confirmLabel: tl('Confirm'),
     );
     if (!ok) return;
     final err = await _orders.updateStatus(order.id, 'shipped');
-    _snack(
+    _result(
       messenger,
-      err ??
-          (order.isPickup
-              ? 'Order marked ready for pick-up.'
-              : 'Order marked shipped.'),
+      err,
+      (order.isPickup
+          ? tl('Order marked ready for pick-up.')
+          : tl('Order marked shipped.')),
     );
   }
 
@@ -283,15 +391,20 @@ class OrderActions {
     final ok = await showAgriConfirm(
       context: context,
       icon: Icons.task_alt_rounded,
-      title: 'Mark as completed?',
-      message:
-          '${order.buyerName} has received ${order.productName}. This '
-          'finalizes the transaction and issues its receipt, and cannot be undone.',
-      confirmLabel: 'Complete',
+      title: tl('Mark as completed?'),
+      message: tl(
+        '{0} has received {1}. This finalizes the transaction and issues its receipt, and cannot be undone.',
+        [order.buyerName, order.productName],
+      ),
+      confirmLabel: tl('Complete'),
     );
     if (!ok) return;
     final err = await _orders.updateStatus(order.id, 'completed');
-    _snack(messenger, err ?? 'Order completed. The receipt is now available.');
+    _result(
+      messenger,
+      err,
+      tl('Order completed. The receipt is now available.'),
+    );
     // Tied to the status change itself, not to anyone opening a screen.
     if (err == null) unawaited(_deliverReceipt(order));
   }
@@ -378,7 +491,8 @@ class OrderActions {
     } catch (e) {
       _snack(
         messenger,
-        e is StateError ? e.message : 'Could not open the conversation.',
+        e is StateError ? e.message : tl('Could not open the conversation.'),
+        kind: MessageKind.error,
       );
       return;
     }
@@ -409,18 +523,27 @@ class OrderActions {
     final messenger = ScaffoldMessenger.of(context);
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid != order.buyerId) {
-      _snack(messenger, 'Only the buyer of this order can review it.');
+      _snack(
+        messenger,
+        tl('Only the buyer of this order can review it.'),
+        kind: MessageKind.error,
+      );
       return false;
     }
     if (!order.isCompleted) {
       _snack(
         messenger,
-        'You can review this product once the order is completed.',
+        tl('You can review this product once the order is completed.'),
+        kind: MessageKind.info,
       );
       return false;
     }
     if (order.productId.isEmpty || order.sellerId.isEmpty) {
-      _snack(messenger, 'Missing product info for review.');
+      _snack(
+        messenger,
+        tl('Missing product info for review.'),
+        kind: MessageKind.error,
+      );
       return false;
     }
     final done = await Navigator.push<bool>(
@@ -467,6 +590,74 @@ class ReportDelaySheet extends StatefulWidget {
   State<ReportDelaySheet> createState() => _ReportDelaySheetState();
 }
 
+/// The farmer's reason for cancelling a confirmed order. Resolves to the
+/// reason, or null if they keep the order.
+class CancelOrderSheet extends StatefulWidget {
+  const CancelOrderSheet({super.key});
+
+  @override
+  State<CancelOrderSheet> createState() => _CancelOrderSheetState();
+}
+
+class _CancelOrderSheetState extends State<CancelOrderSheet> {
+  static const int maxLength = 200;
+
+  late final _reason = TextEditingController()
+    ..addListener(() => setState(() {}));
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        18,
+        4,
+        18,
+        18 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            tl(
+              'The buyer is told your reason, and the stock goes back to your listing. This cannot be undone.',
+            ),
+            style: TextStyle(fontSize: 12.5, color: AppColors.grey(700)),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _reason,
+            style: const TextStyle(fontSize: 14),
+            maxLength: maxLength,
+            maxLines: 3,
+            minLines: 2,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: tl('Why are you cancelling this order?'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: _reason.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(context, _reason.text.trim()),
+            style: AppTheme.primaryButton().copyWith(
+              shape: const WidgetStatePropertyAll(StadiumBorder()),
+            ),
+            child: Text(tl('Cancel Order'), style: AppTheme.buttonText()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReportDelaySheetState extends State<ReportDelaySheet> {
   static const int otherMaxLength = 100;
 
@@ -497,25 +688,21 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
       _date != null && (!_isOther || _other.text.trim().isNotEmpty);
 
   // Every field is a white pill with a light border (the sheet itself is
-  // light grey); the several-line note is a rounded capsule ([radius]).
-  InputDecoration _field({String? hint, Widget? prefix, double radius = 30}) {
-    OutlineInputBorder outline(Color color, [double width = 1]) =>
-        OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius),
-          borderSide: BorderSide(color: color, width: width),
-        );
+  // light grey); the several-line note gets rounded corners instead (see
+  // PillInputBorder).
+  InputDecoration _field({String? hint, Widget? prefix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(fontSize: 13.5, color: AppColors.grey(500)),
+      hintStyle: TextStyle(fontSize: 14, color: AppColors.grey(500)),
       prefixIcon: prefix,
       filled: true,
       fillColor: AppColors.surface,
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       counterStyle: TextStyle(fontSize: 11, color: AppColors.grey(500)),
-      border: outline(AppColors.grey(300)),
-      enabledBorder: outline(AppColors.grey(300)),
-      focusedBorder: outline(AppColors.mid, 1.4),
+      border: AppTheme.fieldBorder,
+      enabledBorder: AppTheme.fieldBorder,
+      focusedBorder: AppTheme.fieldFocusBorder,
     );
   }
 
@@ -555,8 +742,10 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Tell ${widget.order.buyerName} why this order is delayed and '
-            'propose a new date. They can accept it, cancel, or message you.',
+            tl(
+              'Tell {0} why this order is delayed and propose a new date. They can accept it, cancel, or message you.',
+              [widget.order.buyerName],
+            ),
             style: TextStyle(
               fontSize: 12.5,
               color: AppColors.grey(700),
@@ -565,7 +754,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
           ),
           const SizedBox(height: 18),
 
-          _label('Reason'),
+          _label(tl('Reason')),
           DropdownButtonFormField<String>(
             initialValue: _reason,
             isExpanded: true,
@@ -575,17 +764,21 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
             icon: Icon(
               Icons.keyboard_arrow_down_rounded,
               color: AppColors.brand,
+              size: 20,
             ),
-            decoration: _field(),
+            decoration: AppTheme.dropdownDecoration(context, _field()),
             style: TextStyle(
               fontFamily: 'Montserrat',
-              fontSize: 13.5,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppColors.brand,
             ),
             items: [
               for (final entry in kOrderDelayReasons.entries)
-                DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+                DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(tl(entry.value)),
+                ),
             ],
             onChanged: (value) {
               if (value != null) setState(() => _reason = value);
@@ -602,18 +795,19 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
                     padding: const EdgeInsets.only(top: 10),
                     child: TextField(
                       controller: _other,
+                      style: const TextStyle(fontSize: 14),
                       maxLength: otherMaxLength,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: _field(hint: 'Specify the reason'),
+                      decoration: _field(hint: tl('Specify the reason')),
                     ),
                   ),
           ),
           SizedBox(height: _isOther ? 6 : 16),
 
-          _label('Proposed new date'),
+          _label(tl('Proposed new date')),
           InkWell(
             onTap: _pickDate,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
             child: InputDecorator(
               decoration:
                   _field(
@@ -635,7 +829,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
               child: Text(
                 dateText,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: 14,
                   fontWeight: _date == null ? FontWeight.w500 : FontWeight.w600,
                   color: _date == null ? AppColors.grey(500) : AppColors.brand,
                 ),
@@ -644,17 +838,15 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
           ),
           const SizedBox(height: 16),
 
-          _label('Note to the buyer (optional)'),
+          _label(tl('Note to the buyer (optional)')),
           TextField(
             controller: _note,
+            style: const TextStyle(fontSize: 14),
             maxLength: 200,
             maxLines: 3,
             minLines: 2,
             textCapitalization: TextCapitalization.sentences,
-            decoration: _field(
-              hint: 'Anything else the buyer should know',
-              radius: 24,
-            ),
+            decoration: _field(hint: tl('Anything else the buyer should know')),
           ),
           const SizedBox(height: 10),
           ElevatedButton(
@@ -672,7 +864,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
             style: AppTheme.primaryButton().copyWith(
               shape: const WidgetStatePropertyAll(StadiumBorder()),
             ),
-            child: Text('Send to Buyer', style: AppTheme.buttonText()),
+            child: Text(tl('Send to Buyer'), style: AppTheme.buttonText()),
           ),
         ],
       ),

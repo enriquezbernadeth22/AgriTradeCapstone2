@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../data/commodity_master_list.dart';
 import 'agri_dialog.dart';
+import '../l10n/app_language.dart';
 
 /// The most Available Stock a listing can have: four digits.
 const int kMaxStock = 9999;
@@ -89,21 +90,21 @@ class _UpdateStockDialogState extends State<UpdateStockDialog> {
     if (parsed == null || parsed < 0) {
       widget.onInvalid?.call(
         context,
-        'Please enter a valid, non-negative quantity.',
+        tl('Please enter a valid, non-negative quantity.'),
       );
       return;
     }
     if (_countBased && parsed != parsed.roundToDouble()) {
       widget.onInvalid?.call(
         context,
-        'Available Stock for ${widget.unit} must be a whole number.',
+        tl('Available Stock for {0} must be a whole number.', [widget.unit]),
       );
       return;
     }
     if (parsed.floor() > kMaxStock) {
       widget.onInvalid?.call(
         context,
-        'Available Stock can be at most 9,999 ${widget.unit}.',
+        tl('Available Stock can be at most 9,999 {0}.', [widget.unit]),
       );
       return;
     }
@@ -113,7 +114,7 @@ class _UpdateStockDialogState extends State<UpdateStockDialog> {
   @override
   Widget build(BuildContext context) {
     return AgriDialog(
-      title: const Text('Update Available Stock'),
+      title: Text(tl('Update Available Stock')),
       // Scrolls if a small screen with the keyboard open leaves too
       // little room, instead of overflowing.
       scrollable: true,
@@ -128,6 +129,7 @@ class _UpdateStockDialogState extends State<UpdateStockDialog> {
           const SizedBox(height: 14),
           TextField(
             controller: _controller,
+            style: const TextStyle(fontSize: 14),
             autofocus: true,
             keyboardType: TextInputType.numberWithOptions(
               decimal: !_countBased,
@@ -137,18 +139,18 @@ class _UpdateStockDialogState extends State<UpdateStockDialog> {
             onSubmitted: (_) => _save(),
             decoration: InputDecoration(
               // The app's curved field (AppTheme), like every other.
-              labelText: 'Available Stock (${widget.unit})',
+              labelText: tl('Available Stock ({0})', [widget.unit]),
             ),
           ),
         ],
       ),
       actions: [
         AgriDialogButton(
-          label: 'Cancel',
+          label: tl('Cancel'),
           onPressed: () => Navigator.of(context).pop<num?>(null),
         ),
         AgriDialogButton(
-          label: 'Save',
+          label: tl('Save'),
           kind: AgriButtonKind.primary,
           onPressed: _save,
         ),

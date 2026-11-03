@@ -27,9 +27,13 @@ const { categoryOf, pushAllowed, deliveryChannels, WELCOME } = require("./notifi
 const { COMMODITY_ARCHIVED, archiveChange, commodityNotice } = require("./commodity_notice");
 const { suspensionEndText } = require("./suspension_logic");
 const { outsideCoverage } = require("./delivery_coverage_logic");
-const { completionReminderDue } = require("./order_reminder_logic");
+const {
+  completionReminderDue, receivedReminderDue, pendingOrderExpired, PENDING_ORDER_DAYS,
+} = require("./order_reminder_logic");
+const { saleBuyerArea, salePricePerUnit } = require("./market_sale_logic");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { signedInBeforeRevocation } = require("./admin_session_logic");
+const { publicProfileOf } = require("./public_profile_logic");
 
 // Keep marketplace-visible profile fields separate from private users/{uid}
 // records. Admin SDK writes bypass client rules; clients cannot write this
@@ -43,18 +47,7 @@ exports.syncPublicProfile = onDocumentWritten("users/{uid}", async (event) => {
     await profileRef.delete().catch(() => {});
     return;
   }
-  const data = current.data() || {};
-  const publicProfile = {};
-  for (const key of ["role", "name", "fullName", "photoUrl", "barangay", "municipality", "province", "approvalStatus", "rating", "reviewCount"]) {
-    const value = data[key];
-    // Photo URLs (Google account photos especially) can run well past 200.
-    const maxLength = key === "photoUrl" ? 2000 : 200;
-    if (typeof value === "string" && value.length <= maxLength) publicProfile[key] = value;
-    else if ((key === "rating" || key === "reviewCount") && typeof value === "number" && Number.isFinite(value)) {
-      publicProfile[key] = value;
-    }
-  }
-  await profileRef.set(publicProfile);
+  await profileRef.set(publicProfileOf(current.data() || {}));
 });
 
 /** Sends a push notification to every device registered for `uid` (pruning
@@ -410,6 +403,38 @@ exports.notifyOrderStatusChange = onDocumentUpdated("orders/{orderId}", async (e
 // date (agreed, requested, or the day it shipped) is reminded once to mark
 // it Completed — the buyer can also confirm with "Order Received". See
 // order_reminder_logic.js. Nothing is completed automatically.
+// A pending order the farmer never answers is cancelled after a few days,
+// so its stock is not held forever (handleOrderReschedule returns it).
+exports.expirePendingOrders = onSchedule(
+  { schedule: "every 6 hours", region: "asia-southeast1", timeZone: "Asia/Manila" },
+  async () => {
+    const now = Date.now();
+    // One equality filter: no composite index needed.
+    const pending = await db.collection("orders")
+      .where("status", "==", "pending")
+      .limit(500)
+      .get();
+    let expired = 0;
+    for (const doc of pending.docs) {
+      if (!pendingOrderExpired(doc.data(), now)) continue;
+      // Only if it is still pending: the farmer may have just answered.
+      const cancelled = await db.runTransaction(async (tx) => {
+        const current = await tx.get(doc.ref);
+        if (!pendingOrderExpired(current.data(), now)) return false;
+        tx.update(doc.ref, {
+          status: "cancelled",
+          cancelReason: "expired",
+          cancelledAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        return true;
+      });
+      if (cancelled) expired += 1;
+    }
+    console.log(`expirePendingOrders: cancelled ${expired} of ${pending.size} pending orders.`);
+  }
+);
+
 // ---------------------------------------------------------------
 exports.remindFarmersToComplete = onSchedule(
   { schedule: "every day 09:00", region: "asia-southeast1", timeZone: "Asia/Manila" },
@@ -423,6 +448,23 @@ exports.remindFarmersToComplete = onSchedule(
     let reminded = 0;
     for (const doc of shipped.docs) {
       const order = doc.data();
+      // The buyer first: they are the one who confirms it.
+      if (receivedReminderDue(order, now) && order.buyerId) {
+        try {
+          await notifyUser(order.buyerId, {
+            title: "Received your order?",
+            body: `If you already have your ${order.productName || "order"}, tap Order Received so the receipt can be issued.`,
+            type: "order_status",
+            relatedId: doc.id,
+            data: { orderId: doc.id, status: "shipped" },
+            dedupeId: `received-reminder-${doc.id}`,
+          });
+          await doc.ref.update({ receivedReminderSentAt: FieldValue.serverTimestamp() });
+          reminded++;
+        } catch (err) {
+          console.error(`remindFarmersToComplete(${doc.id}) buyer:`, err.message);
+        }
+      }
       if (!completionReminderDue(order, now) || !order.sellerId) continue;
       try {
         await notifyUser(order.sellerId, {
@@ -524,8 +566,8 @@ exports.onFarmerEligibilityChanged = onDocumentWritten("users/{uid}", async (eve
 // product, last-30-day demand). Firestore rules only let a farmer read
 // orders/{} where they're the buyer or seller, so the app can't query
 // the whole `orders` collection directly for this — this copies just
-// {productName, quantity, createdAt} into a public collection with no
-// buyer/seller identity in it. Idempotent (doc id == orderId, merge:
+// {productName, quantity, price per unit, createdAt} into a public
+// collection with no buyer/seller identity in it. Idempotent (doc id == orderId, merge:
 // true), so re-fires (retries, or an unrelated field edit on an
 // already-completed order) are harmless.
 // ---------------------------------------------------------------
@@ -552,20 +594,21 @@ exports.recordMarketSale = onDocumentUpdated("orders/{orderId}", async (event) =
 });
 
 // What the Farmer Dashboard's Best-Selling Products / Top Buyer Locations
-// need on top of the basics above (see market_demand_service.dart): the
-// order type, the category, and the buyer's general area — municipality or
+// and the Add Product price recommendation need on top of the basics above
+// (see market_demand_service.dart): the order type, the price paid per unit,
+// the category, and the buyer's general area — municipality or
 // city only, never the buyer's identity, barangay or address.
 // (backfill_market_sales.js fills the same fields in for sales recorded
 // before these existed — keep the two in step.)
 async function marketSaleDemandFields(order) {
-  let buyerArea = "";
-  if (order.buyerId) {
+  let buyerArea = saleBuyerArea(order, null);
+  if (!buyerArea && order.buyerId) {
     const buyerSnap = await db.collection("users").doc(order.buyerId).get();
-    const municipality = buyerSnap.exists ? buyerSnap.data().municipality : null;
-    if (typeof municipality === "string") buyerArea = municipality.trim();
+    buyerArea = saleBuyerArea(order, buyerSnap.exists ? buyerSnap.data().municipality : null);
   }
   return {
     pricingType: order.pricingType === "wholesale" ? "wholesale" : "retail",
+    pricePerUnit: salePricePerUnit(order),
     category: (order.category || "").toString().trim(),
     buyerArea,
     completedAt: order.completedAt || order.updatedAt || FieldValue.serverTimestamp(),
@@ -716,7 +759,7 @@ exports.issueOrderReceipt = onDocumentUpdated("orders/{orderId}", async (event) 
 // through Gmail SMTP — see account_emails.js and mailer.js.
 Object.assign(exports, require("./account_emails"));
 
-// The Admin Portal's single active session and its sign-in alert: see
+// Admin Portal session history and sign-in alerts: see
 // admin_session.js.
 Object.assign(exports, require("./admin_session"));
 
@@ -801,7 +844,7 @@ exports.handleOrderReschedule = onDocumentUpdated("orders/{orderId}", async (eve
   const delayBefore = before.delay || {};
   const delayAfter = after.delay || {};
 
-  // ---- Buyer cancelled ----
+  // ---- Cancelled, by the buyer, the farmer or expirePendingOrders ----
   if (before.status !== "cancelled" && after.status === "cancelled") {
     const orderRef = event.data.after.ref;
     await db.runTransaction(async (tx) => {
@@ -819,10 +862,37 @@ exports.handleOrderReschedule = onDocumentUpdated("orders/{orderId}", async (eve
       tx.update(orderRef, { stockRestoredAt: FieldValue.serverTimestamp() });
     });
 
-    if (after.sellerId) {
+    if (after.cancelReason === "expired" && after.buyerId) {
+      await notifyUser(after.buyerId, {
+        title: "Order Cancelled",
+        body: `Your ${product} order was cancelled because the farmer did not reply within ${PENDING_ORDER_DAYS} days.`,
+        type: "order_status",
+        relatedId: orderId,
+        data: { orderId, status: "cancelled" },
+        dedupeId: `${event.id}-expired`,
+      });
+    }
+
+    if (after.cancelReason === "farmer" && after.buyerId) {
+      await notifyUser(after.buyerId, {
+        title: "Order Cancelled",
+        body: `${after.sellerName || "The farmer"} cancelled your ${product} order: ${after.cancelNote || "no reason given"}`,
+        type: "order_status",
+        relatedId: orderId,
+        data: { orderId, status: "cancelled" },
+        dedupeId: `${event.id}-farmer-cancelled`,
+      });
+    }
+
+    if (after.sellerId && after.cancelReason !== "farmer") {
+      const buyer = after.buyerName || "The buyer";
       await notifyUser(after.sellerId, {
         title: "Order Cancelled",
-        body: `${after.buyerName || "The buyer"} cancelled the ${product} order after the delay. The quantity has been returned to your listing.`,
+        body: after.cancelReason === "expired"
+          ? `The ${product} order from ${buyer} was cancelled because it was not answered within ${PENDING_ORDER_DAYS} days. The reserved stock is back on your listing.`
+          : after.cancelReason === "buyer"
+            ? `${buyer} cancelled the ${product} order. The reserved stock is back on your listing.`
+            : `${buyer} cancelled the ${product} order after the delay. The quantity has been returned to your listing.`,
         type: "order_status",
         relatedId: orderId,
         data: { orderId, status: "cancelled" },
@@ -1475,9 +1545,8 @@ const AUTHENTICATED_ACTIONS = new Set([
   "UPDATE_SUPPORT_REQUEST",
   "LOGIN_SUCCESS",
   "LOGOUT",
-  // The browser whose Admin session was ended by a sign-in elsewhere logs
-  // this on its way out. NEW_DEVICE_LOGIN and SESSION_REPLACED are written
-  // by adminSession itself (admin_session.js), never by a client.
+  // Legacy session audit actions. NEW_DEVICE_LOGIN is written by
+  // adminSession itself (admin_session.js), never by a client.
   "SESSION_FORCED_LOGOUT",
   // The report workflow, and account actions on any marketplace account.
   "START_REPORT_REVIEW",

@@ -2,43 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'agri_dialog.dart';
 
-/// Asked at Admin login when the account is in use on another browser.
-/// True when the Admin chooses to continue and sign the other one out.
-Future<bool> showAdminSessionConflictDialog(BuildContext context) async {
-  final result = await showAgriDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AgriDialog(
-      icon: Icons.devices_other_outlined,
-      tone: AgriTone.warning,
-      title: const Text('Account already logged in'),
-      content: const Text(
-        'This Admin account is currently active on another device. '
-        'Continuing will sign out the previous session.',
-      ),
-      actions: [
-        AgriDialogButton(
-          label: 'Cancel',
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-        ),
-        AgriDialogButton(
-          label: 'Continue & Sign Out Other Device',
-          kind: AgriButtonKind.primary,
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-        ),
-      ],
-    ),
-  );
-  return result ?? false;
-}
-
-/// Shown on the browser whose Admin session was ended by a sign-in
-/// elsewhere — or, with [revoked], signed out from Active Sessions on
-/// another device — once it is back at the login page.
-Future<void> showAdminSessionEndedDialog(
-  BuildContext context, {
-  bool revoked = false,
-}) {
+/// Shown when this browser was signed out from Active Sessions elsewhere.
+Future<void> showAdminSessionEndedDialog(BuildContext context) {
   return showAgriDialog<void>(
     context: context,
     barrierDismissible: false,
@@ -46,11 +11,9 @@ Future<void> showAdminSessionEndedDialog(
       icon: Icons.logout_rounded,
       tone: AgriTone.warning,
       title: const Text('Session ended'),
-      content: Text(
-        revoked
-            ? 'This device was signed out of your Admin account from Active '
-                  'Sessions on another device. Log in again to continue.'
-            : 'Your Admin account was logged in on another device.',
+      content: const Text(
+        'This device was signed out of your Admin account from Active '
+        'Sessions on another device. Log in again to continue.',
       ),
       actions: [
         AgriDialogButton(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'chat_list_screen.dart';
 import 'message_management_screens.dart';
+import '../l10n/app_language.dart';
 
 /// The Archived folder, opened from Archived in the Messages menu. Same
 /// screen for Farmer and Buyer — it is the Messages list itself in its
@@ -11,8 +12,8 @@ class ArchivedConversationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MessageFolderScaffold(
-      title: 'Archived',
+    return MessageFolderScaffold(
+      title: tl('Archived'),
       body: ChatListScreen(mode: ChatListMode.archived),
     );
   }

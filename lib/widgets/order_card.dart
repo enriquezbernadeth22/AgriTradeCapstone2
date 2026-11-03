@@ -5,6 +5,7 @@ import '../services/market_price_helpers.dart';
 import '../services/order_format.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 enum OrderActionKind { primary, secondary, destructive, text }
 
@@ -361,7 +362,13 @@ class OrderCard extends StatelessWidget {
                               (order.status == 'confirmed' ||
                                   order.status == 'shipped'))
                             Text(
-                              'Rescheduled to ${MaterialLocalizations.of(context).formatMediumDate(order.confirmedFulfillmentDate!)}',
+                              tl('Rescheduled to {0}', [
+                                MaterialLocalizations.of(
+                                  context,
+                                ).formatMediumDate(
+                                  order.confirmedFulfillmentDate!,
+                                ),
+                              ]),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
@@ -375,7 +382,11 @@ class OrderCard extends StatelessWidget {
                           else if (order.status == 'pending' &&
                               order.neededBy != null)
                             Text(
-                              'Requested for ${MaterialLocalizations.of(context).formatMediumDate(order.neededBy!)}',
+                              tl('Requested for {0}', [
+                                MaterialLocalizations.of(
+                                  context,
+                                ).formatMediumDate(order.neededBy!),
+                              ]),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
@@ -426,7 +437,10 @@ class OrderCard extends StatelessWidget {
   Widget _total(num? total) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(total == null ? 'Subtotal + delivery' : 'Total', style: _muted(10)),
+      Text(
+        total == null ? 'Subtotal + delivery' : tl('Total'),
+        style: _muted(10),
+      ),
       Text(
         formatPeso(total ?? order.subtotal),
         style: GoogleFonts.montserrat(

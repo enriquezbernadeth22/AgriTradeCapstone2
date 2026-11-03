@@ -13,6 +13,7 @@ import 'inventory_screen.dart';
 import 'order_actions.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The Orders screen body for both the Farmer and the Buyer: same header,
 /// tabs, swipe, badges, cards, loading and empty states. [role] only
@@ -143,8 +144,14 @@ class _OrdersViewState extends State<OrdersView> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'Review your completed orders to earn the Trusted Buyer badge. '
-          '$unreviewed order${unreviewed == 1 ? '' : 's'} still need${unreviewed == 1 ? 's' : ''} a review.',
+          tl(
+            'Review your completed orders to earn the Trusted Buyer badge. {0} order{1} still need{2} a review.',
+            [
+              unreviewed,
+              unreviewed == 1 ? '' : 's',
+              unreviewed == 1 ? 's' : '',
+            ],
+          ),
           style: GoogleFonts.montserrat(
             color: AppColors.brand,
             fontSize: 12,
@@ -163,43 +170,29 @@ class _OrdersViewState extends State<OrdersView> {
       children: [
         PageHeader(
           title: tr(context).navOrders,
-          // Farmers only: stock of their own listings. A compact solid
-          // dark green button on the title's own row, ending on the
-          // page's 16px edge.
+          // Farmers only: a quiet text link to their own stock.
           titleTrailing: _isFarmer
               ? Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: FilledButton(
+                  child: TextButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const InventoryScreen(),
                       ),
                     ),
-                    // Solid dark green pill, white label only, raised on a
-                    // soft shadow that sinks when it is pressed.
-                    style:
-                        FilledButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: AppColors.brandFill,
-                          shadowColor: AppColors.brand,
-                          shape: const StadiumBorder(),
-                          minimumSize: Size.zero,
-                          fixedSize: const Size.fromHeight(36),
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.standard,
-                          textStyle: GoogleFonts.montserrat(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ).copyWith(
-                          elevation: WidgetStateProperty.resolveWith(
-                            (states) =>
-                                states.contains(WidgetState.pressed) ? 1 : 5,
-                          ),
-                        ),
-                    child: Text(tr(context).inventory),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      minimumSize: const Size(48, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.standard,
+                      textStyle: GoogleFonts.montserrat(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    child: Text('${tr(context).inventory} →'),
                   ),
                 )
               : null,
@@ -220,7 +213,7 @@ class _OrdersViewState extends State<OrdersView> {
                 : TextButton.icon(
                     onPressed: browse,
                     icon: const Icon(Icons.storefront_outlined, size: 17),
-                    label: const Text('Browse Marketplace'),
+                    label: Text(tl('Browse Marketplace')),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.brand,
                       textStyle: GoogleFonts.montserrat(
@@ -229,8 +222,9 @@ class _OrdersViewState extends State<OrdersView> {
                       ),
                     ),
                   ),
-            errorMessage:
-                'Could not load your orders. Check your connection and try again.',
+            errorMessage: tl(
+              'Could not load your orders. Check your connection and try again.',
+            ),
             tutorialPrefsKey: ordersSwipeTutorialKey(),
             activityOf: (doc) => OrderInfo.fromDoc(doc).unseenActivityMs(_role),
             seenStore: _seenStore,

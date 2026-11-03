@@ -4,6 +4,7 @@ import '../data/commodity_master_list.dart';
 import '../services/audit_log_service.dart';
 import '../services/connectivity_service.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 
 import '../services/dashboard_data_service.dart';
@@ -184,14 +185,14 @@ class _AdminListingsViewState extends State<AdminListingsView>
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin restriction cleared.')),
+          appSnackBar('Admin restriction cleared.', kind: MessageKind.success),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
+        ).showSnackBar(appSnackBar('$error', kind: MessageKind.error));
       }
     } finally {
       if (mounted) setState(() => _restoring.remove(row.id));
@@ -352,22 +353,20 @@ class _AdminListingsViewState extends State<AdminListingsView>
       if (!mounted) return;
       setState(() => _ticked.removeAll(rows.map((row) => row.id)));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            hide
-                ? 'Hidden $label. Find ${one ? 'it' : 'them'} under '
-                      'Hidden by Admin.'
-                : 'Restored $label.',
-          ),
+        appSnackBar(
+          hide
+              ? 'Hidden $label. Find ${one ? 'it' : 'them'} under '
+                    'Hidden by Admin.'
+              : 'Restored $label.',
+          kind: MessageKind.success,
         ),
       );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not ${hide ? 'hide' : 'restore'} $label: $error',
-            ),
+          appSnackBar(
+            'Could not ${hide ? 'hide' : 'restore'} $label: $error',
+            kind: MessageKind.error,
           ),
         );
       }

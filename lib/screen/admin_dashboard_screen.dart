@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart'
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart' show HitTestResult;
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:google_fonts/google_fonts.dart';
@@ -26,6 +27,8 @@ import '../data/laurel_barangays.dart';
 import '../services/connectivity_service.dart';
 import '../services/price_history_service.dart';
 import '../services/market_price_helpers.dart';
+import '../theme/app_colors.dart';
+import '../theme/theme_controller.dart';
 import '../widgets/admin_sidebar.dart';
 import '../widgets/agri_dialog.dart'
     show AgriTone, agriBarrierColor, showAgriConfirm;
@@ -40,6 +43,7 @@ import '../services/geocoding_service.dart';
 import '../services/trackpad_pan_io.dart'
     if (dart.library.js_interop) '../services/trackpad_pan_web.dart';
 import '../widgets/chart_capture_boundary.dart';
+import '../widgets/admin_loading_scope.dart';
 import 'admin_filter_controls.dart';
 import 'admin_suspend_accounts_dialog.dart';
 import 'admin_global_search.dart';
@@ -203,15 +207,24 @@ const String _adminDarkModeKey = 'admin_dark_mode';
 Future<void> loadAdminDarkMode() async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    adminDarkMode.value = prefs.getBool(_adminDarkModeKey) ?? false;
+    _applyAdminDarkMode(prefs.getBool(_adminDarkModeKey) ?? false);
   } catch (_) {
     // Light, then.
   }
 }
 
+// The dialogs and queues the portal shares with the mobile app read their
+// colours from AppColors, not the palette, so it has to change with it.
+void _applyAdminDarkMode(bool dark) {
+  adminDarkMode.value = dark;
+  if (AppColors.isDark == dark) return;
+  AppColors.isDark = dark;
+  ThemeController.redrawAll();
+}
+
 /// Turns Dark Mode on or off, and keeps the choice on this browser.
 Future<void> setAdminDarkMode(bool dark) async {
-  adminDarkMode.value = dark;
+  _applyAdminDarkMode(dark);
   try {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_adminDarkModeKey, dark);
@@ -339,11 +352,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accountSub;
   bool _leaving = false;
 
-  // One active Admin session per account (see AdminSessionService): the
-  // moment this browser's session stops being the active one — the
-  // account signed in on another device — the dashboard closes, without
-  // waiting for a refresh. The timer says the session is still in use.
-  StreamSubscription<void>? _sessionSub;
+  // Keep this browser's session heartbeat current for the Active Sessions
+  // page. Other browsers may remain signed in at the same time.
   Timer? _sessionHeartbeat;
 
   @override
@@ -361,9 +371,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
     });
     if (uid == null) return;
-    _sessionSub = AdminSessionService.watchEnded(
-      uid,
-    ).listen((_) => _leaveSessionEnded(uid), onError: (_) {});
     AdminSessionService.touch(uid);
     _sessionHeartbeat = Timer.periodic(
       AdminSessionService.heartbeat,
@@ -377,7 +384,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           // Only the server's word counts — a cached copy may be stale.
           if (snap.metadata.isFromCache) return;
           if (await _revokedHere(snap.data())) {
-            await _leaveSessionEnded(uid, revoked: true);
+            await _leaveSessionEnded(uid);
             return;
           }
           final lost = AuthRoutingService.adminAccessLostReason(
@@ -401,40 +408,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void dispose() {
     _authSub?.cancel();
     _accountSub?.cancel();
-    _sessionSub?.cancel();
     _sessionHeartbeat?.cancel();
     super.dispose();
   }
 
-  // The account signed in on another device — or, with [revoked], this
-  // browser was signed out from Active Sessions on another one: it is
-  // signed out and returned to login, where a popup says why.
-  Future<void> _leaveSessionEnded(String uid, {bool revoked = false}) async {
+  // A revoked browser is returned to login. Logging in on another browser
+  // does not end this session.
+  Future<void> _leaveSessionEnded(String uid) async {
     if (_leaving) return;
     _leaving = true;
     _authSub?.cancel();
     _authSub = null;
     _accountSub?.cancel();
     _accountSub = null;
-    _sessionSub?.cancel();
-    _sessionSub = null;
     _sessionHeartbeat?.cancel();
-    // Logged while still signed in, and never allowed to hold the
-    // sign-out back. A revoked browser can no longer log anything: the
-    // revocation itself is in the Audit Log (SESSION_REVOKED).
-    if (!revoked) {
-      try {
-        await AuditLogService.log(
-          AuditAction.sessionForcedLogout,
-          'This Admin session was ended because the account logged in on '
-          'another device.',
-        ).timeout(const Duration(seconds: 4));
-      } catch (_) {}
-    }
+    // A revoked browser can no longer log anything: the revocation itself
+    // is in the Audit Log (SESSION_REVOKED).
     await AdminSessionService.clearLocal(uid);
     debugPrint(
       '[Auth] signOut() called — reason: Admin session '
-      '${revoked ? 'revoked from Active Sessions' : 'replaced on another device'} '
+      'revoked from Active Sessions '
       '(uid: $uid)',
     );
     try {
@@ -443,11 +436,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => LoginScreen(
-          role: 'admin',
-          adminSessionEnded: true,
-          adminSessionRevoked: revoked,
-        ),
+        builder: (_) => LoginScreen(role: 'admin', adminSessionRevoked: true),
       ),
       (route) => false,
     );
@@ -520,8 +509,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _authSub = null;
       _accountSub?.cancel();
       _accountSub = null;
-      _sessionSub?.cancel();
-      _sessionSub = null;
       _sessionHeartbeat?.cancel();
       await FirebaseAuth.instance.signOut();
       _leave(null);
@@ -529,7 +516,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error logging out: ${e.toString()}')),
+          appSnackBar(
+            'Error logging out: ${e.toString()}',
+            kind: MessageKind.error,
+          ),
         );
       }
       return false;
@@ -601,7 +591,17 @@ class _AdminShell extends StatefulWidget {
 class _AdminShellState extends State<_AdminShell> {
   final ValueNotifier<int> _selected = ValueNotifier<int>(0);
   final ValueNotifier<int> _shown = ValueNotifier<int>(0);
+  final ValueNotifier<int> _loadVersion = ValueNotifier<int>(0);
+  late final Listenable _loadingLineListenable = Listenable.merge([
+    _shown,
+    _loadVersion,
+  ]);
   final Set<int> _visited = {0};
+  final Map<int, Set<Object>> _pageLoadingIndicators = {};
+  final Map<int, Timer> _loadStartTimers = {};
+  final Map<int, Timer> _loadFinishTimers = {};
+  final Set<int> _visibleLoadPages = {};
+  final Set<int> _finishingLoadPages = {};
 
   // Pages that read DashboardDataService's cached analytics fetch
   // (Analytics Dashboard, Demand Heatmap, User Accounts, Price
@@ -651,7 +651,75 @@ class _AdminShellState extends State<_AdminShell> {
     adminOpenPageRequest.removeListener(_openRequestedPage);
     _selected.dispose();
     _shown.dispose();
+    _loadVersion.dispose();
+    for (final timer in [
+      ..._loadStartTimers.values,
+      ..._loadFinishTimers.values,
+    ]) {
+      timer.cancel();
+    }
     super.dispose();
+  }
+
+  void _onPageLoadingChanged(int page, Object indicator, bool loading) {
+    if (!mounted) return;
+    final indicators = _pageLoadingIndicators.putIfAbsent(page, () => {});
+    final wasLoading = indicators.isNotEmpty;
+    if (loading) {
+      indicators.add(indicator);
+    } else {
+      indicators.remove(indicator);
+    }
+    final isLoading = indicators.isNotEmpty;
+    if (wasLoading == isLoading) return;
+
+    _loadStartTimers.remove(page)?.cancel();
+    _loadFinishTimers.remove(page)?.cancel();
+    if (isLoading) {
+      final wasFinishing = _finishingLoadPages.remove(page);
+      if (_visibleLoadPages.contains(page)) {
+        if (wasFinishing) _loadVersion.value++;
+        return;
+      }
+      _loadStartTimers[page] = Timer(const Duration(milliseconds: 250), () {
+        _loadStartTimers.remove(page);
+        if (!mounted || !(_pageLoadingIndicators[page]?.isNotEmpty ?? false)) {
+          return;
+        }
+        _visibleLoadPages.add(page);
+        _loadVersion.value++;
+      });
+      return;
+    }
+
+    if (!_visibleLoadPages.contains(page)) return;
+    _finishingLoadPages.add(page);
+    _loadVersion.value++;
+    _loadFinishTimers[page] = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) return;
+      _visibleLoadPages.remove(page);
+      _finishingLoadPages.remove(page);
+      _loadFinishTimers.remove(page);
+      _loadVersion.value++;
+    });
+  }
+
+  Widget _tabLoadingLine(AdminPalette palette) {
+    final page = _shown.value;
+    final visible = _visibleLoadPages.contains(page);
+    final finishing = _finishingLoadPages.contains(page);
+    return SizedBox(
+      height: 3,
+      child: visible
+          ? LinearProgressIndicator(
+              value: finishing ? 1 : null,
+              minHeight: 3,
+              semanticsLabel: finishing ? 'Loading complete' : 'Loading page',
+              color: adminActionColor(palette),
+              backgroundColor: palette.surfaceAlt,
+            )
+          : null,
+    );
   }
 
   Future<void> _loadCollapsed() async {
@@ -851,7 +919,7 @@ class _AdminShellState extends State<_AdminShell> {
           drawer: narrow
               ? Drawer(
                   width: AdminSidebar.expandedWidth,
-                  backgroundColor: AdminSidebarColors.light.background,
+                  backgroundColor: AdminSidebarColors.of(context).background,
                   shape: const RoundedRectangleBorder(),
                   child: _sidebar(collapsed: false, inDrawer: true),
                 )
@@ -873,26 +941,46 @@ class _AdminShellState extends State<_AdminShell> {
                           : null,
                     ),
                     Expanded(
-                      child: RepaintBoundary(
-                        child: ValueListenableBuilder<int>(
-                          valueListenable: _shown,
-                          builder: (context, shown, _) => IndexedStack(
-                            index: shown,
-                            sizing: StackFit.expand,
-                            children: [
-                              for (var i = 0; i < widget.pages.length; i++)
-                                // Not opened yet: an empty placeholder, so
-                                // nothing loads until its page is opened.
-                                // Hidden pages have their animations paused.
-                                _visited.contains(i)
-                                    ? TickerMode(
-                                        enabled: i == shown,
-                                        child: widget.pages[i],
-                                      )
-                                    : const SizedBox.shrink(),
-                            ],
+                      child: Column(
+                        children: [
+                          ListenableBuilder(
+                            listenable: _loadingLineListenable,
+                            builder: (context, _) => _tabLoadingLine(
+                              AdminThemeScope.of(context).palette,
+                            ),
                           ),
-                        ),
+                          Expanded(
+                            child: RepaintBoundary(
+                              child: ValueListenableBuilder<int>(
+                                valueListenable: _shown,
+                                builder: (context, shown, _) => IndexedStack(
+                                  index: shown,
+                                  sizing: StackFit.expand,
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i < widget.pages.length;
+                                      i++
+                                    )
+                                      // Not opened yet: an empty placeholder,
+                                      // so nothing loads until its page is opened.
+                                      // Hidden pages have their animations paused.
+                                      _visited.contains(i)
+                                          ? AdminLoadingScope(
+                                              page: i,
+                                              onChanged: _onPageLoadingChanged,
+                                              child: TickerMode(
+                                                enabled: i == shown,
+                                                child: widget.pages[i],
+                                              ),
+                                            )
+                                          : const SizedBox.shrink(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -1015,8 +1103,8 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
           'ADMIN DASHBOARD',
           style: TextStyle(
             color: adminActionColor(c),
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.8,
           ),
         ),
@@ -1031,7 +1119,7 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: c.textPrimary,
-                  fontSize: 26,
+                  fontSize: 27,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1177,7 +1265,7 @@ class _AdminUtilityBar extends StatelessWidget {
   /// drawer), so the header carries it instead.
   final bool showBrand;
 
-  /// "Dashboard" in the breadcrumb was clicked.
+  /// The brand was clicked to return to the dashboard.
   final VoidCallback onGoHome;
 
   const _AdminUtilityBar({
@@ -1192,13 +1280,7 @@ class _AdminUtilityBar extends StatelessWidget {
     final c = AdminThemeScope.of(context).palette;
     // Only this rebuilds when the page, or the section open in it, changes.
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        selected,
-        AdminSubNav.accounts,
-        AdminSubNav.moderation,
-        AdminSubNav.violations,
-        AdminSubNav.audit,
-      ]),
+      listenable: selected,
       // The Dashboard greets the Admin in its own banner, so there is no
       // title under the bar there.
       builder: (context, _) {
@@ -1228,61 +1310,6 @@ class _AdminUtilityBar extends StatelessWidget {
     );
   }
 
-  // Where the Admin is: Dashboard › the page › the section open in it.
-  // "Dashboard" goes back there; the last one is where they are now.
-  Widget _breadcrumb(AdminPalette c, int page) {
-    final section = switch (page) {
-      _accountsPage => AdminSubNav.accounts.value.label,
-      _moderationPage => AdminSubNav.moderation.value.label,
-      _violationsPage => AdminSubNav.violations.value.label,
-      _auditLogPage => AdminSubNav.audit.value.label,
-      _ => null,
-    };
-    final trail = [
-      _topNavLabels[0],
-      if (page != 0) _topNavLabels[page],
-      // A section named like its page ("Violations") is not said twice.
-      if (section != null && section != _topNavLabels[page]) section,
-    ];
-    TextStyle style(bool current) => TextStyle(
-      fontSize: 13,
-      fontWeight: current ? FontWeight.w700 : FontWeight.w500,
-      color: current ? c.textPrimary : c.textSecondary,
-    );
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < trail.length; i++) ...[
-            if (i > 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: c.textMuted,
-                ),
-              ),
-            if (i == 0 && trail.length > 1)
-              InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: onGoHome,
-                // No inset on the left: the trail starts on the same line as
-                // the page title under it.
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(trail[i], style: style(false)),
-                ),
-              )
-            else
-              Text(trail[i], style: style(i == trail.length - 1)),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget? _menuButton(AdminPalette c) => onOpenMenu == null
       ? null
       : IconButton(
@@ -1291,7 +1318,7 @@ class _AdminUtilityBar extends StatelessWidget {
           icon: Icon(Icons.menu_rounded, color: c.textPrimary),
         );
 
-  // The same bar on every page: where the Admin is on the left, then the
+  // The same bar on every page: the brand/menu on the left, then the
   // search, Announce, Dark Mode and the bell on the right (the Admin
   // account is at the bottom of the sidebar). The page's title is on its
   // own line under it.
@@ -1333,12 +1360,7 @@ class _AdminUtilityBar extends StatelessWidget {
             ),
             const SizedBox(width: 16),
           ],
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _breadcrumb(c, page),
-            ),
-          ),
+          Expanded(child: const SizedBox.shrink()),
           const SizedBox(width: 16),
           Flexible(
             flex: 2,
@@ -2001,8 +2023,8 @@ class _SectionHeader extends StatelessWidget {
           title,
           style: TextStyle(
             color: c.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontSize: 19,
+            fontWeight: FontWeight.w600,
           ),
         ),
         if (subtitle != null) ...[
@@ -2259,53 +2281,68 @@ class _AnalyticsDashboardView extends StatelessWidget {
     void open(AdminNotificationTarget page) =>
         adminOpenPageRequest.value = page;
 
-    return AdminOverviewStrip(
-      items: [
-        // Marketplace users only: buyers plus APPROVED farmers. Pending and
-        // rejected farmer applications, and Admin accounts, are not counted.
-        item(
-          metrics.totalUsers,
-          label: 'Total Users',
-          icon: Icons.groups_2_outlined,
-          value: (v) => '${v.farmers + v.buyers}',
-          caption: (v) =>
-              '${v.farmers} approved ${v.farmers == 1 ? 'farmer' : 'farmers'}'
-              ' · ${v.buyers} ${v.buyers == 1 ? 'buyer' : 'buyers'}',
-          onTap: () {
-            AdminSubNav.accounts.value = UserAccountsSection.farmers;
-            open(AdminNotificationTarget.farmers);
-          },
-        ),
-        // Farmers who registered and are neither approved nor rejected yet.
-        item(
-          metrics.pendingVerifications,
-          label: 'Pending Verifications',
-          icon: Icons.fact_check_outlined,
-          value: (v) => '$v',
-          caption: (_) => 'Farmers awaiting admin review',
-          attention: true,
-          onTap: () => open(AdminNotificationTarget.verification),
-        ),
-        // Reports not yet resolved or dismissed, whoever filed them.
-        item(
-          metrics.flaggedReports,
-          label: 'Flagged Reports',
-          icon: Icons.flag_outlined,
-          value: (v) => '$v',
-          caption: (_) => 'Active, unresolved cases',
-          onTap: () {
-            AdminSubNav.moderation.value = ModerationSection.pending;
-            open(AdminNotificationTarget.moderation);
-          },
-        ),
-        // Sum of completed orders only — never pending, cancelled or
-        // rejected ones.
-        item(
-          metrics.totalTransactionValue,
-          label: 'Total Transaction Value',
-          icon: Icons.payments_outlined,
-          value: (v) => formatPeso(v),
-          caption: (_) => 'Completed orders only',
+    final loading =
+        metrics.totalUsers.isLoading ||
+        metrics.pendingVerifications.isLoading ||
+        metrics.flaggedReports.isLoading ||
+        metrics.totalTransactionValue.isLoading;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: AdminLoadingBar(width: 150),
+          ),
+        AdminOverviewStrip(
+          items: [
+            // Marketplace users only: buyers plus APPROVED farmers. Pending and
+            // rejected farmer applications, and Admin accounts, are not counted.
+            item(
+              metrics.totalUsers,
+              label: 'Total Users',
+              icon: Icons.groups_2_outlined,
+              value: (v) => '${v.farmers + v.buyers}',
+              caption: (v) =>
+                  '${v.farmers} approved ${v.farmers == 1 ? 'farmer' : 'farmers'}'
+                  ' · ${v.buyers} ${v.buyers == 1 ? 'buyer' : 'buyers'}',
+              onTap: () {
+                AdminSubNav.accounts.value = UserAccountsSection.farmers;
+                open(AdminNotificationTarget.farmers);
+              },
+            ),
+            // Farmers who registered and are neither approved nor rejected yet.
+            item(
+              metrics.pendingVerifications,
+              label: 'Pending Verifications',
+              icon: Icons.fact_check_outlined,
+              value: (v) => '$v',
+              caption: (_) => 'Farmers awaiting admin review',
+              attention: true,
+              onTap: () => open(AdminNotificationTarget.verification),
+            ),
+            // Reports not yet resolved or dismissed, whoever filed them.
+            item(
+              metrics.flaggedReports,
+              label: 'Flagged Reports',
+              icon: Icons.flag_outlined,
+              value: (v) => '$v',
+              caption: (_) => 'Active, unresolved cases',
+              onTap: () {
+                AdminSubNav.moderation.value = ModerationSection.pending;
+                open(AdminNotificationTarget.moderation);
+              },
+            ),
+            // Sum of completed orders only — never pending, cancelled or
+            // rejected ones.
+            item(
+              metrics.totalTransactionValue,
+              label: 'Total Transaction Value',
+              icon: Icons.payments_outlined,
+              value: (v) => formatPeso(v),
+              caption: (_) => 'Completed orders only',
+            ),
+          ],
         ),
       ],
     );
@@ -4360,9 +4397,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     if (confirm != true) return;
     if (!await ConnectivityService.instance.checkNow()) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+        );
       }
       return;
     }
@@ -4424,13 +4461,12 @@ class _PriceManagementViewState extends State<_PriceManagementView>
       final messenger = ScaffoldMessenger.of(context);
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
-        SnackBar(
+        appSnackBar(
+          archived
+              ? 'Archived $label. Find it under Archived.'
+              : 'Restored $label.',
+          kind: MessageKind.success,
           duration: Duration(seconds: offerUndo ? 8 : 4),
-          content: Text(
-            archived
-                ? 'Archived $label. Find it under Archived.'
-                : 'Restored $label.',
-          ),
           action: offerUndo
               ? SnackBarAction(
                   label: 'Undo',
@@ -4448,10 +4484,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not ${archived ? 'archive' : 'restore'} $label: $e',
-            ),
+          appSnackBar(
+            'Could not ${archived ? 'archive' : 'restore'} $label: $e',
+            kind: MessageKind.error,
           ),
         );
       }
@@ -4468,7 +4503,6 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     String? unit,
     String? category,
     bool isActive = true,
-    double? slaughteredPrice,
   }) async {
     final saved = await showDialog<bool>(
       context: context,
@@ -4479,14 +4513,16 @@ class _PriceManagementViewState extends State<_PriceManagementView>
         initialUnit: unit,
         initialCategory: category,
         initialActive: isActive,
-        initialSlaughteredPrice: slaughteredPrice,
       ),
     );
     if (saved == true) {
       DashboardDataService.instance.refresh(force: true);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin reference price saved.')),
+          appSnackBar(
+            'Admin reference price saved.',
+            kind: MessageKind.success,
+          ),
         );
       }
     }
@@ -4509,7 +4545,7 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not read that file.')),
+          appSnackBar('Could not read that file.', kind: MessageKind.error),
         );
       }
       return;
@@ -4523,10 +4559,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Could not read that file — make sure it's a valid .csv or .xlsx file.",
-            ),
+          appSnackBar(
+            "Could not read that file — make sure it's a valid .csv or .xlsx file.",
+            kind: MessageKind.error,
           ),
         );
       }
@@ -4536,19 +4571,18 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     final parsed = _buildImportRows(rawRows);
     if (parsed.headerError != null) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(parsed.headerError!)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(parsed.headerError!, kind: MessageKind.error),
+        );
       }
       return;
     }
     if (parsed.rows.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No rows found in this file — it may only contain a header row.',
-            ),
+          appSnackBar(
+            'No rows found in this file — it may only contain a header row.',
+            kind: MessageKind.warning,
           ),
         );
       }
@@ -4572,9 +4606,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     if (!context.mounted) return;
     if (!await ConnectivityService.instance.checkNow()) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+        );
       }
       return;
     }
@@ -4637,8 +4671,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Imported ${validRows.length} commodity price(s).'),
+        appSnackBar(
+          'Imported ${validRows.length} commodity price(s).',
+          kind: MessageKind.success,
         ),
       );
     }
@@ -4671,9 +4706,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     if (confirm != true) return;
     if (!await ConnectivityService.instance.checkNow()) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+        );
       }
       return;
     }
@@ -4692,8 +4727,8 @@ class _PriceManagementViewState extends State<_PriceManagementView>
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
     // The top row is above the scrolling page, not in it: Add Commodity
-    // and the actions for the ticked rows stay in view, over the table,
-    // however far it is scrolled.
+    // stays in view, over the table, however far it is scrolled. The
+    // actions for the ticked rows float at the bottom of the page instead.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -4716,8 +4751,6 @@ class _PriceManagementViewState extends State<_PriceManagementView>
               : Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    _selectionBar(context, c),
-                    const SizedBox(width: 12),
                     // The archive is a page of its own, opened from here: the
                     // commodities in use and the archived ones are never listed
                     // together.
@@ -4761,14 +4794,27 @@ class _PriceManagementViewState extends State<_PriceManagementView>
                 ),
         ),
         Expanded(
-          child: _showHistory ? _historyPage(context, c) : _page(context, c),
+          child: _showHistory
+              ? _historyPage(context, c)
+              : Stack(
+                  children: [
+                    Positioned.fill(child: _page(context, c)),
+                    Positioned(
+                      left: 24,
+                      right: 24,
+                      bottom: 24,
+                      child: Center(child: _selectionBar(context, c)),
+                    ),
+                  ],
+                ),
         ),
       ],
     );
   }
 
-  // "N selected", Clear, and Archive / Restore for the ticked commodities.
-  // Nothing while none are ticked.
+  // "N selected", Clear, and Archive / Restore for the ticked commodities,
+  // on a small bar floating over the bottom of the table. Nothing while
+  // none are ticked.
   Widget _selectionBar(BuildContext context, AdminPalette c) {
     return ListenableBuilder(
       listenable: DashboardDataService.instance,
@@ -4784,48 +4830,64 @@ class _PriceManagementViewState extends State<_PriceManagementView>
         if (tickedActive.isEmpty && tickedArchived.isEmpty) {
           return const SizedBox.shrink();
         }
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AdminSelectionNote(
-              count: tickedActive.length + tickedArchived.length,
-              onClear: () => setState(_ticked.clear),
-            ),
-            // Each button acts on the ticked rows it applies to:
-            // Archive on the active, Restore on the archived.
-            if (tickedActive.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _archiving
-                    ? null
-                    : () => _setArchived(context, tickedActive, archived: true),
-                icon: const Icon(Icons.archive_outlined, size: 18),
-                label: Text(
-                  tickedArchived.isEmpty
-                      ? 'Archive selected'
-                      : 'Archive (${tickedActive.length})',
-                ),
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(AdminRadii.pill),
+            border: Border.all(color: c.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
-            if (tickedArchived.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _archiving
-                    ? null
-                    : () => _setArchived(
-                        context,
-                        tickedArchived,
-                        archived: false,
-                      ),
-                icon: const Icon(Icons.unarchive_outlined, size: 18),
-                label: Text(
-                  tickedActive.isEmpty
-                      ? 'Restore selected'
-                      : 'Restore (${tickedArchived.length})',
-                ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AdminSelectionNote(
+                count: tickedActive.length + tickedArchived.length,
+                onClear: () => setState(_ticked.clear),
               ),
+              // Each button acts on the ticked rows it applies to:
+              // Archive on the active, Restore on the archived.
+              if (tickedActive.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _archiving
+                      ? null
+                      : () =>
+                            _setArchived(context, tickedActive, archived: true),
+                  icon: const Icon(Icons.archive_outlined, size: 18),
+                  label: Text(
+                    tickedArchived.isEmpty
+                        ? 'Archive selected'
+                        : 'Archive (${tickedActive.length})',
+                  ),
+                ),
+              ],
+              if (tickedArchived.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _archiving
+                      ? null
+                      : () => _setArchived(
+                          context,
+                          tickedArchived,
+                          archived: false,
+                        ),
+                  icon: const Icon(Icons.unarchive_outlined, size: 18),
+                  label: Text(
+                    tickedActive.isEmpty
+                        ? 'Restore selected'
+                        : 'Restore (${tickedArchived.length})',
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         );
       },
     );
@@ -4857,8 +4919,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
         final entries = _searchedHistory(await _history ?? const []);
         if (entries.isEmpty) {
           messenger.showSnackBar(
-            const SnackBar(
-              content: Text('There is no price history to export.'),
+            appSnackBar(
+              'There is no price history to export.',
+              kind: MessageKind.info,
             ),
           );
           return;
@@ -4870,11 +4933,14 @@ class _PriceManagementViewState extends State<_PriceManagementView>
               ? 'All commodities'
               : 'Search: "${pageSearch.trim()}"',
         );
-        messenger.showSnackBar(SnackBar(content: Text('Saved $filename')));
+        messenger.showSnackBar(
+          appSnackBar('Saved $filename', kind: MessageKind.success),
+        );
       } catch (_) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Could not export the price history. Try again.'),
+          appSnackBar(
+            'Could not export the price history. Try again.',
+            kind: MessageKind.error,
           ),
         );
       } finally {
@@ -5057,7 +5123,9 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     // vertical scroll region for the table itself, so the browser's normal
     // scrollbar reaches every row.
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+      // While rows are ticked, extra room at the end so the floating
+      // selection bar never sits over the last row or the page numbers.
+      padding: EdgeInsets.fromLTRB(24, 0, 24, _ticked.isEmpty ? 40 : 104),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -5277,10 +5345,6 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     required TextStyle secondary,
   }) {
     final baseline = (data['baselinePrice'] as num?)?.toDouble() ?? 0;
-    // Livestock only, and only when the office gave one.
-    final slaughtered = isLivestockCategory(category)
-        ? (data['slaughteredBaselinePrice'] as num?)?.toDouble()
-        : null;
     // Current Market Average comes ONLY from active Farmer listings —
     // never the admin's reference price (see computeLiveAverage). Worked
     // out once per change in the listings: ticking a box or archiving
@@ -5329,26 +5393,10 @@ class _PriceManagementViewState extends State<_PriceManagementView>
           ),
         ),
         DataCell(
-          slaughtered == null
-              ? Text(
-                  _formatPriceWithUnit(baseline, unit),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Live ${_formatPriceWithUnit(baseline, unit)}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      'Slaughtered '
-                      '${_formatPriceWithUnit(slaughtered, kSlaughteredUnit)}',
-                      style: secondary,
-                    ),
-                  ],
-                ),
+          Text(
+            _formatPriceWithUnit(baseline, unit),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
         DataCell(Text(unit.isEmpty ? 'kg' : unit, style: secondary)),
         DataCell(
@@ -5378,7 +5426,6 @@ class _PriceManagementViewState extends State<_PriceManagementView>
                   unit: unit,
                   category: category,
                   isActive: isActive,
-                  slaughteredPrice: slaughtered,
                 ),
               ),
               // Archive and Restore are on the selection bar above the
@@ -5571,9 +5618,6 @@ class _BaselinePriceDialog extends StatefulWidget {
   final String? initialCategory;
   final bool initialActive;
 
-  /// Livestock only: the reference price per kg when sold slaughtered.
-  final double? initialSlaughteredPrice;
-
   const _BaselinePriceDialog({
     this.commodityId,
     this.initialName,
@@ -5581,7 +5625,6 @@ class _BaselinePriceDialog extends StatefulWidget {
     this.initialUnit,
     this.initialCategory,
     this.initialActive = true,
-    this.initialSlaughteredPrice,
   });
 
   @override
@@ -5597,16 +5640,6 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
         ? widget.initialPrice!.toStringAsFixed(2)
         : '',
   );
-  // Livestock is also sold slaughtered, per kg (Add Product's Selling
-  // Option); this is the reference for that price. Optional: left empty,
-  // the price suggestion for slaughtered listings uses marketplace data
-  // only.
-  late final TextEditingController _slaughteredController =
-      TextEditingController(
-        text: widget.initialSlaughteredPrice != null
-            ? widget.initialSlaughteredPrice!.toStringAsFixed(2)
-            : '',
-      );
   bool get _livestock => isLivestockCategory(_categoryController.text);
   // Adding: the unit is typed. Updating: it is chosen from the units the
   // app knows (kCommodityUnitOptions), so a misspelling cannot slip in.
@@ -5749,7 +5782,6 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
     _priceController.dispose();
     _unitController.dispose();
     _categoryController.dispose();
-    _slaughteredController.dispose();
     super.dispose();
   }
 
@@ -5780,18 +5812,6 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
     }
     if (_editing && _unitChoice == null) {
       setState(() => _error = 'Choose a unit.');
-      return;
-    }
-    final slaughteredText = _slaughteredController.text.trim();
-    final slaughteredPrice = _livestock && slaughteredText.isNotEmpty
-        ? double.tryParse(slaughteredText)
-        : null;
-    if (_livestock &&
-        slaughteredText.isNotEmpty &&
-        (slaughteredPrice == null || slaughteredPrice <= 0)) {
-      setState(
-        () => _error = 'Enter a valid slaughtered price, or leave it empty.',
-      );
       return;
     }
 
@@ -5830,7 +5850,9 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
         'category': category,
         'isActive': _isActive,
         'baselinePrice': price,
-        'slaughteredBaselinePrice': slaughteredPrice ?? FieldValue.delete(),
+        // Livestock is sold live only now; a slaughtered price saved
+        // before that is cleared.
+        'slaughteredBaselinePrice': FieldValue.delete(),
         'unit': savedUnit,
         'previousBaselinePrice': oldPrice,
         'effectiveDate': Timestamp.fromDate(_effectiveDate),
@@ -5918,7 +5940,6 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
                       'Existing: ${CommodityRegistry.instance.categories.join(', ')}',
                   helperMaxLines: 2,
                 ),
-                // Livestock shows the slaughtered price below.
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
@@ -5930,31 +5951,13 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
                 ),
                 decoration: InputDecoration(
                   labelText: _livestock
-                      ? 'Admin reference price, live (₱)'
+                      ? 'Admin reference price, live animal (₱)'
                       : 'Admin reference price (₱)',
                   hintText: 'e.g. 55.00',
                 ),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
-              if (_livestock) ...[
-                AdminField(
-                  controller: _slaughteredController,
-                  icon: Icons.set_meal_outlined,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Slaughtered reference price, per kg (₱)',
-                    hintText: 'e.g. 320.00',
-                    helperText:
-                        'Optional. For listings sold slaughtered; the price '
-                        'above is for live animals.',
-                    helperMaxLines: 2,
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
               if (_editing)
                 Builder(
                   builder: (plateContext) => AdminFieldPlate(
@@ -6147,43 +6150,35 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: palette.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      // White, a light grey border, a rounded rectangle — the same
-      // as the search fields and dropdowns; darker grey when typed
-      // in.
+      // The 16px inset keeps the text clear of the pill's rounded ends.
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      // White, a light grey border, a pill — the same as the search
+      // fields and dropdowns; darker grey when typed in. Fields several
+      // lines tall keep rounded corners (adminMultilineDecoration).
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderRadius: BorderRadius.circular(AdminRadii.pill),
         borderSide: BorderSide(color: palette.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderRadius: BorderRadius.circular(AdminRadii.pill),
         borderSide: BorderSide(color: palette.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.control),
+        borderRadius: BorderRadius.circular(AdminRadii.pill),
         borderSide: BorderSide(color: palette.textSecondary, width: 1.2),
       ),
     ),
-    // Tick boxes (a table's row selection): square with a slight
-    // rounding, dark green when ticked.
+    // Checkboxes use the same neutral fill and contrasting tick throughout
+    // the portal, in light and dark.
     checkboxTheme: CheckboxThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-      // A ticked box keeps an outline in the tick's colour, so the
-      // select-all box still shows on the dark green table header.
-      side: WidgetStateBorderSide.resolveWith(
-        (states) => BorderSide(
-          color: states.contains(WidgetState.selected)
-              ? adminOnActionColor(palette)
-              : palette.textMuted,
-          width: 1.4,
-        ),
-      ),
+      side: BorderSide(color: palette.textMuted, width: 1.4),
       fillColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? adminActionColor(palette)
+            ? adminControlColor(palette)
             : Colors.transparent,
       ),
-      checkColor: WidgetStatePropertyAll(adminOnActionColor(palette)),
+      checkColor: WidgetStatePropertyAll(adminOnControlColor(palette)),
     ),
     // Any other progress sign in the portal: the same dark green.
     progressIndicatorTheme: ProgressIndicatorThemeData(

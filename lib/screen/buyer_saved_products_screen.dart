@@ -9,6 +9,7 @@ import '../widgets/save_product_button.dart';
 import 'product_detail_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The listings this buyer liked on Explore or Product Details (the heart
 /// icon in its app bar) — the same cards as the Explore grid, read live.
@@ -86,8 +87,9 @@ class _BuyerSavedProductsScreenState extends State<BuyerSavedProductsScreen> {
     final Widget body;
     if (_loadFailed && products.isEmpty) {
       body = RetryMessage(
-        message:
-            'Could not load your liked products. Check your connection and try again.',
+        message: tl(
+          'Could not load your liked products. Check your connection and try again.',
+        ),
         onRetry: _loadMissing,
       );
     } else if (products.isNotEmpty) {
@@ -100,7 +102,7 @@ class _BuyerSavedProductsScreenState extends State<BuyerSavedProductsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: buyerSubScreenAppBar('Liked Products'),
+      appBar: buyerSubScreenAppBar(tl('Liked Products')),
       body: body,
     );
   }
@@ -150,10 +152,11 @@ class _BuyerSavedProductsScreenState extends State<BuyerSavedProductsScreen> {
     return Center(
       child: AgriEmptyState(
         icon: Icons.favorite_border_rounded,
+        art: kEmptyProduceArt,
         title: unavailable
-            ? 'Your liked products are no longer available'
-            : 'No liked products yet',
-        subtitle: 'Tap the heart on a product to keep it here for later.',
+            ? tl('Your liked products are no longer available')
+            : tl('No liked products yet'),
+        subtitle: tl('Tap the heart on a product to keep it here for later.'),
         padding: const EdgeInsets.all(32),
       ),
     );

@@ -11,7 +11,7 @@ abstract final class AuditAction {
   static const loginSuccess = 'LOGIN_SUCCESS';
   static const loginFailed = 'LOGIN_FAILED';
   static const logout = 'LOGOUT';
-  // The Admin Portal's single active session (see AdminSessionService).
+  // Session sign-ins are recorded separately for each browser.
   // The first two are written by the adminSession Cloud Function.
   static const newDeviceLogin = 'NEW_DEVICE_LOGIN';
   static const sessionReplaced = 'SESSION_REPLACED';

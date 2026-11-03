@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The AgriTrade+ password rules — the same for registration and for
 /// Change Password, so a password allowed in one is allowed in the other.
@@ -16,11 +17,11 @@ class PasswordRules {
 
   /// Each rule's label and whether [p] meets it, in the order shown.
   static List<(String, bool)> check(String p) => [
-    ('$minLength+ characters', p.length >= minLength),
-    ('Uppercase letter', hasUppercase(p)),
-    ('Lowercase letter', hasLowercase(p)),
-    ('Number', hasNumber(p)),
-    ('Symbol', hasSymbol(p)),
+    (tl('{0}+ characters', [minLength]), p.length >= minLength),
+    (tl('Uppercase letter'), hasUppercase(p)),
+    (tl('Lowercase letter'), hasLowercase(p)),
+    (tl('Number'), hasNumber(p)),
+    (tl('Symbol'), hasSymbol(p)),
   ];
 
   static bool meetsAll(String p) => check(p).every((rule) => rule.$2);

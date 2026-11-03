@@ -2,12 +2,14 @@ import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../data/laurel_barangays.dart';
 import '../services/location_permission_prompt.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Lets a farmer drop a pin at their real farm location — the map stays
 /// still and the pin stays centered while the farmer drags the map
@@ -44,7 +46,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
     try {
       final granted = await requestFarmerLocationPermission(
         context,
-        blockedFeature: 'Pinning your exact farm location',
+        blockedFeature: tl('Pinning your exact farm location'),
       );
       if (!granted) return;
 
@@ -52,8 +54,9 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
       if (!serviceEnabled) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Turn on location services to use this.'),
+          appSnackBar(
+            tl('Turn on location services to use this.'),
+            kind: MessageKind.warning,
           ),
         );
         return;
@@ -73,7 +76,10 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not get your current location.')),
+        appSnackBar(
+          tl('Could not get your current location.'),
+          kind: MessageKind.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -104,8 +110,9 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save your location. Please try again.'),
+        appSnackBar(
+          tl('Could not save your location. Please try again.'),
+          kind: MessageKind.error,
         ),
       );
     } finally {
@@ -116,7 +123,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AgriAppBar(title: 'Set Farm Location'),
+      appBar: AgriAppBar(title: tl('Set Farm Location')),
       body: Stack(
         alignment: Alignment.center,
         children: [
@@ -152,7 +159,9 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                 ],
               ),
               child: Text(
-                'Drag the map so the pin sits over your farm, or use your current location.',
+                tl(
+                  'Drag the map so the pin sits over your farm, or use your current location.',
+                ),
                 style: TextStyle(fontSize: 12.5, color: AppColors.text),
               ),
             ),
@@ -177,7 +186,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                             ),
                           )
                         : const Icon(Icons.my_location),
-                    label: const Text('Use My Current Location'),
+                    label: Text(tl('Use My Current Location')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.brand,
                       side: BorderSide(color: AppColors.brand),
@@ -208,8 +217,8 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Save Farm Location',
+                        : Text(
+                            tl('Save Farm Location'),
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                   ),

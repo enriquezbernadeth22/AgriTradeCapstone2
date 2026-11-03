@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/auth_service.dart';
 import '../services/product_share_service.dart';
 import '../services/notification_permission_prompt.dart';
 import '../services/push_notification_service.dart';
@@ -10,14 +11,20 @@ import '../widgets/unread_messages_dot.dart';
 import '../widgets/unseen_orders_dot.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
+import '../widgets/settings_sheet.dart';
 import 'add_product_screen.dart';
 import 'market_tab.dart';
 import 'chat_list_screen.dart';
 import 'farmer_orders_tab.dart';
 import 'farmer_profile_tab.dart';
+import 'help_support_screen.dart';
 import 'notifications_screen.dart';
+import 'role_selection_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../widgets/password_change_prompt.dart';
+import '../widgets/profile_photo_prompt.dart';
+import '../l10n/app_language.dart';
 
 // A one-shot "command channel", not persisted UI state: setting this while
 // a FarmerHomeScreen is already mounted (e.g. from a notification tap, see
@@ -60,6 +67,9 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   // notification rationale waits for the first-time walkthrough so the two
   // never appear on top of each other.
   Future<void> _onEnteredApp() async {
+    await PasswordChangePrompt.onEnteredApp(context);
+    if (!mounted) return;
+    await ProfilePhotoPrompt.onEnteredApp(context);
     await _showWalkthrough();
     if (!mounted) return;
     await NotificationPermissionPrompt.instance.onEnteredApp(context);
@@ -87,15 +97,17 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       steps: [
         CoachMarkStep(
           targetKey: _addProductKey,
-          title: 'List your first product',
-          message:
-              'Tap here anytime to post crops or livestock for buyers to see.',
+          title: tl('List your first product'),
+          message: tl(
+            'Tap here anytime to post crops or livestock for buyers to see.',
+          ),
         ),
         CoachMarkStep(
           targetKey: _ordersTabKey,
-          title: 'Track incoming orders',
-          message:
-              'Orders from buyers show up here — you can accept, message, and update their status.',
+          title: tl('Track incoming orders'),
+          message: tl(
+            'Orders from buyers show up here — you can accept, message, and update their status.',
+          ),
         ),
       ],
     );
@@ -112,6 +124,36 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+  }
+
+  // The gear in every tab's header.
+  void _openSettings() => showSettingsSheet(
+    context,
+    onHelp: () => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HelpSupportScreen(farmer: true)),
+    ),
+    onLogout: () => _handleLogout(context),
+  );
+
+  Future<void> _handleLogout(BuildContext context) async {
+    final confirm = await showAgriConfirm(
+      context: context,
+      icon: Icons.logout,
+      tone: AgriTone.destructive,
+      title: tr(context).logOut,
+      message: tr(context).logOutConfirm,
+      confirmLabel: tr(context).logOut,
+    );
+    if (!confirm) return;
+
+    await AuthService().logOut();
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
     );
   }
 
@@ -139,6 +181,8 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.page,
+        // The page runs on behind the floating bar, with no band around it.
+        extendBody: true,
         // ---- Bottom navigation bar (Market · Messages · + · Orders · Profile) ----
         // The small floating bar, always on screen.
         bottomNavigationBar: DockedNavBar(
@@ -148,6 +192,10 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               Icons.storefront_outlined,
               Icons.storefront,
               tr(context).navMarket,
+              // Icons.storefront is still an outline, so the selected tab
+              // draws the same shop filled in, like the other tabs.
+              activeIconBuilder: (color, size) =>
+                  FilledStorefrontIcon(color: color, size: size),
             ),
             _navItem(
               1,
@@ -184,10 +232,11 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           // Swipe left or right to move between the tabs, as well as
           // tapping them in the bar below.
           // The header's logo opens Market from any tab, and every tab's
-          // header has the notification bell.
+          // header has the notification bell and the Settings gear.
           child: HomeLogoAction(
             onTap: () => setState(() => _selectedIndex = 0),
             onNotifications: _openNotifications,
+            onSettings: _openSettings,
             child: SwipeableTabs(
               index: _selectedIndex,
               onIndexChanged: (i) => setState(() => _selectedIndex = i),
@@ -215,11 +264,13 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     Key? key,
     bool showUnreadDot = false,
     bool showUnseenOrdersDot = false,
+    Widget Function(Color color, double size)? activeIconBuilder,
   }) {
     return NavBarItem(
       key: key,
       icon: icon,
       activeIcon: activeIcon,
+      activeIconBuilder: activeIconBuilder,
       label: label,
       selected: _selectedIndex == index,
       onTap: () => setState(() => _selectedIndex = index),
@@ -247,10 +298,13 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               decoration: BoxDecoration(
                 color: AppColors.brandFill,
                 shape: BoxShape.circle,
+                // A soft lift; in dark mode a plain shadow, not a glow.
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.brand.withValues(alpha: 0.28),
-                    blurRadius: 10,
+                    color: AppColors.isDark
+                        ? Colors.black.withValues(alpha: 0.35)
+                        : AppColors.brand.withValues(alpha: 0.28),
+                    blurRadius: AppColors.isDark ? 6 : 10,
                     offset: const Offset(0, 3),
                   ),
                 ],

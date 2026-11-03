@@ -2,6 +2,7 @@ import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/conversation_prefs_service.dart';
@@ -11,9 +12,11 @@ import '../widgets/profile_avatar.dart';
 import '../widgets/report_user_dialog.dart';
 import 'add_product_screen.dart';
 import 'conversation_tools_screens.dart';
+import 'buyer_public_profile_screen.dart';
 import 'farmer_storefront_screen.dart';
 import 'product_detail_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Conversation Info, a full-screen page opened from the (i) in a chat's
 /// header — same for Farmer and Buyer. Shows who the other person is
@@ -105,11 +108,12 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       context: context,
       icon: Icons.block,
       tone: AgriTone.destructive,
-      title: 'Block $name?',
-      message:
-          'Your conversations with $name will be hidden from Messages. You '
-          'can unblock them anytime from Blocked Users.',
-      confirmLabel: 'Block',
+      title: tl('Block {0}?', [name]),
+      message: tl(
+        'Your conversations with {0} will be hidden from Messages. You can unblock them anytime from Blocked Users.',
+        [name],
+      ),
+      confirmLabel: tl('Block'),
     );
     if (!confirmed || !mounted) return;
     _prefs.block(widget.otherUserId);
@@ -122,7 +126,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      appBar: const AgriAppBar(title: 'Conversation Info'),
+      appBar: AgriAppBar(title: tl('Conversation Info')),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _profile,
         builder: (context, profileSnap) {
@@ -151,23 +155,24 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               _header(profile, profileSnap.hasData, name, role, area),
               const SizedBox(height: 18),
 
-              _sectionTitle('Conversation tools'),
+              _sectionTitle(tl('Conversation tools')),
               _section(
                 children: [
                   _actionRow(
                     icon: Icons.badge_outlined,
-                    label: 'Nickname',
-                    subtitle: nickname ?? 'Only you see it, only in this chat',
+                    label: tl('Nickname'),
+                    subtitle:
+                        nickname ?? tl('Only you see it, only in this chat'),
                     onTap: () => _editNickname(nickname),
                   ),
                   _actionRow(
                     icon: Icons.search_rounded,
-                    label: 'Search conversation',
+                    label: tl('Search conversation'),
                     onTap: () => _openSearch(name),
                   ),
                   _actionRow(
                     icon: Icons.photo_library_outlined,
-                    label: 'View all photos',
+                    label: tl('View all photos'),
                     onTap: () => _openPhotos(name),
                   ),
                 ],
@@ -175,14 +180,14 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
 
               if (hasProduct) ...[
                 const SizedBox(height: 14),
-                _sectionTitle('Product context'),
+                _sectionTitle(tl('Product context')),
                 _section(
                   children: [
                     _actionRow(
                       icon: Icons.shopping_basket_outlined,
                       label: (widget.productName ?? '').isNotEmpty
                           ? widget.productName!
-                          : 'View product',
+                          : tl('View product'),
                       trailing: Icon(
                         Icons.chevron_right_rounded,
                         color: AppColors.textMuted,
@@ -194,7 +199,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               ],
 
               const SizedBox(height: 14),
-              _sectionTitle('Conversation'),
+              _sectionTitle(tl('Conversation')),
               StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: _conversation,
                 builder: (context, convSnap) =>
@@ -202,12 +207,12 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               ),
 
               const SizedBox(height: 14),
-              _sectionTitle('Safety'),
+              _sectionTitle(tl('Safety')),
               _section(
                 children: [
                   _actionRow(
                     icon: Icons.report_problem_outlined,
-                    label: 'Report $name',
+                    label: tl('Report {0}', [name]),
                     destructive: true,
                     // The report itself records the real name, for the
                     // admin; the nickname is only the label here.
@@ -221,7 +226,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                   ),
                   _actionRow(
                     icon: Icons.block,
-                    label: 'Block $name',
+                    label: tl('Block {0}', [name]),
                     destructive: true,
                     onTap: () => _block(name),
                   ),
@@ -229,26 +234,29 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               ),
 
               const SizedBox(height: 14),
-              _sectionTitle('Location privacy'),
+              _sectionTitle(tl('Location privacy')),
               _section(
                 children: [
                   _infoRow(
                     Icons.lock_outline,
-                    'Only a general area is public',
-                    'Profiles show only a general location (barangay, '
-                        'municipality/city, province).',
+                    tl('Only a general area is public'),
+                    tl(
+                      'Profiles show only a general location (barangay, municipality/city, province).',
+                    ),
                   ),
                   _infoRow(
                     Icons.location_on_outlined,
-                    'Exact location only when you choose',
-                    'An exact location is shared only when someone '
-                        'intentionally uses Share Location in this chat.',
+                    tl('Exact location only when you choose'),
+                    tl(
+                      'An exact location is shared only when someone intentionally uses Share Location in this chat.',
+                    ),
                   ),
                   _infoRow(
                     Icons.local_shipping_outlined,
-                    'For delivery or pick-up',
-                    'A shared exact location may be used to coordinate '
-                        'delivery or pick-up.',
+                    tl('For delivery or pick-up'),
+                    tl(
+                      'A shared exact location may be used to coordinate delivery or pick-up.',
+                    ),
                   ),
                 ],
               ),
@@ -267,21 +275,57 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     String area,
   ) {
     final livePhotoUrl = profile?['photoUrl']?.toString();
+    // The photo and name open the person's own page: a buyer's profile,
+    // or a farmer's storefront.
+    final openProfile = switch (role) {
+      'buyer' => () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BuyerPublicProfileScreen(
+            buyerId: widget.otherUserId,
+            fallbackName: widget.otherUserName,
+          ),
+        ),
+      ),
+      'farmer' => () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FarmerStorefrontScreen(farmerId: widget.otherUserId),
+        ),
+      ),
+      _ => null,
+    };
     return Column(
       children: [
-        ProfileAvatar(
-          photoUrl: loaded ? livePhotoUrl : widget.otherUserPhotoUrl,
-          name: name,
-          radius: 42,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          name,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.montserrat(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
+        Semantics(
+          button: openProfile != null,
+          hint: role == 'buyer' ? tl('View profile') : null,
+          child: InkWell(
+            key: const Key('conversationInfoPerson'),
+            onTap: openProfile,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Column(
+                children: [
+                  ProfileAvatar(
+                    photoUrl: loaded ? livePhotoUrl : widget.otherUserPhotoUrl,
+                    name: name,
+                    radius: 42,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -294,7 +338,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                 : role == 'buyer'
                 ? 'Buyer'
                 : null;
-            final parts = [?roleLabel, if (online) 'Active now'];
+            final parts = [?roleLabel, if (online) tl('Active now')];
             if (parts.isEmpty) return const SizedBox.shrink();
             return Text(
               parts.join(' · '),
@@ -328,18 +372,19 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
             ],
           ),
         ],
-        if (role == 'farmer') ...[
+        if (openProfile != null) ...[
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    FarmerStorefrontScreen(farmerId: widget.otherUserId),
-              ),
+            onPressed: openProfile,
+            icon: Icon(
+              role == 'farmer'
+                  ? Icons.storefront_outlined
+                  : Icons.person_outline_rounded,
+              size: 18,
             ),
-            icon: const Icon(Icons.storefront_outlined, size: 18),
-            label: const Text('View Storefront'),
+            label: Text(
+              role == 'farmer' ? tl('View Storefront') : tl('View Profile'),
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.brand,
               side: BorderSide(color: AppColors.brand),
@@ -363,19 +408,21 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       children: [
         _actionRow(
           icon: pinned ? Icons.push_pin : Icons.push_pin_outlined,
-          label: pinned ? 'Unpin conversation' : 'Pin conversation',
+          label: pinned ? tl('Unpin conversation') : tl('Pin conversation'),
           onTap: () => _prefs.togglePinned(id),
         ),
         _actionRow(
           icon: muted
               ? Icons.notifications_active_outlined
               : Icons.notifications_off_outlined,
-          label: muted ? 'Unmute notifications' : 'Mute notifications',
+          label: muted ? tl('Unmute notifications') : tl('Mute notifications'),
           onTap: () => _prefs.toggleMuted(id),
         ),
         _actionRow(
           icon: archived ? Icons.unarchive_outlined : Icons.archive_outlined,
-          label: archived ? 'Unarchive conversation' : 'Archive conversation',
+          label: archived
+              ? tl('Unarchive conversation')
+              : tl('Archive conversation'),
           onTap: () => archived
               ? _prefs.unarchive(id)
               : _prefs.archive(id, lastMessageMs: _lastMessageMs(conversation)),
@@ -438,7 +485,10 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       if (!mounted) return;
       if (data == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('This listing is no longer available.')),
+          appSnackBar(
+            tl('This listing is no longer available.'),
+            kind: MessageKind.warning,
+          ),
         );
         return;
       }
@@ -453,10 +503,11 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
+        appSnackBar(
+          tl(
             'Could not open the listing. Check your connection and try again.',
           ),
+          kind: MessageKind.error,
         ),
       );
     }
@@ -595,21 +646,24 @@ class _NicknameDialogState extends State<_NicknameDialog> {
   Widget build(BuildContext context) {
     return AgriDialog(
       icon: Icons.badge_outlined,
-      title: Text(widget.current == null ? 'Set nickname' : 'Edit nickname'),
+      title: Text(
+        widget.current == null ? tl('Set nickname') : tl('Edit nickname'),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _controller,
+            style: const TextStyle(fontSize: 14),
             autofocus: true,
             maxLength: ConversationPrefs.nicknameMaxLength,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(hintText: 'Nickname'),
+            decoration: InputDecoration(hintText: tl('Nickname')),
             onSubmitted: (value) => Navigator.pop(context, value),
           ),
           const SizedBox(height: 6),
           Text(
-            'Only you see this nickname, and only in this conversation.',
+            tl('Only you see this nickname, and only in this conversation.'),
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
@@ -621,17 +675,17 @@ class _NicknameDialogState extends State<_NicknameDialog> {
       actions: [
         if (widget.current != null)
           AgriDialogButton(
-            label: 'Remove',
+            label: tl('Remove'),
             kind: AgriButtonKind.destructive,
             onPressed: () => Navigator.pop(context, ''),
           )
         else
           AgriDialogButton(
-            label: 'Cancel',
+            label: tl('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
         AgriDialogButton(
-          label: 'Save',
+          label: tl('Save'),
           kind: AgriButtonKind.primary,
           onPressed: () => Navigator.pop(context, _controller.text),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -8,6 +9,7 @@ import '../services/location_permission_prompt.dart';
 import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Farmer-only barangay picker (buyers use BuyerLocationField instead, since
 /// buyer registration isn't restricted to Laurel): a field that opens a
@@ -35,7 +37,12 @@ class BarangayLocationField extends StatefulWidget {
     this.onLocationDetected,
     this.label = 'Barangay (Laurel)',
     this.errorText,
+    this.askLocation,
   });
+
+  /// Stands in for requestFarmerLocationPermission in tests.
+  @visibleForTesting
+  final Future<bool> Function(BuildContext context)? askLocation;
 
   @override
   State<BarangayLocationField> createState() => _BarangayLocationFieldState();
@@ -46,17 +53,19 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
   bool _dropdownPromptShown = false;
 
   // Opening the list is the clearest signal they've reached the
-  // location-relevant part of the form — matches the existing farmer
-  // barangay picker's rationale-priming pattern.
-  void _maybeRequestOnOpen() {
-    if (_dropdownPromptShown) return;
-    _dropdownPromptShown = true;
-    requestFarmerLocationPermission(context);
-  }
-
+  // location-relevant part of the form, so the first tap asks for location
+  // first, on its own: the list opens only once it is allowed. Not Now just
+  // closes the question, and the next tap opens the list, since a barangay
+  // can always be picked by hand.
   Future<void> _openPicker() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    _maybeRequestOnOpen();
+    if (!_dropdownPromptShown) {
+      _dropdownPromptShown = true;
+      final ask = widget.askLocation ?? requestFarmerLocationPermission;
+      final allowed = await ask(context);
+      if (!allowed) return;
+    }
+    if (!mounted) return;
     final picked = await showBarangayPicker(context, selected: widget.value);
     if (picked != null && mounted) widget.onChanged(picked);
   }
@@ -67,22 +76,24 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
   // only ever suggested there, never chosen for them.
   Future<void> _useMyLocation() async {
     setState(() => _locating = true);
+    // The reason for location is shown here, so "Select Manually" after it
+    // opens the list straight away.
+    _dropdownPromptShown = true;
     try {
       final granted = await requestFarmerLocationPermission(
         context,
-        blockedFeature: 'Automatically detecting your barangay',
+        blockedFeature: tl('Automatically detecting your barangay'),
       );
       if (!mounted) return;
       if (!granted) {
         // The permission helper has just explained this (and offered
         // Settings), so no second dialog — only the way to carry on.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Location permission is needed to detect your barangay.',
-            ),
+          appSnackBar(
+            tl('Location permission is needed to detect your barangay.'),
+            kind: MessageKind.warning,
             action: SnackBarAction(
-              label: 'Select Manually',
+              label: tl('Select Manually'),
               onPressed: _openPicker,
             ),
           ),
@@ -93,10 +104,10 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
       if (!await Geolocator.isLocationServiceEnabled()) {
         if (!mounted) return;
         await _locationProblem(
-          title: 'Location Is Turned Off',
-          message:
-              'Turn on Location (GPS) on your phone and try again, or '
-              'select your barangay from the list instead.',
+          title: tl('Location Is Turned Off'),
+          message: tl(
+            'Turn on Location (GPS) on your phone and try again, or select your barangay from the list instead.',
+          ),
         );
         return;
       }
@@ -112,11 +123,10 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
       } catch (_) {
         if (!mounted) return;
         await _locationProblem(
-          title: 'Could Not Find Your Location',
-          message:
-              'Your phone could not get a GPS position. Try again '
-              'outdoors or near a window, or select your barangay from '
-              'the list instead.',
+          title: tl('Could Not Find Your Location'),
+          message: tl(
+            'Your phone could not get a GPS position. Try again outdoors or near a window, or select your barangay from the list instead.',
+          ),
         );
         return;
       }
@@ -151,14 +161,14 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
         icon: Icons.location_off_outlined,
         tone: AgriTone.warning,
         title: Text(title),
-        content: Text(message),
+        content: Text(tl(message)),
         actions: [
           AgriDialogButton(
-            label: 'Select Manually',
+            label: tl('Select Manually'),
             onPressed: () => Navigator.pop(dialogContext, 'manual'),
           ),
           AgriDialogButton(
-            label: 'Retry',
+            label: tl('Retry'),
             kind: AgriButtonKind.primary,
             onPressed: () => Navigator.pop(dialogContext, 'retry'),
           ),
@@ -181,7 +191,15 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(widget.label, style: AppTheme.label()),
+            // Each gives way on a narrow phone, where the Tagalog is longer.
+            Flexible(
+              child: Text(
+                widget.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.label(),
+              ),
+            ),
             TextButton.icon(
               onPressed: _locating ? null : _useMyLocation,
               icon: _locating
@@ -194,8 +212,8 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
                       ),
                     )
                   : const Icon(Icons.my_location, size: 16),
-              label: const Text(
-                'Use my location',
+              label: Text(
+                tl('Use my location'),
                 style: TextStyle(fontSize: 12.5),
               ),
               style: TextButton.styleFrom(
@@ -207,59 +225,68 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        // Looks like the form's other fields, but opens the searchable
-        // list instead of taking typed text.
+        const SizedBox(height: AppTheme.formLabelGap),
+        // Looks like the form's other dropdowns (AppTheme
+        // .formDropdownDecoration), but opens the searchable list instead.
         Semantics(
           button: true,
           label: widget.value == null
-              ? 'Select your barangay'
+              ? tl('Select your barangay')
               : 'Barangay, ${widget.value}',
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(AppTheme.dropdownRadius),
+              hoverColor: AppColors.adapt(Colors.grey.shade200),
+              splashColor: AppColors.adapt(Colors.grey.shade300),
               onTap: _openPicker,
               child: Ink(
-                decoration: AppTheme.glowFieldWrapper(),
-                child: Row(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(left: 18, right: 12),
-                      child: Icon(
-                        Icons.location_on_outlined,
-                        color: AppColors.mid,
-                        size: 20,
-                      ),
-                    ),
-                    Container(height: 22, width: 1, color: AppColors.hairline),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 18,
-                          horizontal: 12,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppTheme.dropdownRadius),
+                  border: Border.fromBorderSide(
+                    AppTheme.registrationDropdownBorder().borderSide,
+                  ),
+                ),
+                child: SizedBox(
+                  height: AppTheme.formFieldHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 18, right: 14),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          color: AppTheme.formIconColor,
+                          size: AppTheme.formIconSize,
                         ),
-                        child: Text(
-                          widget.value ?? 'Select your barangay',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.montserrat(
-                            fontSize: 15,
-                            color: widget.value == null
-                                ? AppColors.textMuted
-                                : AppColors.text,
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 1,
+                          height: 22,
+                          color: AppColors.hairline,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            widget.value ?? tl('Select your barangay'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: widget.value == null
+                                ? AppTheme.formHint()
+                                : GoogleFonts.montserrat(
+                                    fontSize: AppTheme.formTextSize,
+                                    color: AppColors.text,
+                                  ),
                           ),
                         ),
-                      ),
+                        Icon(
+                          Icons.expand_more_rounded,
+                          color: AppTheme.formIconColor,
+                          size: AppTheme.formIconSize,
+                        ),
+                      ],
                     ),
-                    Padding(
-                      padding: EdgeInsets.only(right: 14),
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -288,7 +315,7 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
             ],
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: AppTheme.formFieldGap),
       ],
     );
   }
@@ -361,7 +388,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Select Barangay',
+                          tl('Select Barangay'),
                           style: GoogleFonts.montserrat(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
@@ -381,7 +408,7 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    tooltip: 'Close',
+                    tooltip: tl('Close'),
                     icon: const Icon(Icons.close_rounded),
                     color: AppColors.textSecondary,
                   ),
@@ -395,22 +422,22 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                 textInputAction: TextInputAction.search,
                 textCapitalization: TextCapitalization.words,
                 onChanged: (value) => setState(() => _query = value),
-                style: GoogleFonts.montserrat(fontSize: 14.5),
+                style: GoogleFonts.montserrat(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Search barangay',
+                  hintText: tl('Search barangay'),
                   hintStyle: GoogleFonts.montserrat(
-                    fontSize: 14.5,
+                    fontSize: 14,
                     color: AppColors.textMuted,
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
                     color: AppColors.mid,
-                    size: 21,
+                    size: 20,
                   ),
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
-                          tooltip: 'Clear search',
+                          tooltip: tl('Clear search'),
                           icon: const Icon(Icons.cancel_rounded, size: 18),
                           color: AppColors.textMuted,
                           onPressed: () {
@@ -421,19 +448,15 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                   isDense: true,
                   filled: true,
                   fillColor: AppColors.adapt(const Color(0xFFF4F6F4)),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  border: const PillInputBorder(borderSide: BorderSide.none),
+                  enabledBorder: const PillInputBorder(
                     borderSide: BorderSide.none,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide(color: AppColors.mid, width: 1.2),
-                  ),
+                  focusedBorder: AppTheme.fieldFocusBorder,
                 ),
               ),
             ),
@@ -443,7 +466,9 @@ class _BarangayPickerSheetState extends State<_BarangayPickerSheet> {
                   ? Padding(
                       padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
                       child: Text(
-                        'No barangay in Laurel matches "${_query.trim()}".',
+                        tl('No barangay in Laurel matches "{0}".', [
+                          _query.trim(),
+                        ]),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.montserrat(
                           fontSize: 13.5,

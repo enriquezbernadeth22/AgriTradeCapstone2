@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
@@ -12,14 +13,14 @@ import 'login_screen.dart';
 import '../services/rsba_number.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agritrade_text.dart';
-import '../widgets/app_back_button.dart';
+import '../widgets/agri_app_bar.dart';
 import 'email_verification_screen.dart';
 import '../services/connectivity_service.dart';
 import '../widgets/barangay_location_field.dart';
 import '../widgets/glow_field.dart';
 import '../widgets/password_requirements.dart';
 import '../widgets/public_location_preview.dart';
-import '../widgets/role_toggle.dart';
+import '../widgets/registration_role_details.dart';
 import 'page_transitions.dart';
 import 'privacy_policy_screen.dart';
 import 'supported_products_screen.dart';
@@ -27,12 +28,11 @@ import 'terms_and_conditions_screen.dart';
 import '../l10n/tr.dart';
 import '../services/person_name.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 class RegisterScreen extends StatefulWidget {
-  // Which role the toggle at the top starts on. Defaults to buyer; the
-  // "remembered last login" flow passes whichever role that device last
-  // used, but the toggle is always live — the user can switch it right
-  // there on the form and the fields below adjust accordingly.
+  // The role this account is for, chosen on ChooseRoleScreen. The form has
+  // no way to change it: going back there does.
   final String initialRole;
   // Pre-fills the Email field — used by the login form's "Email not
   // registered? Create One" prompt, so the email they already typed there
@@ -92,7 +92,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _agreedToTerms = false;
   bool _supportedProductsAcknowledged = false;
 
-  late String _selectedRole = widget.initialRole;
+  String get _selectedRole => widget.initialRole;
+  String? _buyerDescription;
+  String? _farmerDescription;
 
   // The form scrolls under the floating Back button (see build).
   final _scrollController = ScrollController();
@@ -102,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   // than the screen, and settles into its own place at the end of the form
   // (an empty gap of the same height, above the hint and the log-in link)
   // once that place scrolls into view — see _registerButtonBottom.
-  static const double _registerButtonHeight = 52;
+  static const double _registerButtonHeight = AppTheme.formButtonHeight;
   static const double _registerFloatGap = 6;
   // Everything under the button's place: the hint and the log-in link
   // (_formEnd gives them this fixed height), then the form's own bottom
@@ -123,6 +125,10 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _emailPattern = RegExp(r'^[\w\.\-]+@gmail\.com$', caseSensitive: false);
 
   bool get _isFarmer => _selectedRole == 'farmer';
+
+  // The answer to "What best describes you", for the role chosen.
+  String? get _accountType =>
+      _isFarmer ? _farmerDescription : _buyerDescription;
 
   @override
   void initState() {
@@ -165,15 +171,6 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   void _onChange() => setState(() {});
 
-  void _selectRole(String role) {
-    if (role == _selectedRole) return;
-    setState(() {
-      _selectedRole = role;
-      // Nothing typed is cleared: the farmer-only fields are just hidden
-      // for a buyer, and are never sent with a buyer registration.
-    });
-  }
-
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -198,13 +195,13 @@ class _RegisterScreenState extends State<RegisterScreen>
   // Shared rules for both name fields (person_name.dart).
   String? get _firstNameError => nameFieldError(
     _firstNameController.text,
-    label: 'First name',
+    label: tl('First name'),
     submitted: _triedSubmit,
   );
 
   String? get _lastNameError => nameFieldError(
     _lastNameController.text,
-    label: 'Last name',
+    label: tl('Last name'),
     submitted: _triedSubmit,
   );
 
@@ -274,6 +271,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!_mobileNumberValid(mobile)) return false;
     if (!_passwordMeetsRules(pass)) return false;
     if (confirm.isEmpty || confirm != pass) return false;
+    if (_accountType == null) return false;
 
     if (_isFarmer) {
       if (_selectedBarangay == null) return false;
@@ -290,13 +288,13 @@ class _RegisterScreenState extends State<RegisterScreen>
   Future<void> _register() async {
     setState(() => _triedSubmit = true);
     if (!_isFormValid) {
-      _showMessage('Please fix the errors below before continuing.');
+      _showMessage(tl('Please fix the errors below before continuing.'));
       return;
     }
 
     // ── Internet check ──
     if (!await hasInternet()) {
-      _showMessage('No internet connection. Please check your connection.');
+      _showMessage(tl('No internet connection. Please check your connection.'));
       return;
     }
 
@@ -367,6 +365,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       mobileNumber: mobileDigits.isEmpty ? null : phMobileE164(mobileDigits),
       supportedProductsAcknowledged:
           _isFarmer && _supportedProductsAcknowledged,
+      accountType: _accountType,
       barangay: _isFarmer ? _selectedBarangay : null,
       // For the admin to check — a well-formed number approves nothing.
       rsbaNumber: _isFarmer ? normalizeRsba(_rsbaController.text) : null,
@@ -392,22 +391,10 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
+  // Every message here is a problem to fix before continuing.
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showAppMessage(context, tl(message), kind: MessageKind.error);
   }
-
-  // ==========================================================
-  // Role toggle — the default is Buyer; switching to Farmer reveals the
-  // verification fields below without leaving this page.
-  // ==========================================================
-  Widget _roleToggle() => RoleToggle(
-    selected: _selectedRole,
-    onChanged: _selectRole,
-    buyerLabel: tr(context).roleBuyer,
-    farmerLabel: tr(context).roleFarmer,
-  );
 
   // ==========================================================
   // A reusable text field.
@@ -429,7 +416,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTheme.label()),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.formLabelGap),
         GlowField(
           controller: controller,
           obscureText: obscure,
@@ -473,7 +460,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: AppTheme.formFieldGap),
       ],
     );
   }
@@ -507,7 +494,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Only farmers from Laurel, Batangas may register.',
+              tl('Only farmers from Laurel, Batangas may register.'),
               style: AppTheme.body(
                 color: AppColors.adapt(const Color(0xFF6D4C00)),
                 size: 12,
@@ -540,7 +527,6 @@ class _RegisterScreenState extends State<RegisterScreen>
             value: _supportedProductsAcknowledged,
             onChanged: (v) =>
                 setState(() => _supportedProductsAcknowledged = v ?? false),
-            activeColor: AppColors.brandFill,
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -556,13 +542,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                         size: 12.5,
                       ).copyWith(height: 1.4),
                       children: [
-                        const TextSpan(
-                          text:
-                              'I understand that I can only post products '
-                              'included in the ',
+                        TextSpan(
+                          text: tl(
+                            'I understand that I can only post products included in the ',
+                          ),
                         ),
                         TextSpan(
-                          text: 'Supported Products',
+                          text: tl('Supported Products'),
                           style:
                               AppTheme.body(
                                 color: AppColors.brand,
@@ -579,15 +565,17 @@ class _RegisterScreenState extends State<RegisterScreen>
                               ),
                             ),
                         ),
-                        const TextSpan(text: ' list.'),
+                        TextSpan(text: tl(' list.')),
                       ],
                     ),
                   ),
                   if (showError)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 4),
                       child: Text(
-                        'Please confirm the supported products scope to continue.',
+                        tl(
+                          'Please confirm the supported products scope to continue.',
+                        ),
                         style: TextStyle(color: Colors.red, fontSize: 11.5),
                       ),
                     ),
@@ -632,7 +620,6 @@ class _RegisterScreenState extends State<RegisterScreen>
             Checkbox(
               value: _agreedToTerms,
               onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
-              activeColor: AppColors.brandFill,
               visualDensity: VisualDensity.compact,
             ),
             Expanded(
@@ -648,9 +635,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           size: 12.5,
                         ).copyWith(height: 1.4),
                         children: [
-                          const TextSpan(text: 'I agree to the '),
+                          TextSpan(text: tl('I agree to the ')),
                           TextSpan(
-                            text: 'Terms & Conditions',
+                            text: tl('Terms & Conditions'),
                             style:
                                 AppTheme.body(
                                   color: AppColors.brand,
@@ -668,9 +655,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 ),
                               ),
                           ),
-                          const TextSpan(text: ' and '),
+                          TextSpan(text: tl(' and ')),
                           TextSpan(
-                            text: 'Privacy Policy',
+                            text: tl('Privacy Policy'),
                             style:
                                 AppTheme.body(
                                   color: AppColors.brand,
@@ -692,10 +679,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                       ),
                     ),
                     if (showError)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 4),
                         child: Text(
-                          'Please accept the Terms & Conditions and Privacy Policy to continue.',
+                          tl(
+                            'Please accept the Terms & Conditions and Privacy Policy to continue.',
+                          ),
                           style: TextStyle(color: Colors.red, fontSize: 11.5),
                         ),
                       ),
@@ -732,7 +721,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         // Plain keyboard with letters and numbers, no autocorrect.
         keyboard: TextInputType.visiblePassword,
         inputFormatters: kRsbaInputFormatters,
-        errorText: _rsbaError,
+        errorText: _rsbaError == null ? null : tl(_rsbaError!),
       ),
     );
   }
@@ -798,13 +787,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                 // Gentle hint when the button is disabled.
                 if (!_isFormValid && !_loading) ...[
                   Text(
-                    'Please complete all fields first.',
+                    tl('Please complete all fields first.'),
                     style: AppTheme.body(color: AppColors.textMuted, size: 12),
                   ),
                   const SizedBox(height: 8),
                 ],
                 GestureDetector(
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => Navigator.pop(context, true),
                   child: RichText(
                     textScaler: MediaQuery.textScalerOf(
                       context,
@@ -815,10 +804,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         TextSpan(text: tr(context).alreadyHaveAccount),
                         TextSpan(
                           text: tr(context).logIn,
-                          style: AppTheme.body(
-                            color: AppColors.brand,
-                            size: 13.5,
-                          ).copyWith(fontWeight: FontWeight.bold),
+                          style: AppTheme.formLink(),
                         ),
                       ],
                     ),
@@ -848,15 +834,19 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     return Scaffold(
       backgroundColor: AppColors.page,
+      // The compact header: Back, and the small logo and name — the only
+      // logo on the page, quieter than its title.
+      appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
       body: SafeArea(
+        top: false,
         child: Stack(
           children: [
             SingleChildScrollView(
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(
-                24,
-                56,
-                24,
+                AppTheme.formPageMargin,
+                AppTheme.formSectionGap,
+                AppTheme.formPageMargin,
                 _formBottomPadding,
               ),
               child: FadeTransition(
@@ -867,49 +857,30 @@ class _RegisterScreenState extends State<RegisterScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ---- Logo ----
-                      // logo.png has a wide transparent margin around the
-                      // artwork: shown larger, and only the artwork's own
-                      // height is kept, so the wordmark sits right under it
-                      // (as on Forgot Password).
-                      Align(
-                        heightFactor: 0.76,
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          height: 100,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 70,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                color: AppColors.mid,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.agriculture,
-                                size: 38,
-                                color: Colors.white,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      const Center(child: AgriTradeText(fontSize: 26)),
-                      const SizedBox(height: 6),
                       Center(
                         child: Text(
                           tr(context).registerTitle,
-                          style: AppTheme.heading(20),
+                          textAlign: TextAlign.center,
+                          style: AppTheme.pageTitle(),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 6),
+                      Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
+                      const SizedBox(height: AppTheme.formSectionGap),
 
-                      // ---- Role toggle (defaults to Buyer) ----
-                      Text('Choose your role', style: AppTheme.label()),
-                      const SizedBox(height: 8),
-                      _roleToggle(),
-                      const SizedBox(height: 20),
+                      RegistrationRoleDetails(
+                        isFarmer: _isFarmer,
+                        value: _accountType,
+                        showRequired: _triedSubmit,
+                        onChanged: (value) => setState(() {
+                          if (_isFarmer) {
+                            _farmerDescription = value;
+                          } else {
+                            _buyerDescription = value;
+                          }
+                        }),
+                      ),
+                      const SizedBox(height: AppTheme.formFieldGap),
 
                       // ---- First name, Last name ----
                       _buildField(
@@ -917,14 +888,18 @@ class _RegisterScreenState extends State<RegisterScreen>
                         controller: _firstNameController,
                         hint: 'Juan',
                         icon: Icons.person_outline,
-                        errorText: _firstNameError,
+                        errorText: _firstNameError == null
+                            ? null
+                            : tl(_firstNameError!),
                       ),
                       _buildField(
                         label: tr(context).lastName,
                         controller: _lastNameController,
                         hint: 'Santos',
                         icon: Icons.person_outline,
-                        errorText: _lastNameError,
+                        errorText: _lastNameError == null
+                            ? null
+                            : tl(_lastNameError!),
                       ),
 
                       // ---- RSBSA No. (farmers only) ----
@@ -937,7 +912,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                         hint: 'juansantos@gmail.com',
                         icon: Icons.email_outlined,
                         keyboard: TextInputType.emailAddress,
-                        errorText: _emailError,
+                        errorText: _emailError == null
+                            ? null
+                            : tl(_emailError!),
                       ),
 
                       // ---- Mobile Number ----
@@ -953,19 +930,24 @@ class _RegisterScreenState extends State<RegisterScreen>
                         keyboard: TextInputType.phone,
                         prefixText: kPhMobilePrefix,
                         inputFormatters: kPhMobileInputFormatters,
-                        errorText: _mobileError,
-                        caption:
-                            'For order, delivery, and pick-up coordination only.',
+                        errorText: _mobileError == null
+                            ? null
+                            : tl(_mobileError!),
+                        caption: tl(
+                          'For order, delivery, and pick-up coordination only.',
+                        ),
                       ),
 
                       // ---- Password ----
                       _buildField(
                         label: tr(context).password,
                         controller: _passwordController,
-                        hint: 'At least 12 characters',
+                        hint: tl('At least 12 characters'),
                         icon: Icons.lock_outline,
                         obscure: _obscurePassword,
-                        errorText: _passwordError,
+                        errorText: _passwordError == null
+                            ? null
+                            : tl(_passwordError!),
                         suffix: IconButton(
                           icon: Icon(
                             _obscurePassword
@@ -984,10 +966,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                       _buildField(
                         label: tr(context).confirmPassword,
                         controller: _confirmController,
-                        hint: 'Re-enter your password',
+                        hint: tl('Re-enter your password'),
                         icon: Icons.lock_reset_outlined,
                         obscure: _obscureConfirm,
-                        errorText: _confirmError,
+                        errorText: _confirmError == null
+                            ? null
+                            : tl(_confirmError!),
                         suffix: IconButton(
                           icon: Icon(
                             _obscureConfirm
@@ -1015,7 +999,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         BarangayLocationField(
                           value: _selectedBarangay,
                           errorText: _triedSubmit && _selectedBarangay == null
-                              ? 'Please select a barangay in Laurel.'
+                              ? tl('Please select a barangay in Laurel.')
                               : null,
                           onChanged: (value) =>
                               setState(() => _selectedBarangay = value),
@@ -1040,19 +1024,14 @@ class _RegisterScreenState extends State<RegisterScreen>
               builder: (context, child) {
                 _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);
                 return Positioned(
-                  left: 24,
-                  right: 24,
+                  left: AppTheme.formPageMargin,
+                  right: AppTheme.formPageMargin,
                   bottom: _drawnRegisterBottom,
                   child: child!,
                 );
               },
               child: _registerButton(canSubmit),
             ),
-
-            // ---- Back button, floating above everything at the top-left ----
-            // ---- corner, so it stays visible no matter how far the    ----
-            // ---- form is scrolled.                                     ----
-            const Positioned(top: 8, left: 12, child: AppBackButton()),
           ],
         ),
       ),

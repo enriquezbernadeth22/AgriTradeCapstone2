@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -230,13 +231,13 @@ class _FarmerListViewState extends State<FarmerListView> with AdminPageSearch {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Farmer List report exported.')),
+        appSnackBar('Farmer List report exported.', kind: MessageKind.success),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      ).showSnackBar(appSnackBar('Export failed: $e', kind: MessageKind.error));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }

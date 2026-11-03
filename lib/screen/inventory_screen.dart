@@ -1,6 +1,7 @@
 import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -11,6 +12,7 @@ import '../services/product_service.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/retry_message.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Low Stock: 20% or less of the stock the farmer last set (when posting,
 /// restocking or editing the quantity — saved as the product's
@@ -119,20 +121,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
           );
   }
 
-  void _snack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.brandFill,
-        content: Text(message),
-      ),
-    );
+  void _snack(String message, {required MessageKind kind}) {
+    showAppMessage(context, tl(message), kind: kind);
   }
 
   Future<void> _updateStock(String id, Map<String, dynamic> product) async {
     final unit = _unitOf(product);
-    final name = (product['name'] ?? 'Product').toString();
+    final name = (product['name'] ?? tl('Product')).toString();
     final newQuantity = await showAgriDialog<num>(
       context: context,
       builder: (_) => _UpdateStockDialog(
@@ -146,7 +141,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final error = await _productService.updateQuantity(id, newQuantity);
     if (!mounted) return;
     _snack(
-      error ?? '$name stock updated to ${formatStock(newQuantity, unit)}.',
+      error ??
+          tl('{0} stock updated to {1}.', [
+            name,
+            formatStock(newQuantity, unit),
+          ]),
+      kind: error == null ? MessageKind.success : MessageKind.error,
     );
   }
 
@@ -154,14 +154,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      appBar: const AgriAppBar(title: 'Inventory'),
+      appBar: AgriAppBar(title: tl('Inventory')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _products,
         builder: (context, productSnap) {
           if (productSnap.hasError && !productSnap.hasData) {
             return RetryMessage(
-              message:
-                  'Could not load your inventory. Check your connection and try again.',
+              message: tl(
+                'Could not load your inventory. Check your connection and try again.',
+              ),
               onRetry: () => setState(
                 () => _products = _productService.myProductsStream(),
               ),
@@ -233,17 +234,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           child: Row(
             children: [
-              _stat('${products.length}', 'Active Products', AppColors.brand),
+              _stat(
+                '${products.length}',
+                tl('Active Products'),
+                AppColors.brand,
+              ),
               _statDivider(),
               _stat(
                 '${count(StockStatus.lowStock)}',
-                'Low Stock',
+                tl('Low Stock'),
                 AppColors.tone(Colors.orange, 800),
               ),
               _statDivider(),
               _stat(
                 '${count(StockStatus.outOfStock)}',
-                'Out of Stock',
+                tl('Out of Stock'),
                 AppColors.tone(Colors.red, 700),
               ),
             ],
@@ -252,11 +257,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            _filterChip('All', null),
+            _filterChip(tl('All'), null),
             const SizedBox(width: 8),
-            _filterChip('Low Stock', StockStatus.lowStock),
+            _filterChip(tl('Low Stock'), StockStatus.lowStock),
             const SizedBox(width: 8),
-            _filterChip('Out of Stock', StockStatus.outOfStock),
+            _filterChip(tl('Out of Stock'), StockStatus.outOfStock),
           ],
         ),
         const SizedBox(height: 12),
@@ -338,7 +343,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Widget _productRow(String id, Map<String, dynamic> product, num? sold) {
-    final name = (product['name'] ?? 'Product').toString();
+    final name = (product['name'] ?? tl('Product')).toString();
     final unit = _unitOf(product);
     final quantity = _quantityOf(product);
     final status = stockStatusOfProduct(product);
@@ -347,7 +352,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       StockStatus.inStock => ('IN STOCK', AppColors.brand),
       StockStatus.lowStock => ('LOW STOCK', AppColors.tone(Colors.orange, 800)),
       StockStatus.outOfStock => (
-        'OUT OF STOCK',
+        tl('OUT OF STOCK'),
         AppColors.tone(Colors.red, 700),
       ),
     };
@@ -415,7 +420,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
                 if (sold != null && sold > 0)
                   Text(
-                    'Sold: ${formatStock(sold, unit)}',
+                    tl('Sold: {0}', [formatStock(sold, unit)]),
                     style: GoogleFonts.montserrat(
                       fontSize: 11,
                       color: AppColors.grey(600),
@@ -464,7 +469,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(restock ? 'Restock' : 'Update Stock'),
+            child: Text(restock ? tl('Restock') : tl('Update Stock')),
           ),
         ],
       ),
@@ -525,15 +530,19 @@ class _UpdateStockDialogState extends State<_UpdateStockDialog> {
   @override
   Widget build(BuildContext context) {
     return AgriDialog(
-      title: Text('Update ${widget.name} Stock'),
+      title: Text(tl('Update {0} Stock', [widget.name])),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Current Stock: ${formatStock(widget.current, widget.unit)}'),
+          Text(
+            tl('Current Stock: {0}', [
+              formatStock(widget.current, widget.unit),
+            ]),
+          ),
           const SizedBox(height: 14),
           Text(
-            'New Available Stock',
+            tl('New Available Stock'),
             style: GoogleFonts.montserrat(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -543,6 +552,7 @@ class _UpdateStockDialogState extends State<_UpdateStockDialog> {
           const SizedBox(height: 6),
           TextField(
             controller: _controller,
+            style: const TextStyle(fontSize: 14),
             autofocus: true,
             keyboardType: TextInputType.numberWithOptions(
               decimal: !_countBased,
@@ -555,18 +565,18 @@ class _UpdateStockDialogState extends State<_UpdateStockDialog> {
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
               suffixText: widget.unit,
-              errorText: _error,
+              errorText: _error == null ? null : tl(_error!),
             ),
           ),
         ],
       ),
       actions: [
         AgriDialogButton(
-          label: 'Cancel',
+          label: tl('Cancel'),
           onPressed: () => Navigator.of(context).pop(),
         ),
         AgriDialogButton(
-          label: 'Update Stock',
+          label: tl('Update Stock'),
           kind: AgriButtonKind.primary,
           onPressed: _submit,
         ),

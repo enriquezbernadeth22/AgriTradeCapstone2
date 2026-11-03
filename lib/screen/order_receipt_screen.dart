@@ -9,6 +9,7 @@ import '../services/download_helper.dart';
 import '../services/order_receipt_service.dart';
 import '../widgets/retry_message.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Shows the formal PDF Transaction Receipt of a completed order. Farmer
 /// and buyer open the same document; it is read-only, and can be shared,
@@ -35,7 +36,7 @@ class _OrderReceiptScreenState extends State<OrderReceiptScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      appBar: const AgriAppBar(title: 'Transaction Receipt'),
+      appBar: AgriAppBar(title: tl('Transaction Receipt')),
       body: FutureBuilder<(OrderReceipt, Uint8List)?>(
         future: _receipt,
         builder: (context, snapshot) {
@@ -53,18 +54,19 @@ class _OrderReceiptScreenState extends State<OrderReceiptScreen> {
           }
           if (snapshot.hasError) {
             return RetryMessage(
-              message:
-                  'Could not load this receipt. Check your connection and try again.',
+              message: tl(
+                'Could not load this receipt. Check your connection and try again.',
+              ),
               onRetry: () => setState(() => _receipt = _load()),
             );
           }
           final loaded = snapshot.data;
           if (loaded == null) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'A receipt is available once the order is completed.',
+                  tl('A receipt is available once the order is completed.'),
                   textAlign: TextAlign.center,
                 ),
               ),

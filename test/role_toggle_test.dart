@@ -1,5 +1,6 @@
-// "Choose your role": one pill, the chosen side dark green with white
-// text, the other dark green text; both halves the same size; no icons.
+// "Choose your role" on the Google profile form: one pill, the chosen side
+// dark green with white text, the other dark green text; both halves the
+// same size; no icons.
 import 'package:agritrade/theme/app_theme.dart';
 import 'package:agritrade/widgets/role_toggle.dart';
 import 'package:flutter/material.dart';

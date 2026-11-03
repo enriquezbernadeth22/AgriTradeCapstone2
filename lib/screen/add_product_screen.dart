@@ -21,12 +21,15 @@ import '../services/price_recommendation_service.dart';
 import '../data/commodity_master_list.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import '../widgets/delivery_area_picker.dart';
 import '../widgets/update_stock_dialog.dart'
     show kMaxStock, stockInputFormatters;
 import '../widgets/profile_avatar.dart';
 import 'supported_products_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
+import '../data/account_types.dart';
 
 class AddProductScreen extends StatefulWidget {
   final String? productId;
@@ -110,10 +113,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // what the farmer can actually list.
   String? _selectedCommodity;
 
-  // Livestock only: sold live or slaughtered (see SellingOption). Null
-  // until chosen reads as Live.
-  SellingOption? _sellingOption;
-
   bool _deliveryAvailable = false;
   // Stored as 'pickupOnly' for compatibility, but it has always meant
   // "pick-up is available" wherever it's read.
@@ -148,6 +147,26 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool get _hasImage =>
       _bytes != null || (_imageUrl != null && _imageUrl!.isNotEmpty);
 
+  // "What best describes you": their kind of product comes first in the
+  // suggestions (orderForFarmerType).
+  String? _farmerType;
+
+  Future<void> _loadFarmerType() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final profile = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (mounted) {
+        setState(() => _farmerType = profile.data()?['farmerType']?.toString());
+      }
+    } catch (_) {
+      // The suggestions simply keep their usual order.
+    }
+  }
+
   // Live, so a profile photo/name change shows up in the header here too.
   late final Stream<DocumentSnapshot<Map<String, dynamic>>>? _profileStream =
       FirebaseAuth.instance.currentUser == null
@@ -164,13 +183,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // _matchedCommodity/_computeRecommendation.
   // ==========================================================
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _liveProducts = [];
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _completedOrders = [];
+  // Anonymized: a farmer cannot read other farmers' orders.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _marketSales = [];
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _marketPrices = [];
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _searchEvents = [];
+  List<Map<String, dynamic>> _searchTrends = [];
   StreamSubscription? _productsSub;
   StreamSubscription? _ordersSub;
   StreamSubscription? _marketPricesSub;
-  StreamSubscription? _searchEventsSub;
+  StreamSubscription? _searchTrendsSub;
 
   void _listenToMarketData() {
     _productsSub = FirebaseFirestore.instance
@@ -180,12 +200,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
           if (mounted) setState(() => _liveProducts = snap.docs);
         });
     _ordersSub = FirebaseFirestore.instance
-        .collection('orders')
-        .where('status', isEqualTo: 'completed')
+        .collection('market_sales')
         .snapshots()
         .listen((snap) {
-          if (mounted) setState(() => _completedOrders = snap.docs);
-        });
+          if (mounted) setState(() => _marketSales = snap.docs);
+        }, onError: (_) {});
     _marketPricesSub = FirebaseFirestore.instance
         .collection('market_prices')
         .snapshots()
@@ -194,12 +213,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
         });
     // Aggregated only — see PriceRecommendation.searchCount's doc comment;
     // no individual buyer/search record is ever surfaced to the farmer.
-    _searchEventsSub = FirebaseFirestore.instance
-        .collection('searchEvents')
+    _searchTrendsSub = FirebaseFirestore.instance
+        .collection('searchTrends')
         .snapshots()
         .listen((snap) {
-          if (mounted) setState(() => _searchEvents = snap.docs);
-        });
+          if (mounted) {
+            setState(() {
+              _searchTrends = [for (final doc in snap.docs) doc.data()];
+            });
+          }
+        }, onError: (_) {});
   }
 
   double? _numField(Map<String, dynamic> data, String field) {
@@ -230,19 +253,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // Stock / Price per Unit labels below and updates immediately whenever
   // _matchedCommodity changes, since both read straight from this getter
   // on every rebuild rather than caching a stale value.
-  // A slaughtered livestock listing is always per kg (see unitForListing).
-  String get _currentUnit =>
-      unitForListing(_matchedCommodity ?? '', _listingOption);
+  String get _currentUnit => unitForCommodity(_matchedCommodity ?? '');
   bool get _isCountBasedUnit => isCountBasedUnit(_currentUnit);
 
   // Every commodity the Admin files under Livestock has a Selling Option.
   bool get _isLivestock => isLivestockCategory(_category);
 
-  // The selling option this listing is saved with: null for anything that
-  // isn't livestock, Live until the farmer picks Slaughtered.
-  SellingOption? get _listingOption =>
-      _isLivestock ? (_sellingOption ?? SellingOption.live) : null;
-  bool get _slaughtered => _listingOption == SellingOption.slaughtered;
+  // The selling option this listing is saved with: Live for livestock (sold
+  // live only), none for anything else.
+  SellingOption? get _listingOption => _isLivestock ? SellingOption.live : null;
 
   PriceRecommendation _computeRecommendation(
     String commodity, {
@@ -269,8 +288,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
       if (!matchesCommodity) continue;
       final listingUnit = (data['unit'] ?? '').toString().trim();
       if (listingUnit.isNotEmpty && listingUnit != _currentUnit) continue;
-      // Live is compared with live, slaughtered with slaughtered.
-      if (isSlaughtered(data) != _slaughtered) continue;
+      // An old slaughtered listing is a price for meat, not a live animal.
+      if (isSlaughtered(data)) continue;
 
       double? price;
       if (isWholesale) {
@@ -293,7 +312,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
 
     final transactions = <({double price, DateTime? date})>[];
-    for (final doc in _completedOrders) {
+    for (final doc in _marketSales) {
       final data = doc.data();
       if (!PriceRecommendationService.namesLikelyMatch(
         commodity,
@@ -312,7 +331,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       if (transactionUnit.isNotEmpty && transactionUnit != _currentUnit) {
         continue;
       }
-      if (isSlaughtered(data) != _slaughtered) continue;
+      if (isSlaughtered(data)) continue;
 
       final price =
           _numField(data, 'pricePerUnit') ?? _numField(data, 'unitPrice');
@@ -329,23 +348,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
     // do not prove bulk/wholesale intent. Wholesale recommendations therefore
     // rely on real wholesale listings/transactions unless a dedicated bulk
     // demand signal is introduced later.
-    var searchCount30d = 0;
-    if (!isWholesale) {
-      for (final doc in _searchEvents) {
-        final data = doc.data();
-        final query = (data['query'] ?? '').toString();
-        if (query.trim().isEmpty) continue;
-        if (!PriceRecommendationService.namesLikelyMatch(commodity, query)) {
-          continue;
-        }
-        final date = _dateField(data, 'createdAt');
-        if (date != null &&
-            now.difference(date) <=
-                PriceRecommendationService.recentDemandWindow) {
-          searchCount30d++;
-        }
-      }
-    }
+    final searchCount30d = isWholesale
+        ? 0
+        : PriceRecommendationService.searchCountFromTrends(
+            commodity,
+            _searchTrends,
+            now: now,
+          );
 
     double? referencePrice;
     DateTime? referenceEffectiveDate;
@@ -360,11 +369,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       // A wholesale reference is used only when the agricultural office
       // explicitly supplied one. Never derive it by discounting retail.
-      // Slaughtered livestock has its own per-kg reference (Admin → Price
-      // Management); the live price never stands in for it.
-      final price = _slaughtered
-          ? (isWholesale ? null : _numField(data, 'slaughteredBaselinePrice'))
-          : isWholesale
+      final price = isWholesale
           ? _numField(data, 'wholesaleBaselinePrice')
           : _numField(data, 'baselinePrice');
       if (price != null && price > 0) {
@@ -392,6 +397,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   void initState() {
     super.initState();
+    _loadFarmerType();
     final data = widget.existingData;
     if (data != null) {
       _nameController.text = data['name']?.toString() ?? '';
@@ -421,7 +427,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
             matchSupportedCommodity(_nameController.text.trim()) ?? '',
           ) ??
           category;
-      _sellingOption = sellingOptionOf(data);
       _deliveryAvailable = data['deliveryAvailable'] == true;
       _pickupOnly = data['pickupOnly'] == true;
       // Listings saved before coverage existed leave these unset, so the
@@ -573,7 +578,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _productsSub?.cancel();
     _ordersSub?.cancel();
     _marketPricesSub?.cancel();
-    _searchEventsSub?.cancel();
+    _searchTrendsSub?.cancel();
     _nameController.dispose();
     _nameFocusNode.dispose();
     _priceFocusNode.dispose();
@@ -595,18 +600,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Future<void> _editImage() async {
     final action = await showAgriSheet<String>(
       context: context,
-      title: 'Edit photo',
+      title: tl('Edit photo'),
       builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AgriSheetAction(
             icon: Icons.crop_rotate,
-            label: 'Crop & rotate',
+            label: tl('Crop & rotate'),
             onTap: () => Navigator.pop(sheetContext, 'crop'),
           ),
           AgriSheetAction(
             icon: Icons.photo_library_outlined,
-            label: 'Replace photo',
+            label: tl('Replace photo'),
             onTap: () => Navigator.pop(sheetContext, 'replace'),
           ),
           const SizedBox(height: 8),
@@ -633,7 +638,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         if (url == null || url.isEmpty) return;
         final response = await http.get(Uri.parse(url));
         if (response.statusCode != 200) {
-          if (mounted) _showError('Could not load the photo for editing.');
+          if (mounted) _showError(tl('Could not load the photo for editing.'));
           return;
         }
         final temp = File(
@@ -651,7 +656,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         compressQuality: 85,
         uiSettings: [
           AndroidUiSettings(
-            toolbarTitle: 'Crop & rotate',
+            toolbarTitle: tl('Crop & rotate'),
             toolbarColor: AppColors.brand,
             toolbarWidgetColor: Colors.white,
             activeControlsWidgetColor: AppColors.brand,
@@ -664,7 +669,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ],
           ),
           IOSUiSettings(
-            title: 'Crop & rotate',
+            title: tl('Crop & rotate'),
             rotateButtonsHidden: false,
             aspectRatioLockEnabled: false,
             aspectRatioPresets: const [
@@ -685,14 +690,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
       });
     } catch (error) {
       debugPrint('Photo edit failed: $error');
-      if (mounted) _showError('Could not edit the photo. Please try again.');
+      if (mounted) {
+        _showError(tl('Could not edit the photo. Please try again.'));
+      }
     }
   }
 
   Future<void> _pickImage() async {
     final source = await showAgriSheet<ImageSource>(
       context: context,
-      title: 'Product photo',
+      title: tl('Product photo'),
       builder: _imageSourceSheet,
     );
     if (source == null) return;
@@ -725,10 +732,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
       context: context,
       icon: Icons.delete_outline,
       tone: AgriTone.destructive,
-      title: 'Remove product photo?',
-      message: 'Are you sure you want to remove this product photo?',
-      cancelLabel: 'Keep Photo',
-      confirmLabel: 'Remove',
+      title: tl('Remove product photo?'),
+      message: tl('Are you sure you want to remove this product photo?'),
+      cancelLabel: tl('Keep Photo'),
+      confirmLabel: tl('Remove'),
     );
   }
 
@@ -760,7 +767,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             elevation: 0,
             centerTitle: true,
             title: Text(
-              '1 of 1',
+              tl('1 of 1'),
               style: GoogleFonts.montserrat(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -770,7 +777,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                tooltip: 'Remove photo',
+                tooltip: tl('Remove photo'),
                 onPressed: () async {
                   final confirmed = await _confirmRemoveImage();
                   if (confirmed && previewContext.mounted) {
@@ -801,12 +808,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
       children: [
         AgriSheetAction(
           icon: Icons.photo_camera_outlined,
-          label: 'Take a photo',
+          label: tl('Take a photo'),
           onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
         ),
         AgriSheetAction(
           icon: Icons.photo_library_outlined,
-          label: 'Choose from gallery',
+          label: tl('Choose from gallery'),
           onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
         ),
         const SizedBox(height: 8),
@@ -831,7 +838,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       debugPrint('Add Product submit failed: $error\n$stack');
       if (!mounted) return;
       setState(() => _loading = false);
-      _showError('Something went wrong while posting. Please try again.');
+      _showError(tl('Something went wrong while posting. Please try again.'));
     }
   }
 
@@ -854,11 +861,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final unit = _currentUnit;
 
     if (!_hasImage) {
-      return issue('Please add at least one product photo.', _photoKey);
+      return issue(tl('Please add at least one product photo.'), _photoKey);
     }
 
     if (name.isEmpty) {
-      return issue('Product name is required.', _nameKey, _nameFocusNode);
+      return issue(tl('Product name is required.'), _nameKey, _nameFocusNode);
     }
     // Product Title must resolve to one of AgriTrade+'s supported
     // commodities (see commodity_master_list.dart) — never a fabricated or
@@ -866,7 +873,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     // supported name; this is the hard gate for anyone who typed past it.
     if (matchSupportedCommodity(name, activeOnly: !_isEditing) == null) {
       return issue(
-        'Choose a product from the supported list.',
+        tl('Choose a product from the supported list.'),
         _nameKey,
         _nameFocusNode,
         true,
@@ -874,7 +881,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
     if (_category == null) {
       return issue(
-        'Choose a product from the suggestions to set its category.',
+        tl('Choose a product from the suggestions to set its category.'),
         _nameKey,
         _nameFocusNode,
       );
@@ -882,7 +889,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     if (quantityText.isEmpty) {
       return issue(
-        'Available stock is required.',
+        tl('Available stock is required.'),
         _stockKey,
         _quantityFocusNode,
       );
@@ -890,32 +897,36 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final quantity = num.tryParse(quantityText);
     if (quantity == null || quantity < 0) {
       return issue(
-        'Enter a valid, non-negative stock.',
+        tl('Enter a valid, non-negative stock.'),
         _stockKey,
         _quantityFocusNode,
       );
     }
     if (isCountBasedUnit(unit) && quantity != quantity.roundToDouble()) {
       return issue(
-        'Stock for $unit must be a whole number.',
+        tl('Stock for {0} must be a whole number.', [unit]),
         _stockKey,
         _quantityFocusNode,
       );
     }
     if (quantity.floor() > kMaxStock) {
       return issue(
-        'Available stock can be at most 9,999 $unit.',
+        tl('Available stock can be at most 9,999 {0}.', [unit]),
         _stockKey,
         _quantityFocusNode,
       );
     }
 
     if (priceText.isEmpty) {
-      return issue('Retail price is required.', _priceKey, _priceFocusNode);
+      return issue(tl('Retail price is required.'), _priceKey, _priceFocusNode);
     }
     final price = double.tryParse(priceText);
     if (price == null || price <= 0) {
-      return issue('Enter a valid retail price.', _priceKey, _priceFocusNode);
+      return issue(
+        tl('Enter a valid retail price.'),
+        _priceKey,
+        _priceFocusNode,
+      );
     }
 
     if (_wholesaleEnabled) {
@@ -923,21 +934,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final wholesalePrice = double.tryParse(wholesaleText);
       if (wholesaleText.isEmpty) {
         return issue(
-          'Wholesale price is required when wholesale is on.',
+          tl('Wholesale price is required when wholesale is on.'),
           _wholesalePriceKey,
           _wholesalePriceFocusNode,
         );
       }
       if (wholesalePrice == null || wholesalePrice <= 0) {
         return issue(
-          'Enter a valid wholesale price.',
+          tl('Enter a valid wholesale price.'),
           _wholesalePriceKey,
           _wholesalePriceFocusNode,
         );
       }
       if (wholesalePrice >= price) {
         return issue(
-          'Wholesale price must be lower than the retail price.',
+          tl('Wholesale price must be lower than the retail price.'),
           _wholesalePriceKey,
           _wholesalePriceFocusNode,
         );
@@ -946,21 +957,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final minimum = num.tryParse(_wholesaleMinimumController.text.trim());
       if (minimum == null || minimum <= 0) {
         return issue(
-          'Enter a valid minimum wholesale quantity.',
+          tl('Enter a valid minimum wholesale quantity.'),
           _wholesaleMinKey,
           _wholesaleMinFocusNode,
         );
       }
       if (isCountBasedUnit(unit) && minimum != minimum.roundToDouble()) {
         return issue(
-          'Minimum quantity for $unit must be a whole number.',
+          tl('Minimum quantity for {0} must be a whole number.', [unit]),
           _wholesaleMinKey,
           _wholesaleMinFocusNode,
         );
       }
       if (minimum > quantity) {
         return issue(
-          'Minimum cannot be greater than the available stock.',
+          tl('Minimum cannot be greater than the available stock.'),
           _wholesaleMinKey,
           _wholesaleMinFocusNode,
         );
@@ -969,15 +980,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     if (_deliveryAvailable) {
       if (_coverageType == null) {
-        return issue('Choose where you deliver this product.', _coverageKey);
+        return issue(
+          tl('Choose where you deliver this product.'),
+          _coverageKey,
+        );
       }
       if (_coverageType == DeliveryCoverageType.custom &&
           _customAreas.isEmpty) {
-        return issue('Select at least one delivery area.', _coverageKey);
+        return issue(tl('Select at least one delivery area.'), _coverageKey);
       }
       if (_feeType == null) {
         return issue(
-          'Choose a fixed delivery fee or "To be arranged with buyer".',
+          tl('Choose a fixed delivery fee or "To be arranged with buyer".'),
           _deliveryFeeKey,
         );
       }
@@ -985,7 +999,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         final fee = num.tryParse(_deliveryFeeController.text.trim());
         if (fee == null || fee < 0) {
           return issue(
-            'Enter the delivery fee amount.',
+            tl('Enter the delivery fee amount.'),
             _deliveryFeeKey,
             _deliveryFeeFocusNode,
           );
@@ -1040,7 +1054,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
         final url = await _cloudinaryService.uploadImage(_file!);
         if (url == null) {
           if (!mounted) return;
-          _showError('Image upload failed. Check your internet and try again.');
+          _showError(
+            tl('Image upload failed. Check your internet and try again.'),
+          );
           return;
         }
         imageUrls.add(url);
@@ -1114,7 +1130,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
     if (!mounted) return;
     if (error == null) {
-      _showMessage(_isEditing ? 'Product updated!' : 'Product posted!');
+      _showSuccess(_isEditing ? tl('Product updated!') : tl('Product posted!'));
       // A few posts in, the app asks for feedback (FeedbackService).
       if (!_isEditing) {
         unawaited(
@@ -1132,9 +1148,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       context: context,
       icon: Icons.delete_outline,
       tone: AgriTone.destructive,
-      title: 'Delete Product?',
-      message: 'This will permanently remove this product.',
-      confirmLabel: 'Delete',
+      title: tl('Delete Product?'),
+      message: tl('This will permanently remove this product.'),
+      confirmLabel: tl('Delete'),
     );
     if (!confirm) return;
     setState(() => _loading = true);
@@ -1142,17 +1158,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
     if (error == null) {
-      _showMessage('Product deleted.');
+      _showSuccess(tl('Product deleted.'));
       _closeScreen();
     } else {
-      _showMessage(error);
+      _showError(error);
     }
   }
 
   // An archived product is read-only here: the form shows its details but
   // takes no input until the farmer restores it.
-  void _blockArchivedEdit() =>
-      _showMessage(ProductService.archivedReadOnlyMessage, isError: true);
+  void _blockArchivedEdit() => _showMessage(
+    ProductService.archivedReadOnlyMessage,
+    kind: MessageKind.warning,
+  );
 
   Future<void> _toggleArchive() async {
     setState(() => _loading = true);
@@ -1163,52 +1181,34 @@ class _AddProductScreenState extends State<AddProductScreen> {
     setState(() => _loading = false);
     if (error == null) {
       setState(() => _isArchived = !_isArchived);
-      _showMessage(
+      _showSuccess(
         _isArchived
-            ? 'Listing archived — hidden from the marketplace until you restore it.'
-            : 'Listing restored — visible in the marketplace again.',
+            ? tl(
+                'Listing archived — hidden from the marketplace until you restore it.',
+              )
+            : tl('Listing restored — visible in the marketplace again.'),
       );
     } else {
-      _showMessage(error);
+      _showError(error);
     }
   }
 
-  void _showMessage(String message, {bool isError = false}) {
+  void _showMessage(String message, {required MessageKind kind}) {
     // Replace whatever is showing rather than queueing behind it — a
     // queued message only appears seconds later, which reads as the tap
     // having done nothing.
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          backgroundColor: isError
-              ? AppColors.tone(Colors.red, 700)
-              : AppColors.brandFill,
-          content: Row(
-            children: [
-              if (isError) ...[
-                const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  message,
-                  style: GoogleFonts.montserrat(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      ..showSnackBar(appSnackBar(tl(message), kind: kind));
   }
+
+  void _showSuccess(String message) =>
+      _showMessage(message, kind: MessageKind.success);
 
   // Validation failures and save errors — red, so they can't be mistaken
   // for a success message.
-  void _showError(String message) => _showMessage(message, isError: true);
+  void _showError(String message) =>
+      _showMessage(message, kind: MessageKind.error);
 
   // Brings the part of the form a validation error is about into view.
   void _scrollTo(GlobalKey key) {
@@ -1286,10 +1286,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final shouldLeave = await showAgriConfirm(
       context: context,
       icon: Icons.logout,
-      title: 'Leave product posting?',
-      message: 'Your changes will not be saved if you leave.',
-      cancelLabel: 'Stay',
-      confirmLabel: 'Leave',
+      title: tl('Leave product posting?'),
+      message: tl('Your changes will not be saved if you leave.'),
+      cancelLabel: tl('Stay'),
+      confirmLabel: tl('Leave'),
     );
     _confirmingExit = false;
     if (!mounted || shouldLeave != true) return;
@@ -1304,11 +1304,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
     });
   }
 
-  void _openSupportedProducts() {
-    Navigator.push(
+  // A product tapped on the list becomes the Product Name, as if picked
+  // from the name field's suggestions (an archived listing stays as it is).
+  Future<void> _openSupportedProducts() async {
+    final picked = await Navigator.push<String>(
       context,
-      MaterialPageRoute(builder: (_) => const SupportedProductsScreen()),
+      MaterialPageRoute(
+        builder: (_) => SupportedProductsScreen(pickable: !_isArchived),
+      ),
     );
+    if (picked == null || !mounted || _isArchived) return;
+    _nameFocusNode.unfocus();
+    _nameController.text = picked;
+    setState(() {
+      _selectedCommodity = picked;
+      _category = categoryOfCommodity(picked);
+    });
   }
 
   // Shown instead of creating the listing when the Product Title doesn't
@@ -1319,11 +1330,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
       builder: (dialogContext) => AgriDialog(
         icon: Icons.info_outline,
         tone: AgriTone.warning,
-        title: const Text('Product not currently supported'),
-        content: const Text(
-          'AgriTrade+ currently supports selected commodities based on the system '
-          'scope and available agricultural data. Please choose a product from the '
-          'Supported Products list.',
+        title: Text(tl('Product not currently supported')),
+        content: Text(
+          tl(
+            'AgriTrade+ currently supports selected commodities based on the system scope and available agricultural data. Please choose a product from the Supported Products list.',
+          ),
         ),
         actions: [
           AgriDialogButton(
@@ -1331,7 +1342,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             onPressed: () => Navigator.pop(dialogContext),
           ),
           AgriDialogButton(
-            label: 'View Products',
+            label: tl('View Products'),
             kind: AgriButtonKind.primary,
             onPressed: () {
               Navigator.pop(dialogContext);
@@ -1346,35 +1357,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // Small, always-visible warning (not a modal) that not every product can
   // be sold on AgriTrade+ — the full explanation lives in Farmer setup (see
   // register_screen.dart's Supported Products section).
-  // Live is sold in the commodity's own unit (kg liveweight or head, as the
-  // Admin set it); Slaughtered always per kg. The unit, the price
-  // suggestion and the listings it is compared with all follow the choice.
-  Widget _sellingOptionField() {
-    final liveUnit = unitForCommodity(_matchedCommodity ?? '');
-    final option = _listingOption;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _label('Selling Option'),
-        _choiceTile(
-          selected: option == SellingOption.live,
-          title: SellingOption.live.label,
-          subtitle: 'The live animal, priced per $liveUnit',
-          onTap: () => setState(() => _sellingOption = SellingOption.live),
-        ),
-        _choiceTile(
-          selected: option == SellingOption.slaughtered,
-          title: SellingOption.slaughtered.label,
-          subtitle: 'The meat, priced per $kSlaughteredUnit',
-          onTap: () =>
-              setState(() => _sellingOption = SellingOption.slaughtered),
-        ),
-        const SizedBox(height: 4),
-        _healthCertificateNote(),
-      ],
-    );
-  }
-
   // Health certificates are not uploaded here: the farmer sends a photo
   // of one to the buyer in Messages when asked (see ChatScreen).
   Widget _healthCertificateNote() {
@@ -1396,8 +1378,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              "Buyers may ask for your animal's health certificate. You can "
-              'send a photo of it in Messages.',
+              tl(
+                'Buyers may ask for your animal\'s health certificate. You can send a photo of it in Messages.',
+              ),
               style: GoogleFonts.montserrat(
                 fontSize: 11.5,
                 color: AppColors.text,
@@ -1433,8 +1416,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Not all goods are available to sell. AgriTrade+ currently supports '
-                  'selected commodities only — choose a product from the supported list.',
+                  tl(
+                    'Not all goods are available to sell. AgriTrade+ currently supports selected commodities only — choose a product from the supported list.',
+                  ),
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
                     color: AppColors.text,
@@ -1444,7 +1428,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 GestureDetector(
                   onTap: _openSupportedProducts,
                   child: Text(
-                    'View Supported Products',
+                    tl('View Supported Products'),
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
                       color: AppColors.brand,
@@ -1471,9 +1455,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
       hintText: hint,
       hintStyle: GoogleFonts.montserrat(
         color: AppColors.textMuted,
-        fontSize: 13.5,
+        fontSize: 14,
       ),
-      prefixIcon: icon != null ? Icon(icon, color: AppColors.brand) : null,
+      prefixIcon: icon != null
+          ? Icon(icon, color: AppColors.brand, size: 20)
+          : null,
       prefix: prefix,
       // Centered so a text suffix (the unit) lines up with the typed value
       // instead of sitting in the field's top corner.
@@ -1482,7 +1468,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       // from the _GlowPlate wrapped around each field (same look as the
       // registration form's GlowField).
       filled: false,
-      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       border: InputBorder.none,
       enabledBorder: InputBorder.none,
       focusedBorder: InputBorder.none,
@@ -1512,7 +1498,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       firstDate: DateTime(now.year - 1, now.month, now.day),
       // A harvest can't be in the future.
       lastDate: now,
-      helpText: 'Harvest date',
+      helpText: tl('Harvest date'),
     );
     if (picked != null && mounted) setState(() => _harvestDate = picked);
   }
@@ -1525,10 +1511,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label('Harvest Date'),
+        _label(tl('Harvest Date')),
         _GlowPlate(
           child: InkWell(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
             onTap: _pickHarvestDate,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 8, 6),
@@ -1539,7 +1525,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   Expanded(
                     child: Text(
                       date == null
-                          ? 'Select harvest date'
+                          ? tl('Select harvest date')
                           : DateFormat('MMM d, y').format(date),
                       style: GoogleFonts.montserrat(
                         fontSize: date == null ? 13.5 : 14,
@@ -1551,7 +1537,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   if (date != null)
                     IconButton(
-                      tooltip: 'Clear harvest date',
+                      tooltip: tl('Clear harvest date'),
                       visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () => setState(() => _harvestDate = null),
@@ -1567,10 +1553,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
           padding: const EdgeInsets.only(left: 4, top: 6),
           child: Text(
             _isEditing
-                ? 'New batch? Update the harvest date and stock here — no '
-                      'need to post the product again.'
-                : 'Buyers see this as "Harvested today", "Harvested 2 days '
-                      'ago" and so on.',
+                ? tl(
+                    'New batch? Update the harvest date and stock here — no need to post the product again.',
+                  )
+                : tl(
+                    'Buyers see this as "Harvested today", "Harvested 2 days ago" and so on.',
+                  ),
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
               color: AppColors.grey(600),
@@ -1597,13 +1585,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _label('Delivery Coverage', key: _coverageKey),
+          _label(tl('Delivery Coverage'), key: _coverageKey),
           _choiceTile(
             selected: _coverageType == DeliveryCoverageType.sameBarangay,
             title: DeliveryCoverageType.sameBarangay.label,
             subtitle: _farmBarangay.isEmpty
-                ? 'Only buyers in your barangay'
-                : 'Only buyers in Barangay $_farmBarangay',
+                ? tl('Only buyers in your barangay')
+                : tl('Only buyers in Barangay {0}', [_farmBarangay]),
             error: _hasIssue(_coverageKey),
             onTap: () => setState(
               () => _coverageType = DeliveryCoverageType.sameBarangay,
@@ -1612,7 +1600,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           _choiceTile(
             selected: _coverageType == DeliveryCoverageType.municipality,
             title: DeliveryCoverageType.municipality.label,
-            subtitle: 'Anywhere in $town',
+            subtitle: tl('Anywhere in {0}', [town]),
             error: _hasIssue(_coverageKey),
             onTap: () => setState(
               () => _coverageType = DeliveryCoverageType.municipality,
@@ -1622,7 +1610,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             selected: _coverageType == DeliveryCoverageType.nearby,
             title: DeliveryCoverageType.nearby.label,
             subtitle: nearby.isEmpty
-                ? '$town and the towns around it'
+                ? tl('{0} and the towns around it', [town])
                 : '$town, ${nearby.join(', ')}',
             error: _hasIssue(_coverageKey),
             onTap: () =>
@@ -1631,7 +1619,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           _choiceTile(
             selected: _coverageType == DeliveryCoverageType.custom,
             title: DeliveryCoverageType.custom.label,
-            subtitle: 'Choose specific municipalities/cities',
+            subtitle: tl('Choose specific municipalities/cities'),
             error: _hasIssue(_coverageKey),
             onTap: () {
               setState(() {
@@ -1671,7 +1659,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ActionChip(
                   avatar: Icon(Icons.add, size: 16, color: AppColors.brand),
                   label: Text(
-                    _customAreas.isEmpty ? 'Select areas' : 'Add or remove',
+                    _customAreas.isEmpty
+                        ? tl('Select areas')
+                        : tl('Add or remove'),
                     style: GoogleFonts.montserrat(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -1705,7 +1695,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               Expanded(
                 child: _choiceTile(
                   selected: _feeType == DeliveryFeeType.fixed,
-                  title: 'Fixed fee',
+                  title: tl('Fixed fee'),
                   error: _hasIssue(_deliveryFeeKey) && _feeType == null,
                   onTap: () {
                     setState(() => _feeType = DeliveryFeeType.fixed);
@@ -1717,7 +1707,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               Expanded(
                 child: _choiceTile(
                   selected: _feeType == DeliveryFeeType.arranged,
-                  title: 'To be arranged',
+                  title: tl('To be arranged'),
                   error: _hasIssue(_deliveryFeeKey) && _feeType == null,
                   onTap: () =>
                       setState(() => _feeType = DeliveryFeeType.arranged),
@@ -1752,7 +1742,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 6, top: 2),
               child: Text(
-                'Delivery fee: To be arranged with buyer',
+                tl('Delivery fee: To be arranged with buyer'),
                 style: GoogleFonts.montserrat(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -1763,8 +1753,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
           _fieldError(_deliveryFeeKey),
           const SizedBox(height: 10),
           Text(
-            'Buyers outside this area can still message you to ask about '
-            'long-distance delivery.',
+            tl(
+              'Buyers outside this area can still message you to ask about long-distance delivery.',
+            ),
             style: GoogleFonts.montserrat(
               fontSize: 11.5,
               color: AppColors.grey(600),
@@ -1857,7 +1848,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             .trim();
         final name = savedName != null && savedName.isNotEmpty
             ? savedName
-            : (user?.displayName ?? 'Farmer');
+            : (user?.displayName ?? tl('Farmer'));
         final savedPhoto = data?['photoUrl']?.toString().trim();
         final photoUrl = savedPhoto != null && savedPhoto.isNotEmpty
             ? savedPhoto
@@ -1881,7 +1872,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                   ),
                   Text(
-                    'Farmer',
+                    tl('Farmer'),
                     style: GoogleFonts.montserrat(
                       fontSize: 12.5,
                       color: AppColors.grey(600),
@@ -1906,7 +1897,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           child: Row(
             children: [
               Text(
-                'Product Photo',
+                tl('Product Photo'),
                 style: GoogleFonts.montserrat(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
@@ -1915,7 +1906,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ),
               const SizedBox(width: 6),
               Tooltip(
-                message: 'High-quality photos sell faster',
+                message: tl('High-quality photos sell faster'),
                 triggerMode: TooltipTriggerMode.tap,
                 child: Icon(
                   Icons.info_outline,
@@ -1961,7 +1952,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Add product photo',
+                  tl('Add product photo'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     color: AppColors.brand,
@@ -1971,7 +1962,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Tap to take a photo or choose from gallery',
+                  tl('Tap to take a photo or choose from gallery'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     color: AppColors.grey(600),
@@ -2016,7 +2007,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Product photo',
+                          tl('Product photo'),
                           style: GoogleFonts.montserrat(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
@@ -2025,7 +2016,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Tap to preview, change or remove',
+                          tl('Tap to preview, change or remove'),
                           style: GoogleFonts.montserrat(
                             fontSize: 11,
                             color: AppColors.grey(600),
@@ -2044,13 +2035,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
             children: [
               _imageAction(
                 icon: Icons.edit_outlined,
-                tooltip: 'Edit photo',
+                tooltip: tl('Edit photo'),
                 onPressed: _editImage,
               ),
               const SizedBox(height: 6),
               _imageAction(
                 icon: Icons.delete_outline,
-                tooltip: 'Remove photo',
+                tooltip: tl('Remove photo'),
                 onPressed: () async {
                   if (await _confirmRemoveImage()) _removeImage();
                 },
@@ -2105,7 +2096,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (typedName.isEmpty && _selectedCommodity == null) {
       return _recoShell(
         child: Text(
-          'Type a product name above to see a price suggestion.',
+          tl('Type a product name above to see a price suggestion.'),
           style: GoogleFonts.montserrat(
             color: AppColors.textSecondary,
             fontSize: 12.5,
@@ -2117,8 +2108,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (commodity == null) {
       return _recoShell(
         child: Text(
-          'AI-assisted price recommendations are only available for AgriTrade+\'s supported '
-          'commodities (see Supported Products above) — "$typedName" isn\'t recognized as one yet.',
+          tl(
+            'AI-assisted price recommendations are only available for AgriTrade+\'s supported commodities (see Supported Products above) — "{0}" isn\'t recognized as one yet.',
+            [typedName],
+          ),
           style: GoogleFonts.montserrat(
             color: AppColors.textSecondary,
             fontSize: 12.5,
@@ -2137,7 +2130,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Price recommendation currently unavailable',
+              tl('Price recommendation currently unavailable'),
               style: GoogleFonts.montserrat(
                 color: AppColors.text,
                 fontSize: 13,
@@ -2146,8 +2139,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Not enough pricing data is available for this commodity yet. Please check again after '
-              'the latest reference price has been provided or more marketplace data becomes available.',
+              tl(
+                'No reference price, listings or sales for this product yet.',
+              ),
               style: GoogleFonts.montserrat(
                 color: AppColors.textSecondary,
                 fontSize: 12,
@@ -2156,7 +2150,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'You can still set your own selling price below.',
+              tl('You can still set your own selling price below.'),
               style: GoogleFonts.montserrat(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
@@ -2183,8 +2177,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final details = <Widget>[
       if (result.referenceEffectiveDate != null) ...[
         Text(
-          'Reference price last updated: ${DateFormat('MMM d, y').format(result.referenceEffectiveDate!)}'
-          '${result.referenceIsStale ? ' (may be outdated)' : ''}',
+          tl('Reference price last updated: {0}{1}', [
+            DateFormat('MMM d, y').format(result.referenceEffectiveDate!),
+            result.referenceIsStale ? ' (may be outdated)' : '',
+          ]),
           style: GoogleFonts.montserrat(
             color: AppColors.textMuted,
             fontSize: 10.5,
@@ -2194,10 +2190,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ],
       Text(
         isColdStart
-            ? 'This recommendation is currently based mainly on the latest reference commodity price. '
-                  'Future recommendations will improve as AgriTrade+ collects more actual marketplace activity.'
-            : 'Based on the latest reference price, recent completed transactions, active listings, and '
-                  'current AgriTrade+ marketplace activity.',
+            ? tl(
+                'This recommendation is currently based mainly on the latest reference commodity price. Future recommendations will improve as AgriTrade+ collects more actual marketplace activity.',
+              )
+            : tl(
+                'Based on the latest reference price, recent completed transactions, active listings, and current AgriTrade+ marketplace activity.',
+              ),
         style: GoogleFonts.montserrat(
           color: AppColors.textSecondary,
           fontSize: 11.5,
@@ -2206,7 +2204,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
       const SizedBox(height: 10),
       Text(
-        'Based on:',
+        tl('Based on:'),
         style: GoogleFonts.montserrat(
           color: AppColors.text,
           fontSize: 12.5,
@@ -2217,32 +2215,42 @@ class _AddProductScreenState extends State<AddProductScreen> {
       if (result.referencePrice != null)
         _basisLine(
           result.referenceIsStale
-              ? 'Latest reference commodity price (last updated a while ago)'
-              : 'Latest reference commodity price',
+              ? tl(
+                  'Latest reference commodity price (last updated a while ago)',
+                )
+              : tl('Latest reference commodity price'),
         ),
       if (result.transactionCount > 0)
         _basisLine(
-          '${result.transactionCount} recent completed transaction(s)',
+          tl('{0} recent completed transaction(s)', [result.transactionCount]),
         ),
       if (result.listingCount > 0)
-        _basisLine('${result.listingCount} active listing(s)'),
+        _basisLine(tl('{0} active listing(s)', [result.listingCount])),
       if (result.usedSupplyDemand)
-        _basisLine('Current supply and buyer demand'),
+        _basisLine(tl('Current supply and buyer demand')),
       if (isColdStart)
         _basisLine(
-          'AgriTrade+ does not yet have enough marketplace transaction data for this product.',
+          tl(
+            'AgriTrade+ does not yet have enough marketplace transaction data for this product.',
+          ),
         )
       else
         _basisLine(
-          'Weighted toward actual completed sales over asking prices, and outlier-resistant.',
+          tl(
+            'Weighted toward actual completed sales over asking prices, and outlier-resistant.',
+          ),
         ),
       if (result.tier == PriceDataTier.limited)
         _basisLine(
-          'Limited data so far — treat this as a rough starting point, not a confident market read.',
+          tl(
+            'Limited data so far — treat this as a rough starting point, not a confident market read.',
+          ),
         ),
       const SizedBox(height: 6),
       Text(
-        'This is an AI-assisted suggestion only — you always make the final pricing decision.',
+        tl(
+          'This is an AI-assisted suggestion only — you always make the final pricing decision.',
+        ),
         style: GoogleFonts.montserrat(
           color: AppColors.textMuted,
           fontSize: 10.5,
@@ -2267,7 +2275,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Suggested Price',
+                  tl('Suggested Price'),
                   style: GoogleFonts.montserrat(
                     color: AppColors.textSecondary,
                     fontSize: 11.5,
@@ -2301,23 +2309,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ),
           const SizedBox(height: 12),
           _secondaryStat(
-            'Suggested range',
+            tl('Suggested range'),
             '₱${result.suggestedLow!.toStringAsFixed(2)} – ₱${result.suggestedHigh!.toStringAsFixed(2)}',
           ),
           _secondaryStat(
-            'Reference price',
+            tl('Reference price'),
             result.referencePrice != null
                 ? '₱${result.referencePrice!.toStringAsFixed(2)} / $_currentUnit'
-                : 'Not set',
+                : tl('Not set'),
           ),
           _secondaryStat(
-            'Marketplace range',
+            tl('Marketplace range'),
             result.marketplaceLow != null
                 ? '₱${result.marketplaceLow!.toStringAsFixed(2)} – ₱${result.marketplaceHigh!.toStringAsFixed(2)}'
-                : 'No active listings yet',
+                : tl('No active listings yet'),
           ),
           _secondaryStat(
-            'Data availability',
+            tl('Data availability'),
             result.tier.dataAvailabilityLabel,
           ),
           if (_wholesaleEnabled) ...[
@@ -2335,7 +2343,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'WHOLESALE PRICE RECOMMENDATION',
+                        tl('WHOLESALE PRICE RECOMMENDATION'),
                         style: GoogleFonts.montserrat(
                           color: AppColors.text,
                           fontSize: 11,
@@ -2345,7 +2353,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Wholesale price recommendation currently unavailable due to limited wholesale market data.',
+                        tl(
+                          'Wholesale price recommendation currently unavailable due to limited wholesale market data.',
+                        ),
                         style: GoogleFonts.montserrat(
                           color: AppColors.textSecondary,
                           fontSize: 11.5,
@@ -2354,7 +2364,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'You can set the wholesale price manually. AgriTrade+ will not create a discount or wholesale reference price automatically.',
+                        tl(
+                          'You can set the wholesale price manually. AgriTrade+ will not create a discount or wholesale reference price automatically.',
+                        ),
                         style: GoogleFonts.montserrat(
                           color: AppColors.textMuted,
                           fontSize: 10.5,
@@ -2370,7 +2382,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'WHOLESALE SUGGESTED PRICE',
+                      tl('WHOLESALE SUGGESTED PRICE'),
                       style: GoogleFonts.montserrat(
                         color: AppColors.textSecondary,
                         fontSize: 10,
@@ -2390,8 +2402,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     const SizedBox(height: 5),
                     Text(
                       wholesaleResult.referencePrice != null
-                          ? 'Based only on wholesale-specific reference/market data.'
-                          : 'Based on actual wholesale listings and completed wholesale transactions.',
+                          ? tl(
+                              'Based only on wholesale-specific reference/market data.',
+                            )
+                          : tl(
+                              'Based on actual wholesale listings and completed wholesale transactions.',
+                            ),
                       style: GoogleFonts.montserrat(
                         color: AppColors.textMuted,
                         fontSize: 10.5,
@@ -2402,8 +2418,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       onPressed: () {
                         _wholesalePriceController.text = wholesaleSuggested
                             .toStringAsFixed(2);
-                        _showMessage(
-                          'Wholesale suggested price applied — you can still edit it.',
+                        _showSuccess(
+                          tl(
+                            'Wholesale suggested price applied — you can still edit it.',
+                          ),
                         );
                       },
                       style: OutlinedButton.styleFrom(
@@ -2411,7 +2429,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         side: BorderSide(color: AppColors.brand),
                       ),
                       child: Text(
-                        'Use Wholesale Suggested Price',
+                        tl('Use Wholesale Suggested Price'),
                         style: GoogleFonts.montserrat(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -2429,8 +2447,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
             child: ElevatedButton(
               onPressed: () {
                 _priceController.text = suggested.toStringAsFixed(2);
-                _showMessage(
-                  'Suggested price applied — you can still edit it.',
+                _showSuccess(
+                  tl('Suggested price applied — you can still edit it.'),
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -2441,7 +2459,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 shape: const StadiumBorder(),
               ),
               child: Text(
-                'Use Suggested Price',
+                tl('Use Suggested Price'),
                 style: GoogleFonts.montserrat(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -2462,7 +2480,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     showAgriSheet<void>(
       context: context,
       isScrollControlled: true,
-      title: 'About this price recommendation',
+      title: tl('About this price recommendation'),
       builder: (sheetContext) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(18, 6, 18, 20),
         child: Column(
@@ -2472,8 +2490,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ...(details ??
                 [
                   Text(
-                    'The suggested price is worked out from the latest reference commodity price and '
-                    'current AgriTrade+ marketplace activity, whenever that data is available.',
+                    tl(
+                      'The suggested price is worked out from the latest reference commodity price and current AgriTrade+ marketplace activity, whenever that data is available.',
+                    ),
                     style: GoogleFonts.montserrat(
                       color: AppColors.textSecondary,
                       fontSize: 11.5,
@@ -2482,7 +2501,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Based on:',
+                    tl('Based on:'),
                     style: GoogleFonts.montserrat(
                       color: AppColors.text,
                       fontSize: 12.5,
@@ -2490,16 +2509,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  _basisLine('Latest reference commodity price'),
-                  _basisLine('Recent completed transactions'),
-                  _basisLine('Active listings'),
-                  _basisLine('Current supply and buyer demand'),
+                  _basisLine(tl('Latest reference commodity price')),
+                  _basisLine(tl('Recent completed transactions')),
+                  _basisLine(tl('Active listings')),
+                  _basisLine(tl('Current supply and buyer demand')),
                   _basisLine(
-                    'Weighted toward actual completed sales over asking prices, and outlier-resistant.',
+                    tl(
+                      'Weighted toward actual completed sales over asking prices, and outlier-resistant.',
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'This is an AI-assisted suggestion only — you always make the final pricing decision.',
+                    tl(
+                      'This is an AI-assisted suggestion only — you always make the final pricing decision.',
+                    ),
                     style: GoogleFonts.montserrat(
                       color: AppColors.textMuted,
                       fontSize: 10.5,
@@ -2576,7 +2599,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'AI-Assisted Price Recommendation',
+                  tl('AI-Assisted Price Recommendation'),
                   style: GoogleFonts.montserrat(
                     color: AppColors.text,
                     fontSize: 13.5,
@@ -2594,7 +2617,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   color: AppColors.brand,
                   size: 20,
                 ),
-                tooltip: 'About this recommendation',
+                tooltip: tl('About this recommendation'),
                 onPressed: () => _showRecoInfo(details),
               ),
             ],
@@ -2656,8 +2679,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         appBar: AgriAppBar(
           onBack: _confirmExit,
           title: _isArchived
-              ? 'Product Details'
-              : (_isEditing ? 'Edit Product' : 'Add Product'),
+              ? tl('Product Details')
+              : (_isEditing ? tl('Edit Product') : tl('Add Product')),
           actions: [
             if (_isEditing) ...[
               IconButton(
@@ -2666,12 +2689,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ? Icons.unarchive_outlined
                       : Icons.archive_outlined,
                 ),
-                tooltip: _isArchived ? 'Restore listing' : 'Archive listing',
+                tooltip: _isArchived
+                    ? tl('Restore listing')
+                    : tl('Archive listing'),
                 onPressed: _loading ? null : _toggleArchive,
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                tooltip: 'Delete',
+                tooltip: tl('Delete'),
                 onPressed: _loading ? null : _delete,
               ),
             ],
@@ -2723,8 +2748,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'This listing is archived and hidden from the marketplace. '
-                                    '${ProductService.archivedReadOnlyMessage}',
+                                    tl(
+                                      'This listing is archived and hidden from the marketplace. {0}',
+                                      [ProductService.archivedReadOnlyMessage],
+                                    ),
                                     style: GoogleFonts.montserrat(
                                       fontSize: 12,
                                       color: AppColors.tone(Colors.orange, 900),
@@ -2748,14 +2775,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         _fieldError(_photoKey),
                         const SizedBox(height: 14),
 
-                        _label('Product Name', key: _nameKey),
+                        _label(tl('Product Name'), key: _nameKey),
                         Autocomplete<String>(
                           textEditingController: _nameController,
                           focusNode: _nameFocusNode,
                           optionsBuilder: (value) {
                             final query = value.text.trim().toLowerCase();
-                            final names =
-                                CommodityRegistry.instance.activeNames;
+                            final names = orderForFarmerType(
+                              CommodityRegistry.instance.activeNames,
+                              farmerType: _farmerType,
+                              categoryOf: categoryOfCommodity,
+                            );
                             if (query.isEmpty) return names;
                             return names.where(
                               (c) => c.toLowerCase().contains(query),
@@ -2828,7 +2858,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Start typing to select a supported product.',
+                          tl('Start typing to select a supported product.'),
                           style: GoogleFonts.montserrat(
                             fontSize: 11,
                             color: AppColors.grey(600),
@@ -2839,9 +2869,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         _supportedProductsBanner(),
                         const SizedBox(height: 12),
 
-                        // ---- Selling Option (Livestock only) ----
+                        // ---- Livestock: sold live only; the health
+                        // certificate is shared in Messages. ----
                         if (_isLivestock) ...[
-                          _sellingOptionField(),
+                          _healthCertificateNote(),
                           const SizedBox(height: 12),
                         ],
 
@@ -2853,13 +2884,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _label('Category'),
+                                  _label(tl('Category')),
                                   _GlowPlate(
                                     child: InputDecorator(
                                       decoration: _inputDecoration(''),
                                       child: Text(
-                                        _category ??
-                                            'Select a product name first',
+                                        // Filled in from the Product Name;
+                                        // short, so it fits half a row.
+                                        _category ?? tl('Auto-filled'),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.montserrat(
@@ -2879,7 +2911,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _label('Available Stock', key: _stockKey),
+                                  _label(tl('Available Stock'), key: _stockKey),
                                   _GlowPlate(
                                     error: _hasIssue(_stockKey),
                                     child: TextField(
@@ -2983,14 +3015,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            'Offer Wholesale',
+                            tl('Offer Wholesale'),
                             style: GoogleFonts.montserrat(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
-                            'Set a lower bulk price once the buyer reaches your minimum quantity.',
+                            tl(
+                              'Set a lower bulk price once the buyer reaches your minimum quantity.',
+                            ),
                             style: GoogleFonts.montserrat(
                               fontSize: 11.5,
                               color: AppColors.grey(600),
@@ -3048,7 +3082,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           _fieldError(_wholesalePriceKey),
                           const SizedBox(height: 12),
                           _label(
-                            'Minimum Wholesale Quantity',
+                            tl('Minimum Wholesale Quantity'),
                             key: _wholesaleMinKey,
                           ),
                           _GlowPlate(
@@ -3080,16 +3114,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ],
 
                         // ---- Description ----
-                        _label('Description'),
+                        _label(tl('Description')),
                         // Multi-line, so a softer corner than the single-line pills.
                         _GlowPlate(
-                          radius: 22,
+                          radius: 15,
                           child: TextField(
                             controller: _descriptionController,
                             maxLines: 3,
                             style: GoogleFonts.montserrat(fontSize: 14),
                             decoration: _inputDecoration(
-                              'Tell buyers about how it was raised or grown...',
+                              tl(
+                                'Tell buyers about how it was raised or grown...',
+                              ),
                             ),
                           ),
                         ),
@@ -3099,7 +3135,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            'Delivery Available',
+                            tl('Delivery Available'),
                             style: GoogleFonts.montserrat(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -3114,17 +3150,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            'Pick-up Available',
+                            tl('Pick-up Available'),
                             style: GoogleFonts.montserrat(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Buyers can collect the order from you.',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 11.5,
-                              color: AppColors.grey(600),
                             ),
                           ),
                           activeThumbColor: AppColors.brand,
@@ -3208,7 +3237,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ),
             )
           : Text(
-              _isEditing ? 'Update' : 'Post',
+              _isEditing ? tl('Update') : tl('Post'),
               style: GoogleFonts.montserrat(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -3233,7 +3262,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: !formComplete && !_loading
                 ? Text(
-                    'Complete the required fields to post.',
+                    tl('Complete the required fields to post.'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
@@ -3255,7 +3284,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         onPressed: _loading ? null : _toggleArchive,
         icon: const Icon(Icons.unarchive_outlined, size: 20),
         label: Text(
-          'Restore Product',
+          tl('Restore Product'),
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -3285,7 +3314,11 @@ class _GlowPlate extends StatefulWidget {
   /// Outlines the field in red while it has a validation problem.
   final bool error;
 
-  const _GlowPlate({required this.child, this.radius = 30, this.error = false});
+  const _GlowPlate({
+    required this.child,
+    this.radius = AppTheme.pillRadius,
+    this.error = false,
+  });
 
   @override
   State<_GlowPlate> createState() => _GlowPlateState();
@@ -3302,12 +3335,21 @@ class _GlowPlateState extends State<_GlowPlate> {
       onFocusChange: (focused) => setState(() => _focused = focused),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        decoration: AppTheme.glowFieldWrapper(focused: _focused).copyWith(
-          borderRadius: BorderRadius.circular(widget.radius),
-          border: widget.error
-              ? Border.all(color: AppColors.tone(Colors.red, 700), width: 1.4)
-              : null,
-        ),
+        decoration: AppTheme.glowFieldWrapper(
+          focused: _focused,
+        ).copyWith(borderRadius: BorderRadius.circular(widget.radius)),
+        foregroundDecoration: widget.error
+            ? BoxDecoration(
+                border: Border.all(
+                  color: AppColors.tone(Colors.red, 700),
+                  width: 1.4,
+                ),
+                borderRadius: BorderRadius.circular(widget.radius),
+              )
+            : AppTheme.glowFieldOutline(
+                focused: _focused,
+                radius: widget.radius,
+              ),
         child: widget.child,
       ),
     );

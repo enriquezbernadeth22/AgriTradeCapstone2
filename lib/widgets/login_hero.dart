@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'agritrade_text.dart';
 import 'typewriter_headline.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The branded header used by both [RoleSelectionScreen] (the app's front
 /// door) and [LoginScreen] (its role-specific doors): the rice field at
@@ -266,11 +267,11 @@ class BrandHeadline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TypewriterHeadline(
-      text: 'Connecting Farmers to Better Markets',
+      text: tl('Connecting Farmers to Better Markets'),
       highlight: 'Better Markets',
       // The gold of the logo's leaves (and the sunrise).
       highlightColor: const Color(0xFFF4C430),
-      subtitle: 'Grow together. Trade smarter.',
+      subtitle: tl('Grow together. Trade smarter.'),
       fontSize: fontSize,
       shadows: shadows,
     );

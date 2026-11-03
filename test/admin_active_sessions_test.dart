@@ -44,34 +44,39 @@ void main() {
     ),
   ];
 
-  test('this browser, other active sessions and ended ones are told apart', () {
-    final entries = buildAdminSessionEntries(
-      record: record,
-      history: history,
-      localId: 'this-browser-0000001',
-    );
-    // Newest first.
-    expect(entries.map((e) => e.id), [
-      'phone-session-000001',
-      'this-browser-0000001',
-      'old-session-00000001',
-    ]);
+  test(
+    'simultaneous browser sessions remain active and ended ones are separate',
+    () {
+      final entries = buildAdminSessionEntries(
+        record: record,
+        history: history,
+        localId: 'this-browser-0000001',
+      );
+      // Newest first.
+      expect(entries.map((e) => e.id), [
+        'phone-session-000001',
+        'this-browser-0000001',
+        'old-session-00000001',
+      ]);
 
-    final current = entries.singleWhere((e) => e.isCurrent);
-    expect(current.device, 'Chrome on Windows');
-    expect(current.location, 'Laurel, Batangas');
+      final current = entries.singleWhere((e) => e.isCurrent);
+      expect(current.device, 'Chrome on Windows');
+      expect(current.location, 'Laurel, Batangas');
+      expect(current.active, isTrue);
 
-    final other = entries.singleWhere((e) => !e.isCurrent && e.active);
-    expect(other.onPhone, isTrue);
-    // "Unknown" is no location at all.
-    expect(other.location, isNull);
-    // The active session on record: last heard from by its heartbeat.
-    expect(other.lastActiveAt, DateTime(2026, 10, 16, 10, 40));
+      final other = entries.singleWhere((e) => !e.isCurrent && e.active);
+      expect(other.active, isTrue);
+      expect(other.onPhone, isTrue);
+      // "Unknown" is no location at all.
+      expect(other.location, isNull);
+      // The active session on record: last heard from by its heartbeat.
+      expect(other.lastActiveAt, DateTime(2026, 10, 16, 10, 40));
 
-    final ended = entries.singleWhere((e) => !e.active);
-    expect(ended.endLabel, 'Signed out from Active Sessions');
-    expect(ended.endedAt, DateTime(2026, 10, 15, 9));
-  });
+      final ended = entries.singleWhere((e) => !e.active);
+      expect(ended.endLabel, 'Signed out from Active Sessions');
+      expect(ended.endedAt, DateTime(2026, 10, 15, 9));
+    },
+  );
 
   test('a browser holding no session id has no current session', () {
     final entries = buildAdminSessionEntries(

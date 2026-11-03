@@ -32,47 +32,59 @@ class GlowTapField extends StatelessWidget {
     final theme = Theme.of(context);
     // The same text and hint styles a TextField inside GlowField resolves to.
     final textStyle = theme.textTheme.titleMedium?.copyWith(
+      fontSize: AppTheme.formTextSize,
       color: hasValue ? AppColors.text : null,
     );
     final hintStyle =
         theme.inputDecorationTheme.hintStyle ??
-        theme.textTheme.titleMedium?.copyWith(color: theme.hintColor);
+        theme.textTheme.titleMedium?.copyWith(
+          fontSize: 14,
+          color: theme.hintColor,
+        );
 
     return Container(
       decoration: AppTheme.glowFieldWrapper(),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(30),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 18, right: 12),
-                child: Icon(icon, color: AppColors.mid, size: 20),
-              ),
-              Container(height: 22, width: 1, color: AppColors.hairline),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 18,
-                    horizontal: 12,
-                  ),
-                  child: Text(
-                    hasValue ? value! : hint,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: hasValue ? textStyle : hintStyle,
-                  ),
-                ),
-              ),
-              if (trailing != null)
+      foregroundDecoration: AppTheme.glowFieldOutline(),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppTheme.formFieldHeight),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Row(
+              children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 14),
-                  child: Icon(trailing, color: AppColors.grey(600), size: 20),
+                  padding: const EdgeInsets.only(left: 18, right: 12),
+                  child: Icon(
+                    icon,
+                    color: AppTheme.formIconColor,
+                    size: AppTheme.formIconSize,
+                  ),
                 ),
-            ],
+                Container(height: 22, width: 1, color: AppColors.hairline),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 12,
+                    ),
+                    child: Text(
+                      hasValue ? value! : hint,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: hasValue ? textStyle : hintStyle,
+                    ),
+                  ),
+                ),
+                if (trailing != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: Icon(trailing, color: AppColors.grey(600), size: 20),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

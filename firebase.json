@@ -40,7 +40,31 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/download",
+        "destination": "/downloads/agritrade.apk",
+        "type": 302
+      }
+    ],
     "headers": [
+      {
+        "source": "/downloads/**",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          },
+          {
+            "key": "Content-Disposition",
+            "value": "attachment; filename=\"AgriTrade.apk\""
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
       {
         "source": "/reset-password/**",
         "headers": [

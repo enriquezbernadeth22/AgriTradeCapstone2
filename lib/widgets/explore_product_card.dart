@@ -7,6 +7,10 @@ import '../services/market_price_helpers.dart';
 import 'demand_badge.dart';
 import 'save_product_button.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
+import '../services/buyer_area_watcher.dart';
+import '../services/buyer_type_watcher.dart';
+import '../services/delivery_coverage.dart';
 
 /// One product in the Buyer Explore grid: image on top, then category (and
 /// rating), name, price, the wholesale badge, stock and the farmer.
@@ -76,12 +80,22 @@ class ExploreProductCard extends StatelessWidget {
     return showFarmer ? full : full - (6 + 1 + 5) - _farmerLine * scale;
   }
 
+  // The card's price is the wholesale one for a buyer who orders in bulk,
+  // unless the stock is below the minimum, when it cannot be ordered at it.
+  bool _showsWholesale(bool enabled, double? wholesalePrice) =>
+      BuyerTypeWatcher.instance.wholesaleFirst &&
+      enabled &&
+      wholesalePrice != null &&
+      wholesalePrice > 0 &&
+      ((data['quantity'] as num?) ?? 0) >=
+          ((data['wholesaleMinimumQuantity'] as num?) ?? 1);
+
   @override
   Widget build(BuildContext context) {
-    final name = (data['name'] ?? 'Unnamed Product').toString();
+    final name = (data['name'] ?? tl('Unnamed Product')).toString();
     final savedCategory = normalizeCategory(data['category']);
     final category = savedCategory.isEmpty ? 'General' : savedCategory;
-    final farmer = (data['farmerName'] ?? 'Local Farmer').toString();
+    final farmer = (data['farmerName'] ?? tl('Local Farmer')).toString();
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;
     final wholesalePrice = (data['wholesalePrice'] as num?)?.toDouble();
     final wholesaleEnabled =
@@ -89,6 +103,7 @@ class ExploreProductCard extends StatelessWidget {
         (data['wholesaleEnabled'] == null &&
             wholesalePrice != null &&
             wholesalePrice > 0);
+    final wholesaleMinimum = (data['wholesaleMinimumQuantity'] as num?) ?? 1;
     final quantity = (data['quantity'] as num?) ?? 0;
     final unit = (data['unit'] as String?) ?? unitForProductName(name);
     final rating = (data['rating'] as num?)?.toDouble();
@@ -130,6 +145,19 @@ class ExploreProductCard extends StatelessWidget {
                       right: 6,
                       child: LikeHeart(liked: saved, onTap: onToggleSave),
                     ),
+                  // Why it is near the top of the buyer's feed: the
+                  // farmer's delivery reaches the buyer's area.
+                  Positioned(
+                    left: 7,
+                    bottom: 7,
+                    child: ListenableBuilder(
+                      listenable: BuyerAreaWatcher.instance,
+                      builder: (context, _) =>
+                          deliversTo(data, BuyerAreaWatcher.instance.area)
+                          ? const _DeliversHereTag()
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -204,17 +232,27 @@ class ExploreProductCard extends StatelessWidget {
                     const Spacer(),
                     // Only scales down when the price is genuinely wider
                     // than the card (e.g. ₱12,500.00/kg liveweight).
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        formatPriceWithUnit(price, unit),
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: AppColors.brand,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          height: 1.25,
+                    // A buyer who orders in bulk sees the wholesale price
+                    // first (see BuyerTypeWatcher).
+                    ListenableBuilder(
+                      listenable: BuyerTypeWatcher.instance,
+                      builder: (context, _) => FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          formatPriceWithUnit(
+                            _showsWholesale(wholesaleEnabled, wholesalePrice)
+                                ? wholesalePrice!
+                                : price,
+                            unit,
+                          ),
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: AppColors.brand,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            height: 1.25,
+                          ),
                         ),
                       ),
                     ),
@@ -236,15 +274,22 @@ class ExploreProductCard extends StatelessWidget {
                           border: AppColors.cardBorder,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
-                          'Wholesale available',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10,
-                            height: 1.2,
-                            color: AppColors.brand,
-                            fontWeight: FontWeight.w600,
+                        child: ListenableBuilder(
+                          listenable: BuyerTypeWatcher.instance,
+                          builder: (context, _) => Text(
+                            _showsWholesale(wholesaleEnabled, wholesalePrice)
+                                ? tl('Wholesale · min {0}', [
+                                    formatStock(wholesaleMinimum, unit),
+                                  ])
+                                : tl('Wholesale available'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              height: 1.2,
+                              color: AppColors.brand,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -347,5 +392,37 @@ class _ProductImage extends StatelessWidget {
       );
     }
     return _placeholder(Icons.eco_rounded);
+  }
+}
+
+/// "Delivers to you" over a product's photo: the farmer's delivery
+/// coverage reaches the signed-in buyer's area.
+class _DeliversHereTag extends StatelessWidget {
+  const _DeliversHereTag();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.local_shipping_outlined, size: 12, color: AppColors.brand),
+          const SizedBox(width: 4),
+          Text(
+            tl('Delivers to you'),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.brand,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -2,6 +2,7 @@ import '../services/connectivity_service.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Shown instead of the app whenever a real internet connection could not
 /// be confirmed — at launch (see AppBootstrap) and any time a routing
@@ -39,15 +40,18 @@ class NoInternetScreen extends StatelessWidget {
                 Icon(Icons.cloud_off_rounded, size: 72, color: AppColors.brand),
                 const SizedBox(height: 20),
                 Text(
-                  serverIssue ? 'Can\'t connect right now' : 'You\'re offline',
+                  serverIssue
+                      ? tl('Can\'t connect right now')
+                      : tl('You\'re offline'),
                   textAlign: TextAlign.center,
                   style: AppTheme.heading(20),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   serverIssue
-                      ? 'Your internet is working, but AgriTrade+ could not '
-                            'be reached.'
+                      ? tl(
+                          'Your internet is working, but AgriTrade+ could not be reached.',
+                        )
                       : message,
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -59,8 +63,8 @@ class NoInternetScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   serverIssue
-                      ? 'Please try again in a moment.'
-                      : 'Check your Wi-Fi or mobile data, then try again.',
+                      ? tl('Please try again in a moment.')
+                      : tl('Check your Wi-Fi or mobile data, then try again.'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -83,7 +87,7 @@ class NoInternetScreen extends StatelessWidget {
                             ),
                           )
                         : const Icon(Icons.refresh_rounded),
-                    label: Text(checking ? 'Checking…' : 'Try Again'),
+                    label: Text(checking ? tl('Checking…') : tl('Try Again')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,

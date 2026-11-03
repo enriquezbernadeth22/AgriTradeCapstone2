@@ -55,8 +55,9 @@ class ProductService {
     // that later displays this product's stock/price shows the same unit,
     // instead of each one re-deriving it independently.
     String? unit,
-    // Livestock only: 'live' or 'slaughtered' (SellingOption.value, see
-    // commodity_master_list.dart). Null for anything else.
+    // Livestock only: 'live' (SellingOption.value, see
+    // commodity_master_list.dart; livestock is sold live only). Null for
+    // anything else.
     String? sellingOption,
     // When this batch was harvested, as entered by the farmer (see
     // harvest_info.dart). Optional, and only for produce categories.

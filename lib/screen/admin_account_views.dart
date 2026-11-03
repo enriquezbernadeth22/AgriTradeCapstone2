@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -855,7 +856,10 @@ class _ActiveSessionsDialogState extends State<_ActiveSessionsDialog> {
     );
     if (done == true && mounted) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text('${session.device} was signed out.')),
+        appSnackBar(
+          '${session.device} was signed out.',
+          kind: MessageKind.success,
+        ),
       );
     }
   }

@@ -1,3 +1,4 @@
+import 'package:agritrade/theme/app_colors.dart';
 import 'package:agritrade/widgets/agri_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,5 +80,39 @@ void main() {
     final login = _rect(tester, 'Go to Login');
     expect(login.bottom, lessThanOrEqualTo(cancel.top));
     expect(login.width, cancel.width);
+  });
+
+  testWidgets('the icon is black on grey for every tone, like the '
+      'Notifications screen', (tester) async {
+    for (final tone in AgriTone.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AgriDialog(
+              icon: Icons.notifications_active_outlined,
+              tone: tone,
+              title: const Text('Stay Updated'),
+            ),
+          ),
+        ),
+      );
+      final icon = tester.widget<Icon>(
+        find.byIcon(Icons.notifications_active_outlined),
+      );
+      expect(icon.color, AppColors.textStrong, reason: '$tone');
+      final circle = tester.widget<Container>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.notifications_active_outlined),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(
+        (circle.decoration! as BoxDecoration).color,
+        AppColors.grey(200),
+        reason: '$tone',
+      );
+    }
   });
 }

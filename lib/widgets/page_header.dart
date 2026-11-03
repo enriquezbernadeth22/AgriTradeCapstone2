@@ -6,26 +6,27 @@ import 'agritrade_text.dart';
 import 'docked_nav_bar.dart';
 import 'notification_bell.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The header of every main tab, for both roles — Market / Explore,
 /// Messages, Orders, Profile — in two rows: the AgriTrade+ logo mark on
-/// the left with the tab's own action on the right where it has one (the
-/// notification bell on Market / Explore, the menu on Messages, …), then
+/// the left and the notification bell and Settings gear on the right, then
 /// the tab's title underneath. One widget, so the tabs cannot drift apart
 /// in height, padding, logo size, font or colour.
 ///
-/// Only the logo row is on a band: designed like the bottom bar
-/// (DockedNavBar) — pure white, its rounded corners (at the bottom) and its
-/// soft shadow — but attached to the top edge, not floating. It holds the
-/// logo (on no background of its own), the dark green
-/// "AgriTrade+" wordmark and dark green icons. The title stays below it on
+/// Only the logo row is on a band: a rectangular bar across the top, in the
+/// bottom bar's (DockedNavBar) pure white with its soft shadow, the same as
+/// AgriAppBar's on the inner screens. It holds the logo (on no background of
+/// its own), the dark green "AgriTrade+" wordmark and dark green icons. The
+/// title stays below it on
 /// the page, in dark green. The band sits straight under the status bar,
 /// which [PageHeaderSafeArea] paints the same colour: the role shells have
 /// no app bar.
 class PageHeader extends StatelessWidget {
   final String title;
 
-  /// Optional action at the right end of the logo row.
+  /// Optional action on the logo row, in place of the shell's notification
+  /// bell. The Settings gear stays at the right end either way.
   final Widget? trailing;
 
   /// Optional action on the title's own row, right-aligned and centered
@@ -58,21 +59,12 @@ class PageHeader extends StatelessWidget {
   /// ([titleTrailing] — the menus).
   static Color get titleColor => AppColors.brand;
 
-  // The size the logo's artwork appears at. logo.png is 612x408 with the
-  // artwork taking only the middle 330x310 of it — the rest is transparent
-  // margin — so fitting the whole file into a small square would leave the
-  // mark looking tiny. The file is drawn larger instead, sized so the
-  // artwork itself comes out [_logoSize] wide, with the transparent margin
-  // allowed to spill past the layout box (it draws nothing).
+  // The size the logo's artwork appears at, and the room it stands in.
   static const double _logoSize = 30;
   static const double _discSize = 34;
-  static const double _assetWidth = 612;
-  static const double _assetHeight = 408;
-  static const double _artworkWidth = 330;
 
   @override
   Widget build(BuildContext context) {
-    const scale = _logoSize / _artworkWidth;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -88,14 +80,13 @@ class PageHeader extends StatelessWidget {
             width: double.infinity,
             height: 56,
             padding: const EdgeInsets.fromLTRB(_horizontalPadding, 0, 8, 4),
-            // The bottom bar's look (white, its corners, its soft shadow), but
-            // attached to the top edge rather than floating.
+            // Rectangular: white with the bottom bar's soft shadow, and in
+            // Dark Mode a line along its lower edge only.
             decoration: BoxDecoration(
               color: background,
-              border: AppColors.cardBorder,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(DockedNavBar.cornerRadius),
-              ),
+              border: AppColors.cardBorder == null
+                  ? null
+                  : Border(bottom: AppColors.outlineSide),
               boxShadow: DockedNavBar.shadow,
             ),
             child: Row(
@@ -112,28 +103,7 @@ class PageHeader extends StatelessWidget {
                           width: _discSize,
                           height: _discSize,
                           alignment: Alignment.center,
-                          child: SizedBox(
-                            width: _logoSize,
-                            height: _logoSize,
-                            child: OverflowBox(
-                              maxWidth: _assetWidth * scale,
-                              maxHeight: _assetHeight * scale,
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                width: _assetWidth * scale,
-                                height: _assetHeight * scale,
-                                fit: BoxFit.contain,
-                                // Smooth, sharp scaling of the large artwork
-                                // down to header size.
-                                filterQuality: FilterQuality.high,
-                                errorBuilder: (c, e, s) => Icon(
-                                  Icons.agriculture,
-                                  color: AppColors.brand,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ),
+                          child: const AgriTradeLogoMark(size: _logoSize),
                         ),
                       ),
                       const SizedBox(width: 9),
@@ -144,8 +114,9 @@ class PageHeader extends StatelessWidget {
                 const Spacer(),
                 // The tab's own action, or else the notification bell the
                 // role shell provides (see HomeLogoAction), so every tab has
-                // the bell.
+                // the bell; then the shell's Settings gear.
                 ?(trailing ?? _shellBell(context)),
+                ?_shellGear(context),
               ],
             ),
           ),
@@ -180,10 +151,14 @@ class HomeLogoAction extends InheritedWidget {
   /// has no action of its own there.
   final VoidCallback? onNotifications;
 
+  /// Opens the Settings sheet — the gear in every tab's header.
+  final VoidCallback? onSettings;
+
   const HomeLogoAction({
     super.key,
     required this.onTap,
     this.onNotifications,
+    this.onSettings,
     required super.child,
   });
 
@@ -194,6 +169,9 @@ class HomeLogoAction extends InheritedWidget {
 
   static VoidCallback? _notificationsOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<HomeLogoAction>()?.onNotifications;
+
+  static VoidCallback? _settingsOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<HomeLogoAction>()?.onSettings;
 
   @override
   bool updateShouldNotify(HomeLogoAction oldWidget) => false;
@@ -208,7 +186,7 @@ class _HomeLogoTap extends StatelessWidget {
     if (HomeLogoAction._of(context) == null) return child;
     return Semantics(
       button: true,
-      label: 'AgriTrade+ home',
+      label: tl('AgriTrade+ home'),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => HomeLogoAction._of(context)?.call(),
@@ -265,6 +243,20 @@ Widget? _shellBell(BuildContext context) {
   return NotificationBell(
     onPressed: () => HomeLogoAction._notificationsOf(context)?.call(),
     color: PageHeader.onBandColor,
+  );
+}
+
+// The shell's Settings gear for a tab header, or null without one.
+Widget? _shellGear(BuildContext context) {
+  if (HomeLogoAction._settingsOf(context) == null) return null;
+  return IconButton(
+    tooltip: tl('Settings'),
+    onPressed: () => HomeLogoAction._settingsOf(context)?.call(),
+    icon: Icon(
+      Icons.settings_outlined,
+      color: PageHeader.onBandColor,
+      size: 22,
+    ),
   );
 }
 

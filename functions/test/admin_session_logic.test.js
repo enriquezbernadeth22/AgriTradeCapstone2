@@ -1,7 +1,7 @@
 // Run with: npm test   (from the functions folder)
 const test = require("node:test");
 const assert = require("node:assert");
-const { isValidSessionId, planStart, deviceLabel } = require("../admin_session_logic");
+const { isValidSessionId, deviceLabel } = require("../admin_session_logic");
 const templates = require("../email_templates");
 
 test("a session id is a plain random token of a sensible length", () => {
@@ -11,37 +11,6 @@ test("a session id is a plain random token of a sensible length", () => {
   assert.ok(!isValidSessionId("a".repeat(65)));
   assert.ok(!isValidSessionId(null));
   assert.ok(!isValidSessionId(12345678901234567890));
-});
-
-test("the first session has nothing to replace", () => {
-  assert.deepStrictEqual(planStart(null, "session-b-0123456789"), {
-    previousSessionId: null,
-    replaced: false,
-  });
-});
-
-test("the same browser logging in again replaces nothing", () => {
-  const current = { activeSessionId: "session-a-0123456789", sessionStatus: "active" };
-  assert.deepStrictEqual(planStart(current, "session-a-0123456789"), {
-    previousSessionId: null,
-    replaced: false,
-  });
-});
-
-test("a second browser ends the active session of the first", () => {
-  const current = { activeSessionId: "session-a-0123456789", sessionStatus: "active" };
-  assert.deepStrictEqual(planStart(current, "session-b-0123456789"), {
-    previousSessionId: "session-a-0123456789",
-    replaced: true,
-  });
-});
-
-test("a session already ended by logout is followed, not replaced", () => {
-  const current = { activeSessionId: "session-a-0123456789", sessionStatus: "ended" };
-  assert.deepStrictEqual(planStart(current, "session-b-0123456789"), {
-    previousSessionId: "session-a-0123456789",
-    replaced: false,
-  });
 });
 
 test("a device is named by its browser and platform", () => {

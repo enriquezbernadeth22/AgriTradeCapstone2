@@ -1,7 +1,16 @@
 // Run with: npm test   (from the functions folder)
 const test = require("node:test");
 const assert = require("node:assert");
-const { checkFarmerDetails } = require("../admin_create_farmer_logic");
+const { checkFarmerDetails, passwordChangedSince } = require("../admin_create_farmer_logic");
+
+test("a password change is seen by the time Firebase moved its tokens to", () => {
+  const since = Date.parse("2026-11-02T10:00:00Z");
+  assert.strictEqual(passwordChangedSince("Mon, 02 Nov 2026 10:05:00 GMT", since), true);
+  assert.strictEqual(passwordChangedSince("Mon, 02 Nov 2026 09:59:00 GMT", since), false);
+  // Nothing to compare: it is taken as not changed, so the farmer is still asked.
+  assert.strictEqual(passwordChangedSince(undefined, since), false);
+  assert.strictEqual(passwordChangedSince("Mon, 02 Nov 2026 10:05:00 GMT", undefined), false);
+});
 
 const valid = {
   firstName: "  Juan ",
@@ -9,6 +18,7 @@ const valid = {
   email: " Juan.DelaCruz@Gmail.com ",
   mobileNumber: "0912 345 6789",
   barangay: "san gabriel",
+  farmerType: "Crop Farmer",
   rsbaNumber: " 0410140010000ab ",
   password: "Laurel-Farm2026",
   termsAccepted: true,
@@ -24,6 +34,7 @@ test("valid details are cleaned the way the app stores them", () => {
     email: "juan.delacruz@gmail.com",
     mobileNumber: "+639123456789",
     barangay: "San Gabriel",
+    farmerType: "Crop Farmer",
     rsbaNumber: "0410140010000AB",
     password: "Laurel-Farm2026",
     termsVersion: "tos-draft-1",
@@ -61,4 +72,10 @@ test("the password follows the app's password rules", () => {
 test("the farmer's agreement to the Terms is required", () => {
   assert.match(checkFarmerDetails({ ...valid, termsAccepted: false }).error, /Terms of Service/);
   assert.match(checkFarmerDetails({ ...valid, termsAccepted: "yes" }).error, /Terms of Service/);
+});
+
+test("Add Farmer needs one of the farmer types", () => {
+  assert.strictEqual(checkFarmerDetails(valid).farmerType, "Crop Farmer");
+  assert.match(checkFarmerDetails({ ...valid, farmerType: "" }).error, /best describes/);
+  assert.match(checkFarmerDetails({ ...valid, farmerType: "Fisher" }).error, /best describes/);
 });

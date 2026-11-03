@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'busy_indicator_native.dart'
     if (dart.library.js_interop) 'busy_indicator_web.dart'
     as impl;
+import '../l10n/app_language.dart';
 
 /// A spinning ring for long work such as building a report. On the web
 /// the browser draws and turns it (CSS), so it keeps moving smoothly even
@@ -23,7 +24,7 @@ class BusySpinner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Loading',
+      label: tl('Loading'),
       child: SizedBox(
         width: size,
         height: size,

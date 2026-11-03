@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/pdf_report_service.dart' show ReportPaper;
 import '../services/report_export_service.dart';
-import '../widgets/busy_indicator.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette, adminButtonShape;
 import 'admin_filter_controls.dart';
 
@@ -26,45 +25,21 @@ enum DateRangePreset {
 /// else is a data/list/table section). Sales Overview is a table only: the
 /// dashboard has no total-sales chart of its own.
 enum DashboardSection {
-  kpiSummary('KPI Summary', isChart: false),
+  accountsSummary('Accounts Summary', isChart: false),
+  buyersByType('Buyers by Type', isChart: false),
+  transactions('Transactions', isChart: false),
   salesOverview('Sales Overview', isChart: false),
+  marketDemand('Market Demand', isChart: false),
   salesByCategory('Sales by Category', isChart: true),
   priceTrend('Price Trend vs. Baseline', isChart: true),
   topSellingProducts('Top-Selling Products', isChart: false),
-  demandByBarangay('Demand by Barangay', isChart: false),
-  newRegistrations('New Registrations', isChart: false),
-  verificationStatus('Verification Status', isChart: false),
-  liveCommodityPrices('Live Commodity Prices', isChart: false),
-  recentVerificationRequests('Recent Verification Requests', isChart: false);
+  marketChangeAnalysis('Market Change Analysis', isChart: false),
+  demand('Demand', isChart: false),
+  liveCommodityPrices('Live Commodity Prices', isChart: false);
 
   final String label;
   final bool isChart;
   const DashboardSection(this.label, {required this.isChart});
-}
-
-/// What the Export Report dialog offers, in place of one checkbox per
-/// dashboard section: four groups, each standing for the sections listed.
-enum ReportGroup {
-  overview('Overview Summary', {DashboardSection.kpiSummary}),
-  sales('Sales Analytics', {
-    DashboardSection.salesOverview,
-    DashboardSection.salesByCategory,
-    DashboardSection.topSellingProducts,
-  }),
-  demandAndMarket('Demand & Market Analytics', {
-    DashboardSection.priceTrend,
-    DashboardSection.demandByBarangay,
-    DashboardSection.liveCommodityPrices,
-  }),
-  verification('Verification & User Summary', {
-    DashboardSection.newRegistrations,
-    DashboardSection.verificationStatus,
-    DashboardSection.recentVerificationRequests,
-  });
-
-  final String label;
-  final Set<DashboardSection> sections;
-  const ReportGroup(this.label, this.sections);
 }
 
 /// The file formats and date ranges the dialog offers. The export service
@@ -84,7 +59,8 @@ const List<DateRangePreset> kOfferedDatePresets = [
 const String _reportTitle = 'AgriTrade+ Analytics Report';
 
 const _prefsKeyFormat = 'export_last_format';
-const _prefsKeyGroups = 'export_last_groups';
+// A new key when sections are added, so they start ticked.
+const _prefsKeySections = 'export_last_sections_v3';
 const _prefsKeyPreset = 'export_last_preset';
 const _prefsKeyOrientation = 'export_last_orientation';
 const _prefsKeyPaper = 'export_last_paper';
@@ -100,7 +76,7 @@ class ExportOptionsDialog extends StatefulWidget {
 
 class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   ReportFormat _format = ReportFormat.pdf;
-  final Set<ReportGroup> _groups = {...ReportGroup.values};
+  final Set<DashboardSection> _sections = {...DashboardSection.values};
   // Null = every commodity.
   String? _commodity;
   DateRangePreset _preset = DateRangePreset.last30Days;
@@ -113,6 +89,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   bool _exporting = false;
   // What the export is doing right now, shown while it runs.
   String _step = '';
+  double _progress = 0;
   String? _error;
   String? _successMessage;
 
@@ -144,7 +121,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final formatName = prefs.getString(_prefsKeyFormat);
-      final groupNames = prefs.getStringList(_prefsKeyGroups);
+      final sectionNames = prefs.getStringList(_prefsKeySections);
       final presetName = prefs.getString(_prefsKeyPreset);
       final orientationLandscape = prefs.getBool(_prefsKeyOrientation);
       final paperName = prefs.getString(_prefsKeyPaper);
@@ -158,11 +135,13 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
           (f) => f.name == formatName,
           orElse: () => ReportFormat.pdf,
         );
-        if (groupNames != null && groupNames.isNotEmpty) {
-          _groups
+        if (sectionNames != null && sectionNames.isNotEmpty) {
+          _sections
             ..clear()
             ..addAll(
-              ReportGroup.values.where((g) => groupNames.contains(g.name)),
+              DashboardSection.values.where(
+                (s) => sectionNames.contains(s.name),
+              ),
             );
         }
         _preset = kOfferedDatePresets.firstWhere(
@@ -187,8 +166,8 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsKeyFormat, _format.name);
       await prefs.setStringList(
-        _prefsKeyGroups,
-        _groups.map((g) => g.name).toList(),
+        _prefsKeySections,
+        _sections.map((s) => s.name).toList(),
       );
       await prefs.setString(_prefsKeyPreset, _preset.name);
       await prefs.setBool(_prefsKeyOrientation, _landscape);
@@ -254,6 +233,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
     setState(() {
       _exporting = true;
       _step = 'Starting…';
+      _progress = 0;
       _error = null;
       _successMessage = null;
     });
@@ -261,7 +241,8 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
     try {
       final result = await ReportExportService.export(
         format: _format,
-        sections: {for (final group in _groups) ...group.sections},
+        sections: _sections,
+        onlyCommodity: _commodity,
         selectedCommodities: _commodity == null
             ? _availableCommodities.toSet()
             : {_commodity!},
@@ -271,8 +252,13 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
         paper: _paper,
         includeDataTables: _includeDataTables,
         notes: '',
-        onProgress: (step) {
-          if (mounted) setState(() => _step = step);
+        onProgress: (step, progress) {
+          if (mounted) {
+            setState(() {
+              _step = step;
+              _progress = progress.clamp(0.0, 1.0).toDouble();
+            });
+          }
         },
       );
       await _saveLastChoices();
@@ -295,7 +281,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   @override
   Widget build(BuildContext context) {
     final c = widget.palette;
-    final canExport = _groups.isNotEmpty && !_exporting;
+    final canExport = _sections.isNotEmpty && !_exporting;
     // The app's dark green on a light page; the portal's green on a dark one.
     final primary = adminActionColor(c);
     final onPrimary = adminOnActionColor(c);
@@ -369,7 +355,9 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                     'Select All',
                                     c.textPrimary,
                                     () => setState(
-                                      () => _groups.addAll(ReportGroup.values),
+                                      () => _sections.addAll(
+                                        DashboardSection.values,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 14),
@@ -377,23 +365,29 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                     c,
                                     'Clear All',
                                     c.textSecondary,
-                                    () => setState(_groups.clear),
+                                    () => setState(_sections.clear),
                                   ),
                                 ],
                               ),
                             ),
-                            for (final group in ReportGroup.values)
+                            for (final section in DashboardSection.values)
                               _check(
                                 c,
-                                label: group.label,
-                                value: _groups.contains(group),
+                                label: section.label,
+                                value: _sections.contains(section),
                                 onChanged: (checked) => setState(() {
                                   if (checked) {
-                                    _groups.add(group);
+                                    _sections.add(section);
                                   } else {
-                                    _groups.remove(group);
+                                    _sections.remove(section);
                                   }
                                 }),
+                              ),
+                            if (_format == ReportFormat.pdf)
+                              _fixedCheck(
+                                c,
+                                label:
+                                    'Certification & Wet Signature (always included)',
                               ),
 
                             _label(c, 'Commodity'),
@@ -543,10 +537,6 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                   children: [
                                     Row(
                                       children: [
-                                        // Drawn by the browser, so it keeps
-                                        // turning while the file is built.
-                                        BusySpinner(color: c.textPrimary),
-                                        const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
                                             _step,
@@ -560,9 +550,16 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                                       ],
                                     ),
                                     const SizedBox(height: 10),
-                                    BusyBar(
-                                      color: c.textPrimary,
-                                      trackColor: c.surface,
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: LinearProgressIndicator(
+                                        value: _progress,
+                                        minHeight: 4,
+                                        backgroundColor: c.surface,
+                                        valueColor: AlwaysStoppedAnimation(
+                                          c.textPrimary,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
@@ -856,6 +853,17 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       ),
     );
   }
+
+  Widget _fixedCheck(AdminPalette c, {required String label}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: [
+        Icon(Icons.check_box_rounded, size: 18, color: c.textPrimary),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(color: c.textSecondary, fontSize: 13)),
+      ],
+    ),
+  );
 
   String _presetLabel(DateRangePreset p) => switch (p) {
     DateRangePreset.last7Days => 'Last 7 Days',

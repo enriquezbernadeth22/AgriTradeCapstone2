@@ -195,14 +195,14 @@ class _OverviewSegment extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: c.textSecondary,
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 // Same line heights loading or loaded, so nothing shifts.
                 SizedBox(
-                  height: 28,
+                  height: 30,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: loading
@@ -220,7 +220,7 @@ class _OverviewSegment extends StatelessWidget {
                                 color: item.failed
                                     ? c.textMuted
                                     : c.textPrimary,
-                                fontSize: 22,
+                                fontSize: 24,
                                 height: 1.1,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -233,7 +233,7 @@ class _OverviewSegment extends StatelessWidget {
                   loading ? ' ' : item.caption,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: c.textMuted, fontSize: 11.5),
+                  style: TextStyle(color: c.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -363,8 +363,8 @@ class AdminCardHeader extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: c.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 3),
@@ -372,7 +372,7 @@ class AdminCardHeader extends StatelessWidget {
           subtitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: c.textSecondary, fontSize: 12),
+          style: TextStyle(color: c.textSecondary, fontSize: 12.5),
         ),
       ],
     );

@@ -4,9 +4,11 @@ import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/commodity_master_list.dart';
+import '../l10n/app_language.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../screen/product_detail_screen.dart';
 import 'market_price_helpers.dart';
@@ -17,6 +19,19 @@ import 'market_price_helpers.dart';
 /// the link verified — see web/assetlinks.json, served at /.well-known/assetlinks.json) it opens the
 /// app instead; everyone else lands on the web app.
 const String kProductLinkBase = 'https://agritrade-bef87.web.app';
+
+/// Where to get the app. It stays the same address for good: a redirect in
+/// firebase.json sends it to the hosted APK, so moving to the Google Play
+/// Store means changing that one line, with no app update, and links already
+/// sent and apps already installed follow along.
+const String kAppDownloadUrl = '$kProductLinkBase/download';
+
+/// What "Share AgriTrade+" sends: a short message and the link to get the
+/// app. The app itself is never attached.
+String appShareText() => tl(
+  'Check out AgriTrade+, where farmers and buyers in Laurel, Batangas connect. Download the Android app: {0}',
+  [kAppDownloadUrl],
+);
 
 /// The link to one product listing. Only the product's id is in it.
 Uri productLink(String productId) =>
@@ -59,7 +74,7 @@ String productShareText({
   'View Product: $link',
 ].join('\n');
 
-/// What "Share My Store" sends: the farmer's name and general location,
+/// What a farmer's store share would send: their name and general location,
 /// up to [kStoreShareMaxListed] of their active products — each with its
 /// own link, which opens the app or the web page like a shared product
 /// does — and how many more there are.
@@ -94,6 +109,26 @@ String storeShareText({
 class ProductShareService {
   const ProductShareService._();
 
+  // iPad anchors the share sheet to the button that opened it.
+  static Rect? _shareOrigin(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    return box == null || !box.hasSize
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  /// Opens the device's share sheet with [appShareText] (Share AgriTrade+ in
+  /// Settings).
+  static Future<void> shareApp(BuildContext context) async {
+    await SharePlus.instance.share(
+      ShareParams(
+        text: appShareText(),
+        subject: 'AgriTrade+',
+        sharePositionOrigin: _shareOrigin(context),
+      ),
+    );
+  }
+
   /// Opens the device's share sheet for an existing listing. Nothing is
   /// written anywhere — the link just names the product.
   static Future<void> share(
@@ -101,11 +136,7 @@ class ProductShareService {
     String productId,
     Map<String, dynamic> product,
   ) async {
-    // iPad anchors the share sheet to the button that opened it.
-    final box = context.findRenderObject() as RenderBox?;
-    final origin = box == null || !box.hasSize
-        ? null
-        : box.localToGlobal(Offset.zero) & box.size;
+    final origin = _shareOrigin(context);
 
     final name = (product['name'] ?? 'Product').toString();
     final unit = (product['unit'] as String?)?.trim().isNotEmpty == true
@@ -129,14 +160,11 @@ class ProductShareService {
     );
   }
 
-  /// Opens the share sheet for the signed-in farmer's whole store (Share
-  /// My Store on the Profile tab). Returns false when there is nothing to
-  /// share yet — no active products.
+  /// Opens the share sheet for the signed-in farmer's whole store. Nothing
+  /// offers this for now: Settings has Share AgriTrade+ in its place. Returns
+  /// false when there is nothing to share yet — no active products.
   static Future<bool> shareStore(BuildContext context, String farmerId) async {
-    final box = context.findRenderObject() as RenderBox?;
-    final origin = box == null || !box.hasSize
-        ? null
-        : box.localToGlobal(Offset.zero) & box.size;
+    final origin = _shareOrigin(context);
 
     final db = FirebaseFirestore.instance;
     final profile =
@@ -281,7 +309,10 @@ class ProductLinkService {
         product['isArchived'] == true ||
         product['isSuspended'] == true) {
       ScaffoldMessenger.maybeOf(navigator.context)?.showSnackBar(
-        const SnackBar(content: Text('This product is no longer available.')),
+        appSnackBar(
+          'This product is no longer available.',
+          kind: MessageKind.warning,
+        ),
       );
       return;
     }

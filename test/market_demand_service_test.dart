@@ -9,10 +9,13 @@ Map<String, dynamic> _sale(
   String area = 'Tanauan City',
   String? pricing = 'retail',
   String status = 'completed',
+  num quantity = 1,
+  String unit = 'kg',
 }) => {
   'productName': product,
   'status': status,
-  'unit': 'kg',
+  'unit': unit,
+  'quantity': quantity,
   'buyerArea': area,
   'pricingType': ?pricing,
   'completedAt': Timestamp.fromDate(date),
@@ -32,18 +35,18 @@ void main() {
   );
   tearDown(() => CommodityRegistry.instance.applyAdminRecords(const []));
 
-  test('best sellers rank by completed orders in the selected month', () {
+  test('demand leaders rank by completed orders in the selected month', () {
     final sales = [
       for (var i = 0; i < 6; i++) _sale('Fresh Tomato', oct(i + 1)),
       for (var i = 0; i < 3; i++)
         _sale('Eggplant', oct(i + 1), area: 'Laurel', pricing: 'wholesale'),
-      _sale('Banana', oct(2), area: 'Talisay'),
+      _sale('Banana', oct(2), area: 'Talisay', quantity: 500),
       // Not counted: another month, and an order that never completed.
       _sale('Squash', sep(5)),
       _sale('Okra', oct(3), status: 'pending'),
     ];
 
-    final ranked = MarketDemandService.bestSellers(
+    final ranked = MarketDemandService.demandLeaders(
       sales: sales,
       month: october,
       now: now,
@@ -66,10 +69,76 @@ void main() {
     ]);
   });
 
-  test('never more than ten best sellers', () {
+  test('best sellers rank by quantity sold, not by orders', () {
+    final sales = [
+      for (var i = 0; i < 6; i++) _sale('Tomato', oct(i + 1), quantity: 2),
+      _sale('Eggplant', oct(1), quantity: 40),
+      _sale('Squash', sep(5), quantity: 900),
+      _sale('Okra', oct(3), status: 'pending', quantity: 900),
+    ];
+
+    final ranked = MarketDemandService.bestSellers(
+      sales: sales,
+      month: october,
+      now: now,
+    );
+
+    expect(ranked.map((b) => b.commodity), ['Eggplant', 'Tomato']);
+    expect(ranked.map((b) => b.quantity), [40, 12]);
+    // Demand stays counted in orders: Tomato's 6 orders against Eggplant's 1.
+    expect(ranked.map((b) => b.demand), [DemandLevel.low, DemandLevel.high]);
+  });
+
+  test('best sellers never add unlike units together', () {
+    final ranked = MarketDemandService.bestSellers(
+      sales: [
+        _sale('Tomato', oct(1), quantity: 2, unit: 'crate'),
+        _sale('Tomato', oct(2), quantity: 5, unit: 'kg'),
+        _sale('Tomato', oct(3), quantity: 10, unit: 'kg'),
+      ],
+      month: october,
+      now: now,
+    );
+
+    expect(
+      [for (final b in ranked) (b.quantity, b.unit)],
+      [(15, 'kg'), (2, 'crate')],
+    );
+  });
+
+  test('the months on record run from the first sale to the current month', () {
+    final months = MarketDemandService.monthsOnRecord(
+      sales: [
+        _sale('Tomato', sep(5)),
+        _sale('Okra', DateTime(2026, 6, 1), status: 'pending'),
+      ],
+      month: october,
+      now: now,
+    );
+    expect(months, [october, DateTime(2026, 9)]);
+
+    expect(
+      MarketDemandService.monthsOnRecord(
+        sales: const [],
+        month: october,
+        now: now,
+      ),
+      [october],
+    );
+  });
+
+  test('never more than five best sellers', () {
     final sales = [for (var i = 0; i < 14; i++) _sale('Product $i', oct(1))];
     expect(
       MarketDemandService.bestSellers(sales: sales, month: october, now: now),
+      hasLength(5),
+    );
+  });
+
+  test('the Buyer\'s demand badge still covers the top ten', () {
+    final sales = [for (var i = 0; i < 14; i++) _sale('Product $i', oct(1))];
+    expect(
+      MarketDemandService.demandLeaders(sales: sales, month: october, now: now),
       hasLength(10),
     );
   });
@@ -142,5 +211,28 @@ void main() {
     expect(locations[1].mostPurchased, 'Eggplant');
     expect(locations[1].relativeDemand, closeTo(0.6, 0.001));
     expect(locations[1].demand, DemandLevel.moderate);
+  });
+
+  test('what buyers in one area ordered: most orders first, that area and '
+      'month only', () {
+    final sales = [
+      for (var i = 0; i < 3; i++) _sale('Tomato', oct(i + 1), area: 'Laurel'),
+      _sale('Eggplant', oct(4), area: 'Laurel'),
+      _sale('Corn', oct(5), area: 'Laurel'),
+      // Another area, another month, and an order not completed.
+      for (var i = 0; i < 5; i++) _sale('Banana', oct(6), area: 'Talisay'),
+      _sale('Eggplant', DateTime(2026, 9, 9), area: 'Laurel'),
+      _sale('Corn', oct(7), area: 'Laurel', status: 'cancelled'),
+    ];
+    final products = MarketDemandService.productsBoughtIn(
+      sales: sales,
+      month: october,
+      area: 'Laurel',
+    );
+    expect(products.map((p) => (p.commodity, p.orders)), [
+      ('Tomato', 3),
+      ('Corn', 1),
+      ('Eggplant', 1),
+    ]);
   });
 }

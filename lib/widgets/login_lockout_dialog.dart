@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// "Too Many Login Attempts": shown when password login for an email is
 /// paused after repeated wrong passwords (see AuthService.logIn and
@@ -185,7 +186,7 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Too Many Login Attempts',
+                tl('Too Many Login Attempts'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.montserrat(
                   fontSize: 17,
@@ -198,12 +199,12 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   timed
-                      ? "You've entered an incorrect password multiple times. "
-                            'Please wait 5 minutes before trying again, or '
-                            'reset your password.'
-                      : "You've entered an incorrect password multiple times. "
-                            'Please wait a few minutes before trying again, '
-                            'or reset your password.',
+                      ? tl(
+                          'You\'ve entered an incorrect password multiple times. Please wait 5 minutes before trying again, or reset your password.',
+                        )
+                      : tl(
+                          'You\'ve entered an incorrect password multiple times. Please wait a few minutes before trying again, or reset your password.',
+                        ),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
@@ -227,7 +228,9 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
                   child: Column(
                     children: [
                       Text(
-                        finished ? 'You can try again now' : 'Try again in',
+                        finished
+                            ? tl('You can try again now')
+                            : tl('Try again in'),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.montserrat(
                           fontSize: finished ? 13.5 : 12,
@@ -260,13 +263,13 @@ class _LoginLockoutDialogState extends State<_LoginLockoutDialog> {
               Row(
                 children: [
                   _button(
-                    label: 'Reset Password',
+                    label: tl('Reset Password'),
                     filled: false,
                     onPressed: widget.onForgotPassword,
                   ),
                   const SizedBox(width: 10),
                   _button(
-                    label: finished ? 'Try Again' : 'OK',
+                    label: finished ? tl('Try Again') : 'OK',
                     filled: true,
                     onPressed: () => Navigator.of(context).pop(),
                   ),

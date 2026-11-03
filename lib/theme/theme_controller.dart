@@ -1,22 +1,22 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
 
-/// Dark Mode: follows the phone until the person switches it themselves.
-enum AppearanceMode { light, dark, system }
+/// The app's appearance is light by default and changes only when the person
+/// chooses Dark Mode.
+enum AppearanceMode { light, dark }
 
 /// Keeps the Dark Mode choice (on this phone) and applies it: sets
 /// [AppColors] and redraws every screen, so the whole app changes at once
-/// without leaving the screen the person is on. Until the person flips the
-/// switch, the app is dark exactly when the phone is ([AppearanceMode.system]).
+/// without leaving the screen the person is on. The phone's appearance is
+/// never read.
 ///
 /// The Admin Portal (the website) has its own switch, kept per browser
-/// (adminDarkMode in admin_dashboard_screen.dart).
-class ThemeController extends ValueNotifier<AppearanceMode>
-    with WidgetsBindingObserver {
-  ThemeController._() : super(AppearanceMode.system);
+/// (adminDarkMode in admin_dashboard_screen.dart), which sets [AppColors]
+/// too: dialogs and queues shared with the app read their colours from it.
+class ThemeController extends ValueNotifier<AppearanceMode> {
+  ThemeController._() : super(AppearanceMode.light);
   static final ThemeController instance = ThemeController._();
 
   static const _key = 'appearance_mode';
@@ -24,13 +24,13 @@ class ThemeController extends ValueNotifier<AppearanceMode>
   /// Called once from main(), before the first frame: the saved choice is
   /// in place before anything is drawn, so the app never flashes light.
   Future<void> load() async {
-    WidgetsBinding.instance.addObserver(this);
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString(_key);
       value = AppearanceMode.values.firstWhere(
         (mode) => mode.name == saved,
-        orElse: () => AppearanceMode.system,
+        // An older saved "system" choice now resolves to the light default.
+        orElse: () => AppearanceMode.light,
       );
     } catch (_) {}
     _apply(redraw: false);
@@ -46,53 +46,29 @@ class ThemeController extends ValueNotifier<AppearanceMode>
     } catch (_) {}
   }
 
-  /// The Dark Mode switch. Switched to match the phone, the app goes back
-  /// to following it; switched against it, the choice sticks.
+  /// The Dark Mode switch. The explicit choice is saved on this phone.
   Future<void> setDark(bool dark) {
-    final phoneDark =
-        WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-        Brightness.dark;
-    return choose(
-      dark == phoneDark
-          ? AppearanceMode.system
-          : (dark ? AppearanceMode.dark : AppearanceMode.light),
-    );
+    return choose(dark ? AppearanceMode.dark : AppearanceMode.light);
   }
 
   /// What MaterialApp uses: always the one the colours were set for.
   ThemeMode get themeMode =>
       AppColors.isDark ? ThemeMode.dark : ThemeMode.light;
 
-  /// Whether [mode] comes out dark here and now.
-  static bool resolvesDark(AppearanceMode mode, Brightness phone) {
-    if (kIsWeb) return false;
-    return switch (mode) {
-      AppearanceMode.light => false,
-      AppearanceMode.dark => true,
-      AppearanceMode.system => phone == Brightness.dark,
-    };
-  }
-
-  // "Same as phone": follows the phone when it switches.
-  @override
-  void didChangePlatformBrightness() {
-    if (value == AppearanceMode.system) _apply();
-  }
+  /// Whether [mode] is the explicitly selected dark appearance.
+  static bool resolvesDark(AppearanceMode mode) => mode == AppearanceMode.dark;
 
   void _apply({bool redraw = true}) {
-    final dark = resolvesDark(
-      value,
-      WidgetsBinding.instance.platformDispatcher.platformBrightness,
-    );
+    final dark = resolvesDark(value);
     if (dark == AppColors.isDark) return;
     AppColors.isDark = dark;
     notifyListeners();
-    if (redraw) _redrawAll();
+    if (redraw) redrawAll();
   }
 
   // Every screen reads AppColors as it builds, so every one is built again
   // — including those already open underneath.
-  static void _redrawAll() {
+  static void redrawAll() {
     final root = WidgetsBinding.instance.rootElement;
     if (root == null) return;
     void mark(Element element) {

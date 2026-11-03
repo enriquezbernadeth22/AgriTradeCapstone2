@@ -22,27 +22,53 @@ class _Doc extends Fake implements QueryDocumentSnapshot<Map<String, dynamic>> {
 void main() {
   final now = DateTime(2026, 10, 20);
 
-  _Doc completed(String id, String commodity, num total) => _Doc(id, {
+  _Doc completed(
+    String id,
+    String commodity,
+    num total, {
+    num quantity = 1,
+    String? unit,
+  }) => _Doc(id, {
     'status': 'completed',
     'productName': commodity,
     'commodity': commodity,
     'total': total,
-    'quantity': 1,
+    'quantity': quantity,
+    'unit': ?unit,
     'completedAt': Timestamp.fromDate(now.subtract(const Duration(days: 3))),
   });
 
-  test('Top-Selling Products ranks by completed orders, not pesos', () {
+  test('Top-Selling Products ranks by quantity sold, not orders or pesos', () {
     final orders = [
       completed('o1', 'Cattle', 50000),
-      for (var i = 0; i < 3; i++) completed('e$i', 'Eggplant', 120),
+      completed('c1', 'Corn', 900, quantity: 60),
+      for (var i = 0; i < 3; i++)
+        completed('e$i', 'Eggplant', 120, quantity: 5),
     ];
 
     final top = DashboardAnalyticsService.topSellingProducts(orders);
 
-    expect([for (final p in top) p.name], ['Eggplant', 'Cattle']);
-    expect(top.first.orders, 3);
-    expect(top.first.revenue, 360);
+    expect(
+      [for (final p in top) p.name],
+      ['Corn (kg)', 'Eggplant (kg)', 'Cattle (head)'],
+    );
+    expect(top[1].orders, 3);
+    expect(top[1].quantity, 15);
+    expect(top[1].revenue, 360);
     expect(top.last.revenue, 50000);
+  });
+
+  test('Top-Selling Products never adds unlike units together', () {
+    final orders = [
+      completed('h1', 'Cattle', 50000, quantity: 2, unit: 'head'),
+      completed('k1', 'Cattle', 3800, quantity: 10, unit: 'kg'),
+      completed('k2', 'Cattle', 1900, quantity: 5, unit: 'kg'),
+    ];
+
+    final top = DashboardAnalyticsService.topSellingProducts(orders);
+
+    expect([for (final p in top) p.name], ['Cattle (kg)', 'Cattle (head)']);
+    expect([for (final p in top) p.quantity], [15, 2]);
   });
 
   test('Top-Selling Products and Sales by Category count the same orders, '
@@ -69,7 +95,10 @@ void main() {
       const [],
     );
 
-    expect([for (final p in top) p.name], ['Corn', 'Chicken', 'Tomato']);
+    expect(
+      [for (final p in top) p.name],
+      ['Corn (kg)', 'Chicken (kg liveweight)', 'Tomato (kg)'],
+    );
     num sum(Iterable<num> values) => values.fold<num>(0, (a, b) => a + b);
     expect(sum(top.map((p) => p.revenue)), 3125);
     expect(sum(byCategory.values), 3125);
@@ -83,7 +112,7 @@ void main() {
     );
   });
 
-  test('a tie in orders goes to the higher sales value', () {
+  test('a tie in quantity goes to the higher sales value', () {
     final orders = [
       completed('e', 'Eggplant', 120),
       completed('c', 'Cattle', 50000),
@@ -91,7 +120,7 @@ void main() {
 
     final top = DashboardAnalyticsService.topSellingProducts(orders);
 
-    expect(top.first.name, 'Cattle');
+    expect(top.first.name, 'Cattle (head)');
   });
 
   test('Market Change Analysis shows the same Current Market Average as '

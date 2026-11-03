@@ -292,40 +292,6 @@ class PdfReportService {
     );
   }
 
-  /// The Summary of Findings: numbered statements beside a thin bar in
-  /// the logo's yellow.
-  static pw.Widget _findings(List<String> findings) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.only(left: 12, top: 2, bottom: 2),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(left: pw.BorderSide(color: _accent, width: 2.5)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < findings.length; i++)
-            pw.Padding(
-              padding: pw.EdgeInsets.only(bottom: i == findings.length - 1 ? 0 : 5),
-              child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.SizedBox(
-                    width: 16,
-                    child: pw.Text('${i + 1}.',
-                        style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: _brandGreen)),
-                  ),
-                  pw.Expanded(
-                    child: pw.Text(_safe(findings[i]),
-                        style: const pw.TextStyle(fontSize: 9.5, color: _ink, lineSpacing: 1.5)),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   // A cell that holds a figure — an amount, a count, a percentage — and is
   // therefore right-aligned.
   static final RegExp _figure = RegExp(r'^(₱|PHP\s?)?-?[\d,]+(\.\d+)?\s?%?(/.+)?$');
@@ -401,10 +367,10 @@ class PdfReportService {
     );
   }
 
-  /// The sign-off at the end of a report: Prepared by (the Admin who made
-  /// it), Noted by and Approved by, each with a line for the signature
-  /// over the printed name, and the date. Kept together on one page.
-  static pw.Widget _signOff(String preparedBy) {
+  /// The sign-off at the end of a report: Prepared by, Noted by and
+  /// Approved by, each with a blank line for a wet signature and date.
+  /// Kept together on one page.
+  static pw.Widget _signOff() {
     pw.Widget block(String role, String? name) => pw.Expanded(
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -453,7 +419,7 @@ class PdfReportService {
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              block('Prepared by:', preparedBy),
+              block('Prepared by:', null),
               pw.SizedBox(width: 26),
               block('Noted by:', null),
               pw.SizedBox(width: 26),
@@ -564,14 +530,6 @@ class PdfReportService {
       ),
     ];
 
-    if (keyFindings.isNotEmpty) {
-      widgets.addAll([
-        _sectionHeading('Summary of Findings'),
-        _findings(keyFindings),
-        pw.SizedBox(height: 20),
-      ]);
-    }
-
     if (notes != null && notes.trim().isNotEmpty) {
       widgets.addAll([
         _sectionHeading('Remarks'),
@@ -639,7 +597,7 @@ class PdfReportService {
       widgets.add(pw.SizedBox(height: 20));
     }
 
-    widgets.add(_signOff(adminName));
+    widgets.add(_signOff());
 
     doc.addPage(
       _pages(

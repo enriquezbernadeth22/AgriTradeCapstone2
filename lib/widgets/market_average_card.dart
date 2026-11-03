@@ -7,6 +7,7 @@ import '../services/market_price_helpers.dart';
 import 'market_card_shell.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// One supported commodity's Current Market Average.
 typedef MarketAverageRow = ({String commodity, String unit, double average});
@@ -51,11 +52,11 @@ class _MarketAverageCardState extends State<MarketAverageCard> {
         stream: _products,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const MarketCardEmpty(
+            return MarketCardEmpty(
               icon: Icons.cloud_off_outlined,
-              message:
-                  'Could not load marketplace listings. Check your '
-                  'connection and try again.',
+              message: tl(
+                'Could not load marketplace listings. Check your connection and try again.',
+              ),
             );
           }
           if (!snapshot.hasData) return const MarketCardLoading();
@@ -72,11 +73,11 @@ class _MarketAverageCardState extends State<MarketAverageCard> {
 
   Widget _tiles(List<MarketAverageRow> rows) {
     if (rows.isEmpty) {
-      return const MarketCardEmpty(
+      return MarketCardEmpty(
         icon: Icons.storefront_outlined,
-        message:
-            'No active listings of supported products yet. Prices appear '
-            'here as farmers post products.',
+        message: tl(
+          'No active listings of supported products yet. Prices appear here as farmers post products.',
+        ),
       );
     }
     return marketCardRows(

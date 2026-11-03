@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 
 import '../data/laurel_barangays.dart';
@@ -19,6 +20,7 @@ import 'admin_field.dart';
 import 'admin_filter_controls.dart'
     show AdminGreyMenu, AdminInputGlow, adminFieldDecoration;
 import 'policy_document_screen.dart';
+import '../data/account_types.dart';
 
 /// User Accounts → Farmers → Add Farmer: the agricultural office adds a
 /// farmer it has verified in person, with everything registration asks
@@ -90,43 +92,26 @@ class AddFarmerBackend {
 /// The length of a generated password: the app's minimum.
 const int kGeneratedPasswordLength = 12;
 
-/// A password the farmer can remember, from their name only: the first and
-/// last name ("AnaGo") — or, when that is too long, the first initial and
-/// the last name ("JDelaCruz") — then "@" and random digits, exactly
-/// [kGeneratedPasswordLength] characters: "AnaGo@482917", "JDelaCruz@47".
-/// It meets the app's password rules (an uppercase and a lowercase letter,
-/// a number, a symbol); the random digits keep it from being guessed from
-/// the name alone. Null until both names are filled in.
-String? memorableFarmerPassword({
-  required String firstName,
-  required String lastName,
-  Random? random,
-}) {
-  // "dela cruz" → "DelaCruz"; letters only.
-  String part(String text) => [
-    for (final word in text.split(RegExp(r'[^A-Za-z]+')))
-      if (word.isNotEmpty)
-        '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
-  ].join();
-  final first = part(firstName);
-  final last = part(lastName);
-  if (first.isEmpty || last.isEmpty) return null;
-
-  // Room for the name: the length, less "@" and at least two digits.
-  const room = kGeneratedPasswordLength - 3;
-  var name = '$first$last';
-  if (name.length > room) name = '${first[0]}$last';
-  if (name.length > room) name = name.substring(0, room);
-
+/// The default password of an Admin-added farmer: exactly
+/// [kGeneratedPasswordLength] random characters, with nothing from their
+/// name, and always an uppercase and a lowercase letter, a number and a
+/// symbol. Characters that look alike (0 and O, 1, l and I) are left out,
+/// because the Admin hands it over on paper or says it aloud.
+String generateFarmerPassword({Random? random}) {
+  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijkmnpqrstuvwxyz';
+  const numbers = '23456789';
+  const symbols = '@#%&*?!';
+  const every = '$uppercase$lowercase$numbers$symbols';
   final rng = random ?? Random.secure();
-  final digits = List.generate(
-    kGeneratedPasswordLength - 1 - name.length,
-    (_) => rng.nextInt(10),
-  ).join();
-  final password = '$name@$digits';
-  if (PasswordRules.meetsAll(password)) return password;
-  // A name of one letter case only ("NG"): one lowercase letter in.
-  return '${name.substring(0, name.length - 1)}x@$digits';
+  String pick(String characters) => characters[rng.nextInt(characters.length)];
+  return ([
+    pick(uppercase),
+    pick(lowercase),
+    pick(numbers),
+    pick(symbols),
+    for (var i = 4; i < kGeneratedPasswordLength; i++) pick(every),
+  ]..shuffle(rng)).join();
 }
 
 class _AddFarmerDialog extends StatefulWidget {
@@ -144,18 +129,19 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
   final _email = TextEditingController();
   final _mobile = TextEditingController();
   final _rsba = TextEditingController();
-  final _password = TextEditingController();
-  final _confirm = TextEditingController();
+  // Every farmer starts with a generated default password, shown so it can
+  // be written down or copied for them.
+  late final String _defaultPassword = generateFarmerPassword();
+  late final _password = TextEditingController(text: _defaultPassword);
+  late final _confirm = TextEditingController(text: _defaultPassword);
   String? _barangay;
+  String? _farmerType;
   bool _consent = false;
-  bool _showPassword = false;
+  bool _showPassword = true;
 
   bool _submitted = false;
   bool _saving = false;
   String? _serverError;
-
-  // Why Generate could not make a password yet.
-  String? _generateNote;
 
   // The Terms of Service and Privacy Policy links in the agreement line.
   late final _termsLink = TapGestureRecognizer()
@@ -218,6 +204,9 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
   String? get _barangayError =>
       _barangay == null ? "Choose the farmer's barangay." : null;
 
+  String? get _farmerTypeError =>
+      _farmerType == null ? 'Choose what best describes the farmer.' : null;
+
   String? get _rsbaError => isValidRsba(_rsba.text)
       ? null
       : 'Enter the RSBSA number ($kRsbaMinLength–$kRsbaMaxLength letters or '
@@ -242,27 +231,17 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
     _emailError,
     _mobileError,
     _barangayError,
+    _farmerTypeError,
     _rsbaError,
     _passwordError,
     _confirmError,
     _consentError,
   ].every((e) => e == null);
 
-  // From the farmer's first and last name (memorableFarmerPassword).
   void _generate() {
-    final password = memorableFarmerPassword(
-      firstName: _firstName.text,
-      lastName: _lastName.text,
-    );
+    final password = generateFarmerPassword();
     setState(() {
       _serverError = null;
-      if (password == null) {
-        _generateNote =
-            'Fill in the First name and Last name first: the password is '
-            'made from them.';
-        return;
-      }
-      _generateNote = null;
       _password.text = password;
       _confirm.text = password;
       // Shown, so it can be written down or copied for the farmer.
@@ -288,6 +267,7 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
         'email': email,
         'mobileNumber': '+63$_mobileDigits',
         'barangay': _barangay,
+        'farmerType': _farmerType,
         'rsbaNumber': normalizeRsba(_rsba.text),
         'password': password,
         'termsAccepted': _consent,
@@ -374,8 +354,9 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
       if (!mounted) return;
       setState(() => _cancelling = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not cancel the request. Try again.'),
+        appSnackBar(
+          'Could not cancel the request. Try again.',
+          kind: MessageKind.error,
         ),
       );
     }
@@ -436,7 +417,8 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                 'For a farmer the office has verified in person. The farmer '
                 'is first emailed to confirm it is them ("Yes, it\'s me"); '
                 'the account is added, already approved, once they do. Give '
-                'the farmer the password you set.',
+                'the farmer this default password: the app asks them to '
+                'change it the first time they open it.',
                 style: TextStyle(fontSize: 12.5, color: muted, height: 1.4),
               ),
               // First name and Last name side by side.
@@ -532,6 +514,30 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                 ),
               ),
               _error(_shown(_barangayError)),
+              _label('What best describes the farmer?'),
+              AdminInputGlow(
+                child: AdminGreyMenu(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _farmerType,
+                    isExpanded: true,
+                    hint: const Text('Choose one'),
+                    borderRadius: BorderRadius.circular(16),
+                    decoration: adminFieldDecoration(
+                      AdminPalette.fallback(context),
+                      icon: Icons.agriculture_outlined,
+                    ),
+                    items: [
+                      for (final type in kFarmerTypes)
+                        DropdownMenuItem(value: type, child: Text(type)),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _farmerType = value;
+                      _serverError = null;
+                    }),
+                  ),
+                ),
+              ),
+              _error(_shown(_farmerTypeError)),
               _label('RSBSA number'),
               AdminField(
                 controller: _rsba,
@@ -551,9 +557,7 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                 children: [
                   Expanded(child: _label('Password')),
                   Tooltip(
-                    message:
-                        'From the farmer\'s name, 12 characters, e.g. '
-                        'JDelaCruz@47 or AnaGo@482917',
+                    message: 'A new random password of 12 characters',
                     child: TextButton.icon(
                       onPressed: _generate,
                       icon: const Icon(Icons.auto_fix_high_outlined, size: 16),
@@ -562,17 +566,6 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                   ),
                 ],
               ),
-              if (_generateNote != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 6, bottom: 6),
-                  child: Text(
-                    _generateNote!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange.shade800,
-                    ),
-                  ),
-                ),
               AdminField(
                 controller: _password,
                 icon: Icons.lock_outline,
@@ -714,7 +707,7 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
       );
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Login copied.')));
+      ).showSnackBar(appSnackBar('Login copied.', kind: MessageKind.success));
     },
     icon: const Icon(Icons.copy_rounded, size: 16),
     label: const Text('Copy login'),

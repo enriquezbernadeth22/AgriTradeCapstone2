@@ -36,13 +36,15 @@ class RoleToggle extends StatelessWidget {
         color: AppColors.adapt(const Color(0xFFF7F8F6)),
         borderRadius: BorderRadius.circular(height / 2),
         border: Border.all(color: AppColors.adapt(const Color(0xFFDDE2DA))),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.adapt(const Color(0x0F0E3210)),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.isDark
+            ? const []
+            : [
+                BoxShadow(
+                  color: AppColors.adapt(const Color(0x0F0E3210)),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
       ),
       child: Stack(
         children: [
@@ -58,13 +60,15 @@ class RoleToggle extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.brandFill,
                   borderRadius: BorderRadius.circular(height / 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.adapt(const Color(0x290E3210)),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: AppColors.isDark
+                      ? const []
+                      : [
+                          BoxShadow(
+                            color: AppColors.adapt(const Color(0x290E3210)),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                 ),
               ),
             ),

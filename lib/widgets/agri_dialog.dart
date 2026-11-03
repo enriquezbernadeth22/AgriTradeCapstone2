@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The one popup design for the whole AgriTrade+ mobile app (Farmer and
 /// Buyer): a frosted card — ~88% white over a light blur, thin light
@@ -25,18 +26,12 @@ enum AgriTone {
   /// Ordinary confirmations and information.
   normal,
 
-  /// Caution — orange icon and highlight.
+  /// Caution.
   warning,
 
   /// Deletes/removes something — red action.
   destructive,
 }
-
-Color agriToneColor(AgriTone tone) => switch (tone) {
-  AgriTone.normal => AppColors.brand,
-  AgriTone.warning => AppColors.tone(Colors.orange, 800),
-  AgriTone.destructive => AppColors.tone(Colors.red, 700),
-};
 
 /// The frosted surface every popup sits on.
 class AgriFrostedCard extends StatelessWidget {
@@ -93,7 +88,7 @@ class AgriDialog extends StatelessWidget {
   final Widget? content;
   final List<Widget> actions;
 
-  /// Optional icon shown in a tinted circle above the title.
+  /// Optional icon shown in a grey circle above the title.
   final IconData? icon;
   final AgriTone tone;
 
@@ -118,7 +113,6 @@ class AgriDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final toneColor = agriToneColor(tone);
     final centered = icon != null;
 
     Widget? body = content == null
@@ -155,16 +149,16 @@ class AgriDialog extends StatelessWidget {
                 : CrossAxisAlignment.stretch,
             children: [
               if (icon != null) ...[
+                // Black and white whatever the tone, like the icons on the
+                // Notifications screen; the buttons show how serious it is.
                 Container(
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: tone == AgriTone.normal
-                        ? AppColors.accent
-                        : toneColor.withValues(alpha: 0.12),
+                    color: AppColors.grey(200),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: toneColor, size: 23),
+                  child: Icon(icon, color: AppColors.textStrong, size: 23),
                 ),
                 const SizedBox(height: 14),
               ],
@@ -436,7 +430,7 @@ Future<T?> showAgriDialog<T>({
 
 /// A two-button confirmation. Returns true only for [confirmLabel].
 /// [tone] decides the confirm button: dark green normally, red for
-/// [AgriTone.destructive]; [AgriTone.warning] gives an orange icon.
+/// [AgriTone.destructive].
 Future<bool> showAgriConfirm({
   required BuildContext context,
   required String title,
@@ -455,7 +449,7 @@ Future<bool> showAgriConfirm({
       icon: icon,
       tone: tone,
       title: Text(title),
-      content: Text(message),
+      content: Text(tl(message)),
       actions: [
         AgriDialogButton(
           label: cancelLabel ?? (tr(dialogContext).cancel),
@@ -629,11 +623,15 @@ class AgriMenuItem<T> {
   final String label;
   final bool destructive;
 
+  /// A thin line above this item, setting it apart from the ones before.
+  final bool dividerBefore;
+
   const AgriMenuItem({
     required this.value,
     required this.icon,
     required this.label,
     this.destructive = false,
+    this.dividerBefore = false,
   });
 }
 
@@ -676,12 +674,15 @@ Future<T?> showAgriPopupMenu<T>({
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final item in items)
+              for (final item in items) ...[
+                if (item.dividerBefore)
+                  Divider(height: 9, thickness: 1, color: AppColors.grey(200)),
                 _AgriMenuRow(
                   item: item,
                   labelColor: upward ? AppColors.brand : null,
                   onTap: () => Navigator.pop(dialogContext, item.value),
                 ),
+              ],
             ],
           ),
         ),
@@ -689,7 +690,10 @@ Future<T?> showAgriPopupMenu<T>({
       if (!upward) {
         // Each row is about 42 high; near the bottom of the screen the
         // menu opens above its anchor instead, so it is never cut off.
-        final menuHeight = items.length * 42.0 + 12;
+        final menuHeight =
+            items.length * 42.0 +
+            items.where((i) => i.dividerBefore).length * 9 +
+            12;
         final safe = MediaQuery.viewPaddingOf(dialogContext);
         final fitsBelow =
             anchor.bottom + 2 + menuHeight <= screen.height - safe.bottom - 8;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 
 /// Compact inline error state for data streams that can be restarted by
 /// rebuilding their owning screen.
@@ -15,12 +16,12 @@ class RetryMessage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(message, textAlign: TextAlign.center),
+          Text(tl(message), textAlign: TextAlign.center),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(tl('Retry')),
           ),
         ],
       ),

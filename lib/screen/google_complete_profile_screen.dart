@@ -1,19 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../widgets/agri_dialog.dart';
-import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
+import '../widgets/app_scaffold_messenger.dart';
 
 import '../services/auth_routing_service.dart';
 import '../services/auth_service.dart';
 import '../services/ph_mobile.dart';
-import '../services/cloudinary_service.dart';
+import '../services/rsba_number.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agritrade_text.dart';
 import '../widgets/barangay_location_field.dart';
-import '../widgets/permission_rationale_dialog.dart';
 import '../widgets/public_location_preview.dart';
-import '../widgets/role_toggle.dart';
+import '../widgets/registration_role_details.dart';
+import '../widgets/agri_app_bar.dart';
+import '../widgets/glow_field.dart';
 import 'auth_route_handler.dart';
 import 'privacy_policy_screen.dart';
 import 'supported_products_screen.dart';
@@ -21,29 +22,31 @@ import 'terms_and_conditions_screen.dart';
 import '../l10n/tr.dart';
 import '../services/person_name.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
-/// Shown right after a brand-new "Continue with Google" sign-in — the
-/// Google account is already authenticated with Firebase at this point
-/// (see AuthService.signInWithGoogle), but there's no users/{uid} document
-/// yet, so this collects the one thing Google can't tell us: which role
-/// they're signing up as (and, for farmers, the same barangay +
-/// certificate RegisterScreen collects for a password account).
+/// The short sign-up form after a brand-new "Continue with Google" sign-in,
+/// opened from [ChooseRoleScreen] once a role is picked. The Google account
+/// is already authenticated with Firebase at this point (see
+/// AuthService.signInWithGoogle), but there's no users/{uid} document yet.
+/// Google already gives the name (prefilled, editable) and the email (shown,
+/// not editable), and there is no password, so this asks only for what
+/// AgriTrade+ still needs: "What best describes you", the mobile number and,
+/// for farmers, the same RSBSA No. and barangay RegisterScreen asks for.
+///
+/// The role is fixed here: Back returns to [ChooseRoleScreen] to change it,
+/// and Cancel pops with `true` so that screen leaves too (and signs out).
 class GoogleCompleteProfileScreen extends StatefulWidget {
   final String uid;
   final String email;
   final String? initialName;
-  final String? initialPhotoUrl;
-  // Pre-selects the toggle when they tapped Google sign-in on a
-  // role-specific door; still changeable, same as RegisterScreen's toggle.
-  final String initialRole;
+  final String role;
 
   const GoogleCompleteProfileScreen({
     super.key,
     required this.uid,
     required this.email,
-    required this.initialRole,
+    required this.role,
     this.initialName,
-    this.initialPhotoUrl,
   });
 
   @override
@@ -66,21 +69,21 @@ class _GoogleCompleteProfileScreenState
   // doc for the full rationale (fixed "+63 " prefix, required for both
   // roles).
   final _mobileController = TextEditingController();
-  late String _selectedRole = widget.initialRole == 'farmer'
+  // Shown only; the email is the Google account's own.
+  late final _emailController = TextEditingController(text: widget.email);
+  late final String _selectedRole = widget.role == 'farmer'
       ? 'farmer'
       : 'buyer';
+  // The answer to "What best describes you".
+  String? _accountType;
 
   String? _selectedBarangay;
-  XFile? _certFile;
-  Uint8List? _certBytes;
-  XFile? _profilePhoto;
-  Uint8List? _profilePhotoBytes;
-  bool _useGooglePhoto = false;
-  bool _photoPromptShown = false;
+  // Farmer-only, as in email registration (see rsba_number.dart).
+  final _rsbaController = TextEditingController();
+  bool _rsbaTouched = false;
 
-  final _authService = AuthService();
-  final _cloudinaryService = CloudinaryService();
-  final _imagePicker = ImagePicker();
+  // Made on first use (on Register), so the form opens without Firebase.
+  late final _authService = AuthService();
 
   bool _loading = false;
   bool _triedSubmit = false;
@@ -88,84 +91,25 @@ class _GoogleCompleteProfileScreenState
   bool _agreedToTerms = false;
   bool _supportedProductsAcknowledged = false;
 
+  final _scrollController = ScrollController();
+
+  static const double _registerButtonHeight = AppTheme.formButtonHeight;
+  static const double _registerFloatGap = 6;
+  static const double _formEndTextHeight = 62;
+  static const double _formBottomPadding = 8;
+  double _drawnRegisterBottom = _registerFloatGap;
+
   bool get _isFarmer => _selectedRole == 'farmer';
 
   @override
   void dispose() {
     _firstNameController.dispose();
+    _emailController.dispose();
+    _rsbaController.dispose();
     _lastNameController.dispose();
     _mobileController.dispose();
+    _scrollController.dispose();
     super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _chooseProfilePhoto());
-  }
-
-  Future<void> _chooseProfilePhoto() async {
-    final googlePhoto = widget.initialPhotoUrl;
-    if (googlePhoto == null || googlePhoto.isEmpty || !mounted) return;
-    final choice = await showAgriDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AgriDialog(
-        title: const Text(
-          'Choose your profile photo',
-          textAlign: TextAlign.center,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 42,
-              backgroundImage: NetworkImage(googlePhoto),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Use your Google photo, or upload a different one.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          AgriDialogButton(
-            label: 'Upload my own',
-            onPressed: () => Navigator.pop(context, 'upload'),
-          ),
-          AgriDialogButton(
-            label: 'Use Google photo',
-            kind: AgriButtonKind.primary,
-            onPressed: () => Navigator.pop(context, 'google'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || choice == null) return;
-    if (choice == 'google') {
-      setState(() => _useGooglePhoto = true);
-      return;
-    }
-    await _pickProfilePhoto();
-  }
-
-  Future<void> _pickProfilePhoto() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1000,
-      imageQuality: 75,
-    );
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      if (mounted) {
-        setState(() {
-          _profilePhoto = picked;
-          _profilePhotoBytes = bytes;
-          _useGooglePhoto = false;
-        });
-      }
-    }
   }
 
   bool _mobileNumberValid(String digits) => isValidPhMobile(digits);
@@ -176,14 +120,21 @@ class _GoogleCompleteProfileScreenState
     if (!isValidNamePart(_lastNameController.text)) return false;
     // Required for both roles — order/delivery/pick-up coordination.
     if (!_mobileNumberValid(mobile)) return false;
+    if (_accountType == null) return false;
     if (_isFarmer) {
       if (_selectedBarangay == null) return false;
-      if (_certFile == null) return false;
+      if (!isValidRsba(_rsbaController.text)) return false;
       if (!_supportedProductsAcknowledged) return false;
     }
     if (!_agreedToTerms) return false;
     return true;
   }
+
+  String? get _rsbaError => rsbaError(
+    _rsbaController.text,
+    touched: _rsbaTouched,
+    submitted: _triedSubmit,
+  );
 
   // Shown only after a submit attempt, matching the other field errors
   // on this screen.
@@ -192,7 +143,7 @@ class _GoogleCompleteProfileScreenState
       ? null
       : nameFieldError(
           _firstNameController.text,
-          label: 'First name',
+          label: tl('First name'),
           submitted: true,
         );
 
@@ -200,7 +151,7 @@ class _GoogleCompleteProfileScreenState
       ? null
       : nameFieldError(
           _lastNameController.text,
-          label: 'Last name',
+          label: tl('Last name'),
           submitted: true,
         );
 
@@ -219,85 +170,19 @@ class _GoogleCompleteProfileScreenState
     );
   }
 
-  void _selectRole(String role) {
-    if (role == _selectedRole) return;
-    setState(() {
-      _selectedRole = role;
-      // Farmer's barangay and buyer's map pin are separate fields — only
-      // the certificate is farmer-only.
-      if (role != 'farmer') {
-        _certFile = null;
-        _certBytes = null;
-      }
-    });
-  }
-
-  static const int _maxCertBytes = 5 * 1024 * 1024; // 5MB
-  static const List<String> _allowedCertExtensions = ['.png', '.jpg', '.jpeg'];
-
-  Future<void> _pickCertificate() async {
-    if (!_photoPromptShown) {
-      _photoPromptShown = true;
-      final proceed = await showPermissionRationale(
-        context,
-        icon: Icons.photo_library_outlined,
-        title: 'Attach your certificate',
-        message:
-            'AgriTrade+ needs access to your photos so you can attach '
-            'a picture of your agricultural certification.',
-      );
-      if (!proceed) return;
-      if (!mounted) return;
-    }
-
-    final XFile? picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1200,
-      imageQuality: 75,
-    );
-    if (picked == null) return;
-
-    final name = picked.name.toLowerCase();
-    if (!_allowedCertExtensions.any(name.endsWith)) {
-      _showMessage('Please attach a PNG or JPG image.');
-      return;
-    }
-
-    final bytes = await picked.readAsBytes();
-    if (!mounted) return;
-    if (bytes.length > _maxCertBytes) {
-      _showMessage('That image is too large. Please attach one under 5MB.');
-      return;
-    }
-
-    setState(() {
-      _certFile = picked;
-      _certBytes = bytes;
-    });
-  }
-
-  void _removeCertificate() {
-    setState(() {
-      _certFile = null;
-      _certBytes = null;
-    });
-  }
-
+  // Every message here is a problem to fix before continuing.
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showAppMessage(context, tl(message), kind: MessageKind.error);
   }
 
-  Future<void> _cancel() async {
-    await _authService.signOut();
-    if (mounted) Navigator.of(context).pop();
-  }
+  // Leaves sign-up altogether: ChooseRoleScreen sees `true`, leaves as well,
+  // and signs the Google account out as it goes.
+  void _cancel() => Navigator.of(context).pop(true);
 
   Future<void> _finish() async {
     setState(() => _triedSubmit = true);
     if (!_isFormValid) {
-      _showMessage('Please fix the errors below before continuing.');
+      _showMessage(tl('Please fix the errors below before continuing.'));
       return;
     }
 
@@ -305,22 +190,10 @@ class _GoogleCompleteProfileScreenState
 
     // One role per account: this Google account only reaches this screen
     // at all when it has no users/{uid} doc yet (see AuthService
-    // .signInWithGoogle's needsProfile outcome), so whatever role they
-    // pick here is this account's first and only role — already enforced,
-    // nothing further to check.
+    // .signInWithGoogle's needsProfile outcome), so the role picked on
+    // ChooseRoleScreen is this account's first and only role — already
+    // enforced, nothing further to check.
     final mobileDigits = _mobileController.text.trim();
-    String? profilePhotoUrl = _useGooglePhoto ? widget.initialPhotoUrl : null;
-    if (_profilePhoto != null) {
-      profilePhotoUrl = await _cloudinaryService.uploadImage(
-        _profilePhoto!,
-        folder: 'agritrade/profiles',
-      );
-      if (profilePhotoUrl == null) {
-        setState(() => _loading = false);
-        _showMessage('Profile photo upload failed. Please try again.');
-        return;
-      }
-    }
     final profileError = await _authService.completeGoogleProfile(
       uid: widget.uid,
       fullName: _fullName,
@@ -328,8 +201,10 @@ class _GoogleCompleteProfileScreenState
       lastName: tidyName(_lastNameController.text),
       email: widget.email,
       role: _selectedRole,
-      photoUrl: profilePhotoUrl,
       mobileNumber: mobileDigits.isEmpty ? null : phMobileE164(mobileDigits),
+      accountType: _accountType,
+      barangay: _isFarmer ? _selectedBarangay : null,
+      rsbaNumber: _isFarmer ? normalizeRsba(_rsbaController.text) : null,
       supportedProductsAcknowledged:
           _isFarmer && _supportedProductsAcknowledged,
     );
@@ -340,30 +215,6 @@ class _GoogleCompleteProfileScreenState
       return;
     }
 
-    if (_isFarmer) {
-      final certUrl = await _cloudinaryService.uploadImage(
-        _certFile!,
-        folder: 'agritrade/certificates',
-      );
-      if (!mounted) return;
-      if (certUrl == null) {
-        setState(() => _loading = false);
-        _showMessage('Certificate upload failed. Please try again.');
-        return;
-      }
-      final docError = await _authService.saveVerificationDocument(
-        uid: widget.uid,
-        documentUrl: certUrl,
-        barangay: _selectedBarangay!,
-        fullName: _fullName,
-      );
-      if (!mounted) return;
-      if (docError != null) {
-        setState(() => _loading = false);
-        _showMessage(docError);
-        return;
-      }
-    }
     // Buyers no longer set a location here — they set it later, per
     // order, when placing one (see place_order_screen.dart).
 
@@ -401,7 +252,7 @@ class _GoogleCompleteProfileScreenState
               Icon(Icons.eco_outlined, color: AppColors.brand, size: 18),
               const SizedBox(width: 6),
               Text(
-                'Supported Products in AgriTrade+',
+                tl('Supported Products in AgriTrade+'),
                 style: AppTheme.body(
                   color: AppColors.brand,
                   size: 13.5,
@@ -411,9 +262,9 @@ class _GoogleCompleteProfileScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            'AgriTrade+ currently supports selected agricultural commodities based on '
-            'the products identified with the agricultural office. Only supported '
-            'products can be posted in the marketplace.',
+            tl(
+              'AgriTrade+ currently supports selected agricultural commodities based on the products identified with the agricultural office. Only supported products can be posted in the marketplace.',
+            ),
             style: AppTheme.body(
               color: AppColors.text,
               size: 12.5,
@@ -421,7 +272,7 @@ class _GoogleCompleteProfileScreenState
           ),
           const SizedBox(height: 6),
           Text(
-            'Please review the supported products before continuing.',
+            tl('Please review the supported products before continuing.'),
             style: AppTheme.body(
               color: AppColors.text,
               size: 12.5,
@@ -442,8 +293,8 @@ class _GoogleCompleteProfileScreenState
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text(
-                'View Supported Products',
+              child: Text(
+                tl('View Supported Products'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
               ),
             ),
@@ -462,16 +313,15 @@ class _GoogleCompleteProfileScreenState
                   onChanged: (v) => setState(
                     () => _supportedProductsAcknowledged = v ?? false,
                   ),
-                  activeColor: AppColors.brandFill,
                   visualDensity: VisualDensity.compact,
                 ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
-                      'I understand that AgriTrade+ currently supports only selected '
-                      'agricultural commodities and that I can only post products '
-                      'included in the Supported Products list.',
+                      tl(
+                        'I understand that AgriTrade+ currently supports only selected agricultural commodities and that I can only post products included in the Supported Products list.',
+                      ),
                       style: AppTheme.body(
                         color: AppColors.text,
                         size: 12,
@@ -483,10 +333,12 @@ class _GoogleCompleteProfileScreenState
             ),
           ),
           if (showError)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 12),
               child: Text(
-                'Please confirm you understand the supported products scope.',
+                tl(
+                  'Please confirm you understand the supported products scope.',
+                ),
                 style: TextStyle(color: Colors.red, fontSize: 11.5),
               ),
             ),
@@ -515,7 +367,6 @@ class _GoogleCompleteProfileScreenState
             Checkbox(
               value: _agreedToTerms,
               onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
-              activeColor: AppColors.brandFill,
               visualDensity: VisualDensity.compact,
             ),
             Expanded(
@@ -531,9 +382,9 @@ class _GoogleCompleteProfileScreenState
                           size: 12.5,
                         ).copyWith(height: 1.4),
                         children: [
-                          const TextSpan(text: 'I agree to the '),
+                          TextSpan(text: tl('I agree to the ')),
                           TextSpan(
-                            text: 'Terms & Conditions',
+                            text: tl('Terms & Conditions'),
                             style:
                                 AppTheme.body(
                                   color: AppColors.brand,
@@ -551,9 +402,9 @@ class _GoogleCompleteProfileScreenState
                                 ),
                               ),
                           ),
-                          const TextSpan(text: ' and '),
+                          TextSpan(text: tl(' and ')),
                           TextSpan(
-                            text: 'Privacy Policy',
+                            text: tl('Privacy Policy'),
                             style:
                                 AppTheme.body(
                                   color: AppColors.brand,
@@ -575,10 +426,12 @@ class _GoogleCompleteProfileScreenState
                       ),
                     ),
                     if (showError)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 4),
                         child: Text(
-                          'Please accept the Terms & Conditions and Privacy Policy to continue.',
+                          tl(
+                            'Please accept the Terms & Conditions and Privacy Policy to continue.',
+                          ),
                           style: TextStyle(color: Colors.red, fontSize: 11.5),
                         ),
                       ),
@@ -604,12 +457,19 @@ class _GoogleCompleteProfileScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTheme.label()),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          textCapitalization: TextCapitalization.words,
-          onChanged: (_) => setState(() {}),
-          decoration: AppTheme.inputBox(hint: hint, icon: Icons.person_outline),
+        const SizedBox(height: AppTheme.formLabelGap),
+        FormFieldGlow(
+          child: TextField(
+            controller: controller,
+            style: const TextStyle(fontSize: 14),
+            textCapitalization: TextCapitalization.words,
+            onChanged: (_) => setState(() {}),
+            decoration: AppTheme.inputBox(
+              hint: hint,
+              icon: Icons.person_outline,
+              onGlowPlate: true,
+            ),
+          ),
         ),
         if (error != null) ...[
           const SizedBox(height: 6),
@@ -624,7 +484,7 @@ class _GoogleCompleteProfileScreenState
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  error,
+                  tl(error),
                   style: TextStyle(
                     color: AppColors.tone(Colors.red, 700),
                     fontSize: 11,
@@ -638,337 +498,353 @@ class _GoogleCompleteProfileScreenState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final canSubmit = _isFormValid && !_loading;
+  // An error on its own line under a field, as on RegisterScreen.
+  Widget _fieldError(String text) => Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.error_outline,
+          size: 14,
+          color: AppColors.tone(Colors.red, 700),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: AppColors.tone(Colors.red, 700),
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
-    return Scaffold(
-      backgroundColor: AppColors.page,
-      body: SafeArea(
+  double _registerButtonBottom(bool keyboardOpen) {
+    if (!_scrollController.hasClients) return _registerFloatGap;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) return _registerFloatGap;
+    final leftToScroll = position.maxScrollExtent - position.pixels;
+    final inPlace = _formEndTextHeight + _formBottomPadding - leftToScroll;
+    return keyboardOpen ? inPlace : math.max(_registerFloatGap, inPlace);
+  }
+
+  Widget _registerButton() => SizedBox(
+    height: _registerButtonHeight,
+    child: ElevatedButton(
+      onPressed: _loading ? null : _finish,
+      style: AppTheme.primaryButton().copyWith(
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      child: _loading
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Text(tr(context).registerButton, style: AppTheme.buttonText()),
+    ),
+  );
+
+  Widget _formEnd() => Column(
+    children: [
+      const SizedBox(height: 16),
+      const SizedBox(height: _registerButtonHeight, width: double.infinity),
+      SizedBox(
+        height: _formEndTextHeight,
+        width: double.infinity,
         child: Column(
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 32, 24, 12),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    border: AppColors.cardBorder,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Center(child: AgriTradeText(fontSize: 26)),
-                      const SizedBox(height: 6),
-                      Center(
-                        child: Text(
-                          'One last step',
-                          style: AppTheme.heading(20),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Center(
-                        child: Text(
-                          'Logged in as ${widget.email}',
-                          style: AppTheme.body(
-                            color: AppColors.textSecondary,
-                            size: 12.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      _nameField(
-                        label: tr(context).firstName,
-                        controller: _firstNameController,
-                        hint: 'Juan',
-                        error: _firstNameError,
-                      ),
-                      const SizedBox(height: 14),
-                      _nameField(
-                        label: tr(context).lastName,
-                        controller: _lastNameController,
-                        hint: 'Santos',
-                        error: _lastNameError,
-                      ),
-                      const SizedBox(height: 16),
-
-                      OutlinedButton.icon(
-                        onPressed: _loading ? null : _pickProfilePhoto,
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: Text(
-                          _profilePhoto != null || _useGooglePhoto
-                              ? 'Change profile photo'
-                              : 'Add a profile photo',
-                        ),
-                      ),
-                      if (_profilePhoto != null || _useGooglePhoto) ...[
-                        const SizedBox(height: 8),
-                        Center(
-                          child: CircleAvatar(
-                            radius: 38,
-                            backgroundImage: _profilePhoto != null
-                                ? MemoryImage(_profilePhotoBytes!)
-                                : NetworkImage(widget.initialPhotoUrl!)
-                                      as ImageProvider,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-
-                      // ---- Mobile Number ----
-                      // Required for both roles (order/delivery/pick-up
-                      // coordination). Fixed +63 prefix — no country
-                      // dropdown, PH-only scope.
-                      Text('Mobile Number', style: AppTheme.label()),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _mobileController,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: kPhMobileInputFormatters,
-                        decoration: AppTheme.inputBox(
-                          hint: kPhMobileHint,
-                          icon: Icons.phone_outlined,
-                          prefixText: kPhMobilePrefix,
-                        ),
-                      ),
-                      if (_mobileError != null) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 14,
-                              color: AppColors.tone(Colors.red, 700),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                _mobileError!,
-                                style: TextStyle(
-                                  color: AppColors.tone(Colors.red, 700),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ] else if (_isFarmer) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'For order, delivery, and pick-up coordination only.',
-                          style: TextStyle(
-                            color: AppColors.grey(600),
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-
-                      Text('Choose your role', style: AppTheme.label()),
-                      const SizedBox(height: 8),
-                      RoleToggle(
-                        selected: _selectedRole,
-                        onChanged: _selectRole,
-                      ),
-
-                      if (_isFarmer) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.tone(Colors.amber, 300),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                color: AppColors.tone(Colors.amber, 800),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Only verified farmers from Laurel, Batangas will be approved.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.tone(Colors.amber, 900),
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      if (_isFarmer) _supportedProductsSection(),
-                      if (_isFarmer)
-                        BarangayLocationField(
-                          value: _selectedBarangay,
-                          errorText: _triedSubmit && _selectedBarangay == null
-                              ? 'Please select a barangay in Laurel.'
-                              : null,
-                          onChanged: (value) =>
-                              setState(() => _selectedBarangay = value),
-                        ),
-                      if (_isFarmer) _publicLocationPreview(),
-                      if (_isFarmer) ...[
-                        Text(
-                          'Agricultural Certification',
-                          style: AppTheme.label(),
-                        ),
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: _loading ? null : _pickCertificate,
-                          child: Container(
-                            width: double.infinity,
-                            height: 160,
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.20),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: _triedSubmit && _certFile == null
-                                    ? Colors.red
-                                    : AppColors.mid,
-                                width: 1.2,
-                              ),
-                            ),
-                            child: _certBytes == null
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.upload_file,
-                                        size: 38,
-                                        color: AppColors.mid,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Attach your certificate',
-                                        style: AppTheme.body(size: 13),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'PNG or JPG only, up to 5MB',
-                                        style: AppTheme.body(
-                                          color: AppColors.textMuted,
-                                          size: 11.5,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(14),
-                                        child: Image.memory(
-                                          _certBytes!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: Material(
-                                          color: AppColors.textSecondary,
-                                          shape: const CircleBorder(),
-                                          child: IconButton(
-                                            icon: const Icon(
-                                              Icons.close,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
-                                            onPressed: _loading
-                                                ? null
-                                                : _removeCertificate,
-                                            tooltip: 'Remove',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
-                        if (_triedSubmit && _certFile == null) ...[
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Agricultural certification is required.',
-                            style: TextStyle(color: Colors.red, fontSize: 11.5),
-                          ),
-                        ],
-                      ],
-                      _consentCheckbox(),
-                    ],
-                  ),
+            const SizedBox(height: 8),
+            if (!_isFormValid && !_loading) ...[
+              Text(
+                tl('Please complete all fields first.'),
+                style: AppTheme.body(color: AppColors.textMuted, size: 12),
+              ),
+              const SizedBox(height: 4),
+            ],
+            TextButton(
+              onPressed: _loading ? null : _cancel,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                tl('Cancel'),
+                style: AppTheme.formLink().copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-              decoration: BoxDecoration(
-                color: AppColors.page,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
+          ],
+        ),
+      ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final bottom = _registerButtonBottom(keyboardOpen);
+      if ((bottom - _drawnRegisterBottom).abs() > 0.5) {
+        setState(() => _drawnRegisterBottom = bottom);
+      }
+    });
+
+    return Scaffold(
+      backgroundColor: AppColors.page,
+      // The compact header, as on RegisterScreen: Back (to ChooseRoleScreen,
+      // to pick the other role), and the small logo and name.
+      appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
+      body: SafeArea(
+        top: false,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.formPageMargin,
+                AppTheme.formSectionGap,
+                AppTheme.formPageMargin,
+                _formBottomPadding,
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: canSubmit
-                          ? _finish
-                          : (_loading ? null : _finish),
-                      style: AppTheme.primaryButton(),
-                      child: _loading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              'Finish Sign Up',
-                              style: AppTheme.buttonText(),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: _loading ? null : _cancel,
+                  Center(
                     child: Text(
-                      'Cancel',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      tl('Complete Your Profile'),
+                      textAlign: TextAlign.center,
+                      style: AppTheme.pageTitle(),
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
+                  const SizedBox(height: AppTheme.formSectionGap),
+
+                  RegistrationRoleDetails(
+                    isFarmer: _isFarmer,
+                    value: _accountType,
+                    showRequired: _triedSubmit,
+                    onChanged: (value) => setState(() => _accountType = value),
+                  ),
+                  const SizedBox(height: AppTheme.formFieldGap),
+
+                  _nameField(
+                    label: tr(context).firstName,
+                    controller: _firstNameController,
+                    hint: 'Juan',
+                    error: _firstNameError,
+                  ),
+                  const SizedBox(height: AppTheme.formFieldGap),
+                  _nameField(
+                    label: tr(context).lastName,
+                    controller: _lastNameController,
+                    hint: 'Santos',
+                    error: _lastNameError,
+                  ),
+                  const SizedBox(height: AppTheme.formFieldGap),
+
+                  // ---- RSBSA No. (farmers only) ----
+                  // In the same place as on RegisterScreen.
+                  if (_isFarmer) ...[
+                    Text(kRsbaLabel, style: AppTheme.label()),
+                    const SizedBox(height: AppTheme.formLabelGap),
+                    Focus(
+                      canRequestFocus: false,
+                      skipTraversal: true,
+                      onFocusChange: (hasFocus) {
+                        if (!hasFocus &&
+                            _rsbaController.text.isNotEmpty &&
+                            !_rsbaTouched) {
+                          setState(() => _rsbaTouched = true);
+                        }
+                      },
+                      child: FormFieldGlow(
+                        child: TextField(
+                          controller: _rsbaController,
+                          style: const TextStyle(fontSize: 14),
+                          // Plain keyboard with letters and numbers, no
+                          // autocorrect.
+                          keyboardType: TextInputType.visiblePassword,
+                          inputFormatters: kRsbaInputFormatters,
+                          onChanged: (_) => setState(() {}),
+                          decoration: AppTheme.inputBox(
+                            hint: kRsbaHint,
+                            icon: Icons.badge_outlined,
+                            onGlowPlate: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Under the field, so the glow goes round the field alone.
+                    if (_rsbaError != null) _fieldError(tl(_rsbaError!)),
+                    const SizedBox(height: AppTheme.formFieldGap),
+                  ],
+
+                  // ---- Email ----
+                  // The Google account's own address: shown so they know
+                  // which account this is, but not editable.
+                  Text(tr(context).emailAddress, style: AppTheme.label()),
+                  const SizedBox(height: AppTheme.formLabelGap),
+                  TextField(
+                    controller: _emailController,
+                    readOnly: true,
+                    // Nothing to type in: it never takes focus.
+                    canRequestFocus: false,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    decoration: AppTheme.inputBox(
+                      hint: '',
+                      icon: Icons.email_outlined,
+                      suffix: Icon(
+                        Icons.lock_outline,
+                        size: 18,
+                        color: AppColors.grey(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    tl('From your Google account.'),
+                    style: TextStyle(
+                      color: AppColors.grey(600),
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.formFieldGap),
+
+                  // ---- Mobile Number ----
+                  // Required for both roles (order/delivery/pick-up
+                  // coordination). Fixed +63 prefix — no country
+                  // dropdown, PH-only scope.
+                  Text('Mobile Number', style: AppTheme.label()),
+                  const SizedBox(height: AppTheme.formLabelGap),
+                  FormFieldGlow(
+                    child: TextField(
+                      controller: _mobileController,
+                      style: const TextStyle(fontSize: 14),
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: kPhMobileInputFormatters,
+                      decoration: AppTheme.inputBox(
+                        hint: kPhMobileHint,
+                        icon: Icons.phone_outlined,
+                        prefixText: kPhMobilePrefix,
+                        onGlowPlate: true,
+                      ),
+                    ),
+                  ),
+                  if (_mobileError != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 14,
+                          color: AppColors.tone(Colors.red, 700),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _mobileError!,
+                            style: TextStyle(
+                              color: AppColors.tone(Colors.red, 700),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (_isFarmer) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      tl('For order, delivery, and pick-up coordination only.'),
+                      style: TextStyle(
+                        color: AppColors.grey(600),
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppTheme.formFieldGap),
+
+                  if (_isFarmer) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: AppColors.tone(Colors.amber, 300),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: AppColors.tone(Colors.amber, 800),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              tl(
+                                'Only verified farmers from Laurel, Batangas will be approved.',
+                              ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.tone(Colors.amber, 900),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.formFieldGap),
+                  ],
+                  if (_isFarmer) _supportedProductsSection(),
+                  if (_isFarmer)
+                    BarangayLocationField(
+                      value: _selectedBarangay,
+                      errorText: _triedSubmit && _selectedBarangay == null
+                          ? tl('Please select a barangay in Laurel.')
+                          : null,
+                      onChanged: (value) =>
+                          setState(() => _selectedBarangay = value),
+                    ),
+                  if (_isFarmer) _publicLocationPreview(),
+                  _consentCheckbox(),
+                  _formEnd(),
                 ],
               ),
+            ),
+            ListenableBuilder(
+              listenable: _scrollController,
+              builder: (context, child) {
+                _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);
+                return Positioned(
+                  left: AppTheme.formPageMargin,
+                  right: AppTheme.formPageMargin,
+                  bottom: _drawnRegisterBottom,
+                  child: child!,
+                );
+              },
+              child: _registerButton(),
             ),
           ],
         ),

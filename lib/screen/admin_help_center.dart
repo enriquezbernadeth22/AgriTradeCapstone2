@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../services/admin_faq.dart';
@@ -417,7 +418,10 @@ class AdminSupportContacts extends StatelessWidget {
                     await Clipboard.setData(ClipboardData(text: contact.value));
                     if (!context.mounted) return;
                     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                      SnackBar(content: Text('${contact.label} copied.')),
+                      appSnackBar(
+                        '${contact.label} copied.',
+                        kind: MessageKind.success,
+                      ),
                     );
                   },
                   icon: const Icon(Icons.copy_rounded, size: 15),
@@ -559,9 +563,8 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
   bool _seedStarted = false;
   bool _seedFailed = false;
 
-  void _snack(String text) => ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text, {required MessageKind kind}) =>
+      showAppMessage(context, text, kind: kind);
 
   void _seedOnce() {
     if (_seedStarted) return;
@@ -576,9 +579,15 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
     setState(() => _busyId = faq.id);
     try {
       await AdminFaqService.setPublished(faq.id, !faq.published);
-      _snack(faq.published ? 'Unpublished.' : 'Published.');
+      _snack(
+        faq.published ? 'Unpublished.' : 'Published.',
+        kind: MessageKind.success,
+      );
     } catch (_) {
-      _snack('The change could not be saved. Please try again.');
+      _snack(
+        'The change could not be saved. Please try again.',
+        kind: MessageKind.error,
+      );
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -613,9 +622,12 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
     setState(() => _busyId = faq.id);
     try {
       await AdminFaqService.delete(faq.id);
-      _snack('FAQ deleted.');
+      _snack('FAQ deleted.', kind: MessageKind.success);
     } catch (_) {
-      _snack('The FAQ could not be deleted. Please try again.');
+      _snack(
+        'The FAQ could not be deleted. Please try again.',
+        kind: MessageKind.error,
+      );
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -634,7 +646,12 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
         ),
       ),
     );
-    if (saved == true) _snack(faq == null ? 'FAQ added.' : 'FAQ saved.');
+    if (saved == true) {
+      _snack(
+        faq == null ? 'FAQ added.' : 'FAQ saved.',
+        kind: MessageKind.success,
+      );
+    }
   }
 
   @override

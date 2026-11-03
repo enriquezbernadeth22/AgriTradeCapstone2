@@ -9,6 +9,7 @@ import '../widgets/app_search_bar.dart';
 import '../widgets/profile_avatar.dart';
 import 'chat_navigation.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The dedicated Messages search experience — opened by tapping the (non-
 /// editable) search bar on the Messages tab. Same screen for Farmer and
@@ -126,7 +127,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
         titleWidget: Padding(
           padding: const EdgeInsets.only(right: 12),
           child: AppSearchBar(
-            hint: 'Search conversations...',
+            hint: tl('Search conversations...'),
             controller: _controller,
             autofocus: true,
             onSubmitted: (_) => _saveSearch(),
@@ -194,15 +195,15 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: _sectionHeading('Recent searches')),
+                  Expanded(child: _sectionHeading(tl('Recent searches'))),
                   TextButton(
                     onPressed: _clearRecent,
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.brand,
                       visualDensity: VisualDensity.compact,
                     ),
-                    child: const Text(
-                      'Clear all',
+                    child: Text(
+                      tl('Clear all'),
                       style: TextStyle(fontSize: 12.5),
                     ),
                   ),
@@ -211,7 +212,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
               for (final term in _recentSearches) _recentTile(term),
               if (fromRecent.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                _sectionHeading('From your recent searches'),
+                _sectionHeading(tl('From your recent searches')),
                 const SizedBox(height: 8),
                 for (final doc in fromRecent) _resultTile(doc.id, doc.data()),
               ],
@@ -255,7 +256,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
               ),
             ),
             IconButton(
-              tooltip: 'Remove',
+              tooltip: tl('Remove'),
               visualDensity: VisualDensity.compact,
               icon: Icon(Icons.close, size: 18, color: AppColors.grey(500)),
               onPressed: () => _removeRecent(term),
@@ -364,16 +365,16 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
   Widget _noHistory() {
     return _centeredState(
       Icons.history,
-      'No recent searches yet',
-      'Search by name, message, or product.',
+      tl('No recent searches yet'),
+      tl('Search by name, message, or product.'),
     );
   }
 
   Widget _noResults() {
     return _centeredState(
       Icons.search_off,
-      'No matches for "${_controller.text.trim()}"',
-      'Try a different name or keyword.',
+      tl('No matches for "{0}"', [_controller.text.trim()]),
+      tl('Try a different name or keyword.'),
     );
   }
 

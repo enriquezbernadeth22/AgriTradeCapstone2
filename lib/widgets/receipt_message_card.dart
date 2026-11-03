@@ -8,6 +8,7 @@ import '../services/market_price_helpers.dart';
 import '../services/order_format.dart';
 import 'order_card.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The receipt of a completed order, as it appears in the farmer–buyer
 /// conversation (a message of type 'receipt'). Both sides get View Receipt;
@@ -84,7 +85,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Transaction Receipt',
+                tl('Transaction Receipt'),
                 style: GoogleFonts.montserrat(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
@@ -136,8 +137,8 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
         const SizedBox(height: 6),
         Text(
           total != null
-              ? 'Total: ${formatPeso(total)}'
-              : 'Total: ${formatPeso(subtotal)} + delivery fee',
+              ? tl('Total: {0}', [formatPeso(total)])
+              : tl('Total: {0} + delivery fee', [formatPeso(subtotal)]),
           style: GoogleFonts.montserrat(
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
@@ -153,7 +154,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
             if (isBuyer && available && !order.reviewed)
               OrderActionButton(
                 OrderCardAction(
-                  'Review Product',
+                  tl('Review Product'),
                   () => OrderActions.review(context, order),
                 ),
               ),
@@ -161,7 +162,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
               Padding(
                 padding: const EdgeInsets.only(top: 7),
                 child: Text(
-                  'Reviewed',
+                  tl('Reviewed'),
                   style: GoogleFonts.montserrat(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -173,7 +174,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
             const SizedBox(width: 8),
             OrderActionButton(
               OrderCardAction(
-                'View Receipt',
+                tl('View Receipt'),
                 () => OrderActions.viewReceipt(context, _orderId),
                 kind: OrderActionKind.primary,
               ),

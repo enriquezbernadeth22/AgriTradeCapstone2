@@ -20,6 +20,7 @@
 // ============================================================
 
 import '../widgets/app_back_button.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import '../widgets/email_delivery_notice.dart';
 import '../widgets/email_request_leave_guard.dart';
 import '../widgets/otp_code_field.dart';
@@ -38,6 +39,7 @@ import 'pending_approval_screen.dart';
 import 'register_screen.dart';
 import 'role_selection_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String role; // 'farmer' or 'buyer'
@@ -139,7 +141,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     if (result.sent) {
       // The previous code (if any) no longer works — don't leave it typed in.
       if (resend) _codeController.clear();
-      _showMessage('Verification code sent', isError: false);
+      _showMessage(tl('Verification code sent'), isError: false);
     }
   }
 
@@ -227,7 +229,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     } catch (_) {
       if (mounted) {
         _navigatingAway = false;
-        _showMessage('Could not finish verification. Please try again.');
+        _showMessage(tl('Could not finish verification. Please try again.'));
       }
     } finally {
       if (mounted) setState(() {});
@@ -264,6 +266,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       firstName: profile?.firstName,
       lastName: profile?.lastName,
       mobileNumber: profile?.mobileNumber,
+      accountType: profile?.accountType,
       supportedProductsAcknowledged:
           profile?.supportedProductsAcknowledged ?? false,
       barangay: profile?.barangay,
@@ -296,7 +299,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       MaterialPageRoute(
         builder: (_) => LoginScreen(
           role: widget.role,
-          flashMessage: 'Email verified! Please log in to continue.',
+          flashMessage: tl('Email verified! Please log in to continue.'),
           // The only route left: its back arrow would pop to nothing.
           disableBackNavigation: true,
         ),
@@ -383,22 +386,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     }
   }
 
-  // A short floating toast in the app's usual style (same as Add Product /
-  // Support): dark green for confirmations, red for problems.
+  // A short system message: green for confirmations, red for problems.
   void _showMessage(String message, {bool isError = true}) {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
+        appSnackBar(
+          tl(message),
+          kind: isError ? MessageKind.error : MessageKind.success,
           duration: const Duration(seconds: 3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          backgroundColor: isError
-              ? AppColors.tone(Colors.red, 700)
-              : AppColors.brandFill,
-          content: Text(message),
         ),
       );
   }
@@ -467,7 +463,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         const SizedBox(height: 14),
 
                         Text(
-                          'Verify Your Email',
+                          tl('Verify Your Email'),
                           style: AppTheme.heading(24),
                           textAlign: TextAlign.center,
                         ),
@@ -476,8 +472,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         Text(
                           // "Requested", not "sent": this text is on screen
                           // whether or not the email has gone out yet.
-                          "We've requested a verification email with a 6-digit "
-                          'code for:',
+                          tl(
+                            'We\'ve requested a verification email with a 6-digit code for:',
+                          ),
                           style: AppTheme.body(size: 13.5),
                           textAlign: TextAlign.center,
                         ),
@@ -508,7 +505,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         const SizedBox(height: 10),
 
                         Text(
-                          'The code expires in 10 minutes.',
+                          tl('The code expires in 10 minutes.'),
                           style: AppTheme.body(size: 12),
                           textAlign: TextAlign.center,
                         ),
@@ -530,7 +527,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                     ),
                                   )
                                 : Text(
-                                    'Verify Code',
+                                    tl('Verify Code'),
                                     style: AppTheme.buttonText(),
                                   ),
                           ),
@@ -567,10 +564,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                 ],
                                 Text(
                                   _requesting
-                                      ? 'Sending code…'
+                                      ? tl('Sending code…')
                                       : _cooldown > 0
-                                      ? 'Resend Code in ${_cooldown}s'
-                                      : 'Resend Code',
+                                      ? tl('Resend Code in {0}s', [_cooldown])
+                                      : tl('Resend Code'),
                                   style: AppTheme.body(
                                     color: canResend
                                         ? AppColors.brand
@@ -588,17 +585,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         TextButton(
                           onPressed: busy ? null : _useDifferentAccount,
                           child: Text(
-                            'Use a different account',
+                            tl('Use a different account'),
                             style: AppTheme.body(size: 13),
                           ),
                         ),
 
                         const SizedBox(height: 8),
-                        const EmailDeliveryNotice(
-                          text:
-                              'Please check your Inbox, including your Spam or '
-                              'Junk folder. The email may take a few minutes to '
-                              'arrive. If it is in Spam, mark it as "Not spam".',
+                        EmailDeliveryNotice(
+                          text: tl(
+                            'Please check your Inbox, including your Spam or Junk folder. The email may take a few minutes to arrive. If it is in Spam, mark it as "Not spam".',
+                          ),
                         ),
                       ],
                     ),

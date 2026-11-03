@@ -3,6 +3,7 @@ import 'dart:async';
 import '../widgets/agri_app_bar.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -23,6 +24,7 @@ import '../widgets/glow_field.dart';
 import '../widgets/glow_tap_field.dart';
 import 'chat_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 class PlaceOrderScreen extends StatefulWidget {
   final String sellerId;
@@ -395,21 +397,22 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     if (_addressController.text.trim().isEmpty) {
       setState(() => _locationTouched = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please set your location.')),
+        appSnackBar(tl('Please set your location.'), kind: MessageKind.error),
       );
       return;
     }
     if (widget.sellerId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Seller information is missing for this product.'),
+        appSnackBar(
+          tl('Seller information is missing for this product.'),
+          kind: MessageKind.error,
         ),
       );
       return;
     }
     if (_canChooseDelivery && _fulfillment == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose delivery or pick-up.')),
+        appSnackBar(tl('Choose delivery or pick-up.'), kind: MessageKind.error),
       );
       return;
     }
@@ -420,9 +423,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     if (!await ConnectivityService.instance.checkNow()) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+      );
       return;
     }
 
@@ -443,7 +446,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         if (!mounted) return;
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('This listing is no longer available.')),
+          appSnackBar(
+            tl('This listing is no longer available.'),
+            kind: MessageKind.warning,
+          ),
         );
         return;
       }
@@ -452,12 +458,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         if (!mounted) return;
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              available <= 0
-                  ? 'This item is out of stock.'
-                  : 'Only ${formatStock(available, _unit)} available right now. Lower your quantity.',
-            ),
+          appSnackBar(
+            available <= 0
+                ? tl('This item is out of stock.')
+                : tl('Only {0} available right now. Lower your quantity.', [
+                    formatStock(available, _unit),
+                  ]),
+            kind: MessageKind.warning,
           ),
         );
         return;
@@ -476,11 +483,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           builder: (dialogContext) => AgriDialog(
             icon: Icons.update_rounded,
             tone: AgriTone.warning,
-            title: const Text('Order details updated'),
-            content: const Text(
-              'The seller changed this listing (price, delivery or pick-up) '
-              'since you opened it. Please review the updated summary before '
-              'submitting.',
+            title: Text(tl('Order details updated')),
+            content: Text(
+              tl(
+                'The seller changed this listing (price, delivery or pick-up) since you opened it. Please review the updated summary before submitting.',
+              ),
             ),
             actions: [
               AgriDialogButton(
@@ -524,17 +531,20 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     setState(() => _submitting = false);
 
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(appSnackBar(err, kind: MessageKind.error));
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          method == 'unspecified'
-              ? 'Order request sent.'
-              : 'Order request sent for ${method == 'pickup' ? 'pick-up' : 'delivery'}.',
-        ),
+      appSnackBar(
+        method == 'unspecified'
+            ? tl('Order request sent.')
+            : tl('Order request sent for {0}.', [
+                method == 'pickup' ? 'pick-up' : 'delivery',
+              ]),
+        kind: MessageKind.success,
       ),
     );
     // A few orders in, the app asks for feedback (FeedbackService).
@@ -602,10 +612,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Could not open Messages. Check your connection and try again.',
-          ),
+        appSnackBar(
+          tl('Could not open Messages. Check your connection and try again.'),
+          kind: MessageKind.error,
         ),
       );
     } finally {
@@ -656,7 +665,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      appBar: const AgriAppBar(title: 'Place Order'),
+      appBar: AgriAppBar(title: tl('Place Order')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
@@ -665,14 +674,14 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             _productSummary(),
             const SizedBox(height: 22),
 
-            _sectionTitle('Buyer Details'),
+            _sectionTitle(tl('Buyer Details')),
             const SizedBox(height: 12),
             _field(
-              label: 'Name',
+              label: tl('Name'),
               errorText: _showErrors ? _nameError : null,
               child: GlowField(
                 controller: _nameController,
-                hint: 'Your full name',
+                hint: tl('Your full name'),
                 icon: Icons.person_outline,
                 textInputAction: TextInputAction.next,
               ),
@@ -682,7 +691,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               label: 'Address',
               value: _buyerLocation,
               errorText: _locationTouched && _buyerLocation == null
-                  ? 'Please set your location.'
+                  ? tl('Please set your location.')
                   : null,
               onPicked: _onLocationPicked,
             ),
@@ -691,14 +700,14 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             // Starts from the number on the buyer's profile (_prefill…);
             // what is typed here goes on this order only and never back
             // to the profile.
-            _sectionTitle('Contact Information'),
+            _sectionTitle(tl('Contact Information')),
             const SizedBox(height: 12),
             _field(
               label: 'Contact Number',
-              errorText: _contactError,
-              caption:
-                  'Used for this order only. Changing it here does not '
-                  'change the number on your profile.',
+              errorText: _contactError == null ? null : tl(_contactError!),
+              caption: tl(
+                'Used for this order only. Changing it here does not change the number on your profile.',
+              ),
               child: GlowField(
                 controller: _contactController,
                 hint: kPhMobileHint,
@@ -716,11 +725,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             _sectionTitle('Order'),
             const SizedBox(height: 12),
             _field(
-              label: 'Ordered Quantity ($_unit)',
-              errorText: _quantityError,
+              label: tl('Ordered Quantity ({0})', [_unit]),
+              errorText: _quantityError == null ? null : tl(_quantityError!),
               child: GlowField(
                 controller: _quantityController,
-                hint: 'How many $_unit',
+                hint: tl('How many {0}', [_unit]),
                 icon: Icons.scale_outlined,
                 keyboardType: TextInputType.numberWithOptions(
                   decimal: !_isCountBasedUnit,
@@ -728,16 +737,16 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               ),
             ),
             _field(
-              label: 'Needed by (Optional)',
-              caption:
-                  'Your preferred date. The farmer will confirm whether it '
-                  'can be met.',
+              label: tl('Needed by (Optional)'),
+              caption: tl(
+                'Your preferred date. The farmer will confirm whether it can be met.',
+              ),
               child: GlowTapField(
                 icon: Icons.calendar_today_outlined,
                 value: _neededBy == null
                     ? null
                     : '${_neededBy!.month}/${_neededBy!.day}/${_neededBy!.year}',
-                hint: 'No specific date',
+                hint: tl('No specific date'),
                 onTap: _pickNeededBy,
               ),
             ),
@@ -771,7 +780,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             // The app's standard pill button (dark green, white text).
             style: AppTheme.primaryButton(),
             child: Text(
-              _submitting ? 'Submitting...' : 'Submit Order',
+              _submitting ? tl('Submitting...') : tl('Submit Order'),
               style: AppTheme.buttonText(),
             ),
           ),
@@ -811,7 +820,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             Checkbox(
               value: _contactConfirmed,
               onChanged: (v) => _setContactConfirmed(v ?? false),
-              activeColor: AppColors.brandFill,
               visualDensity: VisualDensity.compact,
             ),
             Expanded(
@@ -821,8 +829,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'I confirm this contact number is correct and that I '
-                      'can be reached on it.',
+                      tl(
+                        'I confirm this contact number is correct and that I can be reached on it.',
+                      ),
                       style: AppTheme.body(
                         color: AppColors.text,
                         size: 12.5,
@@ -832,7 +841,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Please confirm your contact number to continue.',
+                          tl('Please confirm your contact number to continue.'),
                           style: TextStyle(
                             color: AppColors.tone(Colors.red, 700),
                             fontSize: 11.5,
@@ -976,10 +985,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                 const SizedBox(height: 3),
                 Text(
                   _loadingProduct
-                      ? 'Checking pricing…'
+                      ? tl('Checking pricing…')
                       : quote.isWholesale
-                      ? 'Wholesale price applied'
-                      : 'Retail price applied',
+                      ? tl('Wholesale price applied')
+                      : tl('Retail price applied'),
                   style: TextStyle(
                     fontSize: 11.5,
                     color: quote.isWholesale
@@ -990,7 +999,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Seller: ${widget.sellerName}',
+                  tl('Seller: {0}', [widget.sellerName]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
@@ -1025,8 +1034,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         children: [
           Text(
             quote.isWholesale
-                ? 'Wholesale price applied'
-                : 'Retail price applied',
+                ? tl('Wholesale price applied')
+                : tl('Retail price applied'),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -1045,8 +1054,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               quote.quantityToWholesale! > 0) ...[
             const SizedBox(height: 4),
             Text(
-              'Add ${formatStock(quote.quantityToWholesale!, _unit)} more '
-              'to qualify for the wholesale price.',
+              tl('Add {0} more to qualify for the wholesale price.', [
+                formatStock(quote.quantityToWholesale!, _unit),
+              ]),
               style: TextStyle(fontSize: 12, color: AppColors.grey(800)),
             ),
           ],
@@ -1059,14 +1069,15 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   Widget _fulfillmentSection() {
     if (_loadingProduct) {
       return Text(
-        'Checking delivery and pick-up options…',
+        tl('Checking delivery and pick-up options…'),
         style: TextStyle(fontSize: 12.5, color: AppColors.grey(600)),
       );
     }
     if (!_canChooseDelivery) {
       return Text(
-        'This seller hasn\'t set delivery or pick-up for this product. You '
-        'can arrange it with them after ordering.',
+        tl(
+          'This seller hasn\'t set delivery or pick-up for this product. You can arrange it with them after ordering.',
+        ),
         style: TextStyle(fontSize: 12.5, color: AppColors.grey(700)),
       );
     }
@@ -1083,7 +1094,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Fulfillment'),
+        _sectionTitle(tl('Fulfillment')),
         const SizedBox(height: 10),
         if (_offersDelivery)
           _fulfillmentOption(
@@ -1097,7 +1108,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
-              'Set your address above to check whether delivery reaches you.',
+              tl(
+                'Set your address above to check whether delivery reaches you.',
+              ),
               style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
             ),
           ),
@@ -1108,9 +1121,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             value: 'pickup',
             icon: Icons.storefront_outlined,
             title: 'Pick-up',
-            subtitle:
-                'Collect from the farmer in ${coverage.origin.name}. '
-                'No delivery fee.',
+            subtitle: tl('Collect from the farmer in {0}. No delivery fee.', [
+              coverage.origin.name,
+            ]),
             enabled: true,
           ),
       ],
@@ -1216,7 +1229,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  "Delivery doesn't reach your area",
+                  tl('Delivery doesn\'t reach your area'),
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -1229,10 +1242,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           const SizedBox(height: 6),
           Text(
             pickedUp
-                ? 'You chose pick-up for this order.'
+                ? tl('You chose pick-up for this order.')
                 : _offersPickup
-                ? 'Pick it up instead, or ask the farmer to add your area.'
-                : 'Ask the farmer to add your area to their delivery.',
+                ? tl('Pick it up instead, or ask the farmer to add your area.')
+                : tl('Ask the farmer to add your area to their delivery.'),
             style: TextStyle(fontSize: 12.5, color: AppColors.grey(800)),
           ),
           if (!pickedUp) ...[
@@ -1243,7 +1256,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _messaging ? null : _messageFarmer,
                     icon: const Icon(Icons.chat_bubble_outline, size: 15),
-                    label: const Text('Message'),
+                    label: Text(tl('Message')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.brand,
                       side: BorderSide(color: AppColors.brand),
@@ -1261,7 +1274,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () => setState(() => _fulfillment = 'pickup'),
                       icon: const Icon(Icons.storefront_outlined, size: 15),
-                      label: const Text('Choose Pick-up'),
+                      label: Text(tl('Choose Pick-up')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.brandFill,
                         foregroundColor: Colors.white,
@@ -1323,7 +1336,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Order Summary',
+            tl('Order Summary'),
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -1331,24 +1344,27 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          _summaryRow('Product', widget.productName),
-          _summaryRow('Order type', quote.isWholesale ? 'Wholesale' : 'Retail'),
-          _summaryRow('Quantity', formatStock(quote.quantity, _unit)),
+          _summaryRow(tl('Product'), widget.productName),
           _summaryRow(
-            'Unit price',
+            tl('Order type'),
+            quote.isWholesale ? 'Wholesale' : 'Retail',
+          ),
+          _summaryRow(tl('Quantity'), formatStock(quote.quantity, _unit)),
+          _summaryRow(
+            tl('Unit price'),
             formatPriceWithUnit(quote.unitPrice, _unit),
           ),
-          _summaryRow('Product subtotal', formatPeso(quote.subtotal)),
+          _summaryRow(tl('Product subtotal'), formatPeso(quote.subtotal)),
           if (_fulfillment == 'delivery')
             _summaryRow(
-              'Delivery fee',
-              fee != null ? formatPeso(fee) : 'To be arranged with seller',
+              tl('Delivery fee'),
+              fee != null ? formatPeso(fee) : tl('To be arranged with seller'),
               emphasize: fee == null,
             ),
-          _summaryRow('Fulfillment', fulfillmentLabel),
+          _summaryRow(tl('Fulfillment'), fulfillmentLabel),
           const Divider(height: 18),
           if (total != null)
-            _summaryRow('Total', total, bold: true)
+            _summaryRow(tl('Total'), total, bold: true)
           else
             Text(
               totalNote ?? '',

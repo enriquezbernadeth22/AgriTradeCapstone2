@@ -1,15 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 
 import '../services/auth_service.dart';
 import '../services/password_change_service.dart';
+import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
 import 'agri_form_field.dart';
 import 'otp_code_field.dart';
 import 'password_requirements.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Shared "change password" flow for logged-in farmers, buyers, and
 /// admins, in two steps:
@@ -32,10 +35,11 @@ Future<bool> showChangePasswordDialog(
       context: context,
       builder: (dialogContext) => AgriDialog(
         icon: Icons.lock_outline,
-        title: const Text('Change Password'),
-        content: const Text(
-          'This account logs in with Google, so it has no AgriTrade+ '
-          'password to change. Manage your password in your Google Account.',
+        title: Text(tl('Change Password')),
+        content: Text(
+          tl(
+            'This account logs in with Google, so it has no AgriTrade+ password to change. Manage your password in your Google Account.',
+          ),
         ),
         actions: [
           AgriDialogButton(
@@ -55,10 +59,12 @@ Future<bool> showChangePasswordDialog(
     builder: (_) =>
         ChangePasswordDialog(service: service ?? PasswordChangeService()),
   );
+  if (changed == true) await PushNotificationService.stopPasswordReminder();
   if (changed == true && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password changed. Other devices were logged out.'),
+      appSnackBar(
+        tl('Password changed. Other devices were logged out.'),
+        kind: MessageKind.success,
       ),
     );
   }
@@ -182,7 +188,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
   Widget _errorText() => Padding(
     padding: const EdgeInsets.only(top: 8),
     child: Text(
-      _error!,
+      tl(_error!),
       textAlign: TextAlign.center,
       style: AppTheme.body(size: 12, color: AppColors.tone(Colors.red, 700)),
     ),
@@ -190,7 +196,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
   Widget _formDialog() {
     return AgriDialog(
-      title: const Text('Change Password'),
+      title: Text(tl('Change Password')),
       scrollable: true,
       content: Form(
         key: _formKey,
@@ -200,18 +206,18 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           children: [
             const SizedBox(height: 6),
             AgriFormField(
-              label: 'Current password',
+              label: tl('Current password'),
               controller: _current,
-              hint: 'Enter your current password',
+              hint: tl('Enter your current password'),
               icon: Icons.lock_outline_rounded,
               obscureText: _obscure,
               validator: (value) =>
-                  (value == null || value.isEmpty) ? 'Required' : null,
+                  (value == null || value.isEmpty) ? tl('Required') : null,
             ),
             AgriFormField(
-              label: 'New password',
+              label: tl('New password'),
               controller: _new,
-              hint: 'Enter a new password',
+              hint: tl('Enter a new password'),
               icon: Icons.lock_reset_rounded,
               obscureText: _obscure,
               // The registration rules, shown live below.
@@ -240,13 +246,13 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               ),
             ),
             AgriFormField(
-              label: 'Confirm new password',
+              label: tl('Confirm new password'),
               controller: _confirm,
-              hint: 'Enter the new password again',
+              hint: tl('Enter the new password again'),
               icon: Icons.lock_reset_rounded,
               obscureText: _obscure,
               validator: (value) =>
-                  value != _new.text ? 'Passwords do not match.' : null,
+                  value != _new.text ? tl('Passwords do not match.') : null,
             ),
             InkWell(
               borderRadius: BorderRadius.circular(10),
@@ -260,18 +266,16 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                       height: 24,
                       child: Checkbox(
                         value: !_obscure,
-                        activeColor: AppColors.brandFill,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
                         onChanged: (checked) =>
                             setState(() => _obscure = !(checked ?? false)),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Show passwords',
-                      style: TextStyle(fontSize: 13),
+                    Expanded(
+                      child: Text(
+                        tl('Show passwords'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                   ],
                 ),
@@ -279,8 +283,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
             ),
             const SizedBox(height: 6),
             Text(
-              'We will email a 6-digit code to your login email to confirm '
-              'it is you.',
+              tl(
+                'We will email a 6-digit code to your login email to confirm it is you.',
+              ),
               style: AppTheme.body(size: 12, color: AppColors.grey(600)),
             ),
             if (_error != null) _errorText(),
@@ -289,11 +294,11 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       ),
       actions: [
         AgriDialogButton(
-          label: 'Cancel',
+          label: tl('Cancel'),
           onPressed: _busy ? null : () => Navigator.of(context).pop(false),
         ),
         AgriDialogButton(
-          label: 'Continue',
+          label: tl('Continue'),
           kind: AgriButtonKind.primary,
           loading: _busy,
           onPressed: _busy ? null : _continue,
@@ -307,14 +312,14 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     final canResend = _cooldown <= 0 && !_busy;
     return AgriDialog(
       icon: Icons.mark_email_unread_outlined,
-      title: const Text('Confirm Password Change'),
+      title: Text(tl('Confirm Password Change')),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Enter the 6-digit code we sent to',
+            tl('Enter the 6-digit code we sent to'),
             style: AppTheme.body(size: 13.5),
             textAlign: TextAlign.center,
           ),
@@ -348,7 +353,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           if (_error != null) _errorText(),
           const SizedBox(height: 12),
           Text(
-            'Changing it logs you out on every other device.',
+            tl('Changing it logs you out on every other device.'),
             textAlign: TextAlign.center,
             style: AppTheme.body(size: 11.5, color: AppColors.grey(600)),
           ),
@@ -357,7 +362,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               onPressed: canResend ? _resend : null,
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: Text(
-                _cooldown > 0 ? 'Resend code in ${_cooldown}s' : 'Resend code',
+                _cooldown > 0
+                    ? tl('Resend code in {0}s', [_cooldown])
+                    : tl('Resend code'),
               ),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.brand,
@@ -369,7 +376,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       ),
       actions: [
         AgriDialogButton(
-          label: 'Back',
+          label: tl('Back'),
           onPressed: _busy
               ? null
               : () => setState(() {
@@ -379,7 +386,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 }),
         ),
         AgriDialogButton(
-          label: 'Change Password',
+          label: tl('Change Password'),
           kind: AgriButtonKind.primary,
           loading: _busy,
           onPressed: canChange ? _change : null,

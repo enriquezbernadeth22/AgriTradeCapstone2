@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 TextStyle get _messageStyle => TextStyle(
   fontFamily: 'Montserrat',
@@ -56,8 +57,7 @@ Future<bool> showPermissionRationale(
         children: [
           // Justified beside a list of details; a short message on its own
           // is centred, where justifying would leave wide gaps.
-          Text(
-            message,
+          Text(tl(message),
             textAlign: (bullets?.isNotEmpty ?? false)
                 ? TextAlign.justify
                 : TextAlign.center,

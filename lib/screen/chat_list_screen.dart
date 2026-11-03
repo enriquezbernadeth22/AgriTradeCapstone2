@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../services/conversation_prefs_service.dart';
 import '../services/message_service.dart';
+import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_dialog.dart';
@@ -21,6 +22,7 @@ import 'message_search_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Which conversations a [ChatListScreen] shows.
 enum ChatListMode {
@@ -173,8 +175,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
               }
               if (snapshot.hasError) {
                 return RetryMessage(
-                  message:
-                      'Could not load messages. Check your connection and try again.',
+                  message: tl(
+                    'Could not load messages. Check your connection and try again.',
+                  ),
                   onRetry: () => setState(() {}),
                 );
               }
@@ -257,15 +260,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 if (widget.mode == ChatListMode.archived) {
                   return _folderEmptyState(
                     Icons.archive_outlined,
-                    'No archived conversations',
-                    'Chats you archive will appear here.',
+                    tl('No archived conversations'),
+                    tl('Chats you archive will appear here.'),
                   );
                 }
                 if (widget.mode == ChatListMode.muted) {
                   return _folderEmptyState(
                     Icons.notifications_off_outlined,
-                    'No muted conversations',
-                    'Chats you mute will appear here.',
+                    tl('No muted conversations'),
+                    tl('Chats you mute will appear here.'),
                   );
                 }
                 return _filter == 'unread'
@@ -281,7 +284,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 child: ListView.separated(
                   padding: EdgeInsets.only(
                     top: _inboxMode ? 4 : 8,
-                    bottom: _inboxMode ? 90 : 24,
+                    bottom: _inboxMode
+                        ? DockedNavBar.listEndPadding(context)
+                        : 24,
                   ),
                   itemCount: docs.length,
                   separatorBuilder: (_, _) => Divider(
@@ -334,9 +339,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     // screen (recent searches + results), same for Farmer and Buyer.
     return Semantics(
       button: true,
-      label: 'Search conversations',
+      label: tl('Search conversations'),
       child: AppSearchBar(
-        hint: 'Search conversations...',
+        hint: tl('Search conversations...'),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const MessageSearchScreen()),
@@ -365,7 +370,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget _menuButton() {
     return Builder(
       builder: (buttonContext) => IconButton(
-        tooltip: 'Manage messages',
+        tooltip: tl('Manage messages'),
         icon: Icon(Icons.menu_rounded, size: 24, color: PageHeader.titleColor),
         onPressed: () => _openManageMenu(buttonContext),
       ),
@@ -375,26 +380,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Future<void> _openManageMenu(BuildContext buttonContext) async {
     final Widget? screen = await showAgriPopupMenu<Widget>(
       anchorContext: buttonContext,
-      items: const [
+      items: [
         AgriMenuItem(
           value: ArchivedConversationsScreen(),
           icon: Icons.archive_outlined,
-          label: 'Archived',
+          label: tl('Archived'),
         ),
         AgriMenuItem(
           value: MutedConversationsScreen(),
           icon: Icons.notifications_off_outlined,
-          label: 'Muted',
+          label: tl('Muted'),
         ),
         AgriMenuItem(
           value: ReportedUsersScreen(),
           icon: Icons.flag_outlined,
-          label: 'Reported',
+          label: tl('Reported'),
         ),
         AgriMenuItem(
           value: BlockedUsersScreen(),
           icon: Icons.block,
-          label: 'Blocked Users',
+          label: tl('Blocked Users'),
         ),
       ],
     );
@@ -442,10 +447,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Widget _noResultsState() {
-    return const Center(
+    return Center(
       child: AgriEmptyState(
         icon: Icons.mark_email_read_outlined,
-        title: 'No unread messages',
+        title: tl('No unread messages'),
         padding: EdgeInsets.all(32),
       ),
     );
@@ -491,11 +496,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
       context: context,
       icon: Icons.block,
       tone: AgriTone.destructive,
-      title: 'Block $otherName?',
-      message:
-          'Your conversations with $otherName will be hidden from Messages. '
-          'You can unblock them anytime from Blocked Users in the menu.',
-      confirmLabel: 'Block',
+      title: tl('Block {0}?', [otherName]),
+      message: tl(
+        'Your conversations with {0} will be hidden from Messages. You can unblock them anytime from Blocked Users in the menu.',
+        [otherName],
+      ),
+      confirmLabel: tl('Block'),
     );
     if (confirmed) _prefs.block(otherUid);
   }
@@ -573,7 +579,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             backgroundColor: AppColors.tint,
             foregroundColor: AppColors.brand,
             icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-            label: isPinned ? 'Unpin' : 'Pin',
+            label: isPinned ? tl('Unpin') : tl('Pin'),
           ),
         ],
       ),
@@ -587,7 +593,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             icon: isMuted
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_off_outlined,
-            label: isMuted ? 'Unmute' : 'Mute',
+            label: isMuted ? tl('Unmute') : tl('Mute'),
           ),
           if (isArchived)
             SlidableAction(
@@ -595,7 +601,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               backgroundColor: AppColors.tint,
               foregroundColor: AppColors.brand,
               icon: Icons.unarchive_outlined,
-              label: 'Unarchive',
+              label: tl('Unarchive'),
             )
           else
             SlidableAction(
@@ -603,7 +609,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               backgroundColor: AppColors.adapt(const Color(0xFFFFE8E6)),
               foregroundColor: Colors.redAccent,
               icon: Icons.archive_outlined,
-              label: 'Archive',
+              label: tl('Archive'),
             ),
         ],
       ),
@@ -764,31 +770,31 @@ class _ChatListScreenState extends State<ChatListScreen> {
         children: [
           AgriSheetAction(
             icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-            label: isPinned ? 'Unpin' : 'Pin',
+            label: isPinned ? tl('Unpin') : tl('Pin'),
             onTap: () => Navigator.pop(sheetContext, 'pin'),
           ),
           AgriSheetAction(
             icon: isMuted
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_off_outlined,
-            label: isMuted ? 'Unmute' : 'Mute',
+            label: isMuted ? tl('Unmute') : tl('Mute'),
             onTap: () => Navigator.pop(sheetContext, 'mute'),
           ),
           AgriSheetAction(
             icon: isArchived
                 ? Icons.unarchive_outlined
                 : Icons.archive_outlined,
-            label: isArchived ? 'Unarchive' : 'Archive',
+            label: isArchived ? tl('Unarchive') : tl('Archive'),
             onTap: () => Navigator.pop(sheetContext, 'archive'),
           ),
           AgriSheetAction(
             icon: Icons.flag_outlined,
-            label: 'Report',
+            label: tl('Report'),
             onTap: () => Navigator.pop(sheetContext, 'report'),
           ),
           AgriSheetAction(
             icon: Icons.block,
-            label: 'Block',
+            label: tl('Block'),
             destructive: true,
             onTap: () => Navigator.pop(sheetContext, 'block'),
           ),
@@ -835,10 +841,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
         return Center(
           child: AgriEmptyState(
             icon: Icons.mail_outline,
-            title: 'No conversations yet',
+            title: tl('No conversations yet'),
             subtitle: isFarmer
-                ? 'Messages from buyers will appear here.'
-                : 'Messages from farmers will appear here.',
+                ? tl('Messages from buyers will appear here.')
+                : tl('Messages from farmers will appear here.'),
             padding: const EdgeInsets.all(32),
           ),
         );

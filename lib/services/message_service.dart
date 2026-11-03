@@ -306,7 +306,14 @@ class MessageService {
         .set({'isTyping': isTyping, 'updatedAt': FieldValue.serverTimestamp()});
   }
 
-  Future<void> toggleLike(String conversationId, String messageId) async {
+  /// Sets the signed-in person's reaction on a message (`likes.{uid}`, one
+  /// of the keys in kMessageReactions), or takes it off when [reaction] is
+  /// the one already there — choosing the same emoji again undoes it.
+  Future<void> setReaction(
+    String conversationId,
+    String messageId,
+    String reaction,
+  ) async {
     await _requireOnline();
     final ref = _conversations
         .doc(conversationId)
@@ -316,11 +323,12 @@ class MessageService {
       final snapshot = await transaction.get(ref);
       if (!snapshot.exists) return;
       final likes = Map<String, dynamic>.from(snapshot.data()?['likes'] ?? {});
-      if (likes[currentUid] == true) {
-        transaction.update(ref, {'likes.$currentUid': FieldValue.delete()});
-      } else {
-        transaction.update(ref, {'likes.$currentUid': true});
-      }
+      final current = likes[currentUid] == true ? 'like' : likes[currentUid];
+      transaction.update(ref, {
+        'likes.$currentUid': current == reaction
+            ? FieldValue.delete()
+            : reaction,
+      });
     });
   }
 
@@ -340,6 +348,11 @@ class MessageService {
   static const String certificateRequestText =
       "Can I see the animal's health certificate?";
 
+  /// The most characters a chat message's text may have (after its
+  /// leading and trailing spaces are trimmed). Photos, videos and locations
+  /// are not counted against it.
+  static const int maxTextLength = 1000;
+
   Future<void> sendMessage({
     required String conversationId,
     required String otherUserId,
@@ -353,6 +366,11 @@ class MessageService {
     await _requireOnline();
     final trimmed = text?.trim() ?? '';
     if (trimmed.isEmpty && (imageUrl == null || imageUrl.isEmpty)) return;
+    if (trimmed.length > maxTextLength) {
+      throw ArgumentError(
+        'A message may have at most $maxTextLength characters.',
+      );
+    }
 
     final me = _auth.currentUser!;
     final convRef = _conversations.doc(conversationId);
@@ -448,6 +466,38 @@ class MessageService {
     batch.set(msgRef, messageData);
     batch.update(convRef, {
       'lastMessage': caption.isNotEmpty ? caption : 'Photo',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'lastSenderId': me.uid,
+      'unreadCount.$otherUserId': FieldValue.increment(1),
+      'hasMessages': true,
+    });
+    await batch.commit();
+  }
+
+  /// A video message: `type: 'video'` with the uploaded [videoUrl] (see
+  /// CloudinaryService.uploadVideo). "Video" on the Messages list.
+  Future<void> sendVideoMessage({
+    required String conversationId,
+    required String otherUserId,
+    required String videoUrl,
+  }) async {
+    await _requireOnline();
+    if (videoUrl.isEmpty) return;
+
+    final me = _auth.currentUser!;
+    final convRef = _conversations.doc(conversationId);
+    final msgRef = convRef.collection('messages').doc();
+
+    await _ensureConversation(conversationId);
+    final batch = _firestore.batch();
+    batch.set(msgRef, {
+      'senderId': me.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'type': 'video',
+      'videoUrl': videoUrl,
+    });
+    batch.update(convRef, {
+      'lastMessage': 'Video',
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastSenderId': me.uid,
       'unreadCount.$otherUserId': FieldValue.increment(1),

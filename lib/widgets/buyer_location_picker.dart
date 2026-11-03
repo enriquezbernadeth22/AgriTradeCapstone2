@@ -8,6 +8,7 @@ import '../data/ph_locations_service.dart';
 import '../services/geocoding_service.dart';
 import '../services/location_permission_prompt.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// What the buyer location popup hands back — always a readable region/
 /// province/city/barangay; latitude/longitude are best-effort (see
@@ -85,34 +86,34 @@ Future<BuyerLocationResult?> showBuyerLocationOptions(
     useCurrent = await showAgriPopupMenu<bool>(
       anchorContext: anchorContext,
       width: anchorBox.size.width,
-      items: const [
+      items: [
         AgriMenuItem(
           value: true,
           icon: Icons.my_location,
-          label: 'Use My Current Location',
+          label: tl('Use My Current Location'),
         ),
         AgriMenuItem(
           value: false,
           icon: Icons.list_alt_outlined,
-          label: 'Set Location Manually',
+          label: tl('Set Location Manually'),
         ),
       ],
     );
   } else {
     useCurrent = await showAgriSheet<bool>(
       context: context,
-      title: 'Set Your Location',
+      title: tl('Set Your Location'),
       builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AgriSheetAction(
             icon: Icons.my_location,
-            label: 'Use My Current Location',
+            label: tl('Use My Current Location'),
             onTap: () => Navigator.pop(sheetContext, true),
           ),
           AgriSheetAction(
             icon: Icons.list_alt_outlined,
-            label: 'Set Location Manually',
+            label: tl('Set Location Manually'),
             onTap: () => Navigator.pop(sheetContext, false),
           ),
           const SizedBox(height: 8),
@@ -434,8 +435,9 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
         // to carry on is left to say.
         if (!mounted) return;
         setState(
-          () => _gpsNote =
-              'Location access is off. Please choose your location below.',
+          () => _gpsNote = tl(
+            'Location access is off. Please choose your location below.',
+          ),
         );
         return;
       }
@@ -444,7 +446,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
       if (!serviceEnabled) {
         _log('gps', 'FAILED: location services are off');
         if (!mounted) return;
-        setState(() => _gpsError = 'Turn on location services to use this.');
+        setState(() => _gpsError = tl('Turn on location services to use this.'));
         return;
       }
 
@@ -462,8 +464,9 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
       if (!isWithinPhilippines(position.latitude, position.longitude)) {
         _log('philippines', 'FAILED: coordinates are outside the Philippines');
         setState(
-          () => _gpsError =
-              "This doesn't look like a location within the Philippines.",
+          () => _gpsError = tl(
+            'This doesn\'t look like a location within the Philippines.',
+          ),
         );
         return;
       }
@@ -495,8 +498,9 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
       if (country != null && country.toUpperCase() != 'PH') {
         _log('philippines', 'FAILED: address country is $country');
         setState(
-          () => _gpsError =
-              "This doesn't look like a location within the Philippines.",
+          () => _gpsError = tl(
+            'This doesn\'t look like a location within the Philippines.',
+          ),
         );
         return;
       }
@@ -521,15 +525,16 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
       if (!mapped) {
         _log('address', 'not mapped to the list — manual selection');
         setState(
-          () => _gpsNote =
-              "We found your position but couldn't match it to an address. "
-              'Please choose your location below.',
+          () => _gpsNote = tl(
+            'We found your position but couldn\'t match it to an address. Please choose your location below.',
+          ),
         );
       }
     } catch (_) {
       if (!mounted) return;
       setState(
-        () => _gpsError = 'Could not detect your location. Please try again.',
+        () =>
+            _gpsError = tl('Could not detect your location. Please try again.'),
       );
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -626,9 +631,9 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Set Your Location',
+                      tl('Set Your Location'),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -661,7 +666,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                               ),
                             )
                           : const Icon(Icons.my_location),
-                      label: const Text('Use My Current Location'),
+                      label: Text(tl('Use My Current Location')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.brand,
                         side: BorderSide(color: AppColors.brand),
@@ -683,8 +688,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                   ],
                   if (_gpsError != null) ...[
                     const SizedBox(height: 6),
-                    Text(
-                      _gpsError!,
+                    Text(tl(_gpsError!),
                       style: const TextStyle(color: Colors.red, fontSize: 11.5),
                     ),
                   ],
@@ -698,7 +702,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
-                            'Or choose manually',
+                            tl('Or choose manually'),
                             style: TextStyle(
                               fontSize: 11.5,
                               color: AppColors.grey(600),
@@ -728,8 +732,11 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                     Expanded(
                       child: Text(
                         _breadcrumb.isEmpty
-                            ? 'Select your $_levelLabel'
-                            : '${_breadcrumb.join(' › ')} — Select $_levelLabel',
+                            ? tl('Select your {0}', [_levelLabel])
+                            : tl('{0} — Select {1}', [
+                                _breadcrumb.join(' › '),
+                                _levelLabel,
+                              ]),
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
@@ -774,7 +781,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Location detected',
+                  tl('Location detected'),
                   style: TextStyle(
                     color: AppColors.brand,
                     fontSize: 11.5,
@@ -792,8 +799,8 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                 const SizedBox(height: 2),
                 Text(
                   _detectedBarangayCode != null
-                      ? 'Please confirm your barangay'
-                      : 'Choose your barangay to confirm',
+                      ? tl('Please confirm your barangay')
+                      : tl('Choose your barangay to confirm'),
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -805,7 +812,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
           TextButton(
             onPressed: () => setState(() => _detected = false),
             style: TextButton.styleFrom(foregroundColor: AppColors.brand),
-            child: const Text('Change'),
+            child: Text(tl('Change')),
           ),
         ],
       ),
@@ -827,15 +834,14 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
             children: [
               Icon(Icons.wifi_off, size: 36, color: AppColors.textMuted),
               const SizedBox(height: 10),
-              Text(
-                _listError!,
+              Text(tl(_listError!),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _retryCurrentLevel,
-                child: const Text('Retry'),
+                child: Text(tl('Retry')),
               ),
             ],
           ),
@@ -890,7 +896,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
     if (items.isEmpty) {
       return Center(
         child: Text(
-          'No entries found.',
+          tl('No entries found.'),
           style: TextStyle(color: AppColors.textMuted),
         ),
       );
@@ -915,7 +921,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
           ),
           subtitle: detected
               ? Text(
-                  'Detected — tap to confirm',
+                  tl('Detected — tap to confirm'),
                   style: TextStyle(fontSize: 11.5, color: AppColors.brand),
                 )
               : null,

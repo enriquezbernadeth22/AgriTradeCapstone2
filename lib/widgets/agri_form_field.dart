@@ -54,12 +54,12 @@ class AgriFormField extends StatelessWidget {
       autovalidateMode: autovalidateMode,
       validator: (_) => validator?.call(controller.text),
       builder: (state) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.only(bottom: AppTheme.formFieldGap),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: AppTheme.label()),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.formLabelGap),
             GlowField(
               controller: controller,
               hint: hint,

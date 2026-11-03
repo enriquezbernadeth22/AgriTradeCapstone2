@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/order_contact_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// What Order Details shows about phone contact, for one side of an order.
 ///
@@ -78,28 +80,29 @@ class _OrderContactSectionState extends State<OrderContactSection> {
     height: 1.4,
   );
 
-  void _say(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  void _say(String message, {required MessageKind kind}) {
+    showAppMessage(context, tl(message), kind: kind);
   }
 
   Future<void> _call(String number) async {
     final opened = await launchUrl(Uri(scheme: 'tel', path: number));
-    if (!opened && mounted) _say('Could not open the phone app.');
+    if (!opened && mounted) {
+      _say(tl('Could not open the phone app.'), kind: MessageKind.error);
+    }
   }
 
   Future<void> _copy(String number) async {
     await Clipboard.setData(ClipboardData(text: number));
-    if (mounted) _say('Number copied.');
+    if (mounted) _say(tl('Number copied.'), kind: MessageKind.success);
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_shared) {
       return Text(
-        'Contact numbers are shared once the farmer confirms this order. '
-        'Until then, use Messages.',
+        tl(
+          'Contact numbers are shared once the farmer confirms this order. Until then, use Messages.',
+        ),
         style: _text(),
       );
     }
@@ -120,8 +123,10 @@ class _OrderContactSectionState extends State<OrderContactSection> {
         final number = snapshot.data ?? '';
         if (number.isEmpty) {
           return Text(
-            'The $_other has no contact number on this order. '
-            'Use Messages to reach them.',
+            tl(
+              'The {0} has no contact number on this order. Use Messages to reach them.',
+              [_other],
+            ),
             style: _text(),
           );
         }
@@ -143,14 +148,14 @@ class _OrderContactSectionState extends State<OrderContactSection> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Copy number',
+                  tooltip: tl('Copy number'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.copy_rounded, size: 18),
                   color: AppColors.grey(700),
                   onPressed: () => _copy(number),
                 ),
                 IconButton(
-                  tooltip: 'Call',
+                  tooltip: tl('Call'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.call_rounded, size: 20),
                   color: AppColors.mid,
@@ -160,8 +165,10 @@ class _OrderContactSectionState extends State<OrderContactSection> {
             ),
             const SizedBox(height: 4),
             Text(
-              'For this order only. Messages is still the best way to '
-              'reach the $_other; call or text only if you need to.',
+              tl(
+                'For this order only. Messages is still the best way to reach the {0}; call or text only if you need to.',
+                [_other],
+              ),
               style: _text(size: 11.5),
             ),
           ],

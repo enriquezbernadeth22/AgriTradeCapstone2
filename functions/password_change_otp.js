@@ -27,6 +27,7 @@ const { MAIL_SECRETS, sendMail, describeMailError } = require("./mailer");
 const templates = require("./email_templates");
 const otp = require("./otp_logic");
 const { passwordProblem } = require("./password_policy");
+const { passwordChangedSince } = require("./admin_create_farmer_logic");
 
 const db = getFirestore();
 
@@ -149,6 +150,42 @@ exports.requestPasswordChangeOtp = onCall(
   }
 );
 
+// An Admin-added farmer's default password has been replaced: stops the
+// app asking. A failure here only means it asks once more.
+async function clearPasswordChangeRequest(uid) {
+  try {
+    await db.collection("users").doc(uid).update({
+      mustChangePassword: FieldValue.delete(),
+      mustChangePasswordSince: FieldValue.delete(),
+    });
+  } catch (err) {
+    console.error(`clearPasswordChangeRequest(${uid}) failed:`, err.message);
+  }
+}
+
+// ---------------------------------------------------------------
+// Whether this account still has to replace its default password. The app
+// asks before reminding, because the password may have been changed through
+// the emailed reset link, which never passes through these functions.
+// ---------------------------------------------------------------
+exports.checkPasswordChangeRequired = onCall({ region: REGION }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Please log in again.");
+  }
+  const uid = request.auth.uid;
+  const snap = await db.collection("users").doc(uid).get();
+  const profile = snap.exists ? snap.data() : {};
+  if (profile.mustChangePassword !== true) return { required: false };
+
+  const since = profile.mustChangePasswordSince;
+  const user = await getAuth().getUser(uid);
+  if (since && passwordChangedSince(user.tokensValidAfterTime, since.toMillis())) {
+    await clearPasswordChangeRequest(uid);
+    return { required: false };
+  }
+  return { required: true };
+});
+
 // ---------------------------------------------------------------
 // Check the code and the new password; then change it, end the account's
 // other sessions and email a notice. A correct code is used up in the same
@@ -213,6 +250,7 @@ exports.confirmPasswordChangeOtp = onCall(
       console.error(`${fn}(${uid}) could not change the password:`, err.code, err.message);
       throw new HttpsError("unavailable", "Could not change your password. Please try again.");
     }
+    await clearPasswordChangeRequest(uid);
     // Every other device must log in again with the new password; the app
     // signs this one straight back in.
     try {

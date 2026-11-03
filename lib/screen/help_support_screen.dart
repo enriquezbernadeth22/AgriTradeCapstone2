@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,6 +8,7 @@ import '../data/mobile_faqs.dart';
 import '../widgets/agri_app_bar.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Help & Support for the mobile app, from the Profile tab's settings
 /// menu: the FAQ for the user's role (tap a question to open its answer),
@@ -106,17 +108,17 @@ class _ContactEmail extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     leading: Icon(Icons.mail_outline_rounded, color: AppColors.brand),
     title: const Text(kSupportEmail),
-    subtitle: const Text('Email the AgriTrade+ team'),
+    subtitle: Text(tl('Email the AgriTrade+ team')),
     onTap: () => _email(context),
     trailing: IconButton(
-      tooltip: 'Copy email',
+      tooltip: tl('Copy email'),
       icon: Icon(Icons.copy_rounded, size: 20, color: AppColors.grey(600)),
       onPressed: () async {
         await Clipboard.setData(const ClipboardData(text: kSupportEmail));
         if (!context.mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Email copied.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(tl('Email copied.'), kind: MessageKind.success),
+        );
       },
     ),
   );
@@ -137,8 +139,9 @@ class _ContactEmail extends StatelessWidget {
     }
     if (!opened) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No email app found. The address can be copied.'),
+        appSnackBar(
+          tl('No email app found. The address can be copied.'),
+          kind: MessageKind.warning,
         ),
       );
     }

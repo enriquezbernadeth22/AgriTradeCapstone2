@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'search_trends.dart';
 
 /// How much (if any) real market data backs a [PriceRecommendation] — the
 /// UI picks its wording/confidence framing from this, never from guessing
@@ -213,6 +214,30 @@ class PriceRecommendationService {
   // price to go on, the system has no real basis to lean the range one
   // way or the other.
   static const double coldStartRangePct = 0.05;
+
+  /// How many times [commodity] was searched in [recentDemandWindow], from
+  /// the anonymous `searchTrends` records ({term, days: {'YYYY-MM-DD': n}},
+  /// see search_trends.dart).
+  static int searchCountFromTrends(
+    String commodity,
+    Iterable<Map<String, dynamic>> trends, {
+    required DateTime now,
+  }) {
+    final oldest = trendDayKey(now.subtract(recentDemandWindow));
+    var count = 0;
+    for (final trend in trends) {
+      final term = (trend['term'] ?? '').toString();
+      if (term.trim().isEmpty || !namesLikelyMatch(commodity, term)) continue;
+      final days = trend['days'];
+      if (days is! Map) continue;
+      days.forEach((day, searches) {
+        if (day.toString().compareTo(oldest) >= 0 && searches is num) {
+          count += searches.toInt();
+        }
+      });
+    }
+    return count;
+  }
 
   // The supply/demand pressure nudge never moves the suggested price by
   // more than this fraction, in either direction — "do not make extreme

@@ -323,3 +323,27 @@ String normalizeBarangay(String raw) {
   s = s.replaceAll(RegExp(r'^(barangay|brgy\.?|bgy\.?)\s*'), '');
   return s.replaceAll(RegExp(r'[^a-z0-9ñ]'), '');
 }
+
+/// Whether [product] offers delivery that reaches [buyer]'s area. False
+/// when the buyer's location isn't set, or the listing is pick-up only.
+bool deliversTo(Map<String, dynamic> product, BuyerArea buyer) =>
+    product['deliveryAvailable'] == true &&
+    DeliveryCoverage.fromProduct(product).reach(buyer) == DeliveryReach.covered;
+
+/// [items] with the listings that deliver to [buyer] first: the buyer's
+/// area is the marketplace's priority, but nothing else is hidden. Each
+/// group keeps the order it had (the feed's own ranking). Unchanged when
+/// the buyer's location isn't set.
+List<T> deliveringFirst<T>(
+  List<T> items,
+  BuyerArea buyer,
+  Map<String, dynamic> Function(T item) productOf,
+) {
+  if (!buyer.isKnown) return items;
+  final near = <T>[];
+  final rest = <T>[];
+  for (final item in items) {
+    (deliversTo(productOf(item), buyer) ? near : rest).add(item);
+  }
+  return [...near, ...rest];
+}

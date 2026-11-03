@@ -84,7 +84,7 @@ void main() {
     return choice;
   }
 
-  testWidgets('a pending farmer is offered Cancel and Go to Login', (
+  testWidgets('a pending farmer is offered Cancel and Back to Login', (
     tester,
   ) async {
     expect(
@@ -92,12 +92,12 @@ void main() {
       ExistingAccountChoice.cancel,
     );
     expect(
-      await open(tester, ExistingAccount.farmerPending, tap: 'Go to Login'),
+      await open(tester, ExistingAccount.farmerPending, tap: 'Back to Login'),
       ExistingAccountChoice.login,
     );
   });
 
-  testWidgets('an approved farmer is offered only Go to Login', (tester) async {
+  testWidgets('an approved farmer is offered only Back to Login', (tester) async {
     ExistingAccountChoice? choice;
     await tester.pumpWidget(
       MaterialApp(
@@ -116,7 +116,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Account already registered'), findsOneWidget);
     expect(find.text('Cancel'), findsNothing);
-    await tester.tap(find.text('Go to Login'));
+    await tester.tap(find.text('Back to Login'));
     await tester.pumpAndSettle();
     expect(choice, ExistingAccountChoice.login);
   });

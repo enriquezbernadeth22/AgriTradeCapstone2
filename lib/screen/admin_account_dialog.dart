@@ -233,6 +233,11 @@ class _AccountDialog extends StatelessWidget {
                       _row(c, 'Role', Text(row.isBuyer ? 'Buyer' : 'Farmer')),
                       _row(
                         c,
+                        row.isBuyer ? 'Buyer Type' : 'Farmer Type',
+                        Text(row.accountType),
+                      ),
+                      _row(
+                        c,
                         'Email',
                         Text(row.email.isEmpty ? '—' : row.displayEmail),
                       ),

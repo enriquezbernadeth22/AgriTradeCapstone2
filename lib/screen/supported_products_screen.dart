@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/commodity_master_list.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The full, always-up-to-date Supported Products list — reads straight
 /// from CommodityRegistry (the Admin-managed commodity list, the single
@@ -11,28 +12,38 @@ import '../theme/app_colors.dart';
 /// Product's autocomplete and the AI price guide recognize. Opened from: the Farmer setup "Supported
 /// Products in AgriTrade+" section, the Add Product top banner, and the
 /// "unsupported product" dialog.
+///
+/// With [pickable] (from Add Product) each product can be tapped: the
+/// screen closes with that name, which becomes the Product Name.
 class SupportedProductsScreen extends StatelessWidget {
-  const SupportedProductsScreen({super.key});
+  final bool pickable;
+
+  const SupportedProductsScreen({super.key, this.pickable = false});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: const AgriAppBar(title: 'Supported Products'),
+      appBar: AgriAppBar(title: tl('Supported Products')),
       // Rebuilds whenever the Admin adds, moves or disables a commodity.
       body: ListenableBuilder(
         listenable: CommodityRegistry.instance,
-        builder: (context, _) => _list(),
+        builder: (context, _) => _list(context),
       ),
     );
   }
 
-  Widget _list() {
+  Widget _list(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
         Text(
-          'Only products on this list can be posted in the marketplace.',
+          pickable
+              ? '${tl('Only products on this list can be posted in the marketplace.')} '
+                    '${tl('Tap a product to use it as your Product Name.')}'
+              : tl(
+                  'Only products on this list can be posted in the marketplace.',
+                ),
           style: GoogleFonts.montserrat(
             fontSize: 13,
             color: AppColors.text,
@@ -54,34 +65,39 @@ class SupportedProductsScreen extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: entry.value
-                .map(
-                  (name) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.mid.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: Text(
-                      name,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 13,
-                        color: AppColors.text,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
+            children: [for (final name in entry.value) _chip(context, name)],
           ),
           const SizedBox(height: 20),
         ],
       ],
+    );
+  }
+
+  Widget _chip(BuildContext context, String name) {
+    final label = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Text(
+        name,
+        style: GoogleFonts.montserrat(fontSize: 13, color: AppColors.text),
+      ),
+    );
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: BorderSide(color: AppColors.mid.withValues(alpha: 0.35)),
+    );
+    return Material(
+      color: AppColors.surface,
+      shape: shape,
+      child: pickable
+          ? Semantics(
+              button: true,
+              child: InkWell(
+                customBorder: shape,
+                onTap: () => Navigator.pop(context, name),
+                child: label,
+              ),
+            )
+          : label,
     );
   }
 }

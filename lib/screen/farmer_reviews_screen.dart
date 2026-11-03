@@ -2,12 +2,14 @@ import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../services/review_stats.dart';
 import '../widgets/profile_avatar.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Five stars for [rating], with half stars.
 class RatingStars extends StatelessWidget {
@@ -84,15 +86,15 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_sellerId == null || _sellerId.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text('Log in to view your reviews.')),
+      return Scaffold(
+        body: Center(child: Text(tl('Log in to view your reviews.'))),
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
       appBar: AgriAppBar(
-        title: _forProduct ? 'Product Reviews' : 'Buyer Reviews',
+        title: _forProduct ? tl('Product Reviews') : tl('Buyer Reviews'),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _reviews,
@@ -111,7 +113,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
             );
           }
           if (snapshot.hasError && !snapshot.hasData) {
-            return const Center(child: Text('Could not load your reviews.'));
+            return Center(child: Text(tl('Could not load your reviews.')));
           }
           final reviews =
               (snapshot.data?.docs ?? const [])
@@ -128,15 +130,15 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
           final productName =
               widget.productName ??
               (reviews.isEmpty
-                  ? 'Product'
-                  : (reviews.first.data()['productName'] ?? 'Product')
+                  ? tl('Product')
+                  : (reviews.first.data()['productName'] ?? tl('Product'))
                         .toString());
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
             children: [
               _summaryCard(
-                _forProduct ? productName : 'Overall Product Rating',
+                _forProduct ? productName : tl('Overall Product Rating'),
                 summary,
               ),
               const SizedBox(height: 10),
@@ -170,7 +172,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
         const SizedBox(height: 8),
         if (summary.count == 0)
           Text(
-            'No reviews yet',
+            tl('No reviews yet'),
             style: GoogleFonts.montserrat(
               fontSize: 13,
               color: AppColors.grey(600),
@@ -193,7 +195,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
           ),
           const SizedBox(height: 2),
           Text(
-            'Based on ${reviewCountLabel(summary.count)}',
+            tl('Based on {0}', [reviewCountLabel(summary.count)]),
             style: GoogleFonts.montserrat(
               fontSize: 12,
               color: AppColors.grey(600),
@@ -207,7 +209,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
   Widget _reviewCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final review = doc.data();
     final rating = (review['rating'] as num).toDouble();
-    final buyerName = (review['buyerName'] ?? 'Buyer').toString();
+    final buyerName = (review['buyerName'] ?? tl('Buyer')).toString();
     final buyerId = (review['buyerId'] ?? '').toString();
     final comment = (review['comment'] ?? '').toString();
     final imageUrl = (review['imageUrl'] ?? '').toString();
@@ -241,7 +243,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                (review['productName'] ?? 'Product').toString(),
+                (review['productName'] ?? tl('Product')).toString(),
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -298,7 +300,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Verified Purchase',
+                              tl('Verified Purchase'),
                               style: GoogleFonts.montserrat(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -354,7 +356,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          '$farmerName (Farmer)',
+                          tl('{0} (Farmer)', [farmerName]),
                           style: GoogleFonts.montserrat(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -470,8 +472,9 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
       if (!mounted) return;
       setState(() => _sending = false);
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Could not send your reply. Please try again.'),
+        appSnackBar(
+          tl('Could not send your reply. Please try again.'),
+          kind: MessageKind.error,
         ),
       );
     }
@@ -490,7 +493,7 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
         child: TextButton.icon(
           onPressed: _edit,
           icon: const Icon(Icons.edit_outlined, size: 15),
-          label: const Text('Edit reply'),
+          label: Text(tl('Edit reply')),
           style: TextButton.styleFrom(
             foregroundColor: AppColors.brand,
             minimumSize: const Size(0, 32),
@@ -519,31 +522,21 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                   maxLines: 4,
                   maxLength: ReviewReplyBox.maxLength,
                   textCapitalization: TextCapitalization.sentences,
-                  style: GoogleFonts.montserrat(fontSize: 13),
+                  style: GoogleFonts.montserrat(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: widget.existing.isEmpty
-                        ? 'Write a reply to the buyer…'
-                        : 'Edit your reply…',
+                        ? tl('Write a reply to the buyer…')
+                        : tl('Edit your reply…'),
                     hintStyle: GoogleFonts.montserrat(
-                      fontSize: 13,
+                      fontSize: 14,
                       color: AppColors.grey(500),
                     ),
                     // Kept clean: the limit still applies.
                     counterText: '',
                     isDense: true,
-                    filled: true,
-                    fillColor: AppColors.adapt(const Color(0xFFF4F6F3)),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: 14,
                       vertical: 11,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide(color: AppColors.mid, width: 1.2),
                     ),
                   ),
                 ),
@@ -553,7 +546,7 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                 width: 40,
                 height: 40,
                 child: IconButton.filled(
-                  tooltip: 'Send reply',
+                  tooltip: tl('Send reply'),
                   onPressed: _canSend ? _send : null,
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.brandFill,
@@ -590,7 +583,7 @@ class _ReviewReplyBoxState extends State<ReviewReplyBox> {
                 minimumSize: const Size(0, 30),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Cancel'),
+              child: Text(tl('Cancel')),
             ),
         ],
       ),

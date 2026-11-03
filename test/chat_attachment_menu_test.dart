@@ -42,7 +42,7 @@ void main() {
 
     // Small menu, opening upward from the + button; composer still shown
     // and still focused (the keyboard isn't dismissed).
-    expect(find.text('Camera'), findsOneWidget);
+    expect(find.text('Take Photo'), findsOneWidget);
     expect(find.text('Choose Photo'), findsOneWidget);
     expect(find.text('Share Location'), findsOneWidget);
     expect(find.text('Attach'), findsNothing); // no sheet title
@@ -60,7 +60,7 @@ void main() {
     // Tapping outside closes it with no choice.
     await tester.tapAt(const Offset(400, 40));
     await tester.pumpAndSettle();
-    expect(find.text('Camera'), findsNothing);
+    expect(find.text('Take Photo'), findsNothing);
     expect(picked, isNull);
     expect(closed, 1);
 

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// One stop of a first-time tour: a widget to point at (via [targetKey])
 /// plus the short hint shown next to it.
@@ -195,7 +196,9 @@ class _CoachHintsState extends State<_CoachHints>
       progress: widget.steps.length > 1
           ? '${_index + 1}/${widget.steps.length}'
           : null,
-      footer: last ? 'Tap anywhere to close' : 'Tap anywhere to continue',
+      footer: last
+          ? tl('Tap anywhere to close')
+          : tl('Tap anywhere to continue'),
     );
 
     return Stack(
@@ -299,8 +302,7 @@ class _HintBubble extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 3),
-            Text(
-              message,
+            Text(tl(message),
               style: TextStyle(
                 fontFamily: 'Montserrat',
                 fontSize: 12,
@@ -520,7 +522,7 @@ class _SectionHintState extends State<_SectionHint>
             title: widget.step.title,
             message: widget.step.message,
             progress: widget.progress,
-            footer: 'Tap anywhere to close',
+            footer: tl('Tap anywhere to close'),
           ),
         ),
       ],

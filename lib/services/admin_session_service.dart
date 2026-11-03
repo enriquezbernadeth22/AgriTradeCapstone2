@@ -10,67 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_device_location.dart';
 import 'auth_service.dart' show cleanFunctionMessage;
 
-/// How this browser's Admin session stands against the one on record.
-enum AdminSessionStanding {
-  /// This browser holds the active session.
-  current,
-
-  /// Nothing stands in the way of this browser starting the session: no
-  /// session is on record, the last one was logged out, or this browser
-  /// no longer remembers a session id of its own.
-  free,
-
-  /// The account's active session is another browser's: this one was
-  /// signed in elsewhere after it.
-  endedHere,
-}
-
-/// Whether another browser is using the Admin account right now: its
-/// session is the active one, was not logged out, and was heard from
-/// within [AdminSessionService.staleAfter]. Pure, so it can be tested.
-bool adminSessionActiveElsewhere(
-  Map<String, dynamic>? record,
-  String? localId, {
-  required DateTime now,
-}) {
-  if (record == null) return false;
-  final activeId = (record['activeSessionId'] ?? '').toString();
-  if (activeId.isEmpty || activeId == localId) return false;
-  if ((record['sessionStatus'] ?? 'active') != 'active') return false;
-  final seen = record['lastActiveAt'];
-  final lastActive = seen is Timestamp
-      ? seen.toDate()
-      : (seen is DateTime ? seen : null);
-  // No time on record: treated as active — the safe reading.
-  if (lastActive == null) return true;
-  return now.difference(lastActive) <= AdminSessionService.staleAfter;
-}
-
-/// Where this browser stands when it comes back to the portal already
-/// signed in (a refresh, a reopened browser). Pure, so it can be tested.
-AdminSessionStanding adminSessionStanding(
-  Map<String, dynamic>? record,
-  String? localId, {
-  required DateTime now,
-}) {
-  final activeId = (record?['activeSessionId'] ?? '').toString();
-  if (record == null || activeId.isEmpty) return AdminSessionStanding.free;
-  if (activeId == localId) {
-    return (record['sessionStatus'] ?? 'active') == 'active'
-        ? AdminSessionStanding.current
-        : AdminSessionStanding.free;
-  }
-  // Another session id is the active one. A browser that remembers its
-  // own id has been replaced. One that remembers none cannot tell: the
-  // session on record may well be its own, with the id lost (the browser's
-  // storage was cleared, or the session could not be saved). It is already
-  // signed in, so it is not turned away — it takes the session over, as a
-  // sign-in does (see AdminSessionGate).
-  return localId != null
-      ? AdminSessionStanding.endedHere
-      : AdminSessionStanding.free;
-}
-
 /// One Admin session as Active Sessions lists it, from
 /// `adminSessions/{uid}/history/{id}` (written by the adminSession Cloud
 /// Function).
@@ -173,25 +112,16 @@ List<AdminSessionEntry> buildAdminSessionEntries({
   return entries;
 }
 
-/// The Admin Portal's single active session: one browser at a time per
-/// Admin account.
-///
-/// Firebase Authentication still signs the Admin in. This only keeps track
-/// of WHICH browser session is the active one — `adminSessions/{uid}` —
-/// so that signing in on a second browser ends the first. The record is
-/// written by the `adminSession` Cloud Function (functions/admin_session.js),
-/// which also emails the sign-in alert and writes the Audit Log; this
-/// browser only remembers its own session id, and reads the record.
+/// Admin sessions across browsers. Each browser has its own session history
+/// entry; logging in on another browser does not end this one. Firebase
+/// Authentication signs the Admin in, and the `adminSession` Cloud Function
+/// records each browser, sends the sign-in alert, and writes the Audit Log.
 ///
 /// If the record cannot be reached or the function is unavailable, the
 /// Admin is let in without the check rather than locked out: the account
 /// is still protected by its password and by Firestore rules.
 class AdminSessionService {
   AdminSessionService._();
-
-  /// A session not heard from for this long is no longer "in use": the
-  /// next sign-in takes over without asking.
-  static const Duration staleAfter = Duration(minutes: 15);
 
   /// How often an open portal says its session is still in use.
   static const Duration heartbeat = Duration(minutes: 5);
@@ -246,16 +176,16 @@ class AdminSessionService {
     return snap.data();
   }
 
-  /// Makes this browser the active session. With [silent], no sign-in
-  /// alert is sent and nothing is written to the Audit Log — for a
-  /// session picked up again, which is not a new sign-in.
+  /// Records this browser's session. With [silent], no sign-in alert is
+  /// sent and nothing is written to the Audit Log — for a session picked
+  /// up again, which is not a new sign-in.
   ///
   /// False when it could not be done; the browser then holds no session
   /// id, so it is not checked against the record (see the class doc).
   static Future<bool> start(String uid, {bool silent = false}) async {
     try {
-      // The same id when this browser already holds the active session;
-      // otherwise a new one.
+      // Reuse this browser's id when it is still the latest session;
+      // otherwise this browser needs its own independent history entry.
       var id = await localId(uid);
       Map<String, dynamic>? record;
       try {
@@ -298,35 +228,21 @@ class AdminSessionService {
           .call({'op': 'end', 'sessionId': id})
           .timeout(const Duration(seconds: 5));
     } catch (_) {
-      // Left on record as active; it goes quiet and is taken over by the
-      // next sign-in without asking.
+      // Left on record as active if the server could not record the logout.
     }
   }
 
-  /// Says this browser's session is still in use.
+  /// Refreshes this browser's own session heartbeat.
   static Future<void> touch(String uid) async {
     try {
       final id = await localId(uid);
       if (id == null) return;
-      await _record(uid).update({'lastActiveAt': FieldValue.serverTimestamp()});
+      await _functions
+          .httpsCallable('adminSession')
+          .call({'op': 'touch', 'sessionId': id})
+          .timeout(const Duration(seconds: 10));
     } catch (_) {
       // Missed once: the next one says it.
-    }
-  }
-
-  /// Emits once this browser's session is no longer the active one — the
-  /// account signed in on another browser. Only the server's word counts,
-  /// and a browser holding no session id is never told so.
-  static Stream<void> watchEnded(String uid) async* {
-    await for (final snap in _record(uid).snapshots()) {
-      if (snap.metadata.isFromCache || !snap.exists) continue;
-      final id = await localId(uid);
-      if (id == null) continue;
-      final activeId = (snap.data()?['activeSessionId'] ?? '').toString();
-      if (activeId.isNotEmpty && activeId != id) {
-        yield null;
-        return;
-      }
     }
   }
 

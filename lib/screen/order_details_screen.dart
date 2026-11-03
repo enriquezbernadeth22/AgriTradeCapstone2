@@ -11,6 +11,7 @@ import '../widgets/order_contact_section.dart';
 import '../widgets/profile_avatar.dart';
 import 'order_actions.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The complete summary of one order, for either side: status, product,
 /// the other party, fulfillment, payment and timeline. Stays live — a
@@ -73,7 +74,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      appBar: const AgriAppBar(title: 'Order Details'),
+      appBar: AgriAppBar(title: tl('Order Details')),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _orderStream,
         builder: (context, snapshot) {
@@ -84,10 +85,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           if (order == null) {
             return Center(
               child: snapshot.hasError || snapshot.hasData
-                  ? const Padding(
+                  ? Padding(
                       padding: EdgeInsets.all(24),
                       child: Text(
-                        'This order could not be loaded.',
+                        tl('This order could not be loaded.'),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -252,7 +253,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  waiting ? 'Delayed' : 'Rescheduled',
+                  waiting ? tl('Delayed') : tl('Rescheduled'),
                   style: GoogleFonts.montserrat(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
@@ -263,8 +264,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          _line('Reason', order.delayReasonLabel),
-          _line(waiting ? 'Proposed new date' : 'New date', proposedLabel),
+          _line(tl('Reason'), order.delayReasonLabel),
+          _line(
+            waiting ? tl('Proposed new date') : tl('New date'),
+            proposedLabel,
+          ),
           if (order.delayNote.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
@@ -281,12 +285,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           _note(
             waiting
                 ? (_role == OrderRole.buyer
-                      ? 'Accept the new date, cancel the order, or message '
-                            'the farmer. Your order, quantity and price stay '
-                            'the same.'
-                      : 'Waiting for the buyer to accept the new date. The '
-                            'order, its stock and its price are unchanged.')
-                : 'The buyer accepted this date.',
+                      ? tl(
+                          'Accept the new date, cancel the order, or message the farmer. Your order, quantity and price stay the same.',
+                        )
+                      : tl(
+                          'Waiting for the buyer to accept the new date. The order, its stock and its price are unchanged.',
+                        ))
+                : tl('The buyer accepted this date.'),
           ),
         ],
       ),
@@ -343,7 +348,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ),
                 if (order.createdAt != null)
                   Text(
-                    'Placed ${formatOrderDateTimeLong(order.createdAt!)}',
+                    tl('Placed {0}', [
+                      formatOrderDateTimeLong(order.createdAt!),
+                    ]),
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
                       color: AppColors.grey(600),
@@ -358,7 +365,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _productSummary(OrderInfo order) => _section(
-    title: 'Product Summary',
+    title: tl('Product Summary'),
     child: Column(
       children: [
         Row(
@@ -385,10 +392,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        _line('Quantity', order.quantityLabel),
-        if (order.unit.isNotEmpty) _line('Unit', order.unit),
-        if (order.unitPrice != null) _line('Unit price', order.unitPriceLabel),
-        _line('Subtotal', formatPeso(order.subtotal)),
+        _line(tl('Quantity'), order.quantityLabel),
+        if (order.unit.isNotEmpty) _line(tl('Unit'), order.unit),
+        if (order.unitPrice != null)
+          _line(tl('Unit price'), order.unitPriceLabel),
+        _line(tl('Subtotal'), formatPeso(order.subtotal)),
       ],
     ),
   );
@@ -396,7 +404,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget _otherParty(OrderInfo order) {
     final name = order.otherPartyName(_role);
     return _section(
-      title: _role == OrderRole.farmer ? 'Buyer' : 'Farmer',
+      title: _role == OrderRole.farmer ? tl('Buyer') : tl('Farmer'),
       child: FutureBuilder<Map<String, dynamic>>(
         future: _otherProfile,
         builder: (context, snapshot) {
@@ -431,8 +439,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               OrderActionButton(
                 OrderCardAction(
                   _role == OrderRole.farmer
-                      ? 'Message Buyer'
-                      : 'Message Farmer',
+                      ? tl('Message Buyer')
+                      : tl('Message Farmer'),
                   () => OrderActions.message(context, order, _role),
                 ),
               ),
@@ -462,29 +470,30 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget _fulfillment(OrderInfo order) {
     final feeParty = _role == OrderRole.farmer ? 'buyer' : 'seller';
     return _section(
-      title: 'Fulfillment Summary',
+      title: tl('Fulfillment Summary'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _line(
-            'Method',
+            tl('Method'),
             order.fulfillmentLabel.isEmpty
-                ? 'Not specified'
+                ? tl('Not specified')
                 : order.fulfillmentLabel,
           ),
           if (order.isDelivery) ...[
             _line(
-              'Delivery fee',
+              tl('Delivery fee'),
               order.deliveryFee != null
                   ? formatPeso(order.deliveryFee!)
-                  : 'To be arranged with $feeParty',
+                  : tl('To be arranged with {0}', [feeParty]),
             ),
             if (order.buyerAddress.isNotEmpty)
-              _line('Deliver to', order.buyerAddress),
+              _line(tl('Deliver to'), order.buyerAddress),
             if (order.isLongDistance)
               _note(
-                'Long-distance delivery, outside the standard coverage — '
-                'arranged between buyer and farmer in Messages.',
+                tl(
+                  'Long-distance delivery, outside the standard coverage — arranged between buyer and farmer in Messages.',
+                ),
               ),
           ],
           if (order.isPickup)
@@ -497,9 +506,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (area.isNotEmpty) _line('Pick-up area', area),
+                    if (area.isNotEmpty) _line(tl('Pick-up area'), area),
                     _note(
-                      'Arrange the exact pick-up point and time in Messages.',
+                      tl(
+                        'Arrange the exact pick-up point and time in Messages.',
+                      ),
                     ),
                   ],
                 );
@@ -509,7 +520,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: _line(
-                'Requested date',
+                tl('Requested date'),
                 MaterialLocalizations.of(
                   context,
                 ).formatMediumDate(order.neededBy!),
@@ -519,7 +530,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: _line(
-                'Confirmed date',
+                tl('Confirmed date'),
                 MaterialLocalizations.of(
                   context,
                 ).formatMediumDate(order.confirmedFulfillmentDate!),
@@ -546,36 +557,38 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final total = order.grandTotal;
     final feeParty = _role == OrderRole.farmer ? 'buyer' : 'seller';
     return _section(
-      title: 'Payment Summary',
+      title: tl('Payment Summary'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _line('Subtotal', formatPeso(order.subtotal)),
+          _line(tl('Subtotal'), formatPeso(order.subtotal)),
           if (order.isDelivery)
             _line(
-              'Delivery fee',
+              tl('Delivery fee'),
               order.deliveryFee != null
                   ? formatPeso(order.deliveryFee!)
-                  : 'To be arranged with $feeParty',
+                  : tl('To be arranged with {0}', [feeParty]),
             ),
           Divider(height: 14, color: AppColors.grey(200)),
           if (total != null)
             _line(
-              'Total',
+              tl('Total'),
               formatPeso(total),
               strong: true,
               color: AppColors.brand,
             )
           else ...[
             _line(
-              'Product total',
+              tl('Product total'),
               formatPeso(order.subtotal),
               strong: true,
               color: AppColors.brand,
             ),
             _note(
-              'The delivery fee is not included — it is arranged directly '
-              'with the $feeParty, so the final amount is not shown here.',
+              tl(
+                'The delivery fee is not included — it is arranged directly with the {0}, so the final amount is not shown here.',
+                [feeParty],
+              ),
             ),
           ],
         ],
@@ -584,7 +597,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _receipt(OrderInfo order) => _section(
-    title: 'Transaction Receipt',
+    title: tl('Transaction Receipt'),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -594,8 +607,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: _note(
-                'A receipt was issued for this completed transaction. Both '
-                'the farmer and the buyer can open it.',
+                tl(
+                  'A receipt was issued for this completed transaction. Both the farmer and the buyer can open it.',
+                ),
               ),
             ),
           ],
@@ -610,7 +624,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 if (_role == OrderRole.farmer)
                   OrderActionButton(
                     OrderCardAction(
-                      'Send to Buyer in Messages',
+                      tl('Send to Buyer in Messages'),
                       () => OrderActions.message(
                         context,
                         order,
@@ -631,7 +645,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             color: Colors.amber,
                           ),
                           label: Text(
-                            'You reviewed this product',
+                            tl('You reviewed this product'),
                             style: GoogleFonts.montserrat(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
@@ -641,7 +655,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         )
                       : OrderActionButton(
                           OrderCardAction(
-                            'Review Product',
+                            tl('Review Product'),
                             () => OrderActions.review(context, order),
                           ),
                         ),
@@ -649,7 +663,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 const SizedBox(width: 8),
                 OrderActionButton(
                   OrderCardAction(
-                    'View Receipt',
+                    tl('View Receipt'),
                     () => OrderActions.viewReceipt(context, order.id),
                   ),
                 ),
@@ -666,13 +680,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final List<(String, bool, DateTime?)> stages;
     if (order.isCancelled) {
       stages = [
-        ('Order Placed', true, order.createdAt),
-        ('Cancelled by buyer', true, order.cancelledAt ?? order.updatedAt),
+        (tl('Order Placed'), true, order.createdAt),
+        (
+          order.expiredUnanswered
+              ? tl('Cancelled: no reply from the farmer')
+              : order.cancelledByFarmer
+              ? tl('Cancelled by farmer: {0}', [order.cancelNote])
+              : tl('Cancelled by buyer'),
+          true,
+          order.cancelledAt ?? order.updatedAt,
+        ),
       ];
     } else if (order.status == 'rejected') {
       stages = [
-        ('Order Placed', true, order.createdAt),
-        ('Rejected', true, order.rejectedAt ?? order.updatedAt),
+        (tl('Order Placed'), true, order.createdAt),
+        (tl('Rejected'), true, order.rejectedAt ?? order.updatedAt),
       ];
     } else {
       final rank = const [
@@ -684,19 +706,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       DateTime? at(int stage, DateTime? stored) =>
           stored ?? (rank == stage ? order.updatedAt : null);
       stages = [
-        ('Order Placed', true, order.createdAt),
-        ('Confirmed', rank >= 1, at(1, order.confirmedAt)),
+        (tl('Order Placed'), true, order.createdAt),
+        (tl('Confirmed'), rank >= 1, at(1, order.confirmedAt)),
         (
-          order.isPickup ? 'Ready for Pick-up' : 'Shipped',
+          order.isPickup ? tl('Ready for Pick-up') : tl('Shipped'),
           rank >= 2,
           at(2, order.shippedAt),
         ),
-        ('Completed', rank >= 3, at(3, order.completedAt)),
+        (tl('Completed'), rank >= 3, at(3, order.completedAt)),
       ];
     }
 
     return _section(
-      title: 'Order Timeline',
+      title: tl('Order Timeline'),
       child: Column(
         children: [
           for (var i = 0; i < stages.length; i++)
@@ -763,7 +785,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   if (reached)
                     _note(
                       at == null
-                          ? 'Time not recorded'
+                          ? tl('Time not recorded')
                           : formatOrderDateTimeLong(at),
                     ),
                 ],
@@ -784,12 +806,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        child: Row(
+        // Three do not fit on one line: the first takes its own.
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (var i = 0; i < actions.length; i++) ...[
-              if (i > 0) const SizedBox(width: 10),
-              Expanded(child: OrderActionButton(actions[i], large: true)),
+            if (actions.length > 2) ...[
+              OrderActionButton(actions.first, large: true),
+              const SizedBox(height: 8),
             ],
+            Row(
+              children: [
+                for (final (i, action)
+                    in actions.skip(actions.length > 2 ? 1 : 0).indexed) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(child: OrderActionButton(action, large: true)),
+                ],
+              ],
+            ),
           ],
         ),
       ),

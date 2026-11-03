@@ -1,73 +1,61 @@
-// The splash screen's walking-farmer loader: one walk across while the app
-// starts (then he stands at the end), and standing still when the phone
-// has animations turned off.
+// The splash screen's loading bar: it fills once while the app starts (then
+// stays full), with a sprout at the end of the fill and "Loading AgriTrade+…"
+// under it, no percentage; it stands still when the phone has animations
+// turned off.
+import 'package:agritrade/widgets/agritrade_text.dart';
 import 'package:agritrade/widgets/branded_loading_screen.dart';
-import 'package:agritrade/widgets/walking_farmer_loader.dart';
+import 'package:agritrade/widgets/sprout_loading_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  setUp(WalkingFarmerLoader.resetWalk);
+  setUp(SproutLoadingBar.resetFill);
 
-  testWidgets('walks across once, then stands at the end', (tester) async {
+  testWidgets('fills once, then stays full', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.byType(WalkingFarmerLoader), findsOneWidget);
-    expect(tester.binding.hasScheduledFrame, isTrue); // still walking
+    expect(find.byType(SproutLoadingBar), findsOneWidget);
+    expect(tester.binding.hasScheduledFrame, isTrue); // still filling
 
-    // After the one crossing nothing moves any more — he does not start
-    // over.
-    await tester.pump(WalkingFarmerLoader.crossing);
+    // Once full nothing moves any more — it does not start over.
+    await tester.pump(SproutLoadingBar.fillTime);
     await tester.pumpAndSettle();
     expect(tester.binding.hasScheduledFrame, isFalse);
     expect(tester.takeException(), isNull);
   });
 
-  test('nothing to wait for when he never set off', () async {
-    await WalkingFarmerLoader.untilWalkDone().timeout(
+  test('nothing to wait for when it never began', () async {
+    await SproutLoadingBar.untilFilled().timeout(
       const Duration(milliseconds: 100),
     );
   });
 
-  testWidgets('the splash can wait until he reaches the end', (tester) async {
+  testWidgets('the splash can wait until the bar is full', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
     await tester.pump(const Duration(milliseconds: 500));
     var done = false;
-    WalkingFarmerLoader.untilWalkDone().then((_) => done = true);
+    SproutLoadingBar.untilFilled().then((_) => done = true);
     await tester.pump(const Duration(milliseconds: 100));
-    expect(done, isFalse); // still walking
+    expect(done, isFalse); // still filling
 
-    await tester.pump(WalkingFarmerLoader.crossing);
+    await tester.pump(SproutLoadingBar.fillTime);
     expect(done, isTrue);
     await tester.pumpAndSettle();
   });
 
-  testWidgets('the percentage counts up from 0% to 100% at the handoff', (
-    tester,
-  ) async {
+  testWidgets('says it is loading, with no percentage', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
-    expect(find.text('0%'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1500));
-    final midway = int.parse(
-      tester
-          .widgetList<Text>(find.textContaining('%'))
-          .single
-          .data!
-          .replaceAll('%', ''),
-    );
-    expect(midway, inExclusiveRange(0, 100));
-    await tester.pump(WalkingFarmerLoader.crossing);
-    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('Loading AgriTrade+…'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
     await tester.pumpAndSettle();
   });
 
-  testWidgets('the name, the tagline and the loading line', (tester) async {
+  testWidgets('the name and the loading line, with no tagline', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(
-      find.text('Smart Agricultural Trading, Made Simple.'),
-      findsOneWidget,
-    );
+    expect(find.byType(AgriTradeText), findsOneWidget);
+    expect(find.text('Smart Agricultural Trading, Made Simple.'), findsNothing);
     expect(find.text('Loading AgriTrade+…'), findsOneWidget);
     expect(find.textContaining('dashboard'), findsNothing);
     await tester.pumpAndSettle();
@@ -82,13 +70,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(tester.takeException(), isNull);
       final screen = Offset.zero & size;
-      for (final text in [
-        'Smart Agricultural Trading, Made Simple.',
-        'Loading AgriTrade+…',
+      for (final (name, finder) in [
+        ('the name', find.byType(AgriTradeText)),
+        ('the loading line', find.text('Loading AgriTrade+…')),
       ]) {
-        final box = tester.getRect(find.text(text));
-        expect(screen.contains(box.topLeft), isTrue, reason: text);
-        expect(screen.contains(box.bottomRight), isTrue, reason: text);
+        final box = tester.getRect(finder);
+        expect(screen.contains(box.topLeft), isTrue, reason: name);
+        expect(screen.contains(box.bottomRight), isTrue, reason: name);
       }
       await tester.pumpAndSettle();
     });
@@ -100,7 +88,7 @@ void main() {
         data: MediaQueryData(disableAnimations: true),
         child: Directionality(
           textDirection: TextDirection.ltr,
-          child: Center(child: WalkingFarmerLoader()),
+          child: Center(child: SproutLoadingBar()),
         ),
       ),
     );

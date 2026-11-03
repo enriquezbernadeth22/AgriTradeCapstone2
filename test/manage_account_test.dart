@@ -1,5 +1,5 @@
 // Manage Account: one plain list without duplicates (Notification
-// Settings and Help & Support live in the Profile menu), no dark mode and
+// Settings and Help & Support live in the Settings sheet), no dark mode and
 // no language switch — the app is English only.
 import 'package:agritrade/screen/manage_account_screen.dart';
 import 'package:flutter/material.dart';

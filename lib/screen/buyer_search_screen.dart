@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/commodity_master_list.dart';
+import '../services/buyer_area_watcher.dart';
+import '../services/delivery_coverage.dart';
 import '../services/product_service.dart';
 import '../services/product_recommendation_service.dart';
 import '../services/product_visibility_service.dart';
@@ -22,6 +24,7 @@ import '../widgets/agri_empty_state.dart';
 import '../services/personal_recommendations.dart';
 import '../services/order_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The dedicated Buyer Search experience — opened by tapping the (non-
 /// editable) search bar on Explore, never an inline field on the
@@ -155,6 +158,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   @override
   void initState() {
     super.initState();
+    // Results that deliver to the buyer's area come first; reorder when
+    // the area arrives or changes.
+    BuyerAreaWatcher.instance.addListener(_onAreaChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) FocusScope.of(context).requestFocus(_focusNode);
     });
@@ -274,11 +280,16 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
     _recentSub?.cancel();
     _ordersSub?.cancel();
     _productsSub?.cancel();
+    BuyerAreaWatcher.instance.removeListener(_onAreaChanged);
     LikedProducts.instance.removeListener(_onLikesChanged);
     _usersSub?.cancel();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onAreaChanged() {
+    if (mounted) setState(() {});
   }
 
   List<String> _visibleRecent() {
@@ -489,14 +500,14 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
         if (_suggestedSearches.isNotEmpty) ...[
-          _sectionHeading('Suggested Searches'),
+          _sectionHeading(tl('Suggested Searches')),
           const SizedBox(height: 10),
           _chipRow(_suggestedSearches, icon: Icons.search),
           const SizedBox(height: 22),
         ],
         // Hidden entirely until there is real, recent search activity.
         if (_trendingSearches.isNotEmpty) ...[
-          _sectionHeading('Trending Searches'),
+          _sectionHeading(tl('Trending Searches')),
           const SizedBox(height: 10),
           _chipRow(_trendingSearches, icon: Icons.trending_up),
           const SizedBox(height: 22),
@@ -504,7 +515,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         if (_recentSearches.isNotEmpty) ...[
           Row(
             children: [
-              Expanded(child: _sectionHeading('Recent Searches')),
+              Expanded(child: _sectionHeading(tl('Recent Searches'))),
               TextButton(
                 onPressed: _clearRecentSearches,
                 style: TextButton.styleFrom(
@@ -513,8 +524,8 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
-                  'Clear',
+                child: Text(
+                  tl('Clear'),
                   style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -525,17 +536,17 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
           const SizedBox(height: 22),
         ],
         if (_recentSearchesLoaded && _recentSearches.isEmpty) ...[
-          _sectionHeading('Recent Searches'),
+          _sectionHeading(tl('Recent Searches')),
           const SizedBox(height: 6),
           Text(
             _recentSearchesError
-                ? 'Could not load recent searches.'
-                : 'No recent searches yet.',
+                ? tl('Could not load recent searches.')
+                : tl('No recent searches yet.'),
             style: TextStyle(color: AppColors.grey(600), fontSize: 13),
           ),
           const SizedBox(height: 22),
         ],
-        _sectionHeading('Recommended Products'),
+        _sectionHeading(tl('Recommended Products')),
         _buildRecommendedProducts(),
       ],
     );
@@ -564,7 +575,13 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
           aCreated?.millisecondsSinceEpoch ?? 0,
         );
       });
-    return sorted;
+    // The buyer's area first: results whose delivery reaches it, each
+    // group still ranked as above; nothing else is hidden.
+    return deliveringFirst(
+      sorted,
+      BuyerAreaWatcher.instance.area,
+      (d) => d.data(),
+    );
   }
 
   // This buyer's own search terms, newest first.
@@ -650,8 +667,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         if (all == null) {
           if (_productsFailed) {
             return RetryMessage(
-              message:
-                  'Could not load recommended products. Check your connection and try again.',
+              message: tl(
+                'Could not load recommended products. Check your connection and try again.',
+              ),
               onRetry: _listenToProducts,
             );
           }
@@ -673,7 +691,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'No products available yet.',
+              tl('No products available yet.'),
               style: TextStyle(color: AppColors.grey(600), fontSize: 13),
             ),
           );
@@ -702,8 +720,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         if (all == null) {
           if (_productsFailed) {
             return RetryMessage(
-              message:
-                  'Could not load products. Check your connection and try again.',
+              message: tl(
+                'Could not load products. Check your connection and try again.',
+              ),
               onRetry: _listenToProducts,
             );
           }
@@ -759,8 +778,8 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
               return Center(
                 child: AgriEmptyState(
                   icon: Icons.search_off_rounded,
-                  title: 'No results for "$query"',
-                  subtitle: 'Try a different search term.',
+                  title: tl('No results for "{0}"', [query]),
+                  subtitle: tl('Try a different search term.'),
                   padding: const EdgeInsets.all(32),
                 ),
               );
@@ -770,10 +789,10 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
                 if (farmerHits.isNotEmpty) ...[
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(bottom: 8),
                     child: Text(
-                      'Farmers',
+                      tl('Farmers'),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -785,10 +804,10 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                 ],
                 if (ranked.isNotEmpty) ...[
                   if (farmerHits.isNotEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(bottom: 8),
                       child: Text(
-                        'Products',
+                        tl('Products'),
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
@@ -809,7 +828,8 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
     QueryDocumentSnapshot<Map<String, dynamic>> farmerDoc,
   ) {
     final farmer = farmerDoc.data();
-    final name = (farmer['name'] ?? farmer['fullName'] ?? 'Farmer').toString();
+    final name = (farmer['name'] ?? farmer['fullName'] ?? tl('Farmer'))
+        .toString();
     final photoUrl = farmer['photoUrl']?.toString() ?? '';
     final location =
         [farmer['barangay'], farmer['municipality'], farmer['province']]
@@ -830,9 +850,12 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           [
-            if (location.isNotEmpty) location else 'Verified farmer',
+            if (location.isNotEmpty) location else tl('Verified farmer'),
             if (rating != null && reviewCount > 0)
-              '${rating.toStringAsFixed(1)} ★ · $reviewCount reviews',
+              tl('{0} ★ · {1} reviews', [
+                rating.toStringAsFixed(1),
+                reviewCount,
+              ]),
           ].join('  ·  '),
         ),
         trailing: const Icon(Icons.chevron_right),

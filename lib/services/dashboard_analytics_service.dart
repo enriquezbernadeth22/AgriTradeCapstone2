@@ -203,10 +203,9 @@ String? areaFromOrderAddress(String? address) {
 ///   above) — both must independently satisfy this same definition.
 /// - **SALES BY CATEGORY** = completed-order revenue grouped by product
 ///   category. See [categoryRevenue].
-/// - **TOP-SELLING PRODUCTS** = commodities ranked by number of completed
-///   orders (sales value breaks a tie), with revenue and quantity sold as
-///   secondary values — the same count as the Farmer's Best-Selling
-///   Products (MarketDemandService.bestSellers). See [topSellingProducts].
+/// - **TOP-SELLING PRODUCTS** = product/unit groups ranked by quantity sold
+///   (sales value breaks a tie). Different units are kept separate; completed
+///   order count is shown as supporting context. See [topSellingProducts].
 /// - **CURRENT MARKET AVERAGE** = average ACTIVE LISTING price for the
 ///   same commodity, unit, and pricing type — never the Admin Reference
 ///   Price (`market_prices.baselinePrice`). See
@@ -687,13 +686,10 @@ class DashboardAnalyticsService {
             if (_completionDate(order) case final date?) date.year,
       };
 
-  /// TOP-SELLING PRODUCTS = products ranked by how many completed orders
-  /// they had (the sales value breaks a tie), every listing of a commodity
-  /// counted together and a product not on the commodity list under its
-  /// own name ([demandProduct]) — so every completed order is counted, as
-  /// in Sales by Category. Orders, not pesos, because that is how demand
-  /// is counted everywhere else: the Farmer's Best-Selling Products, the
-  /// Buyer's demand badge, Market Demand and the Demand Heatmap.
+  /// TOP-SELLING PRODUCTS = product/unit groups ranked by quantity sold.
+  /// Supported listings of the same commodity are combined only when their
+  /// units match; unlike units are never added together. Order count and
+  /// revenue remain supporting values, with revenue breaking quantity ties.
   static List<({String name, int orders, num revenue, num quantity})>
   topSellingProducts(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> orders, {
@@ -703,6 +699,7 @@ class DashboardAnalyticsService {
     final orderCount = <String, int>{};
     final revenue = <String, num>{};
     final quantity = <String, num>{};
+    final labels = <String, String>{};
     for (final doc in orders) {
       final data = doc.data();
       if ((data['status'] ?? '').toString().toLowerCase() != 'completed') {
@@ -711,25 +708,30 @@ class DashboardAnalyticsService {
       if (!_inRange(_completionDate(data), range)) continue;
       final commodity = demandProduct(data);
       if (commodity == null) continue;
+      final savedUnit = (data['unit'] ?? '').toString().trim();
+      final unit = savedUnit.isEmpty ? unitForCommodity(commodity) : savedUnit;
+      final key = '${commodity.toLowerCase()}|${unit.toLowerCase()}';
+      labels.putIfAbsent(key, () => '$commodity ($unit)');
       num number(dynamic raw) =>
           raw is num ? raw : num.tryParse(raw?.toString() ?? '') ?? 0;
-      orderCount[commodity] = (orderCount[commodity] ?? 0) + 1;
-      revenue[commodity] = (revenue[commodity] ?? 0) + number(data['total']);
-      quantity[commodity] =
-          (quantity[commodity] ?? 0) + number(data['quantity']);
+      orderCount[key] = (orderCount[key] ?? 0) + 1;
+      revenue[key] = (revenue[key] ?? 0) + number(data['total']);
+      quantity[key] = (quantity[key] ?? 0) + number(data['quantity']);
     }
     final ranked = revenue.keys.toList()
       ..sort((a, b) {
-        final byOrders = orderCount[b]!.compareTo(orderCount[a]!);
-        return byOrders != 0 ? byOrders : revenue[b]!.compareTo(revenue[a]!);
+        final byQuantity = quantity[b]!.compareTo(quantity[a]!);
+        if (byQuantity != 0) return byQuantity;
+        final byRevenue = revenue[b]!.compareTo(revenue[a]!);
+        return byRevenue != 0 ? byRevenue : orderCount[b]!.compareTo(orderCount[a]!);
       });
     return [
-      for (final name in ranked.take(limit))
+      for (final key in ranked.take(limit))
         (
-          name: name,
-          orders: orderCount[name]!,
-          revenue: revenue[name]!,
-          quantity: quantity[name]!,
+          name: labels[key]!,
+          orders: orderCount[key]!,
+          revenue: revenue[key]!,
+          quantity: quantity[key]!,
         ),
     ];
   }

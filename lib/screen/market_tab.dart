@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import '../widgets/agri_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -10,9 +9,11 @@ import 'package:intl/intl.dart';
 import '../services/farmer_revenue_service.dart';
 import '../services/order_service.dart';
 import '../services/product_service.dart';
+import '../widgets/docked_nav_bar.dart';
 import '../widgets/market_average_card.dart';
 import '../widgets/market_demand_cards.dart';
 import '../widgets/market_tab_guide.dart';
+import '../widgets/month_year_picker.dart';
 import '../widgets/page_header.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_refresh_indicator.dart';
@@ -20,6 +21,7 @@ import '../widgets/notification_bell.dart';
 import 'add_product_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
 //
@@ -124,7 +126,7 @@ class _MarketTabState extends State<MarketTab> {
   Widget _salesPerformanceLineCard(int productCount) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.isEmpty) {
-      return _salesCardMessage('Log in to view your sales performance.');
+      return _salesCardMessage(tl('Log in to view your sales performance.'));
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -136,8 +138,9 @@ class _MarketTabState extends State<MarketTab> {
         }
         if (userSnapshot.hasError) {
           return RetryMessage(
-            message:
-                'Could not load your verification date. Check your connection and retry.',
+            message: tl(
+              'Could not load your verification date. Check your connection and retry.',
+            ),
             onRetry: _reconnect,
           );
         }
@@ -146,7 +149,9 @@ class _MarketTabState extends State<MarketTab> {
         if ((user['approvalStatus'] ?? 'approved').toString().toLowerCase() !=
             'approved') {
           return _salesCardMessage(
-            'Sales performance will be available once your farmer account is verified.',
+            tl(
+              'Sales performance will be available once your farmer account is verified.',
+            ),
           );
         }
         final now = DateTime.now();
@@ -184,8 +189,9 @@ class _MarketTabState extends State<MarketTab> {
             }
             if (ordersSnapshot.hasError) {
               return RetryMessage(
-                message:
-                    'Could not load completed orders. Check your connection and retry.',
+                message: tl(
+                  'Could not load completed orders. Check your connection and retry.',
+                ),
                 onRetry: _reconnect,
               );
             }
@@ -247,16 +253,18 @@ class _MarketTabState extends State<MarketTab> {
                   Row(
                     children: [
                       const Expanded(child: _SalesHeading()),
-                      _monthPill(
-                        MaterialLocalizations.of(
-                          context,
-                        ).formatMonthYear(selectedMonth),
+                      MonthPickerPill(
+                        month: selectedMonth,
                         onTap: () async {
-                          final picked = await _showMonthYearPicker(
+                          final picked = await showMonthYearPicker(
                             context,
                             selectedMonth: selectedMonth,
                             firstMonth: firstMonth,
                             currentMonth: currentMonth,
+                            note: tl(
+                              'Available from {0}, based on your verification date. Future months cannot be selected.',
+                              [DateFormat('MMMM yyyy').format(firstMonth)],
+                            ),
                           );
                           if (picked != null && mounted) {
                             setState(() => _selectedSalesMonth = picked);
@@ -384,7 +392,7 @@ class _MarketTabState extends State<MarketTab> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Revenue is based on orders marked completed.',
+                      tl('Revenue is based on orders marked completed.'),
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.grey(600),
@@ -422,7 +430,7 @@ class _MarketTabState extends State<MarketTab> {
           ),
           const SizedBox(height: 8),
           Text(
-            newFarmer ? 'No sales yet' : 'No completed sales yet',
+            newFarmer ? tl('No sales yet') : tl('No completed sales yet'),
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 14.5,
@@ -433,8 +441,12 @@ class _MarketTabState extends State<MarketTab> {
           const SizedBox(height: 4),
           Text(
             newFarmer
-                ? 'Start by listing your first product to begin tracking your sales performance.'
-                : 'Your sales performance will appear here once buyers complete their orders.',
+                ? tl(
+                    'Start by listing your first product to begin tracking your sales performance.',
+                  )
+                : tl(
+                    'Your sales performance will appear here once buyers complete their orders.',
+                  ),
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 12,
@@ -451,7 +463,7 @@ class _MarketTabState extends State<MarketTab> {
                 MaterialPageRoute(builder: (_) => const AddProductScreen()),
               ),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Product'),
+              label: Text(tl('Add Product')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandFill,
                 foregroundColor: Colors.white,
@@ -485,295 +497,10 @@ class _MarketTabState extends State<MarketTab> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              child: const Text('View My Products'),
+              child: Text(tl('View My Products')),
             ),
         ],
       ),
-    );
-  }
-
-  Widget _monthPill(String label, {required VoidCallback onTap}) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(18),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.adapt(const Color(0xFFE3E9DF))),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.normal,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(width: 3),
-          Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: AppColors.textSecondary,
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Future<DateTime?> _showMonthYearPicker(
-    BuildContext context, {
-    required DateTime selectedMonth,
-    required DateTime firstMonth,
-    required DateTime currentMonth,
-  }) {
-    final minimumYear = firstMonth.year;
-    final maximumYear = currentMonth.year;
-    var pickerYear = selectedMonth.year;
-    var draftMonth = selectedMonth;
-
-    return showAgriPanelSheet<DateTime>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final canGoPrevious = pickerYear > minimumYear;
-          final canGoNext = pickerYear < maximumYear;
-
-          return Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.adapt(const Color(0xFFDDE5DB)),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Select Month',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _yearArrow(
-                      icon: Icons.chevron_left_rounded,
-                      enabled: canGoPrevious,
-                      onTap: () => setSheetState(() => pickerYear--),
-                    ),
-                    Text(
-                      '$pickerYear',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    _yearArrow(
-                      icon: Icons.chevron_right_rounded,
-                      enabled: canGoNext,
-                      onTap: () => setSheetState(() => pickerYear++),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 12,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisExtent: 42,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemBuilder: (context, index) {
-                    final month = DateTime(pickerYear, index + 1);
-                    final isValid =
-                        !month.isBefore(firstMonth) &&
-                        !month.isAfter(currentMonth);
-                    final isSelected =
-                        month.year == draftMonth.year &&
-                        month.month == draftMonth.month;
-                    return InkWell(
-                      onTap: isValid
-                          ? () => setSheetState(() => draftMonth = month)
-                          : null,
-                      borderRadius: BorderRadius.circular(11),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.brandFill
-                              : isValid
-                              ? AppColors.adapt(const Color(0xFFF4F8F2))
-                              : AppColors.adapt(const Color(0xFFF7F7F7)),
-                          borderRadius: BorderRadius.circular(11),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.brand
-                                : AppColors.adapt(const Color(0xFFE8EEE6)),
-                          ),
-                        ),
-                        child: Text(
-                          DateFormat.MMMM().format(month),
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : isValid
-                                ? AppColors.text
-                                : Colors.black26,
-                            fontSize: 13,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _legendDot(AppColors.brand),
-                    const SizedBox(width: 5),
-                    Text(
-                      'Selectable month',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    _legendDot(AppColors.adapt(const Color(0xFFD8DDD9))),
-                    const SizedBox(width: 5),
-                    Text(
-                      'Not available',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.adapt(const Color(0xFFF0F8EF)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        color: AppColors.brand,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 7),
-                      Expanded(
-                        child: Text(
-                          'Available from ${DateFormat('MMMM yyyy').format(firstMonth)}, based on your verification date. Future months cannot be selected.',
-                          style: TextStyle(
-                            fontSize: 10,
-                            height: 1.35,
-                            color: AppColors.adapt(const Color(0xFF52614F)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(sheetContext),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.brand,
-                          side: BorderSide(
-                            color: AppColors.adapt(const Color(0xFFDDE5DB)),
-                          ),
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                        ),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pop(sheetContext, draftMonth),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandFill,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                        ),
-                        child: const Text('Apply'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _yearArrow({
-    required IconData icon,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: enabled
-              ? AppColors.tint
-              : AppColors.adapt(const Color(0xFFF3F4F3)),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: enabled ? AppColors.brand : Colors.black26,
-        ),
-      ),
-    );
-  }
-
-  Widget _legendDot(Color color) {
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 
@@ -785,8 +512,7 @@ class _MarketTabState extends State<MarketTab> {
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: AppColors.adapt(const Color(0xFFE7EFE4))),
     ),
-    child: Text(
-      message,
+    child: Text(tl(message),
       style: TextStyle(color: AppColors.grey(700), fontSize: 12),
     ),
   );
@@ -874,8 +600,9 @@ class _MarketTabState extends State<MarketTab> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return RetryMessage(
-            message:
-                'Could not load your products. Check your connection and try again.',
+            message: tl(
+              'Could not load your products. Check your connection and try again.',
+            ),
             onRetry: _reconnect,
           );
         }
@@ -921,7 +648,9 @@ class _MarketTabState extends State<MarketTab> {
                   },
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 90),
+                    padding: EdgeInsets.only(
+                      bottom: DockedNavBar.listEndPadding(context),
+                    ),
                     children: [
                       PageTitle(title: tr(context).navMarket),
                       Padding(
@@ -944,7 +673,8 @@ class _MarketTabState extends State<MarketTab> {
                               child: const MarketAverageCard(),
                             ),
                             const SizedBox(height: 16),
-                            // Same month as the Sales Performance card above.
+                            // They open on the Sales Performance month, and
+                            // have their own month selector.
                             MarketDemandCards(
                               month: _analyticsMonth,
                               bestSellersKey: _hints.keys[2],
@@ -973,7 +703,7 @@ class _MarketTabState extends State<MarketTab> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? const <String, dynamic>{};
         final fullName =
-            (data['name'] ?? data['fullName'] ?? user.displayName ?? 'Farmer')
+            (data['name'] ?? data['fullName'] ?? user.displayName ?? tl('Farmer'))
                 .toString()
                 .trim();
         // First name only: "Welcome, Daniella".

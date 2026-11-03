@@ -6,6 +6,7 @@ import '../services/delivery_coverage.dart';
 import 'agri_dialog.dart';
 import 'app_search_bar.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The farmer's Custom Areas picker: a searchable list of PH
 /// municipalities/cities where several can be ticked. Resolves to the new
@@ -120,7 +121,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 14, 18, 2),
                 child: Text(
-                  'Delivery areas',
+                  tl('Delivery areas'),
                   style: GoogleFonts.montserrat(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -131,7 +132,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
                 child: Text(
-                  'Select every municipality or city you deliver to.',
+                  tl('Select every municipality or city you deliver to.'),
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -141,7 +142,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: AppSearchBar(
-                  hint: 'Search municipality or city',
+                  hint: tl('Search municipality or city'),
                   controller: _search,
                   onClear: _search.clear,
                 ),
@@ -181,7 +182,9 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
                   child: Text(
-                    'Couldn\'t load the full list — showing nearby areas only.',
+                    tl(
+                      'Couldn\'t load the full list — showing nearby areas only.',
+                    ),
                     style: GoogleFonts.montserrat(
                       fontSize: 11.5,
                       color: AppColors.tone(Colors.orange, 800),
@@ -199,7 +202,7 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                     : results.isEmpty
                     ? Center(
                         child: Text(
-                          'No matching municipality or city.',
+                          tl('No matching municipality or city.'),
                           style: GoogleFonts.montserrat(
                             fontSize: 12.5,
                             color: AppColors.grey(600),
@@ -213,7 +216,6 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                           return CheckboxListTile(
                             dense: true,
                             value: _selected.contains(area),
-                            activeColor: AppColors.brandFill,
                             onChanged: (_) => _toggle(area),
                             title: Text(
                               area.name,
@@ -239,8 +241,8 @@ class _DeliveryAreaPickerState extends State<_DeliveryAreaPicker> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
                 child: AgriDialogButton(
                   label: _selected.isEmpty
-                      ? 'Done'
-                      : 'Done (${_selected.length} selected)',
+                      ? tl('Done')
+                      : tl('Done ({0} selected)', [_selected.length]),
                   kind: AgriButtonKind.primary,
                   onPressed: () => Navigator.pop(context, _selected),
                 ),

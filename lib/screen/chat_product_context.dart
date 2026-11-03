@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/commodity_master_list.dart';
@@ -13,6 +14,7 @@ import '../widgets/agri_dialog.dart';
 import 'add_product_screen.dart';
 import 'place_order_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // Product context for a Farmer–Buyer conversation that's tied to a product,
 // used by ChatScreen:
@@ -62,7 +64,7 @@ class ChatProduct {
   });
 
   factory ChatProduct.fromData(String id, Map<String, dynamic> data) {
-    final name = (data['name'] ?? 'Product').toString();
+    final name = (data['name'] ?? tl('Product')).toString();
     final unitRaw = data['unit']?.toString().trim() ?? '';
     final imageUrls = data['imageUrls'];
     final imageUrl = (data['imageUrl']?.toString().isNotEmpty ?? false)
@@ -126,10 +128,15 @@ Future<ChatProduct?> fetchChatProduct(String productId) async {
 
 String? get _myUid => FirebaseAuth.instance.currentUser?.uid;
 
-void _snack(BuildContext context, String message) {
+// Unless said otherwise, a message here is something that cannot be done.
+void _snack(
+  BuildContext context,
+  String message, {
+  MessageKind kind = MessageKind.error,
+}) {
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(appSnackBar(tl(message), kind: kind));
 }
 
 /// Checks the latest product data, then opens the existing order flow
@@ -153,7 +160,11 @@ Future<String?> startChatOrder(
   num? quotedPrice,
 }) async {
   if (productId.isEmpty) {
-    _snack(context, 'This product is no longer available.');
+    _snack(
+      context,
+      tl('This product is no longer available.'),
+      kind: MessageKind.warning,
+    );
     return null;
   }
 
@@ -164,7 +175,9 @@ Future<String?> startChatOrder(
     if (context.mounted) {
       _snack(
         context,
-        'Could not load the latest product details. Check your connection and try again.',
+        tl(
+          'Could not load the latest product details. Check your connection and try again.',
+        ),
       );
     }
     return null;
@@ -174,20 +187,20 @@ Future<String?> startChatOrder(
   if (product == null || !product.listed || product.retailPrice <= 0) {
     await _notice(
       context,
-      title: 'Listing unavailable',
-      message: 'This product is no longer available for ordering.',
+      title: tl('Listing unavailable'),
+      message: tl('This product is no longer available for ordering.'),
     );
     return null;
   }
   if (product.farmerId.isNotEmpty && product.farmerId == _myUid) {
-    _snack(context, 'You can\'t order your own product.');
+    _snack(context, tl('You can\'t order your own product.'));
     return null;
   }
   if (!product.inStock) {
     await _notice(
       context,
-      title: 'Out of stock',
-      message: '${product.name} is currently out of stock.',
+      title: tl('Out of stock'),
+      message: tl('{0} is currently out of stock.', [product.name]),
     );
     return null;
   }
@@ -205,11 +218,12 @@ Future<String?> startChatOrder(
         context: context,
         icon: Icons.info_outline_rounded,
         tone: AgriTone.warning,
-        title: 'Wholesale unavailable',
-        message:
-            '$reason You can still order at the retail price of '
-            '${product.retailLabel}.',
-        confirmLabel: 'Order Retail',
+        title: tl('Wholesale unavailable'),
+        message: tl('{0} You can still order at the retail price of {1}.', [
+          reason,
+          product.retailLabel,
+        ]),
+        confirmLabel: tl('Order Retail'),
       );
       if (!retail || !context.mounted) return null;
       type = 'retail';
@@ -224,14 +238,17 @@ Future<String?> startChatOrder(
         context: context,
         icon: Icons.sell_outlined,
         tone: AgriTone.warning,
-        title: 'Price updated',
-        message:
-            'The ${type == 'wholesale' ? 'wholesale' : 'retail'} price of '
-            '${product.name} changed from '
-            '${formatPriceWithUnit(quotedPrice, product.unit)} to '
-            '${formatPriceWithUnit(current, product.unit)} since these '
-            'options were sent. Continue at the current price?',
-        confirmLabel: 'Continue',
+        title: tl('Price updated'),
+        message: tl(
+          'The {0} price of {1} changed from {2} to {3} since these options were sent. Continue at the current price?',
+          [
+            type == 'wholesale' ? 'wholesale' : 'retail',
+            product.name,
+            formatPriceWithUnit(quotedPrice, product.unit),
+            formatPriceWithUnit(current, product.unit),
+          ],
+        ),
+        confirmLabel: tl('Continue'),
       );
       if (!proceed || !context.mounted) return null;
     }
@@ -279,7 +296,7 @@ Future<void> _notice(
       icon: Icons.info_outline_rounded,
       tone: AgriTone.warning,
       title: Text(title),
-      content: Text(message),
+      content: Text(tl(message)),
       actions: [
         AgriDialogButton(
           label: 'OK',
@@ -299,7 +316,7 @@ Future<bool> showSendOrderOptionsSheet(
 ) async {
   final send = await showAgriSheet<bool>(
     context: context,
-    title: 'Send order options',
+    title: tl('Send order options'),
     builder: (sheetContext) => Padding(
       padding: const EdgeInsets.fromLTRB(18, 2, 18, 16),
       child: Column(
@@ -307,7 +324,7 @@ Future<bool> showSendOrderOptionsSheet(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'The buyer can choose one of these for ${product.name}:',
+            tl('The buyer can choose one of these for {0}:', [product.name]),
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
               color: AppColors.textSecondary,
@@ -325,7 +342,9 @@ Future<bool> showSendOrderOptionsSheet(
           ] else ...[
             const SizedBox(height: 8),
             Text(
-              'Wholesale is off for this listing, so only Retail will be sent.',
+              tl(
+                'Wholesale is off for this listing, so only Retail will be sent.',
+              ),
               style: GoogleFonts.montserrat(
                 fontSize: 11.5,
                 color: AppColors.grey(600),
@@ -342,14 +361,14 @@ Future<bool> showSendOrderOptionsSheet(
             children: [
               Expanded(
                 child: AgriDialogButton(
-                  label: 'Cancel',
+                  label: tl('Cancel'),
                   onPressed: () => Navigator.pop(sheetContext, false),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: AgriDialogButton(
-                  label: 'Send',
+                  label: tl('Send'),
                   kind: AgriButtonKind.primary,
                   onPressed: () => Navigator.pop(sheetContext, true),
                 ),
@@ -546,12 +565,16 @@ class _ChatProductCardState extends State<ChatProductCard> {
     if (!product.listed) {
       _snack(
         context,
-        'This listing is unavailable, so options can\'t be sent.',
+        tl('This listing is unavailable, so options can\'t be sent.'),
       );
       return;
     }
     if (product.retailPrice <= 0) {
-      _snack(context, 'Set a retail price on this listing first.');
+      _snack(
+        context,
+        tl('Set a retail price on this listing first.'),
+        kind: MessageKind.warning,
+      );
       return;
     }
     final confirmed = await showSendOrderOptionsSheet(context, product);
@@ -617,7 +640,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                 )
               else if (!loaded)
                 Text(
-                  'Loading price…',
+                  tl('Loading price…'),
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     color: AppColors.grey(500),
@@ -660,7 +683,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
         if (!isFarmer) ...[
           const SizedBox(width: 8),
           _button(
-            label: 'Order Now',
+            label: tl('Order Now'),
             primary: true,
             onPressed: product == null || !product.orderable
                 ? null
@@ -711,7 +734,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
               children: [
                 Expanded(
                   child: _button(
-                    label: 'View Listing',
+                    label: tl('View Listing'),
                     icon: Icons.storefront_outlined,
                     onPressed: product == null
                         ? null
@@ -721,7 +744,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _button(
-                    label: 'Send Options',
+                    label: tl('Send Options'),
                     icon: Icons.sell_outlined,
                     primary: true,
                     onPressed: product == null
@@ -884,7 +907,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
     final productId = (data['productId'] ?? widget.fallbackProductId ?? '')
         .toString();
     final productName =
-        (data['productName'] ?? widget.fallbackProductName ?? 'Product')
+        (data['productName'] ?? widget.fallbackProductName ?? tl('Product'))
             .toString();
     final unitRaw = (data['unit'] ?? widget.fallbackUnit ?? '').toString();
     final unit = unitRaw.isNotEmpty ? unitRaw : unitForProductName(productName);
@@ -928,7 +951,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
                 Icon(Icons.sell_outlined, size: 15, color: AppColors.brand),
                 const SizedBox(width: 6),
                 Text(
-                  isMe ? 'Order options sent' : 'Order options',
+                  isMe ? tl('Order options sent') : tl('Order options'),
                   style: GoogleFonts.montserrat(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -963,14 +986,14 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
             if (!isMe) ...[
               const SizedBox(height: 12),
               _chooseButton(
-                'Choose Retail',
+                tl('Choose Retail'),
                 primary: true,
                 onPressed: () => _choose(productId, 'retail', retailPrice),
               ),
               if (hasWholesale) ...[
                 const SizedBox(height: 6),
                 _chooseButton(
-                  'Choose Wholesale',
+                  tl('Choose Wholesale'),
                   onPressed: () =>
                       _choose(productId, 'wholesale', wholesalePrice),
                 ),
@@ -978,7 +1001,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
             ] else ...[
               const SizedBox(height: 8),
               Text(
-                'The buyer can choose an option to order.',
+                tl('The buyer can choose an option to order.'),
                 style: GoogleFonts.montserrat(
                   fontSize: 11,
                   color: AppColors.grey(600),

@@ -64,3 +64,10 @@ migrations/logs/*.json
 lib/l10n/app_localizations.dart
 lib/l10n/app_localizations_en.dart
 lib/l10n/app_localizations_tl.dart
+
+# Firestore rules tests
+firestore_tests/node_modules/
+firestore_tests/*.log
+
+# Kotlin build cache (Gradle).
+android/.kotlin/

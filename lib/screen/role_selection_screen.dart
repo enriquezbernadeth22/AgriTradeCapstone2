@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
 import '../widgets/existing_account_dialog.dart';
 import '../widgets/login_form_fields.dart';
 import '../widgets/login_hero.dart';
@@ -73,23 +73,15 @@ class RoleSelectionScreen extends StatelessWidget {
                       Text(
                         tr(context).loginButton,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 28,
-                          color: AppColors.brand,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTheme.pageTitle(color: AppColors.brand),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         tr(context).loginSubtitle,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.grey(600),
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: AppTheme.pageDescription(),
                       ),
-                      const SizedBox(height: 26),
+                      const SizedBox(height: AppTheme.formSectionGap),
                       const LoginFormFields(),
 
                       const SizedBox(height: 18),
@@ -102,13 +94,10 @@ class RoleSelectionScreen extends StatelessWidget {
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            RichText(
-                              text: TextSpan(
-                                text: tr(context).noAccountSignUp,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  color: AppColors.text,
-                                ),
+                            Text(
+                              tr(context).noAccountSignUp,
+                              style: AppTheme.pageDescription().copyWith(
+                                color: AppColors.text,
                               ),
                             ),
                             GestureDetector(
@@ -119,15 +108,9 @@ class RoleSelectionScreen extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 14,
                                 ),
-                                child: RichText(
-                                  text: TextSpan(
-                                    text: tr(context).createOne,
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.brand,
-                                    ),
-                                  ),
+                                child: Text(
+                                  tr(context).createOne,
+                                  style: AppTheme.formLink(),
                                 ),
                               ),
                             ),

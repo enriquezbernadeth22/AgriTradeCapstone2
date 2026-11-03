@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // ============================================================
 // Shared launcher — the one place that actually opens Google Maps.
@@ -15,8 +17,9 @@ class MapsLauncher {
   }) async {
     if (latitude == null || longitude == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This seller has not shared a location yet.'),
+        appSnackBar(
+          tl('This seller has not shared a location yet.'),
+          kind: MessageKind.info,
         ),
       );
       return;
@@ -27,9 +30,9 @@ class MapsLauncher {
     );
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open Maps.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(tl('Could not open Maps.'), kind: MessageKind.error),
+      );
     }
   }
 }
@@ -76,7 +79,7 @@ class OpenInMapsButton extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              'Location not shared yet',
+              tl('Location not shared yet'),
               style: TextStyle(color: AppColors.grey(600), fontSize: 13),
             ),
           ],
@@ -93,7 +96,7 @@ class OpenInMapsButton extends StatelessWidget {
           longitude: longitude,
         ),
         icon: const Icon(Icons.map_outlined, size: 20),
-        label: Text("View $farmerName's Location"),
+        label: Text(tl('View {0}\'s Location', [farmerName])),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.brand,
           side: BorderSide(color: AppColors.brand),
@@ -140,8 +143,8 @@ class MapPinIconButton extends StatelessWidget {
         color: hasLocation ? (color ?? AppColors.brand) : AppColors.grey(400),
       ),
       tooltip: hasLocation
-          ? "View $farmerName's location"
-          : 'Location not shared',
+          ? tl('View {0}\'s location', [farmerName])
+          : tl('Location not shared'),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(),
       onPressed: hasLocation

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,6 +28,8 @@ import 'buyer_market_view.dart';
 import 'farmer_storefront_screen.dart';
 import '../widgets/profile_avatar.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
+import '../services/buyer_type_watcher.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -201,7 +204,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   _loadApproximateFarmerLocation(String? farmerId) async {
     if (farmerId == null || farmerId.isEmpty) {
       return (
-        area: 'Farm area unavailable',
+        area: tl('Farm area unavailable'),
         buyerLat: null,
         buyerLng: null,
         centerLat: null,
@@ -233,7 +236,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final savedLng = (buyerData['longitude'] as num?)?.toDouble();
     final buyerOk = isValidPublicCoordinate(savedLat, savedLng);
     return (
-      area: farm.area.isEmpty ? 'Farm area unavailable' : farm.area,
+      area: farm.area.isEmpty ? tl('Farm area unavailable') : farm.area,
       buyerLat: buyerOk ? savedLat : null,
       buyerLng: buyerOk ? savedLng : null,
       centerLat: farm.latitude,
@@ -263,7 +266,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
-          return const Text('Approximate farm area is unavailable.');
+          return Text(tl('Approximate farm area is unavailable.'));
         }
         final location = snapshot.data!;
         final hasBuyer = location.buyerLat != null && location.buyerLng != null;
@@ -281,7 +284,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
         if (!hasCenter) {
           return Text(
-            'Farm area: ${location.area}\nApproximate map is unavailable.',
+            tl('Farm area: {0}\nApproximate map is unavailable.', [
+              location.area,
+            ]),
           );
         }
         final center = LatLng(location.centerLat!, location.centerLng!);
@@ -289,7 +294,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Farm area: ${location.area}',
+              tl('Farm area: {0}', [location.area]),
               style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13.5,
@@ -299,8 +304,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             const SizedBox(height: 2),
             Text(
               distanceKm == null
-                  ? 'Distance unavailable. Add a saved location to see an estimate.'
-                  : 'Approx. ${distanceKm.toStringAsFixed(1)} km away',
+                  ? tl(
+                      'Distance unavailable. Add a saved location to see an estimate.',
+                    )
+                  : tl('Approx. {0} km away', [distanceKm.toStringAsFixed(1)]),
               style: TextStyle(color: AppColors.grey(700), fontSize: 12.5),
             ),
             const SizedBox(height: 10),
@@ -319,8 +326,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Marker(
                       markerId: const MarkerId('farmer_area'),
                       position: center,
-                      infoWindow: const InfoWindow(
-                        title: 'Approximate farm area',
+                      infoWindow: InfoWindow(
+                        title: tl('Approximate farm area'),
                       ),
                     ),
                     if (hasBuyer)
@@ -330,8 +337,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           location.buyerLat!,
                           location.buyerLng!,
                         ),
-                        infoWindow: const InfoWindow(
-                          title: 'Your saved location',
+                        infoWindow: InfoWindow(
+                          title: tl('Your saved location'),
                         ),
                       ),
                   },
@@ -350,8 +357,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'The marker shows the general barangay area, not the exact '
-              'farm.',
+              tl(
+                'The marker shows the general barangay area, not the exact farm.',
+              ),
               style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
             ),
           ],
@@ -575,7 +583,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                               SizedBox(width: 4),
                               Text(
-                                'Verified Farmer',
+                                tl('Verified Farmer'),
                                 style: TextStyle(
                                   color: AppColors.brand,
                                   fontSize: 12,
@@ -586,7 +594,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           )
                         else
                           Text(
-                            'Farmer',
+                            tl('Farmer'),
                             style: TextStyle(
                               color: AppColors.grey(700),
                               fontSize: 12,
@@ -637,7 +645,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle('Buyer Reviews'),
+              _sectionTitle(tl('Buyer Reviews')),
               const SizedBox(height: 12),
               Center(child: CircularProgressIndicator(color: AppColors.brand)),
             ],
@@ -647,10 +655,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle('Buyer Reviews'),
+              _sectionTitle(tl('Buyer Reviews')),
               const SizedBox(height: 8),
               Text(
-                'Could not load reviews.',
+                tl('Could not load reviews.'),
                 style: TextStyle(color: AppColors.grey(700), fontSize: 13.5),
               ),
             ],
@@ -664,10 +672,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle('Buyer Reviews'),
+              _sectionTitle(tl('Buyer Reviews')),
               const SizedBox(height: 10),
               Text(
-                'No reviews yet',
+                tl('No reviews yet'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -676,8 +684,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const SizedBox(height: 3),
               Text(
-                'Be the first to review this product after completing an '
-                'order.',
+                tl(
+                  'Be the first to review this product after completing an order.',
+                ),
                 style: TextStyle(
                   color: AppColors.grey(700),
                   fontSize: 13,
@@ -701,7 +710,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _sectionTitle('Buyer Reviews'),
+                      _sectionTitle(tl('Buyer Reviews')),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -722,7 +731,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           Text(
                             docs.length == 1
                                 ? '(1 review)'
-                                : '(${docs.length} reviews)',
+                                : tl('({0} reviews)', [docs.length]),
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.grey(700),
@@ -753,7 +762,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'View All (${docs.length})',
+                        tl('View All ({0})', [docs.length]),
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -854,7 +863,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: Text(
-              text.isEmpty ? 'No written review.' : text,
+              text.isEmpty ? tl('No written review.') : text,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -875,7 +884,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     if (_productLoadError || _productUnavailable) {
       return Scaffold(
-        appBar: const AgriAppBar(title: 'Product Details'),
+        appBar: AgriAppBar(title: tl('Product Details')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -884,16 +893,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               children: [
                 Text(
                   _productLoadError
-                      ? 'Could not load this product. Check your connection and try again.'
-                      : 'This listing is no longer available.',
+                      ? tl(
+                          'Could not load this product. Check your connection and try again.',
+                        )
+                      : tl('This listing is no longer available.'),
                   textAlign: TextAlign.center,
                 ),
                 if (_productLoadError) ...[
                   const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _refreshData,
-                    child: const Text('Retry'),
-                  ),
+                  TextButton(onPressed: _refreshData, child: Text(tl('Retry'))),
                 ],
               ],
             ),
@@ -939,6 +947,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             wholesalePrice > 0);
     final hasWholesale =
         wholesaleEnabled && wholesalePrice != null && wholesalePrice > 0;
+    // A buyer who orders in bulk sees the wholesale price first, unless the
+    // stock is below the minimum and it cannot be ordered at that price.
+    final wholesaleFirst =
+        hasWholesale &&
+        BuyerTypeWatcher.instance.wholesaleFirst &&
+        ((data['quantity'] as num?) ?? 0) >= wholesaleMinimum;
     final available = (data['quantity'] as num?) ?? 0;
     final unit = (data['unit'] as String?) ?? unitForProductName(name);
     final description = data['description']?.toString() ?? '';
@@ -1004,7 +1018,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     runSpacing: 2,
                     children: [
                       Text(
-                        formatPeso(price),
+                        formatPeso(wholesaleFirst ? wholesalePrice : price),
                         style: AppTheme.heading(
                           32,
                         ).copyWith(color: AppColors.brand, height: 1.1),
@@ -1044,7 +1058,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         Text(
                           reviewCount == 1
                               ? '(1 review)'
-                              : '($reviewCount reviews)',
+                              : tl('({0} reviews)', [reviewCount]),
                           style: TextStyle(
                             color: AppColors.grey(600),
                             fontSize: 12,
@@ -1057,8 +1071,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   _infoRow(
                     Icons.inventory_2_outlined,
                     available > 0
-                        ? '${formatStock(available, unit)} available'
-                        : 'Out of stock',
+                        ? tl('{0} available', [formatStock(available, unit)])
+                        : tl('Out of stock'),
                     trailing: available > 0
                         ? null
                         : Container(
@@ -1074,7 +1088,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             child: Text(
-                              'OUT OF STOCK',
+                              tl('OUT OF STOCK'),
                               style: TextStyle(
                                 color: AppColors.tone(Colors.red, 700),
                                 fontWeight: FontWeight.bold,
@@ -1087,7 +1101,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const SizedBox(height: 8),
                   _infoRow(
                     Icons.sell_outlined,
-                    hasWholesale ? 'Retail and wholesale' : 'Retail only',
+                    hasWholesale
+                        ? tl('Retail and wholesale')
+                        : tl('Retail only'),
                   ),
                   // Fulfillment, as one plain line with the rest of the
                   // summary rather than standalone chips.
@@ -1096,7 +1112,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     _infoRow(
                       Icons.local_shipping_outlined,
                       delivery && pickup
-                          ? 'Delivery and pick-up'
+                          ? tl('Delivery and pick-up')
                           : delivery
                           ? 'Delivery'
                           : 'Pick-up',
@@ -1109,7 +1125,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       harvestLabel(harvested),
                       trailing: isRecentlyHarvested(harvested)
                           ? Text(
-                              'Recently Harvested',
+                              tl('Recently Harvested'),
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
@@ -1123,8 +1139,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Text(
                         [
                           if (data['updatedAt'] is Timestamp)
-                            'Last updated ${DateFormat('MMM d, y').format((data['updatedAt'] as Timestamp).toDate())}.',
-                          'Harvest information is provided and updated by the farmer.',
+                            tl('Last updated {0}.', [
+                              DateFormat('MMM d, y').format(
+                                (data['updatedAt'] as Timestamp).toDate(),
+                              ),
+                            ]),
+                          tl(
+                            'Harvest information is provided and updated by the farmer.',
+                          ),
                         ].join(' '),
                         style: TextStyle(
                           fontSize: 11,
@@ -1153,7 +1175,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Wholesale available',
+                            tl('Wholesale available'),
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -1162,8 +1184,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '${formatPriceWithUnit(wholesalePrice, unit)} for orders of '
-                            '${formatStock(wholesaleMinimum, unit)} or more',
+                            wholesaleFirst
+                                ? tl(
+                                    'Wholesale price for orders of {0} or more. Retail price: {1}',
+                                    [
+                                      formatStock(wholesaleMinimum, unit),
+                                      formatPriceWithUnit(price, unit),
+                                    ],
+                                  )
+                                : tl('{0} for orders of {1} or more', [
+                                    formatPriceWithUnit(wholesalePrice, unit),
+                                    formatStock(wholesaleMinimum, unit),
+                                  ]),
                             style: TextStyle(
                               fontSize: 12.5,
                               color: AppColors.grey(800),
@@ -1172,7 +1204,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           if (available < wholesaleMinimum) ...[
                             const SizedBox(height: 4),
                             Text(
-                              'Wholesale is temporarily unavailable because current stock is below the minimum.',
+                              tl(
+                                'Wholesale is temporarily unavailable because current stock is below the minimum.',
+                              ),
                               style: TextStyle(
                                 fontSize: 11.5,
                                 color: AppColors.tone(Colors.orange, 800),
@@ -1190,11 +1224,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   _divider(top: 4),
 
                   // ---- Description ----
-                  _sectionTitle('Description'),
+                  _sectionTitle(tl('Description')),
                   const SizedBox(height: 8),
                   Text(
                     description.isEmpty
-                        ? 'No description provided.'
+                        ? tl('No description provided.')
                         : description,
                     style: TextStyle(
                       fontSize: 14,
@@ -1206,8 +1240,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 10),
                     Text(
                       [
-                        if (postedOn != null) 'Posted on $postedOn',
-                        if (updatedOn != null) 'Updated on $updatedOn',
+                        if (postedOn != null) tl('Posted on {0}', [postedOn]),
+                        if (updatedOn != null)
+                          tl('Updated on {0}', [updatedOn]),
                       ].join('\n'),
                       style: TextStyle(
                         color: AppColors.grey(600),
@@ -1225,7 +1260,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   _divider(),
                   Row(
                     children: [
-                      Expanded(child: _sectionTitle('Farm Location')),
+                      Expanded(child: _sectionTitle(tl('Farm Location'))),
                       // The approximate-area map, full screen.
                       if (farmerId != null && farmerId.isNotEmpty)
                         TextButton(
@@ -1243,11 +1278,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             padding: const EdgeInsets.only(left: 8),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Open Map',
+                                tl('Open Map'),
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
@@ -1311,7 +1346,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   size: 18,
                 ),
                 label: Text(
-                  available > 0 ? 'Message to Order' : 'Out of Stock',
+                  available > 0 ? tl('Message to Order') : tl('Out of Stock'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1335,7 +1370,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             const SizedBox(width: 10),
             _iconAction(
               icon: Icons.shopping_bag_outlined,
-              tooltip: 'Order Now',
+              tooltip: tl('Order Now'),
               onTap: !canOrder
                   ? null
                   : () => Navigator.push(
@@ -1404,8 +1439,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     if (currentUserId.isEmpty || farmerId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to message this farmer. Try again later.'),
+        appSnackBar(
+          tl('Unable to message this farmer. Try again later.'),
+          kind: MessageKind.error,
         ),
       );
       return;

@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/admin_device_location.dart';
-import '../services/admin_session_service.dart';
 import '../services/auth_routing_service.dart';
 import '../services/connectivity_service.dart';
 import '../widgets/branded_loading_screen.dart';
@@ -30,9 +29,6 @@ enum _GateState { checking, signedOut, roleCheckFailed }
 
 class _AdminSessionGateState extends State<AdminSessionGate> {
   _GateState _state = _GateState.checking;
-
-  // Back at login because the account signed in on another device.
-  bool _sessionEnded = false;
 
   @override
   void initState() {
@@ -104,66 +100,10 @@ class _AdminSessionGateState extends State<AdminSessionGate> {
       setState(() => _state = _GateState.roleCheckFailed);
       return;
     }
-    // An Admin is let back in only while this browser's session is still
-    // the account's active one: signing in on another device ends it here.
-    if (result.decision == AuthRouteDecision.adminDashboard &&
-        !await _sessionStillHere(user.uid)) {
-      debugPrint(
-        '[AdminGate] this browser is not the active Admin session — '
-        'signing out',
-      );
-      await AdminSessionService.clearLocal(user.uid);
-      try {
-        await FirebaseAuth.instance.signOut();
-      } catch (_) {}
-      if (!mounted) return;
-      setState(() {
-        _sessionEnded = true;
-        _state = _GateState.signedOut;
-      });
-      return;
-    }
     if (!mounted) return;
     // adminDashboard → the dashboard; anything else is a confirmed block
     // (signs out with the reason logged, explains, returns to login).
     await applyAuthRouteResult(context, result);
-  }
-
-  // True when this browser may carry on as the Admin's session. A session
-  // record that cannot be read is not a reason to sign anyone out.
-  Future<bool> _sessionStillHere(String uid) async {
-    final Map<String, dynamic>? record;
-    try {
-      record = await AdminSessionService.readRecord(uid);
-    } catch (_) {
-      return true;
-    }
-    final standing = adminSessionStanding(
-      record,
-      await AdminSessionService.localId(uid),
-      now: DateTime.now(),
-    );
-    switch (standing) {
-      case AdminSessionStanding.current:
-        return true;
-      case AdminSessionStanding.endedHere:
-        return false;
-      case AdminSessionStanding.free:
-        // Already signed in, with no session of its own on record: this
-        // browser becomes the session. Quietly when nothing is in use;
-        // when a session is in use (which may be this browser's own, its
-        // id lost), it is taken over as a sign-in is — alert and Audit
-        // Log included.
-        await AdminSessionService.start(
-          uid,
-          silent: !adminSessionActiveElsewhere(
-            record,
-            null,
-            now: DateTime.now(),
-          ),
-        );
-        return true;
-    }
   }
 
   @override
@@ -172,7 +112,7 @@ class _AdminSessionGateState extends State<AdminSessionGate> {
       case _GateState.checking:
         return const BrandedLoadingScreen();
       case _GateState.signedOut:
-        return LoginScreen(role: 'admin', adminSessionEnded: _sessionEnded);
+        return const LoginScreen(role: 'admin');
       case _GateState.roleCheckFailed:
         return NoInternetScreen(
           message: kNoInternetAdminMessage,

@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 
 import '../services/notification_permission_prompt.dart';
 import '../services/notification_prefs.dart';
@@ -9,8 +10,9 @@ import '../widgets/agri_app_bar.dart';
 import '../widgets/permission_rationale_dialog.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
-/// Profile → Notification Preferences: which notifications also buzz the
+/// Settings → Notification Settings: which notifications also buzz the
 /// phone. Every notification is still kept in the app's Notifications
 /// list, whatever is switched off here.
 class NotificationPreferencesScreen extends StatefulWidget {
@@ -61,10 +63,8 @@ class _NotificationPreferencesScreenState
       _permission == AuthorizationStatus.authorized ||
       _permission == AuthorizationStatus.provisional;
 
-  void _say(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  void _say(String message, {required MessageKind kind}) {
+    showAppMessage(context, tl(message), kind: kind);
   }
 
   Future<void> _set(NotificationPref pref, bool on) async {
@@ -79,15 +79,18 @@ class _NotificationPreferencesScreenState
           icon: Icons.notifications_active_outlined,
           title: kNotificationRationaleTitle,
           message: kNotificationRationaleMessage,
-          denyLabel: 'Not Now',
-          allowLabel: 'Allow',
+          denyLabel: tl('Not Now'),
+          allowLabel: tl('Allow'),
         );
         if (!proceed) return;
         await PushNotificationService().setupFCM(requestPermission: true);
         await _readPermission();
         if (!_allowedByPhone) {
           if (mounted) {
-            _say('Push notifications are disabled in device settings.');
+            _say(
+              tl('Push notifications are disabled in device settings.'),
+              kind: MessageKind.warning,
+            );
           }
           return;
         }
@@ -98,7 +101,12 @@ class _NotificationPreferencesScreenState
         await PushNotificationService().setupFCM();
       }
     } catch (_) {
-      if (mounted) _say('Could not save this setting. Please try again.');
+      if (mounted) {
+        _say(
+          tl('Could not save this setting. Please try again.'),
+          kind: MessageKind.error,
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -138,8 +146,9 @@ class _NotificationPreferencesScreenState
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Push notifications are disabled in device '
-                            'settings.',
+                            tl(
+                              'Push notifications are disabled in device settings.',
+                            ),
                             style: AppTheme.body(
                               size: 12.5,
                             ).copyWith(color: AppColors.tone(Colors.red, 700)),
@@ -169,9 +178,9 @@ class _NotificationPreferencesScreenState
               ]),
               const SizedBox(height: 14),
               Text(
-                'Every notification is kept in your Notifications list, '
-                'even when its alert is switched off here. Important '
-                'account notices are also sent to your email.',
+                tl(
+                  'Every notification is kept in your Notifications list, even when its alert is switched off here. Important account notices are also sent to your email.',
+                ),
                 style: AppTheme.body(
                   size: 12.5,
                 ).copyWith(color: AppColors.grey(600)),

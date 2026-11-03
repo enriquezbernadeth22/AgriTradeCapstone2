@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'app_scaffold_messenger.dart';
 
 import '../data/report_reasons.dart';
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../l10n/app_language.dart';
 
 /// "Report this user" from a chat — asks for a reason and a description and
 /// files it to the `reports` collection for the Admin Moderation Queue.
@@ -42,7 +45,7 @@ Future<void> showReportUserDialog(
   final report = await showAgriDialog<({String reason, String description})>(
     context: context,
     builder: (_) => _ReportUserForm(
-      title: 'Report ${displayName ?? otherUserName}',
+      title: tl('Report {0}', [displayName ?? otherUserName]),
       reasons: reportReasonsFor(reporterRole),
     ),
   );
@@ -67,14 +70,14 @@ Future<void> showReportUserDialog(
       'createdAt': FieldValue.serverTimestamp(),
     });
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Report sent for review.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      appSnackBar(tl('Report sent for review.'), kind: MessageKind.success),
+    );
   } catch (_) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Could not send report.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      appSnackBar(tl('Could not send report.'), kind: MessageKind.error),
+    );
   }
 }
 
@@ -116,14 +119,16 @@ class _ReportUserFormState extends State<_ReportUserForm> {
           DropdownButtonFormField<String>(
             initialValue: _reason,
             isExpanded: true,
+            style: TextStyle(fontSize: 14, color: AppColors.text),
             dropdownColor: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
-            hint: const Text('Select a reason'),
+            decoration: AppTheme.dropdownDecoration(context),
+            hint: Text(tl('Select a reason')),
             items: [
               for (final reason in widget.reasons)
                 DropdownMenuItem(
                   value: reason,
-                  child: Text(reason, overflow: TextOverflow.ellipsis),
+                  child: Text(tl(reason), overflow: TextOverflow.ellipsis),
                 ),
             ],
             onChanged: (value) => setState(() => _reason = value),
@@ -131,20 +136,21 @@ class _ReportUserFormState extends State<_ReportUserForm> {
           const SizedBox(height: 12),
           TextField(
             controller: _description,
+            style: const TextStyle(fontSize: 14),
             minLines: 3,
             maxLines: 5,
-            decoration: const InputDecoration(hintText: 'Explain the issue...'),
+            decoration: InputDecoration(hintText: tl('Explain the issue...')),
             onChanged: (_) => setState(() {}),
           ),
         ],
       ),
       actions: [
         AgriDialogButton(
-          label: 'Cancel',
+          label: tl('Cancel'),
           onPressed: () => Navigator.pop(context),
         ),
         AgriDialogButton(
-          label: 'Send',
+          label: tl('Send'),
           kind: AgriButtonKind.primary,
           onPressed: canSend
               ? () => Navigator.pop(context, (

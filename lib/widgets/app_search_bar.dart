@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// The one search bar for product/farmer search: a white pill with a thin
+/// The one search bar for product/farmer search: a white rounded field with a thin
 /// green outline, the search icon, then the text. Marketplace shows it as a
 /// button that opens the Search screen ([onTap]); the Search screen shows
 /// the same bar as a real field ([controller]) — same height, radius,
@@ -46,7 +46,7 @@ class AppSearchBar extends StatefulWidget {
 
 class _AppSearchBarState extends State<AppSearchBar> {
   static TextStyle get _textStyle =>
-      TextStyle(fontSize: 13.5, color: AppColors.text);
+      TextStyle(fontSize: 14, color: AppColors.text);
 
   // A screen that does not manage focus itself still gets the focused
   // outline: the bar then tracks focus with a node of its own.

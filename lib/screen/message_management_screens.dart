@@ -10,6 +10,7 @@ import '../widgets/profile_avatar.dart';
 import 'chat_list_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // The message-management sections opened from the Messages menu (the ☰ in
 // the Messages header): Muted, Reported and Blocked Users. Archived lives in
@@ -42,8 +43,8 @@ class MutedConversationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MessageFolderScaffold(
-      title: 'Muted',
+    return MessageFolderScaffold(
+      title: tl('Muted'),
       body: ChatListScreen(mode: ChatListMode.muted),
     );
   }
@@ -74,15 +75,15 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
   @override
   Widget build(BuildContext context) {
     return MessageFolderScaffold(
-      title: 'Reported',
+      title: tl('Reported'),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _reports,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const _EmptyState(
+            return _EmptyState(
               icon: Icons.cloud_off_outlined,
-              title: 'Could not load your reports',
-              subtitle: 'Check your connection and try again.',
+              title: tl('Could not load your reports'),
+              subtitle: tl('Check your connection and try again.'),
             );
           }
           if (!snapshot.hasData) {
@@ -98,10 +99,10 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
                   .compareTo(at is Timestamp ? at.millisecondsSinceEpoch : 0);
             });
           if (docs.isEmpty) {
-            return const _EmptyState(
+            return _EmptyState(
               icon: Icons.flag_outlined,
-              title: 'No reports yet',
-              subtitle: 'Users you report from Messages will appear here.',
+              title: tl('No reports yet'),
+              subtitle: tl('Users you report from Messages will appear here.'),
             );
           }
           return ListView.separated(
@@ -117,15 +118,15 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
 
   // Only the broad stage is shown to the reporter — never the outcome.
   (String, Color) _statusLabel(String status) => switch (status) {
-    'under_review' => ('Under review', AppColors.tone(Colors.blue, 700)),
-    'resolved' || 'dismissed' => ('Reviewed', AppColors.brand),
-    _ => ('Submitted', AppColors.tone(Colors.orange, 800)),
+    'under_review' => (tl('Under review'), AppColors.tone(Colors.blue, 700)),
+    'resolved' || 'dismissed' => (tl('Reviewed'), AppColors.brand),
+    _ => (tl('Submitted'), AppColors.tone(Colors.orange, 800)),
   };
 
   Widget _reportTile(Map<String, dynamic> report) {
     final userId = (report['reportedUserId'] ?? '').toString();
-    final fallbackName = (report['reportedUserName'] ?? 'User').toString();
-    final reason = (report['issueType'] ?? 'Report').toString();
+    final fallbackName = (report['reportedUserName'] ?? tl('User')).toString();
+    final reason = (report['issueType'] ?? tl('Report')).toString();
     final description = (report['description'] ?? '').toString();
     final createdAt = report['createdAt'];
     final date = createdAt is Timestamp
@@ -191,9 +192,12 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
     final confirmed = await showAgriConfirm(
       context: context,
       icon: Icons.lock_open_outlined,
-      title: 'Unblock $name?',
-      message: 'Your conversations with $name will appear in Messages again.',
-      confirmLabel: 'Unblock',
+      title: tl('Unblock {0}?', [name]),
+      message: tl(
+        'Your conversations with {0} will appear in Messages again.',
+        [name],
+      ),
+      confirmLabel: tl('Unblock'),
     );
     if (confirmed) _prefs.unblock(userId);
   }
@@ -202,12 +206,12 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
   Widget build(BuildContext context) {
     final blocked = _prefs.blockedUserIds;
     return MessageFolderScaffold(
-      title: 'Blocked Users',
+      title: tl('Blocked Users'),
       body: blocked.isEmpty
-          ? const _EmptyState(
+          ? _EmptyState(
               icon: Icons.block,
-              title: 'No blocked users',
-              subtitle: 'Users you block from Messages will appear here.',
+              title: tl('No blocked users'),
+              subtitle: tl('Users you block from Messages will appear here.'),
             )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
@@ -217,8 +221,8 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                 final userId = blocked[i];
                 return _UserCard(
                   userId: userId,
-                  fallbackName: 'User',
-                  subtitle: 'Blocked',
+                  fallbackName: tl('User'),
+                  subtitle: tl('Blocked'),
                   trailingBuilder: (name) => OutlinedButton(
                     onPressed: () => _confirmUnblock(userId, name),
                     style: OutlinedButton.styleFrom(
@@ -230,7 +234,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                       ),
                     ),
                     child: Text(
-                      'Unblock',
+                      tl('Unblock'),
                       style: GoogleFonts.montserrat(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,

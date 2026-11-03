@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import '../services/connectivity_service.dart';
 import '../services/notification_navigation_service.dart';
 import '../services/notification_permission_prompt.dart';
@@ -12,6 +13,7 @@ import '../widgets/notification_card.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// Reads notifications/{uid}/items — written by Cloud Functions
 /// (functions/index.js) whenever a new message, new order, order status
@@ -100,9 +102,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     if (!await ConnectivityService.instance.checkNow()) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(kNoInternetActionMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(kNoInternetActionMessage, kind: MessageKind.error),
+      );
       return;
     }
 
@@ -117,8 +119,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not mark all as read. Please try again.'),
+        appSnackBar(
+          tl('Could not mark all as read. Please try again.'),
+          kind: MessageKind.error,
         ),
       );
     }
@@ -136,8 +139,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final itemsRef = _itemsRef;
     if (itemsRef == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please log in to see notifications.')),
+      return Scaffold(
+        body: Center(child: Text(tl('Please log in to see notifications.'))),
       );
     }
 
@@ -150,7 +153,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Scaffold(
           backgroundColor: AppColors.surfaceAlt,
           appBar: AgriAppBar(
-            title: 'Notifications',
+            title: tl('Notifications'),
             actions: [
               if (hasUnread)
                 TextButton(
@@ -158,8 +161,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   style: TextButton.styleFrom(
                     foregroundColor: AgriAppBar.foreground,
                   ),
-                  child: const Text(
-                    'Mark All as Read',
+                  child: Text(
+                    tl('Mark All as Read'),
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -184,8 +187,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     }
                     if (snapshot.hasError) {
                       return RetryMessage(
-                        message:
-                            'Could not load notifications. Check your connection and try again.',
+                        message: tl(
+                          'Could not load notifications. Check your connection and try again.',
+                        ),
                         onRetry: () => setState(() {}),
                       );
                     }
@@ -319,11 +323,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: AgriEmptyState(
         icon: Icons.notifications_none_rounded,
         title: noNotificationsAtAll
-            ? 'No notifications yet'
-            : 'No ${_filter.label.toLowerCase()} notifications',
+            ? tl('No notifications yet')
+            : tl('No {0} notifications', [_filter.label.toLowerCase()]),
         subtitle: noNotificationsAtAll
-            ? 'Messages, orders, and important updates will appear here.'
-            : 'Notifications of this kind will appear here.',
+            ? tl('Messages, orders, and important updates will appear here.')
+            : tl('Notifications of this kind will appear here.'),
         padding: const EdgeInsets.all(32),
       ),
     );
@@ -364,11 +368,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 Text(
                   canPromptAgain
-                      ? "Push notifications aren't turned on yet, so you won't be alerted "
-                            "about new messages or orders while the app is closed."
-                      : "Push notifications are off for AgriTrade+, so you won't be alerted "
-                            "about new messages or orders while the app is closed. To turn them "
-                            "on: phone Settings → Apps → AgriTrade+ → Notifications.",
+                      ? tl(
+                          'Push notifications aren\'t turned on yet, so you won\'t be alerted about new messages or orders while the app is closed.',
+                        )
+                      : tl(
+                          'Push notifications are off for AgriTrade+, so you won\'t be alerted about new messages or orders while the app is closed. To turn them on: phone Settings → Apps → AgriTrade+ → Notifications.',
+                        ),
                   style: TextStyle(
                     fontSize: 12.5,
                     color: AppColors.tone(Colors.red, 900),
@@ -386,8 +391,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           icon: Icons.notifications_active_outlined,
                           title: kNotificationRationaleTitle,
                           message: kNotificationRationaleMessage,
-                          denyLabel: 'Not Now',
-                          allowLabel: 'Allow',
+                          denyLabel: tl('Not Now'),
+                          allowLabel: tl('Allow'),
                         );
                         if (proceed) {
                           await PushNotificationService().setupFCM(
@@ -403,8 +408,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
-                      child: const Text(
-                        'Enable Notifications',
+                      child: Text(
+                        tl('Enable Notifications'),
                         style: TextStyle(fontSize: 12.5),
                       ),
                     ),

@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/buyer_location_picker.dart';
 import 'buyer_saved_products_screen.dart' show buyerSubScreenAppBar;
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// A buyer's optional delivery / pickup preferences.
 ///
@@ -77,6 +79,7 @@ class _BuyerFulfillmentPreferencesScreenState
     if (ref == null || _saving) return;
     setState(() => _saving = true);
     String message = 'Preferences saved.';
+    var kind = MessageKind.success;
     try {
       await ref.set({
         'preferredMethod': _method,
@@ -85,10 +88,11 @@ class _BuyerFulfillmentPreferencesScreenState
       }, SetOptions(merge: true));
     } catch (_) {
       message = 'Could not save your preferences. Please try again.';
+      kind = MessageKind.error;
     }
     if (!mounted) return;
     setState(() => _saving = false);
-    _snack(message);
+    _snack(message, kind: kind);
   }
 
   // Same popup used when placing an order, pre-filled with whatever
@@ -129,35 +133,29 @@ class _BuyerFulfillmentPreferencesScreenState
       barangay: result.barangay,
     );
     if (!mounted) return;
-    _snack(error ?? 'Location updated.');
+    _snack(
+      error ?? tl('Location updated.'),
+      kind: error == null ? MessageKind.success : MessageKind.error,
+    );
   }
 
-  void _snack(String message) {
+  void _snack(String message, {required MessageKind kind}) {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          backgroundColor: AppColors.brandFill,
-          content: Text(message),
-        ),
-      );
+      ..showSnackBar(appSnackBar(tl(message), kind: kind));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: buyerSubScreenAppBar('Delivery & Pick-up'),
+      appBar: buyerSubScreenAppBar(tl('Delivery & Pick-up')),
       body: _loading
           ? Center(child: CircularProgressIndicator(color: AppColors.brand))
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
-                _sectionTitle('Preferred method'),
+                _sectionTitle(tl('Preferred method')),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
@@ -166,7 +164,7 @@ class _BuyerFulfillmentPreferencesScreenState
                       for (final entry in _methods.entries)
                         ButtonSegment(
                           value: entry.key,
-                          label: Text(entry.value),
+                          label: Text(tl(entry.value)),
                         ),
                     ],
                     selected: {_method},
@@ -187,33 +185,24 @@ class _BuyerFulfillmentPreferencesScreenState
                 ),
                 const SizedBox(height: 24),
 
-                _sectionTitle('Default location'),
+                _sectionTitle(tl('Default location')),
                 const SizedBox(height: 8),
                 _locationCard(),
                 const SizedBox(height: 24),
 
-                _sectionTitle('Delivery instructions or landmark'),
+                _sectionTitle(tl('Delivery instructions or landmark')),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _noteController,
+                  style: const TextStyle(fontSize: 14),
                   maxLines: 3,
                   maxLength: 200,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
-                    hintText: 'e.g. Green gate beside the barangay hall',
+                    hintText: tl('e.g. Green gate beside the barangay hall'),
                     hintStyle: TextStyle(
                       color: AppColors.grey(500),
-                      fontSize: 13,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(
-                        color: AppColors.brand,
-                        width: 1.5,
-                      ),
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -229,7 +218,9 @@ class _BuyerFulfillmentPreferencesScreenState
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Private to you. Other users never see this on your profile.',
+                        tl(
+                          'Private to you. Other users never see this on your profile.',
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.grey(600),
@@ -252,7 +243,10 @@ class _BuyerFulfillmentPreferencesScreenState
                             color: Colors.white,
                           ),
                         )
-                      : Text('Save Preferences', style: AppTheme.buttonText()),
+                      : Text(
+                          tl('Save Preferences'),
+                          style: AppTheme.buttonText(),
+                        ),
                 ),
               ],
             ),
@@ -292,7 +286,7 @@ class _BuyerFulfillmentPreferencesScreenState
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  readable.isEmpty ? 'Not set' : readable,
+                  readable.isEmpty ? tl('Not set') : readable,
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -304,7 +298,7 @@ class _BuyerFulfillmentPreferencesScreenState
                 onPressed: () => _editLocation(data),
                 style: TextButton.styleFrom(foregroundColor: AppColors.brand),
                 child: Text(
-                  readable.isEmpty ? 'Set' : 'Change',
+                  readable.isEmpty ? tl('Set') : tl('Change'),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,

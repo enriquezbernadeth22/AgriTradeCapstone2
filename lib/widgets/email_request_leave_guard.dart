@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The "Leave This Process?" confirmation, shown when the user goes Back
 /// while an account email request (password reset, verification code,
@@ -230,7 +231,7 @@ class _LeaveDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Leave This Process?',
+                  tl('Leave This Process?'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     fontSize: 17,
@@ -242,8 +243,9 @@ class _LeaveDialog extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
-                    'Your email request is still being processed. Are you '
-                    'sure you want to leave this screen?',
+                    tl(
+                      'Your email request is still being processed. Are you sure you want to leave this screen?',
+                    ),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.montserrat(
                       fontSize: 13,
@@ -256,13 +258,13 @@ class _LeaveDialog extends StatelessWidget {
                 Row(
                   children: [
                     _button(
-                      label: 'Stay',
+                      label: tl('Stay'),
                       filled: false,
                       onPressed: () => Navigator.of(context).pop(false),
                     ),
                     const SizedBox(width: 10),
                     _button(
-                      label: 'Leave',
+                      label: tl('Leave'),
                       filled: true,
                       onPressed: () => Navigator.of(context).pop(true),
                     ),

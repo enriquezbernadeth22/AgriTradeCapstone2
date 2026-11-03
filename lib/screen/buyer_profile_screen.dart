@@ -2,43 +2,34 @@ import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../theme/theme_controller.dart';
-import '../widgets/feedback_sheet.dart';
+import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/profile_menu.dart';
 import 'farmer_edit_profile_screen.dart';
 import 'buyer_my_reviews_screen.dart';
 import 'buyer_saved_products_screen.dart';
-import 'help_support_screen.dart';
-import 'manage_account_screen.dart';
-import 'notification_preferences_screen.dart';
 import 'buyer_fulfillment_preferences_screen.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The buyer's Profile tab. Same look as the farmer's (header, the
 /// avatar with its edit badge, name, then role-specific content), with
-/// buyer content: a small activity summary and the buyer's own features,
-/// then Log Out on its own at the bottom. There is no menu icon — every
-/// option is on the page or inside Account Settings.
+/// buyer content: a small activity summary and the buyer's own features.
+/// Settings, help and Log Out are behind the gear in the header (see
+/// showSettingsSheet).
 ///
 /// Shows only what is fine for the profile itself — photo, name and the
 /// general saved location. The email address and other account details
 /// live in Account Settings; the exact delivery details in
 /// Delivery & Pickup.
 class BuyerProfileScreen extends StatefulWidget {
-  final VoidCallback onLogout;
-
   /// Opens Orders on its Completed tab (the Completed Orders count).
   final VoidCallback? onOpenCompletedOrders;
 
-  const BuyerProfileScreen({
-    super.key,
-    required this.onLogout,
-    this.onOpenCompletedOrders,
-  });
+  const BuyerProfileScreen({super.key, this.onOpenCompletedOrders});
 
   @override
   State<BuyerProfileScreen> createState() => _BuyerProfileScreenState();
@@ -123,7 +114,9 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
             onRefresh: _refreshData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 90),
+              padding: EdgeInsets.only(
+                bottom: DockedNavBar.listEndPadding(context),
+              ),
               child: Column(
                 children: [
                   PageTitle(title: tr(context).navProfile),
@@ -139,7 +132,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                               .map((v) => (v ?? '').toString().trim())
                               .firstWhere(
                                 (v) => v.isNotEmpty,
-                                orElse: () => 'Buyer',
+                                orElse: () => tl('Buyer'),
                               );
                       final photoUrl =
                           data?['photoUrl']?.toString() ?? user?.photoURL;
@@ -199,9 +192,8 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                   _activitySummary(),
                   const SizedBox(height: 20),
 
-                  // ---- Everything on the page, as plain rows in labelled
-                  // groups (no cards, no gear menu); notifications themselves
-                  // are behind the bell on Explore. ----
+                  // ---- The buyer's own options, as plain rows in labelled
+                  // groups (no cards). ----
                   ProfileSectionLabel(t.sectionActivity),
                   ProfileLinkTile(
                     icon: Icons.rate_review_outlined,
@@ -219,41 +211,6 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                     label: t.deliveryPickupPreferences,
                     onTap: () =>
                         _open(const BuyerFulfillmentPreferencesScreen()),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.notifications_none_rounded,
-                    label: t.notificationSettings,
-                    onTap: () => _open(const NotificationPreferencesScreen()),
-                  ),
-                  // Follows the phone until switched here.
-                  ProfileSwitchTile(
-                    icon: Icons.dark_mode_outlined,
-                    label: t.darkMode,
-                    value: AppColors.isDark,
-                    onChanged: ThemeController.instance.setDark,
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.manage_accounts_outlined,
-                    label: t.manageAccount,
-                    onTap: () => _open(const ManageAccountScreen()),
-                  ),
-                  ProfileSectionLabel(t.sectionSupport),
-                  ProfileLinkTile(
-                    icon: Icons.rate_review_outlined,
-                    label: t.sendFeedback,
-                    onTap: () => showFeedbackSheet(context),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.help_outline,
-                    label: t.helpSupport,
-                    onTap: () => _open(const HelpSupportScreen(farmer: false)),
-                  ),
-                  const SizedBox(height: 8),
-                  ProfileLinkTile(
-                    icon: Icons.logout,
-                    label: t.logOut,
-                    destructive: true,
-                    onTap: widget.onLogout,
                   ),
                 ],
               ),
@@ -279,13 +236,13 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
             if (orders > 0)
               (
                 orders,
-                orders == 1 ? 'Completed Order' : 'Completed Orders',
+                orders == 1 ? tl('Completed Order') : tl('Completed Orders'),
                 widget.onOpenCompletedOrders,
               ),
             if (reviews > 0)
               (
                 reviews,
-                reviews == 1 ? 'Review Given' : 'Reviews Given',
+                reviews == 1 ? tl('Review Given') : tl('Reviews Given'),
                 () => _open(const BuyerMyReviewsScreen()),
               ),
           ];

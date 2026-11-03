@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/location_permission_prompt.dart';
+import '../services/message_service.dart';
 import '../widgets/agri_dialog.dart';
+import '../widgets/glow_field.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../l10n/app_language.dart';
 
 // The chat composer and its attachment menu, shared by the Farmer and Buyer
 // chat screen (ChatScreen).
@@ -19,30 +24,50 @@ import '../theme/app_colors.dart';
 //  - Location: separate, requested only after the user confirms Share
 //    Location, and never sent automatically.
 
-enum ChatAttachment { camera, gallery, location }
+enum ChatAttachment { camera, gallery, recordVideo, chooseVideo, location }
 
-/// The + menu: Camera, Choose Photo, Share Location — a small floating menu
+/// The largest video a chat can send: about 30 seconds to a minute of
+/// phone video, enough to show produce or an animal, while keeping uploads
+/// quick and light on the other person's mobile data.
+const int kChatVideoMaxBytes = 20 * 1024 * 1024;
+
+/// The longest video the camera records for a chat.
+const Duration kChatVideoMaxDuration = Duration(seconds: 60);
+
+/// The + menu: Take Photo, Choose Photo, Record Video, Choose Video, then —
+/// under a line — Share Location — a small floating menu
 /// that opens upward from the + button ([plusButtonContext]).
 Future<ChatAttachment?> showChatAttachmentMenu(BuildContext plusButtonContext) {
   return showAgriPopupMenu<ChatAttachment>(
     anchorContext: plusButtonContext,
     upward: true,
     width: 196,
-    items: const [
+    items: [
       AgriMenuItem(
         value: ChatAttachment.camera,
         icon: Icons.camera_alt_outlined,
-        label: 'Camera',
+        label: tl('Take Photo'),
       ),
       AgriMenuItem(
         value: ChatAttachment.gallery,
         icon: Icons.photo_library_outlined,
-        label: 'Choose Photo',
+        label: tl('Choose Photo'),
+      ),
+      AgriMenuItem(
+        value: ChatAttachment.recordVideo,
+        icon: Icons.videocam_outlined,
+        label: tl('Record Video'),
+      ),
+      AgriMenuItem(
+        value: ChatAttachment.chooseVideo,
+        icon: Icons.video_library_outlined,
+        label: tl('Choose Video'),
       ),
       AgriMenuItem(
         value: ChatAttachment.location,
         icon: Icons.location_on_outlined,
-        label: 'Share Location',
+        label: tl('Share Location'),
+        dividerBefore: true,
       ),
     ],
   );
@@ -67,12 +92,11 @@ Future<XFile?> pickChatPhoto(BuildContext context, ImageSource source) async {
           e.code.contains('access_restricted');
       if (!denied) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              camera
-                  ? 'The camera isn\'t available right now.'
-                  : 'Your photos couldn\'t be opened right now.',
-            ),
+          appSnackBar(
+            camera
+                ? tl('The camera isn\'t available right now.')
+                : tl('Your photos couldn\'t be opened right now.'),
+            kind: MessageKind.error,
           ),
         );
         return null;
@@ -83,34 +107,101 @@ Future<XFile?> pickChatPhoto(BuildContext context, ImageSource source) async {
   }
 }
 
+/// Records or picks one video for a chat message, at most
+/// [kChatVideoMaxBytes] (one over it is turned away with a message). Null
+/// if the user cancelled, access was denied, or the video was too large.
+Future<XFile?> pickChatVideo(BuildContext context, ImageSource source) async {
+  final camera = source == ImageSource.camera;
+  while (true) {
+    try {
+      final video = await ImagePicker().pickVideo(
+        source: source,
+        maxDuration: kChatVideoMaxDuration,
+      );
+      if (video == null || !context.mounted) return null;
+      if (!chatVideoFits(await video.length())) {
+        if (!context.mounted) return null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(
+            tl(
+              'This video is over {0} MB. Choose a shorter one, or record up to 1 minute.',
+              [kChatVideoMaxBytes ~/ (1024 * 1024)],
+            ),
+            kind: MessageKind.warning,
+          ),
+        );
+        return null;
+      }
+      return video;
+    } on PlatformException catch (e) {
+      if (!context.mounted) return null;
+      final denied =
+          e.code.contains('access_denied') ||
+          e.code.contains('access_restricted');
+      if (!denied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          appSnackBar(
+            camera
+                ? tl('The camera isn\'t available right now.')
+                : tl('Your videos couldn\'t be opened right now.'),
+            kind: MessageKind.error,
+          ),
+        );
+        return null;
+      }
+      final retry = await _explainMediaDenied(
+        context,
+        camera: camera,
+        video: true,
+      );
+      if (!retry || !context.mounted) return null;
+    }
+  }
+}
+
+/// Whether a video of [bytes] may be sent in a chat.
+bool chatVideoFits(int bytes) => bytes <= kChatVideoMaxBytes;
+
 /// Access was denied: says why it's needed and how to allow it. True means
 /// try again.
 Future<bool> _explainMediaDenied(
   BuildContext context, {
   required bool camera,
+  bool video = false,
 }) async {
   final action = await showAgriDialog<String>(
     context: context,
     builder: (dialogContext) => AgriDialog(
       icon: camera ? Icons.no_photography_outlined : Icons.hide_image_outlined,
       tone: AgriTone.warning,
-      title: Text(camera ? 'Camera access is off' : 'Photo access is off'),
-      content: Text(
+      title: Text(
         camera
-            ? 'AgriTrade+ needs the camera to take a photo to send in this '
-                  'chat. Allow camera access in your device settings, then '
-                  'try again.'
-            : 'AgriTrade+ needs access to your photos to send one in this '
-                  'chat. Allow photo access in your device settings, then '
-                  'try again.',
+            ? tl('Camera access is off')
+            : video
+            ? tl('Video access is off')
+            : tl('Photo access is off'),
       ),
+      content: Text(switch ((camera, video)) {
+        (true, false) => tl(
+          'AgriTrade+ needs the camera to take a photo to send in this chat. Allow camera access in your device settings, then try again.',
+        ),
+        (true, true) => tl(
+          'AgriTrade+ needs the camera to record a video to send in this chat. Allow camera access in your device settings, then try again.',
+        ),
+        (false, false) => tl(
+          'AgriTrade+ needs access to your photos to send one in this chat. Allow photo access in your device settings, then try again.',
+        ),
+        (false, true) => tl(
+          'AgriTrade+ needs access to your videos to send one in this chat. Allow photo and video access in your device settings, then try again.',
+        ),
+      }),
       actions: [
         AgriDialogButton(
-          label: 'Try Again',
+          label: tl('Try Again'),
           onPressed: () => Navigator.pop(dialogContext, 'retry'),
         ),
         AgriDialogButton(
-          label: 'Open Settings',
+          label: tl('Open Settings'),
           kind: AgriButtonKind.primary,
           onPressed: () => Navigator.pop(dialogContext, 'settings'),
         ),
@@ -135,29 +226,30 @@ Future<Position?> getLocationToShare(
   final confirmed = await showAgriConfirm(
     context: context,
     icon: Icons.location_on_outlined,
-    title: 'Share your exact location?',
-    message:
-        'Your current location will be sent to $otherUserName in this chat '
-        'only — use it to coordinate delivery or pick-up. Your public '
-        'profile still shows only your general area.',
-    confirmLabel: 'Share Location',
+    title: tl('Share your exact location?'),
+    message: tl(
+      'Your current location will be sent to {0} in this chat only — use it to coordinate delivery or pick-up. Your public profile still shows only your general area.',
+      [otherUserName],
+    ),
+    confirmLabel: tl('Share Location'),
   );
   if (!confirmed || !context.mounted) return null;
 
   final granted = await maybeRequestLocationPermission(
     context,
-    title: 'Share your location',
-    message:
-        'AgriTrade+ needs location access to send your current position in '
-        'this chat. It\'s only read when you choose Share Location.',
+    title: tl('Share your location'),
+    message: tl(
+      'AgriTrade+ needs location access to send your current position in this chat. It\'s only read when you choose Share Location.',
+    ),
   );
   if (!granted || !context.mounted) return null;
 
   if (!await Geolocator.isLocationServiceEnabled()) {
     if (!context.mounted) return null;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Turn on location services to share your location.'),
+      appSnackBar(
+        tl('Turn on location services to share your location.'),
+        kind: MessageKind.warning,
       ),
     );
     return null;
@@ -190,31 +282,95 @@ class ChatMessagesLoadingBar extends StatelessWidget {
   );
 }
 
-/// Camera or Choose Photo, opening down from [anchorContext] — the farmer's
-/// "Send a photo" under a buyer's health-certificate request. Null if
-/// dismissed.
+/// Take Photo or Choose Photo — no video or location — opening from
+/// [anchorContext]: the farmer's Attach on a buyer's health-certificate
+/// request ([CertificateRequestRow]). Null if dismissed.
 Future<ImageSource?> showChatPhotoMenu(BuildContext anchorContext) {
   return showAgriPopupMenu<ImageSource>(
     anchorContext: anchorContext,
     width: 196,
-    items: const [
+    items: [
       AgriMenuItem(
         value: ImageSource.camera,
         icon: Icons.camera_alt_outlined,
-        label: 'Camera',
+        label: tl('Take Photo'),
       ),
       AgriMenuItem(
         value: ImageSource.gallery,
         icon: Icons.photo_library_outlined,
-        label: 'Choose Photo',
+        label: tl('Choose Photo'),
       ),
     ],
   );
 }
 
+/// Under a buyer's health-certificate request, on the farmer's side: a
+/// compact row — a document icon, "Health certificate requested", and an
+/// outlined Attach — set apart from the messages (white, thin grey border,
+/// no bubble). Attach opens Take Photo / Choose Photo ([showChatPhotoMenu]).
+class CertificateRequestRow extends StatelessWidget {
+  /// Gets the Attach button's context, to anchor the menu. Null shows it
+  /// off (e.g. while something is sending).
+  final ValueChanged<BuildContext>? onAttach;
+
+  const CertificateRequestRow({super.key, required this.onAttach});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onAttach != null;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 300),
+      padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.grey(300)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.description_outlined, size: 17, color: AppColors.brand),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              tl('Health certificate requested'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: AppColors.text),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Builder(
+            builder: (buttonContext) => OutlinedButton(
+              key: const Key('certificateAttach'),
+              onPressed: enabled ? () => onAttach!(buttonContext) : null,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.brand,
+                side: BorderSide(
+                  color: enabled ? AppColors.brand : AppColors.grey(300),
+                ),
+                minimumSize: const Size(0, 30),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: const StadiumBorder(),
+              ),
+              child: Text(
+                tl('Attach'),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A one-tap message or action in a chat, as a small pill: the buyer's
-/// "Can I see the animal's health certificate?" over the message box, the
-/// farmer's "Send a photo" under that request.
+/// "Can I see the animal's health certificate?" over the message box.
 class ChatSuggestionChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -268,8 +424,15 @@ class ChatSuggestionChip extends StatelessWidget {
   }
 }
 
+/// From how many characters the message box shows its count ("900/1000").
+const int kChatCounterFrom = 900;
+
 /// The message box: one + button for attachments, a wide text field that
 /// grows as the user types more lines, and Send.
+///
+/// The text may be up to [MessageService.maxTextLength] characters, its
+/// leading and trailing spaces not counted. Near the limit a count shows
+/// under the box; over it the count turns red and Send is off.
 class ChatComposerBar extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -290,61 +453,185 @@ class ChatComposerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final length = value.text.trim().length;
+        const max = MessageService.maxTextLength;
+        final tooLong = length > max;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _bar(
+              canSend: !sending && !tooLong,
+              // While a message is being typed the + steps aside, giving
+              // the box its room; it comes back once the box is empty.
+              showAttach: length == 0,
+            ),
+            if (length >= kChatCounterFrom)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, right: 52),
+                child: Text(
+                  '$length/$max',
+                  key: const Key('chatCharacterCount'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: tooLong ? FontWeight.w700 : FontWeight.w500,
+                    color: tooLong
+                        ? AppColors.tone(Colors.red, 700)
+                        : AppColors.grey(600),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _bar({required bool canSend, required bool showAttach}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Builder(
-          builder: (buttonContext) => IconButton(
-            tooltip: 'Attach',
-            onPressed: sending ? null : () => onAttach(buttonContext),
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 42),
-            padding: EdgeInsets.zero,
-            icon: Icon(
-              Icons.add_circle_outline_rounded,
-              color: AppColors.brand,
-              size: 26,
-            ),
+        // Always in the row (only its content changes), so the text field
+        // keeps its place — and the keyboard — as the + comes and goes.
+        AnimatedSize(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 160),
+            child: showAttach
+                ? Row(
+                    key: const ValueKey('attach'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Builder(
+                        builder: (buttonContext) => IconButton(
+                          tooltip: tl('Attach'),
+                          onPressed: sending
+                              ? null
+                              : () => onAttach(buttonContext),
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 42,
+                          ),
+                          padding: EdgeInsets.zero,
+                          icon: Icon(
+                            Icons.add_circle_outline_rounded,
+                            color: AppColors.brand,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                    ],
+                  )
+                : const SizedBox(key: ValueKey('noAttach'), height: 42),
           ),
         ),
-        const SizedBox(width: 2),
+        // The forms' field (as on Log In): a thin grey outline at rest, and
+        // while typing no outline but the soft green glow.
         Expanded(
-          child: TextField(
-            controller: controller,
-            minLines: 1,
-            maxLines: 6,
-            keyboardType: TextInputType.multiline,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              hintText: hintText,
-              isDense: true,
-              filled: true,
-              fillColor: AppColors.adapt(const Color(0xFFF4F6F2)),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 11,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(22),
-                borderSide: BorderSide.none,
-              ),
+          child: FormFieldGlow(
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(fontSize: 14),
+              minLines: 1,
+              maxLines: 6,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: AppTheme.plainFieldDecoration(hint: hintText),
             ),
           ),
         ),
         const SizedBox(width: 8),
-        Material(
-          color: sending ? AppColors.grey(400) : AppColors.brandFill,
-          shape: const CircleBorder(),
-          child: InkWell(
-            onTap: sending ? null : onSend,
-            customBorder: const CircleBorder(),
-            child: const SizedBox(
-              width: 42,
-              height: 42,
-              child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+        Semantics(
+          button: true,
+          enabled: canSend,
+          label: tl('Send'),
+          child: Material(
+            color: canSend ? AppColors.brandFill : AppColors.grey(400),
+            shape: const CircleBorder(),
+            child: InkWell(
+              key: const Key('chatSend'),
+              onTap: canSend ? onSend : null,
+              customBorder: const CircleBorder(),
+              child: const SizedBox(
+                width: 42,
+                height: 42,
+                child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Over the message box while a photo or video goes up: what is being sent
+/// and how far along, from the real upload (so it moves with the signal).
+/// At 100% it says "Finishing…" while the message itself is saved.
+class ChatUploadProgress extends StatelessWidget {
+  final bool video;
+
+  /// 0 to 1.
+  final double progress;
+
+  const ChatUploadProgress({
+    super.key,
+    required this.video,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (progress * 100).clamp(0, 100).floor();
+    final finishing = percent >= 100;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey(200)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                video ? Icons.videocam_outlined : Icons.image_outlined,
+                size: 18,
+                color: AppColors.textStrong,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  finishing
+                      ? tl('Finishing…')
+                      : video
+                      ? tl('Sending video… {0}%', [percent])
+                      : tl('Sending photo… {0}%', [percent]),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.text),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              value: finishing ? null : progress,
+              color: AppColors.brandFill,
+              backgroundColor: AppColors.grey(200),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

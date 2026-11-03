@@ -29,11 +29,9 @@ import 'admin_overview_widgets.dart'
 const double _marketCardBodyHeight = 288;
 
 // ---- Top-Selling Products (ranked horizontal bars, top 5) ----
-/// What buyers actually bought most: products ranked by how many completed
-/// orders they had, with the sales value and quantity sold. Ranked by
-/// orders, as the Farmer's Best-Selling Products, the Demand Forecast and
-/// the Demand Heatmap count demand — not by quantity, which comes in
-/// different units (kg, pieces, heads) that cannot be compared.
+/// What buyers actually bought most: products ranked by quantity sold,
+/// keeping unlike units in separate rows and showing completed orders as
+/// supporting context.
 class AdminTopProductsCard extends StatelessWidget {
   final List<({String name, int orders, num revenue, num quantity})> products;
   const AdminTopProductsCard({super.key, required this.products});
@@ -41,14 +39,14 @@ class AdminTopProductsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
-    final maxOrders = products.fold<int>(
+    final maxQuantity = products.fold<num>(
       0,
-      (max, p) => p.orders > max ? p.orders : max,
+      (max, p) => p.quantity > max ? p.quantity : max,
     );
 
     return AdminChartCard(
       title: 'Top-Selling Products',
-      subtitle: 'Ranked by number of completed orders, all time',
+      subtitle: 'Ranked by quantity sold; units shown',
       bodyHeight: _marketCardBodyHeight,
       child: products.isEmpty
           ? const AdminChartEmpty(
@@ -59,7 +57,7 @@ class AdminTopProductsCard extends StatelessWidget {
               children: [
                 for (var i = 0; i < products.length; i++) ...[
                   if (i > 0) const SizedBox(height: 8),
-                  _row(c, i, products[i], maxOrders),
+                  _row(c, i, products[i], maxQuantity),
                 ],
               ],
             ),
@@ -70,12 +68,15 @@ class AdminTopProductsCard extends StatelessWidget {
     AdminPalette c,
     int index,
     ({String name, int orders, num revenue, num quantity}) p,
-    int maxOrders,
+    num maxQuantity,
   ) {
     final isTop = index == 0;
-    final barValue = maxOrders <= 0
+    final barValue = maxQuantity <= 0
         ? 0.0
-        : (p.orders / maxOrders).clamp(0.03, 1.0);
+        : (p.quantity / maxQuantity).clamp(0.03, 1.0);
+    final unitMatch = RegExp(r'^(.*) \(([^()]*)\)$').firstMatch(p.name);
+    final productName = unitMatch?.group(1) ?? p.name;
+    final unit = unitMatch?.group(2) ?? unitForProductName(productName);
     // The same green steps as the charts above: strongest for #1.
     final strength = products.length == 1
         ? 1.0
@@ -110,7 +111,7 @@ class AdminTopProductsCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      p.name,
+                      productName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -143,11 +144,11 @@ class AdminTopProductsCard extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                '${formatStock(p.quantity, unitForProductName(p.name))} sold'
+                '${formatStock(p.quantity, unit)} sold'
                 ' · ${formatPeso(p.revenue)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: c.textSecondary, fontSize: 11),
+                style: TextStyle(color: c.textSecondary, fontSize: 12),
               ),
             ],
           ),
@@ -206,8 +207,19 @@ class AdminPriceTrendCard extends StatefulWidget {
   State<AdminPriceTrendCard> createState() => _AdminPriceTrendCardState();
 }
 
-class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
+class _AdminPriceTrendCardState extends State<AdminPriceTrendCard>
+    with SingleTickerProviderStateMixin {
   String? _selected;
+  late final AnimationController _chartReveal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..forward();
+
+  @override
+  void dispose() {
+    _chartReveal.dispose();
+    super.dispose();
+  }
 
   bool _hasSales(String name) =>
       (widget.weeklyPricesByCommodity[name] ?? const []).any((v) => v != null);
@@ -240,8 +252,8 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
     final latest = weekly.lastWhere((v) => v != null, orElse: () => null);
 
     return AdminChartCard(
-      title: 'Price Trend vs. Baseline',
-      subtitle: 'Weekly average price in completed orders',
+      title: 'Average Price vs. Admin Baseline',
+      subtitle: 'Weekly comparison from completed orders',
       bodyHeight: _marketCardBodyHeight,
       // Level with the title on the right, as on Market Demand and Market
       // Change Analysis.
@@ -253,7 +265,10 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
               commodities: names,
               selected: selected,
               hint: 'Search product',
-              onSelected: (name) => setState(() => _selected = name),
+              onSelected: (name) {
+                setState(() => _selected = name);
+                _chartReveal.forward(from: 0);
+              },
             ),
       trailingStackBelow: 560,
       child: selected == null
@@ -268,7 +283,17 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
                 const SizedBox(height: 14),
                 Expanded(
                   child: hasData
-                      ? LineChart(_chartData(c, weekly, baseline))
+                      ? AnimatedBuilder(
+                          animation: _chartReveal,
+                          builder: (context, _) => LineChart(
+                            _chartData(
+                              c,
+                              weekly,
+                              baseline,
+                              _chartReveal.value,
+                            ),
+                          ),
+                        )
                       : const AdminChartEmpty(
                           icon: Icons.show_chart,
                           message:
@@ -296,13 +321,13 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
       children: [
         marker,
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: c.textSecondary, fontSize: 12)),
+        Text(label, style: TextStyle(color: c.textSecondary, fontSize: 13)),
         const SizedBox(width: 6),
         Text(
           value,
           style: TextStyle(
             color: c.textPrimary,
-            fontSize: 12.5,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -324,7 +349,7 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
         ),
         figure(
           Container(width: 14, height: 3, color: c.green),
-          'Latest average',
+          'Average price',
           latest == null ? '—' : formatPriceWithUnit(latest, unit),
         ),
         figure(
@@ -352,16 +377,31 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
     AdminPalette c,
     List<double?> weekly,
     double? baseline,
+    double reveal,
   ) {
-    final spots = <FlSpot>[
-      for (var i = 0; i < weekly.length; i++)
-        if (weekly[i] != null) FlSpot(i.toDouble(), weekly[i]!),
-    ];
-    final values = [...spots.map((s) => s.y), ?baseline];
-    final top = values.reduce((a, b) => a > b ? a : b);
-    final axis = priceTrendAxis(top);
     final lastIndex = (weekly.length - 1).toDouble();
     final maxX = lastIndex < 1 ? 1.0 : lastIndex;
+    final revealX = maxX * reveal;
+    final spots = <FlSpot>[
+      for (var i = 0; i < weekly.length; i++)
+        if (weekly[i] != null && i <= revealX)
+          FlSpot(i.toDouble(), weekly[i]!),
+    ];
+    // Add the interpolated leading edge so the comparison draws smoothly
+    // from left to right instead of revealing one whole weekly point at once.
+    final leftIndex = revealX.floor();
+    final rightIndex = (leftIndex + 1).clamp(0, weekly.length - 1);
+    if (revealX > leftIndex && rightIndex > leftIndex) {
+      final left = weekly[leftIndex];
+      final right = weekly[rightIndex];
+      if (left != null && right != null) {
+        spots.add(FlSpot(revealX, left + (right - left) * (revealX - leftIndex)));
+      }
+    }
+    // Keep the scale steady while the line is being revealed.
+    final values = [...weekly.whereType<double>(), ?baseline];
+    final top = values.reduce((a, b) => a > b ? a : b);
+    final axis = priceTrendAxis(top);
     final axisStyle = TextStyle(color: c.textSecondary, fontSize: 11);
     final unit = unitForProductName(_selected ?? '');
     String weekLabel(int i) {
@@ -507,8 +547,9 @@ class _AdminPriceTrendCardState extends State<AdminPriceTrendCard> {
         if (baseline != null)
           LineChartBarData(
             spots: [
-              for (var i = 0; i <= maxX.round(); i++)
+              for (var i = 0; i <= revealX.floor(); i++)
                 FlSpot(i.toDouble(), baseline),
+              if (revealX > revealX.floor()) FlSpot(revealX, baseline),
             ],
             isCurved: false,
             color: c.textSecondary,

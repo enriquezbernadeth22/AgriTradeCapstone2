@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -738,12 +739,11 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
       );
       navigator.pop();
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            audience == 'all'
-                ? 'Sent to farmers and buyers.'
-                : 'Sent to farmers.',
-          ),
+        appSnackBar(
+          audience == 'all'
+              ? 'Sent to farmers and buyers.'
+              : 'Sent to farmers.',
+          kind: MessageKind.success,
         ),
       );
     } catch (_) {

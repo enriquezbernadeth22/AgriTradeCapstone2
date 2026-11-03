@@ -2,6 +2,7 @@ import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_theme.dart';
@@ -9,6 +10,7 @@ import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The reviews of one product a buyer may see — those not removed by
 /// moderation — newest first. Shared by the Product Details preview and
@@ -105,22 +107,23 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
       builder: (dialogContext) => AgriDialog(
         icon: Icons.flag_outlined,
         tone: AgriTone.warning,
-        title: const Text('Report this review?'),
+        title: Text(tl('Report this review?')),
         content: TextField(
           controller: controller,
+          style: const TextStyle(fontSize: 14),
           minLines: 2,
           maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Tell us what is wrong with this review.',
+          decoration: InputDecoration(
+            hintText: tl('Tell us what is wrong with this review.'),
           ),
         ),
         actions: [
           AgriDialogButton(
-            label: 'Cancel',
+            label: tl('Cancel'),
             onPressed: () => Navigator.of(dialogContext).pop(false),
           ),
           AgriDialogButton(
-            label: 'Report',
+            label: tl('Report'),
             kind: AgriButtonKind.primary,
             onPressed: () => Navigator.of(dialogContext).pop(true),
           ),
@@ -149,12 +152,18 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review reported for admin review.')),
+        appSnackBar(
+          tl('Review reported for admin review.'),
+          kind: MessageKind.success,
+        ),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not report this review.')),
+        appSnackBar(
+          tl('Could not report this review.'),
+          kind: MessageKind.error,
+        ),
       );
     }
   }
@@ -298,7 +307,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
             ),
             if (canReport)
               IconButton(
-                tooltip: 'Report review',
+                tooltip: tl('Report review'),
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _reportReview(doc.id, review),
                 icon: Icon(
@@ -318,7 +327,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
               Icon(Icons.verified_outlined, size: 14, color: AppColors.brand),
               SizedBox(width: 4),
               Text(
-                'Verified Purchase',
+                tl('Verified Purchase'),
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -350,7 +359,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Reply from the farmer',
+                  tl('Reply from the farmer'),
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -378,7 +387,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: const AgriAppBar(title: 'Buyer Reviews'),
+      appBar: AgriAppBar(title: tl('Buyer Reviews')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _reviews,
         builder: (context, snapshot) {
@@ -390,20 +399,20 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Could not load reviews.',
+                tl('Could not load reviews.'),
                 style: TextStyle(color: AppColors.grey(700)),
               ),
             );
           }
           final docs = visibleProductReviews(snapshot.data);
           if (docs.isEmpty) {
-            return const Center(
+            return Center(
               child: AgriEmptyState(
                 icon: Icons.rate_review_outlined,
-                title: 'No reviews yet',
-                subtitle:
-                    'Be the first to review this product after completing '
-                    'an order.',
+                title: tl('No reviews yet'),
+                subtitle: tl(
+                  'Be the first to review this product after completing an order.',
+                ),
                 padding: EdgeInsets.all(32),
               ),
             );
@@ -449,7 +458,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                         child: Text(
                           docs.length == 1
                               ? '(1 review)'
-                              : '(${docs.length} reviews)',
+                              : tl('({0} reviews)', [docs.length]),
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.grey(700),

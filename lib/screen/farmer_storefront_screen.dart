@@ -9,6 +9,7 @@ import '../widgets/profile_avatar.dart';
 import '../widgets/save_product_button.dart';
 import 'product_detail_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// A farmer's public profile, as a buyer sees it: photo, name, general
 /// location and Verified Farmer badge, then their active listings in a
@@ -74,7 +75,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
           }
           final profile = profileSnap.data?.data();
           if (profileSnap.hasError || profile == null) {
-            return const Center(child: Text('Farmer profile is unavailable.'));
+            return Center(child: Text(tl('Farmer profile is unavailable.')));
           }
 
           return ListView(
@@ -93,7 +94,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
   }
 
   Widget _header(Map<String, dynamic> profile) {
-    final name = (profile['name'] ?? profile['fullName'] ?? 'Farmer')
+    final name = (profile['name'] ?? profile['fullName'] ?? tl('Farmer'))
         .toString();
     // General area only — the public profile never holds an exact location.
     final location = [profile['barangay'], profile['municipality']]
@@ -155,7 +156,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
                 Icon(Icons.verified_rounded, size: 15, color: AppColors.brand),
                 SizedBox(width: 5),
                 Text(
-                  'Verified Farmer',
+                  tl('Verified Farmer'),
                   style: TextStyle(
                     color: AppColors.brand,
                     fontSize: 12,
@@ -197,7 +198,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
           );
         }
         if (productSnap.hasError) {
-          return _note('Could not load this farmer’s products.');
+          return _note(tl('Could not load this farmer’s products.'));
         }
         final products = (productSnap.data?.docs ?? const [])
             .where(
@@ -210,10 +211,13 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Products (${products.length})', style: AppTheme.heading(17)),
+            Text(
+              tl('Products ({0})', [products.length]),
+              style: AppTheme.heading(17),
+            ),
             const SizedBox(height: 12),
             if (products.isEmpty)
-              _note('No active products right now.')
+              _note(tl('No active products right now.'))
             else
               _grid(products),
           ],

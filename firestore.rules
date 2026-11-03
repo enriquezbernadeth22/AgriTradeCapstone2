@@ -61,6 +61,28 @@ service cloud.firestore {
         get(userPath(uid)).data.get('approvalStatus', 'pending') == 'approved';
     }
 
+    // The price on a new order must be the listing's: the retail price, or
+    // the wholesale price once the quantity reaches its minimum. The same
+    // rule as PricingTierService, so a changed app cannot name its own price.
+    function orderPriceMatchesListing(productId) {
+      let order = request.resource.data;
+      let product = get(/databases/$(database)/documents/products/$(productId)).data;
+      let retail = product.get('retailPrice', null) != null
+        ? product.retailPrice
+        : product.get('price', 0);
+      let wholesale = product.get('wholesalePrice', null);
+      let minimum = product.get('wholesaleMinimumQuantity', null);
+      return order.pricePerUnit is number &&
+        order.pricePerUnit > 0 &&
+        order.total == order.pricePerUnit * order.quantity &&
+        (order.pricePerUnit == retail ||
+          (product.get('wholesaleEnabled', true) == true &&
+            wholesale != null && minimum != null &&
+            wholesale > 0 && minimum > 0 &&
+            order.quantity >= minimum &&
+            order.pricePerUnit == wholesale));
+    }
+
     function canReserveProductStock(productId) {
       let orderId = request.resource.data.get('lastOrderId', '');
       let orderPath = /databases/$(database)/documents/orders/$(orderId);
@@ -213,6 +235,9 @@ service cloud.firestore {
           request.resource.data.get('reviewCount', null) == resource.data.get('reviewCount', null) &&
           request.resource.data.get('trustedBuyer', null) == resource.data.get('trustedBuyer', null) &&
           request.resource.data.get('trustedBuyerReviewCount', null) == resource.data.get('trustedBuyerReviewCount', null) &&
+          // Cleared only by the functions, once the password has changed.
+          request.resource.data.get('mustChangePassword', null) == resource.data.get('mustChangePassword', null) &&
+          request.resource.data.get('mustChangePasswordSince', null) == resource.data.get('mustChangePasswordSince', null) &&
           request.resource.data.get('identityVerified', null) == resource.data.get('identityVerified', null) &&
           request.resource.data.get('identityVerifiedBy', null) == resource.data.get('identityVerifiedBy', null) &&
           request.resource.data.get('identityVerifiedAt', null) == resource.data.get('identityVerifiedAt', null) &&
@@ -421,7 +446,11 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
           request.resource.data.get('likes', {}).diff(resource.data.get('likes', {}))
             .affectedKeys().hasOnly([request.auth.uid]) &&
-          request.resource.data.get('likes', {}).get(request.auth.uid, false) is bool;
+          // Each person's own reaction (held on a message): one of the five
+          // emoji, or true from before reactions (a like).
+          (request.resource.data.get('likes', {}).get(request.auth.uid, false) is bool ||
+            request.resource.data.get('likes', {}).get(request.auth.uid, '') in
+              ['heart', 'like', 'wow', 'sad', 'angry']);
       }
 
       match /typing/{uid} {
@@ -455,6 +484,7 @@ service cloud.firestore {
         && request.resource.data.quantity is number
         && request.resource.data.quantity > 0
         && request.resource.data.productId is string
+        && orderPriceMatchesListing(request.resource.data.productId)
         && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.farmerId == request.resource.data.sellerId
         && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.get('isArchived', false) == false
         && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.get('isSuspended', false) == false
@@ -481,6 +511,16 @@ service cloud.firestore {
           // would skip the coverage check made when the order was placed.
           'buyerName', 'buyerContact', 'buyerAddress', 'neededBy', 'updatedAt'
         ]);
+
+      // Buyer changes their mind before the farmer has answered. The
+      // reserved stock is returned by the handleOrderReschedule Cloud Function.
+      allow update: if isBuyer()
+        && resource.data.buyerId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelReason', 'cancelledAt', 'updatedAt'])
+        && request.resource.data.cancelReason == 'buyer'
+        && request.resource.data.cancelledAt == request.time;
 
       // Buyer can only attach review markers after completion.
       allow update: if isBuyer()
@@ -513,15 +553,35 @@ service cloud.firestore {
         && resource.data.sellerId == request.auth.uid
         && request.resource.data.buyerId == resource.data.buyerId
         && request.resource.data.sellerId == resource.data.sellerId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'completedBy'])
         && (
           (resource.data.status == 'pending' &&
             (request.resource.data.status == 'confirmed' || request.resource.data.status == 'rejected'))
           ||
           (resource.data.status == 'confirmed' && request.resource.data.status == 'shipped')
           ||
-          (resource.data.status == 'shipped' && request.resource.data.status == 'completed')
+          // The buyer confirms first: "Order Received". The farmer may
+          // complete it only once the buyer has had 3 days to do so, which
+          // keeps an order from hanging on a buyer who never opens the app.
+          // The same period as kBuyerConfirmWindow in order_format.dart.
+          (resource.data.status == 'shipped' && request.resource.data.status == 'completed' &&
+            request.resource.data.completedBy == 'farmer' &&
+            request.time >= resource.data.get('shippedAt', resource.data.updatedAt) + duration.value(3, 'd'))
         );
+
+      // Seller cannot fill a confirmed order after all. The buyer is told the
+      // reason, and the reserved stock is returned by the
+      // handleOrderReschedule Cloud Function.
+      allow update: if isApprovedFarmer()
+        && resource.data.sellerId == request.auth.uid
+        && resource.data.status == 'confirmed'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelReason', 'cancelNote', 'cancelledAt', 'updatedAt'])
+        && request.resource.data.cancelReason == 'farmer'
+        && request.resource.data.cancelNote is string
+        && request.resource.data.cancelNote.size() > 0
+        && request.resource.data.cancelNote.size() <= 200
+        && request.resource.data.cancelledAt == request.time;
 
       // ---- Delay / reschedule (confirmed orders only) ----
       // The same order throughout: none of these may touch its buyer,
@@ -793,20 +853,14 @@ service cloud.firestore {
     }
 
     // ---- Admin-managed baseline commodity prices ----
-    // The Admin Portal's single active session (functions/admin_session.js
-    // writes it, through the Admin SDK). An Admin can read only their own
-    // record, and change nothing in it except to say the session is still
-    // open; nobody else has any access.
+    // Admin session records (functions/admin_session.js writes them through
+    // the Admin SDK). An Admin can read only their own records; session
+    // changes are written by the callable function, never by the client.
     match /adminSessions/{adminUid} {
       allow read: if request.auth != null &&
         request.auth.uid == adminUid &&
         isAdmin();
-      allow update: if request.auth != null &&
-        request.auth.uid == adminUid &&
-        isAdmin() &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['lastActiveAt']);
-      allow create, delete: if false;
+      allow write: if false;
 
       match /history/{sessionId} {
         allow read: if request.auth != null &&
@@ -878,7 +932,10 @@ service cloud.firestore {
     match /searchEvents/{eventId} {
       allow create: if isBuyer() &&
         request.resource.data.userId == request.auth.uid;
-      allow read: if marketplaceUser();
+      // Who searched for what is private: a buyer reads their own, the Admin
+      // the demand heatmap. Everyone else has the anonymous searchTrends.
+      allow read: if marketplaceUser() &&
+        (isAdmin() || resource.data.userId == request.auth.uid);
       allow update, delete: if false;
     }
 

@@ -4,15 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../l10n/tr.dart';
 import 'agri_app_bar.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 /// The shared frame of the Farmer Dashboard's market cards (Best-Selling
 /// Products, Top Buyer Locations, Current Market Average):
 /// the title with a line under it saying what is counted, an optional
-/// [tag] on the right (the month shown), then the card's own content.
+/// [tag] on the right (the month shown) or a [tagWidget] in its place, then
+/// the card's own content.
 class MarketCardShell extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? tag;
+  final Widget? tagWidget;
   final Widget child;
 
   const MarketCardShell({
@@ -21,6 +24,7 @@ class MarketCardShell extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.tag,
+    this.tagWidget,
   });
 
   @override
@@ -72,27 +76,9 @@ class MarketCardShell extends StatelessWidget {
                   ],
                 ),
               ),
-              if (tag != null) ...[
+              if (tagWidget != null || tag != null) ...[
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceAlt,
-                    border: AppColors.cardBorder,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    tag!,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.brand,
-                    ),
-                  ),
-                ),
+                tagWidget ?? MarketCardTag(label: tag!),
               ],
             ],
           ),
@@ -104,12 +90,48 @@ class MarketCardShell extends StatelessWidget {
   }
 }
 
-/// What a market card shows when it has nothing to list yet.
+/// The small label at the top right of a market card.
+class MarketCardTag extends StatelessWidget {
+  final String label;
+
+  const MarketCardTag({super.key, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        border: AppColors.cardBorder,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.montserrat(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.brand,
+        ),
+      ),
+    );
+  }
+}
+
+/// What a market card shows when it has nothing to list yet, with an
+/// optional small action under the message.
 class MarketCardEmpty extends StatelessWidget {
   final IconData icon;
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
-  const MarketCardEmpty({super.key, required this.icon, required this.message});
+  const MarketCardEmpty({
+    super.key,
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,10 +145,9 @@ class MarketCardEmpty extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, size: 28, color: AppColors.brand.withValues(alpha: 0.45)),
+          Icon(icon, size: 28, color: AppColors.grey(600)),
           const SizedBox(height: 8),
-          Text(
-            message,
+          Text(tl(message),
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 12.5,
@@ -134,6 +155,23 @@ class MarketCardEmpty extends StatelessWidget {
               color: AppColors.grey(600),
             ),
           ),
+          if (actionLabel != null) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brand,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: const Size(0, 34),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: GoogleFonts.montserrat(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Text(actionLabel!),
+            ),
+          ],
         ],
       ),
     );

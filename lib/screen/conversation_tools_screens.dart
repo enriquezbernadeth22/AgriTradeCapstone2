@@ -4,11 +4,13 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/chat_photo_viewer.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/app_search_bar.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_language.dart';
 
 // Conversation tools opened from Conversation Info, shared by the Farmer
 // and Buyer chats:
@@ -221,7 +223,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
         titleWidget: Padding(
           padding: const EdgeInsets.only(right: 12),
           child: AppSearchBar(
-            hint: 'Search this conversation',
+            hint: tl('Search this conversation'),
             controller: _query,
             autofocus: true,
             onClear: _query.clear,
@@ -232,7 +234,7 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
         future: _messages,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return _hint('Couldn\'t load messages. Check your connection.');
+            return _hint(tl('Couldn\'t load messages. Check your connection.'));
           }
           if (!snapshot.hasData) {
             return Center(
@@ -242,8 +244,9 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
           final query = _query.text.trim().toLowerCase();
           if (query.isEmpty) {
             return _hint(
-              'Search for words in your messages with '
-              '${widget.otherDisplayName}.',
+              tl('Search for words in your messages with {0}.', [
+                widget.otherDisplayName,
+              ]),
             );
           }
           final results = snapshot.data!
@@ -254,7 +257,9 @@ class _ConversationSearchScreenState extends State<ConversationSearchScreen> {
                     .contains(query),
               )
               .toList();
-          if (results.isEmpty) return _hint('No messages match "$query".');
+          if (results.isEmpty) {
+            return _hint(tl('No messages match "{0}".', [query]));
+          }
           return ListView.separated(
             itemCount: results.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
@@ -350,13 +355,13 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: const AgriAppBar(title: 'Photos'),
+      appBar: AgriAppBar(title: tl('Photos')),
       body: FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
         future: _messages,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Text('Couldn\'t load photos. Check your connection.'),
+            return Center(
+              child: Text(tl('Couldn\'t load photos. Check your connection.')),
             );
           }
           if (!snapshot.hasData) {
@@ -373,9 +378,10 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
             return Center(
               child: AgriEmptyState(
                 icon: Icons.photo_library_outlined,
-                title: 'No photos yet',
-                subtitle:
-                    'Photos you and $otherDisplayName send will appear here.',
+                title: tl('No photos yet'),
+                subtitle: tl('Photos you and {0} send will appear here.', [
+                  otherDisplayName,
+                ]),
                 padding: const EdgeInsets.all(32),
               ),
             );
@@ -398,7 +404,7 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => _PhotoPreview(url: url, caption: caption),
+                    builder: (_) => ChatPhotoViewer(url: url, caption: caption),
                   ),
                 ),
                 child: Hero(
@@ -419,51 +425,6 @@ class _ConversationPhotosScreenState extends State<ConversationPhotosScreen> {
             },
           );
         },
-      ),
-    );
-  }
-}
-
-/// A shared photo, full screen; pinch to zoom.
-class _PhotoPreview extends StatelessWidget {
-  final String url;
-  final String caption;
-
-  const _PhotoPreview({required this.url, required this.caption});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.textStrong,
-      appBar: AppBar(
-        backgroundColor: AppColors.textStrong,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          caption,
-          style: GoogleFonts.montserrat(fontSize: 13, color: Colors.white70),
-        ),
-      ),
-      body: Center(
-        child: InteractiveViewer(
-          minScale: 1,
-          maxScale: 5,
-          child: Hero(
-            tag: url,
-            child: Image.network(
-              url,
-              fit: BoxFit.contain,
-              loadingBuilder: (context, child, progress) => progress == null
-                  ? child
-                  : const CircularProgressIndicator(color: Colors.white),
-              errorBuilder: (_, _, _) => const Icon(
-                Icons.broken_image_outlined,
-                color: Colors.white54,
-                size: 48,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
