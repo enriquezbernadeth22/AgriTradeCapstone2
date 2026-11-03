@@ -618,11 +618,21 @@ const Map<String, String> kTagalogStrings = {
   'Could not send video. Check your internet connection and try again. ({0})':
       'Hindi naipadala ang video. Suriin ang iyong internet connection at subukan ulit. ({0})',
   'Video': 'Video',
+  'My Activity': 'Aking Aktibidad',
+  'Purchase History': 'Kasaysayan ng Pagbili',
+  'Preferences & Account': 'Mga Kagustuhan at Account',
+  'Appearance': 'Itsura',
+  'Support & More': 'Tulong at Iba Pa',
+  'Easier on the eyes at night. Kept on this phone.':
+      'Mas magaan sa mata sa gabi. Naka-save sa phone na ito.',
+  'Leave registration?': 'Umalis sa registration?',
+  'What you have filled in will be lost.': 'Mawawala ang mga nailagay mo.',
+  'Keep Editing': 'Ituloy ang Pag-edit',
+  'The app\'s screens change right away.':
+      'Agad magbabago ang mga screen ng app.',
+  'Default': 'Default',
   'No reference price, listings or sales for this product yet.':
       'Wala pang reference price, listing, o benta para sa produktong ito.',
-  'Fresh from Laurel farms': 'Sariwa mula sa mga bukid ng Laurel',
-  'Buy straight from the farmers who grow it.':
-      'Bumili nang direkta sa mga magsasakang nagtanim nito.',
   'Delivers to you': 'Nagde-deliver sa iyo',
   'Auto-filled': 'Kusang napupunan',
   'Tap a product to use it as your Product Name.':

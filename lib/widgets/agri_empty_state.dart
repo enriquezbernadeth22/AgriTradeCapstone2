@@ -3,23 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/app_colors.dart';
 
-/// A crate of fresh produce (the art of the old role cards), for empty
-/// product and order lists.
-const String kEmptyProduceArt = 'assets/images/onboarding/role_buyer.png';
-
 /// The one "nothing here yet" look for the mobile app: a small dark-green
-/// icon on a pale-green circle (or, with [art], a picture), a title, an
-/// optional line under it and an optional action. Every empty list — orders, messages, notifications,
+/// icon on a pale-green circle, a title, an optional line under it and an
+/// optional action. Every empty list — orders, messages, notifications,
 /// reviews, search results — uses this, so they all match.
 class AgriEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
   final Widget? action;
-
-  /// A picture shown in place of the icon, for the empty pages a buyer or
-  /// farmer sees most (no products, no orders): see [kEmptyProduceArt].
-  final String? art;
 
   /// Space around the content. The default suits a full page; a list
   /// inside a card passes something tighter.
@@ -31,15 +23,8 @@ class AgriEmptyState extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.action,
-    this.art,
     this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
   });
-
-  Widget _iconCircle() => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: AppColors.tint, shape: BoxShape.circle),
-    child: Icon(icon, size: 30, color: AppColors.brand),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -48,17 +33,14 @@ class AgriEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (art != null)
-            ExcludeSemantics(
-              child: Image.asset(
-                art!,
-                height: 96,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => _iconCircle(),
-              ),
-            )
-          else
-            _iconCircle(),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.tint,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 30, color: AppColors.brand),
+          ),
           const SizedBox(height: 12),
           Text(
             title,

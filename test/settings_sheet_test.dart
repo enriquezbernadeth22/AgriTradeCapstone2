@@ -1,7 +1,6 @@
 // The Settings sheet behind the header's gear: the same rows for everyone,
 // in four groups, with Log Out in red, and Share AgriTrade+ sending a message
 // and a link through the phone's share sheet.
-import 'package:agritrade/l10n/app_language.dart';
 import 'package:agritrade/l10n/app_localizations.dart';
 import 'package:agritrade/services/product_share_service.dart';
 import 'package:agritrade/theme/app_colors.dart';
@@ -90,11 +89,10 @@ void main() {
 
   testWidgets('every row is there, in order', (tester) async {
     await open(tester);
-    const order = [
+    final order = [
       'Share AgriTrade+',
       'Notification Settings',
       'Dark Mode',
-      'Language',
       'Manage Account',
       'Send Feedback',
       'Help & Support',
@@ -145,7 +143,7 @@ void main() {
     tester,
   ) async {
     await open(tester);
-    for (final label in ['Share AgriTrade+', 'Dark Mode', 'Language']) {
+    for (final label in ['Share AgriTrade+', 'Dark Mode']) {
       final row = find.ancestor(
         of: find.text(label),
         matching: find.byType(InkWell),
@@ -194,31 +192,11 @@ void main() {
     expect(find.text('Log Out'), findsOneWidget);
   });
 
-  testWidgets('Language shows the current choice and follows a new one', (
+  testWidgets('the app is English only: Settings has no Language row', (
     tester,
   ) async {
-    addTearDown(() => LanguageController.instance.value = AppLanguage.english);
     await open(tester);
-    final row = find.ancestor(
-      of: find.text('Language'),
-      matching: find.byType(InkWell),
-    );
-    expect(
-      find.descendant(of: row, matching: find.text('English')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: row, matching: find.byIcon(Icons.chevron_right)),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.text('Language'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Tagalog'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('English'), findsNothing);
-    expect(find.text('Tagalog'), findsOneWidget);
+    expect(find.text('Language'), findsNothing);
   });
 
   testWidgets('Log Out is a soft red button that closes the sheet first', (

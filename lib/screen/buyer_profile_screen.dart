@@ -10,6 +10,12 @@ import 'farmer_edit_profile_screen.dart';
 import 'buyer_my_reviews_screen.dart';
 import 'buyer_saved_products_screen.dart';
 import 'buyer_fulfillment_preferences_screen.dart';
+import 'appearance_screen.dart';
+import 'help_support_screen.dart';
+import 'manage_account_screen.dart';
+import 'notification_preferences_screen.dart';
+import '../widgets/feedback_sheet.dart';
+import '../widgets/settings_sheet.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
@@ -17,19 +23,27 @@ import '../l10n/app_language.dart';
 
 /// The buyer's Profile tab. Same look as the farmer's (header, the
 /// avatar with its edit badge, name, then role-specific content), with
-/// buyer content: a small activity summary and the buyer's own features.
-/// Settings, help and Log Out are behind the gear in the header (see
-/// showSettingsSheet).
+/// buyer content: everything for the buyer
+/// in groups — My Activity, Preferences & Account, Support & More — and
+/// Log Out. A buyer has no Settings gear: the rows of the farmer's
+/// Settings sheet are here instead, opening the same screens.
 ///
 /// Shows only what is fine for the profile itself — photo, name and the
 /// general saved location. The email address and other account details
 /// live in Account Settings; the exact delivery details in
 /// Delivery & Pickup.
 class BuyerProfileScreen extends StatefulWidget {
-  /// Opens Orders on its Completed tab (the Completed Orders count).
+  /// Opens Orders on its Completed tab (Purchase History).
   final VoidCallback? onOpenCompletedOrders;
 
-  const BuyerProfileScreen({super.key, this.onOpenCompletedOrders});
+  /// Log Out, with its confirmation (the buyer shell's own).
+  final VoidCallback? onLogout;
+
+  const BuyerProfileScreen({
+    super.key,
+    this.onOpenCompletedOrders,
+    this.onLogout,
+  });
 
   @override
   State<BuyerProfileScreen> createState() => _BuyerProfileScreenState();
@@ -44,22 +58,6 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
           .collection('users')
           .doc(_uid ?? 'unknown')
           .snapshots();
-  late final Stream<int> _completedOrders = FirebaseFirestore.instance
-      .collection('orders')
-      .where('buyerId', isEqualTo: _uid ?? '')
-      .where('status', isEqualTo: 'completed')
-      .snapshots()
-      .map((snap) => snap.size);
-  late final Stream<int> _reviewsGiven = FirebaseFirestore.instance
-      .collection('productReviews')
-      .where('buyerId', isEqualTo: _uid ?? '')
-      .snapshots()
-      .map(
-        (snap) => snap.docs
-            .where((d) => d.data()['moderationStatus'] != 'removed')
-            .length,
-      );
-
   Future<void> _refreshData() async {
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
@@ -189,12 +187,13 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                     },
                   ),
 
-                  _activitySummary(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
                   // ---- The buyer's own options, as plain rows in labelled
                   // groups (no cards). ----
-                  ProfileSectionLabel(t.sectionActivity),
+                  // The buyer has no Settings gear: what the farmer finds
+                  // in the Settings sheet is here, in these groups.
+                  ProfileSectionLabel(tl('My Activity')),
                   ProfileLinkTile(
                     icon: Icons.rate_review_outlined,
                     label: t.myReviews,
@@ -205,105 +204,61 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                     label: t.likedProducts,
                     onTap: () => _open(const BuyerSavedProductsScreen()),
                   ),
-                  ProfileSectionLabel(t.sectionSettings),
+                  // The completed orders, each with its receipt.
+                  if (widget.onOpenCompletedOrders != null)
+                    ProfileLinkTile(
+                      icon: Icons.receipt_long_outlined,
+                      label: tl('Purchase History'),
+                      onTap: widget.onOpenCompletedOrders!,
+                    ),
+                  ProfileSectionLabel(tl('Preferences & Account')),
                   ProfileLinkTile(
                     icon: Icons.local_shipping_outlined,
                     label: t.deliveryPickupPreferences,
                     onTap: () =>
                         _open(const BuyerFulfillmentPreferencesScreen()),
                   ),
+                  ProfileLinkTile(
+                    icon: Icons.manage_accounts_outlined,
+                    label: t.manageAccount,
+                    onTap: () => _open(const ManageAccountScreen()),
+                  ),
+                  ProfileLinkTile(
+                    icon: Icons.notifications_none_rounded,
+                    label: t.notificationSettings,
+                    onTap: () => _open(const NotificationPreferencesScreen()),
+                  ),
+                  ProfileLinkTile(
+                    icon: Icons.dark_mode_outlined,
+                    label: tl('Appearance'),
+                    onTap: () => _open(const AppearanceScreen()),
+                  ),
+                  ProfileSectionLabel(tl('Support & More')),
+                  ProfileLinkTile(
+                    icon: Icons.share_outlined,
+                    label: tl('Share AgriTrade+'),
+                    onTap: () => shareAgriTrade(context),
+                  ),
+                  ProfileLinkTile(
+                    icon: Icons.rate_review_outlined,
+                    label: t.sendFeedback,
+                    onTap: () => showFeedbackSheet(context),
+                  ),
+                  ProfileLinkTile(
+                    icon: Icons.help_outline,
+                    label: t.helpSupport,
+                    onTap: () => _open(const HelpSupportScreen(farmer: false)),
+                  ),
+                  if (widget.onLogout != null) ...[
+                    const SizedBox(height: 16),
+                    LogOutButton(label: t.logOut, onTap: widget.onLogout!),
+                  ],
                 ],
               ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  // "12 Completed Orders | 4 Reviews Given" — real counts only. A count of
-  // zero is left out, and with nothing to show the whole row is.
-  Widget _activitySummary() {
-    return StreamBuilder<int>(
-      stream: _completedOrders,
-      builder: (context, ordersSnap) => StreamBuilder<int>(
-        stream: _reviewsGiven,
-        builder: (context, reviewsSnap) {
-          final orders = ordersSnap.data ?? 0;
-          final reviews = reviewsSnap.data ?? 0;
-          // Each count opens what it counts.
-          final stats = <(int, String, VoidCallback?)>[
-            if (orders > 0)
-              (
-                orders,
-                orders == 1 ? tl('Completed Order') : tl('Completed Orders'),
-                widget.onOpenCompletedOrders,
-              ),
-            if (reviews > 0)
-              (
-                reviews,
-                reviews == 1 ? tl('Review Given') : tl('Reviews Given'),
-                () => _open(const BuyerMyReviewsScreen()),
-              ),
-          ];
-          if (stats.isEmpty) return const SizedBox.shrink();
-
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
-                border: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: IntrinsicHeight(
-                child: Row(
-                  children: [
-                    for (var i = 0; i < stats.length; i++) ...[
-                      if (i > 0)
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          color: AppColors.grey(300),
-                        ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: stats[i].$3,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${stats[i].$1}',
-                                style: AppTheme.heading(
-                                  18,
-                                ).copyWith(color: AppColors.brand),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                stats[i].$2,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.grey(700),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

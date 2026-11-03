@@ -11,12 +11,10 @@ import '../widgets/swipeable_tabs.dart';
 import '../widgets/unread_messages_dot.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
-import '../widgets/settings_sheet.dart';
 import 'buyer_explore_screen.dart';
 import 'chat_list_screen.dart';
 import 'buyer_orders_screen.dart';
 import 'buyer_profile_screen.dart';
-import 'help_support_screen.dart';
 import 'notifications_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
@@ -118,16 +116,6 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
     );
   }
 
-  // The gear in every tab's header.
-  void _openSettings() => showSettingsSheet(
-    context,
-    onHelp: () => Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const HelpSupportScreen(farmer: false)),
-    ),
-    onLogout: () => _logout(context),
-  );
-
   Future<void> _logout(BuildContext context) async {
     final confirm = await showAgriConfirm(
       context: context,
@@ -163,7 +151,10 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
         onBrowseMarketplace: () => setState(() => _navIndex = 0),
         showStatus: _ordersStatus,
       ),
-      BuyerProfileScreen(onOpenCompletedOrders: () => _openOrders('completed')),
+      BuyerProfileScreen(
+        onOpenCompletedOrders: () => _openOrders('completed'),
+        onLogout: () => _logout(context),
+      ),
     ];
 
     return PopScope(
@@ -202,13 +193,12 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
           // goes back to the top.
           child: HomeLogoAction(
             onTap: _goHome,
-            // Every tab's header has the notification bell and the
-            // Settings gear.
+            // Every tab's header has the notification bell. A buyer has no
+            // Settings gear: those options are in the Profile tab.
             onNotifications: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
-            onSettings: _openSettings,
             child: SwipeableTabs(
               index: _navIndex,
               onIndexChanged: (i) => setState(() => _navIndex = i),

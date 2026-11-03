@@ -26,16 +26,13 @@ class LanguageController extends ValueNotifier<AppLanguage> {
   /// What MaterialApp uses.
   Locale get locale => Locale(value.code);
 
-  /// Called once from main(), before the first frame.
+  /// Called once from main(), before the first frame. The app is English
+  /// only (the user's decision, 2026-11-04): there is no language choice
+  /// in Settings, and a phone that had chosen Tagalog before opens in
+  /// English. The Tagalog texts (tagalog_strings.dart) and [choose] are
+  /// kept, for a language choice later.
   Future<void> load() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_key);
-      value = AppLanguage.values.firstWhere(
-        (language) => language.code == saved,
-        orElse: () => AppLanguage.english,
-      );
-    } catch (_) {}
+    value = AppLanguage.english;
   }
 
   /// Chooses [language], keeps it and redraws the app in it.

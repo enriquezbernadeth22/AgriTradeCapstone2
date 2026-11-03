@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/ph_mobile.dart';
 import '../services/registration_guard.dart';
+import '../widgets/agri_dialog.dart';
 import '../widgets/existing_account_dialog.dart';
 import 'login_screen.dart';
 import '../services/rsba_number.dart';
@@ -818,6 +819,41 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
+  // Anything typed or chosen on the form, which Back would throw away.
+  bool get _hasInput =>
+      [
+        _firstNameController,
+        _lastNameController,
+        _mobileController,
+        _passwordController,
+        _confirmController,
+        _rsbaController,
+      ].any((c) => c.text.trim().isNotEmpty) ||
+      _emailController.text.trim() != (widget.initialEmail ?? '').trim() ||
+      _selectedBarangay != null ||
+      _buyerDescription != null ||
+      _farmerDescription != null;
+
+  // Set once the person has agreed to leave, so the pop goes through.
+  bool _leaving = false;
+
+  // Back (the arrow, the phone's Back, or "Log in") with something filled
+  // in asks first, so a slip of the thumb does not lose the form.
+  Future<void> _confirmLeave(Object? result) async {
+    final leave = await showAgriConfirm(
+      context: context,
+      icon: Icons.edit_note_rounded,
+      title: tl('Leave registration?'),
+      message: tl('What you have filled in will be lost.'),
+      confirmLabel: tl('Leave'),
+      cancelLabel: tl('Keep Editing'),
+      tone: AgriTone.destructive,
+    );
+    if (!leave || !mounted) return;
+    setState(() => _leaving = true);
+    Navigator.pop(context, result);
+  }
+
   @override
   Widget build(BuildContext context) {
     final canSubmit = _isFormValid && !_loading;
@@ -832,207 +868,213 @@ class _RegisterScreenState extends State<RegisterScreen>
       if ((bottom - _drawnRegisterBottom).abs() > 0.5) setState(() {});
     });
 
-    return Scaffold(
-      backgroundColor: AppColors.page,
-      // The compact header: Back, and the small logo and name — the only
-      // logo on the page, quieter than its title.
-      appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
-      body: SafeArea(
-        top: false,
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.formPageMargin,
-                AppTheme.formSectionGap,
-                AppTheme.formPageMargin,
-                _formBottomPadding,
-              ),
-              child: FadeTransition(
-                opacity: _fade,
-                child: SlideTransition(
-                  position: _slide,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Center(
-                        child: Text(
-                          tr(context).registerTitle,
-                          textAlign: TextAlign.center,
-                          style: AppTheme.pageTitle(),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
-                      const SizedBox(height: AppTheme.formSectionGap),
-
-                      RegistrationRoleDetails(
-                        isFarmer: _isFarmer,
-                        value: _accountType,
-                        showRequired: _triedSubmit,
-                        onChanged: (value) => setState(() {
-                          if (_isFarmer) {
-                            _farmerDescription = value;
-                          } else {
-                            _buyerDescription = value;
-                          }
-                        }),
-                      ),
-                      const SizedBox(height: AppTheme.formFieldGap),
-
-                      // ---- First name, Last name ----
-                      _buildField(
-                        label: tr(context).firstName,
-                        controller: _firstNameController,
-                        hint: 'Juan',
-                        icon: Icons.person_outline,
-                        errorText: _firstNameError == null
-                            ? null
-                            : tl(_firstNameError!),
-                      ),
-                      _buildField(
-                        label: tr(context).lastName,
-                        controller: _lastNameController,
-                        hint: 'Santos',
-                        icon: Icons.person_outline,
-                        errorText: _lastNameError == null
-                            ? null
-                            : tl(_lastNameError!),
-                      ),
-
-                      // ---- RSBSA No. (farmers only) ----
-                      if (_isFarmer) _rsbaField(),
-
-                      // ---- Email ----
-                      _buildField(
-                        label: tr(context).emailAddress,
-                        controller: _emailController,
-                        hint: 'juansantos@gmail.com',
-                        icon: Icons.email_outlined,
-                        keyboard: TextInputType.emailAddress,
-                        errorText: _emailError == null
-                            ? null
-                            : tl(_emailError!),
-                      ),
-
-                      // ---- Mobile Number ----
-                      // Required for both roles (order/delivery/pick-up
-                      // coordination). Fixed +63 prefix — no country
-                      // dropdown, PH-only scope; a number typed or pasted
-                      // as 09… or +639… is reduced to the same 10 digits.
-                      _buildField(
-                        label: 'Mobile Number',
-                        controller: _mobileController,
-                        hint: kPhMobileHint,
-                        icon: Icons.phone_outlined,
-                        keyboard: TextInputType.phone,
-                        prefixText: kPhMobilePrefix,
-                        inputFormatters: kPhMobileInputFormatters,
-                        errorText: _mobileError == null
-                            ? null
-                            : tl(_mobileError!),
-                        caption: tl(
-                          'For order, delivery, and pick-up coordination only.',
-                        ),
-                      ),
-
-                      // ---- Password ----
-                      _buildField(
-                        label: tr(context).password,
-                        controller: _passwordController,
-                        hint: tl('At least 12 characters'),
-                        icon: Icons.lock_outline,
-                        obscure: _obscurePassword,
-                        errorText: _passwordError == null
-                            ? null
-                            : tl(_passwordError!),
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: AppColors.grey(),
-                          ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
+    return PopScope(
+      canPop: _leaving || _loading || !_hasInput,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _confirmLeave(result);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.page,
+        // The compact header: Back, and the small logo and name — the only
+        // logo on the page, quieter than its title.
+        appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
+        body: SafeArea(
+          top: false,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.formPageMargin,
+                  AppTheme.formSectionGap,
+                  AppTheme.formPageMargin,
+                  _formBottomPadding,
+                ),
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: SlideTransition(
+                    position: _slide,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Center(
+                          child: Text(
+                            tr(context).registerTitle,
+                            textAlign: TextAlign.center,
+                            style: AppTheme.pageTitle(),
                           ),
                         ),
-                      ),
-                      _passwordRequirements(),
+                        const SizedBox(height: 6),
+                        Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
+                        const SizedBox(height: AppTheme.formSectionGap),
 
-                      // ---- Confirm password ----
-                      _buildField(
-                        label: tr(context).confirmPassword,
-                        controller: _confirmController,
-                        hint: tl('Re-enter your password'),
-                        icon: Icons.lock_reset_outlined,
-                        obscure: _obscureConfirm,
-                        errorText: _confirmError == null
-                            ? null
-                            : tl(_confirmError!),
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscureConfirm
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: AppColors.grey(),
-                          ),
-                          onPressed: () => setState(
-                            () => _obscureConfirm = !_obscureConfirm,
+                        RegistrationRoleDetails(
+                          isFarmer: _isFarmer,
+                          value: _accountType,
+                          showRequired: _triedSubmit,
+                          onChanged: (value) => setState(() {
+                            if (_isFarmer) {
+                              _farmerDescription = value;
+                            } else {
+                              _buyerDescription = value;
+                            }
+                          }),
+                        ),
+                        const SizedBox(height: AppTheme.formFieldGap),
+
+                        // ---- First name, Last name ----
+                        _buildField(
+                          label: tr(context).firstName,
+                          controller: _firstNameController,
+                          hint: 'Juan',
+                          icon: Icons.person_outline,
+                          errorText: _firstNameError == null
+                              ? null
+                              : tl(_firstNameError!),
+                        ),
+                        _buildField(
+                          label: tr(context).lastName,
+                          controller: _lastNameController,
+                          hint: 'Santos',
+                          icon: Icons.person_outline,
+                          errorText: _lastNameError == null
+                              ? null
+                              : tl(_lastNameError!),
+                        ),
+
+                        // ---- RSBSA No. (farmers only) ----
+                        if (_isFarmer) _rsbaField(),
+
+                        // ---- Email ----
+                        _buildField(
+                          label: tr(context).emailAddress,
+                          controller: _emailController,
+                          hint: 'juansantos@gmail.com',
+                          icon: Icons.email_outlined,
+                          keyboard: TextInputType.emailAddress,
+                          errorText: _emailError == null
+                              ? null
+                              : tl(_emailError!),
+                        ),
+
+                        // ---- Mobile Number ----
+                        // Required for both roles (order/delivery/pick-up
+                        // coordination). Fixed +63 prefix — no country
+                        // dropdown, PH-only scope; a number typed or pasted
+                        // as 09… or +639… is reduced to the same 10 digits.
+                        _buildField(
+                          label: 'Mobile Number',
+                          controller: _mobileController,
+                          hint: kPhMobileHint,
+                          icon: Icons.phone_outlined,
+                          keyboard: TextInputType.phone,
+                          prefixText: kPhMobilePrefix,
+                          inputFormatters: kPhMobileInputFormatters,
+                          errorText: _mobileError == null
+                              ? null
+                              : tl(_mobileError!),
+                          caption: tl(
+                            'For order, delivery, and pick-up coordination only.',
                           ),
                         ),
-                      ),
 
-                      // ================================================
-                      // Farmers only — the Laurel notice, then the barangay
-                      // (BarangayLocationField, restricted to Laurel), for
-                      // verification. Buyers set no location at
-                      // registration; they set it later, per order (see
-                      // place_order_screen.dart). The supported-products
-                      // checkbox sits right above the Terms agreement.
-                      // ================================================
-                      if (_isFarmer) ...[
-                        _laurelNotice(),
-                        const SizedBox(height: 16),
-                        BarangayLocationField(
-                          value: _selectedBarangay,
-                          errorText: _triedSubmit && _selectedBarangay == null
-                              ? tl('Please select a barangay in Laurel.')
-                              : null,
-                          onChanged: (value) =>
-                              setState(() => _selectedBarangay = value),
+                        // ---- Password ----
+                        _buildField(
+                          label: tr(context).password,
+                          controller: _passwordController,
+                          hint: tl('At least 12 characters'),
+                          icon: Icons.lock_outline,
+                          obscure: _obscurePassword,
+                          errorText: _passwordError == null
+                              ? null
+                              : tl(_passwordError!),
+                          suffix: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: AppColors.grey(),
+                            ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
                         ),
-                        _publicLocationPreview(),
-                        _supportedProductsCheckbox(),
+                        _passwordRequirements(),
+
+                        // ---- Confirm password ----
+                        _buildField(
+                          label: tr(context).confirmPassword,
+                          controller: _confirmController,
+                          hint: tl('Re-enter your password'),
+                          icon: Icons.lock_reset_outlined,
+                          obscure: _obscureConfirm,
+                          errorText: _confirmError == null
+                              ? null
+                              : tl(_confirmError!),
+                          suffix: IconButton(
+                            icon: Icon(
+                              _obscureConfirm
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: AppColors.grey(),
+                            ),
+                            onPressed: () => setState(
+                              () => _obscureConfirm = !_obscureConfirm,
+                            ),
+                          ),
+                        ),
+
+                        // ================================================
+                        // Farmers only — the Laurel notice, then the barangay
+                        // (BarangayLocationField, restricted to Laurel), for
+                        // verification. Buyers set no location at
+                        // registration; they set it later, per order (see
+                        // place_order_screen.dart). The supported-products
+                        // checkbox sits right above the Terms agreement.
+                        // ================================================
+                        if (_isFarmer) ...[
+                          _laurelNotice(),
+                          const SizedBox(height: 16),
+                          BarangayLocationField(
+                            value: _selectedBarangay,
+                            errorText: _triedSubmit && _selectedBarangay == null
+                                ? tl('Please select a barangay in Laurel.')
+                                : null,
+                            onChanged: (value) =>
+                                setState(() => _selectedBarangay = value),
+                          ),
+                          _publicLocationPreview(),
+                          _supportedProductsCheckbox(),
+                        ],
+                        const SizedBox(height: 4),
+                        _consentCheckbox(),
+                        _formEnd(),
                       ],
-                      const SizedBox(height: 4),
-                      _consentCheckbox(),
-                      _formEnd(),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // ---- Register button: the only thing that floats, with    ----
-            // ---- nothing behind it. It comes to rest in its own place ----
-            // ---- at the end of the form (see _registerButtonBottom).  ----
-            ListenableBuilder(
-              listenable: _scrollController,
-              builder: (context, child) {
-                _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);
-                return Positioned(
-                  left: AppTheme.formPageMargin,
-                  right: AppTheme.formPageMargin,
-                  bottom: _drawnRegisterBottom,
-                  child: child!,
-                );
-              },
-              child: _registerButton(canSubmit),
-            ),
-          ],
+              // ---- Register button: the only thing that floats, with    ----
+              // ---- nothing behind it. It comes to rest in its own place ----
+              // ---- at the end of the form (see _registerButtonBottom).  ----
+              ListenableBuilder(
+                listenable: _scrollController,
+                builder: (context, child) {
+                  _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);
+                  return Positioned(
+                    left: AppTheme.formPageMargin,
+                    right: AppTheme.formPageMargin,
+                    bottom: _drawnRegisterBottom,
+                    child: child!,
+                  );
+                },
+                child: _registerButton(canSubmit),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -33,12 +33,12 @@ void main() {
     expect(tl('Not in the list at all'), 'Not in the list at all');
   });
 
-  test('the choice is kept on this phone', () async {
-    await LanguageController.instance.choose(AppLanguage.tagalog);
-    LanguageController.instance.value = AppLanguage.english;
+  test('the app is English only: a phone that chose Tagalog before opens in '
+      'English', () async {
+    SharedPreferences.setMockInitialValues({'app_language': 'tl'});
+    LanguageController.instance.value = AppLanguage.tagalog;
     await LanguageController.instance.load();
-    expect(LanguageController.instance.value, AppLanguage.tagalog);
-    expect(LanguageController.instance.locale.languageCode, 'tl');
+    expect(LanguageController.instance.value, AppLanguage.english);
   });
 
   test('every translation keeps the values of its English text', () {

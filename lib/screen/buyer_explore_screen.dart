@@ -22,12 +22,39 @@ import 'product_detail_screen.dart';
 import '../widgets/explore_product_card.dart';
 import '../widgets/save_product_button.dart';
 import '../widgets/agri_empty_state.dart';
-import '../widgets/explore_banner.dart';
 import '../widgets/new_posts_pill.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
+
+/// Which listings Explore shows, from the ids of every listing now
+/// ([latest]) and the list it settled on before ([fixed], null at first):
+///
+/// * While the data may still be the phone's saved copy ([fromCache]), the
+///   list is not settled yet: everything is shown, so a post made since the
+///   copy was saved is never taken for a "new" one and hidden.
+/// * Once settled, posts made after it wait for the "new posts" pill — so
+///   the grid never moves under a buyer scrolled down — but come in at
+///   once ([fresh], shown first) when the buyer is at the top ([atTop]).
+@visibleForTesting
+({Set<String>? fixed, Set<String> shown, Set<String> fresh}) exploreFeed({
+  required Set<String>? fixed,
+  required Set<String> latest,
+  required bool fromCache,
+  required bool atTop,
+}) {
+  if (fixed == null) {
+    return fromCache
+        ? (fixed: null, shown: latest, fresh: const {})
+        : (fixed: {...latest}, shown: latest, fresh: const {});
+  }
+  final added = latest.difference(fixed);
+  if (atTop && added.isNotEmpty) {
+    return (fixed: {...latest}, shown: latest, fresh: added);
+  }
+  return (fixed: fixed, shown: fixed, fresh: const {});
+}
 
 class BuyerExploreScreen extends StatefulWidget {
   /// The notification bell in this tab's header; [bellKey] lets the
@@ -61,7 +88,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   // The listings, opened once — not again on every rebuild (a like, a
   // filter change…) — and again only on Retry.
   late Stream<QuerySnapshot<Map<String, dynamic>>> _products = _productService
-      .allProductsStream();
+      .allProductsStream(includeMetadataChanges: true);
 
   final _grid = ScrollController();
 
@@ -418,7 +445,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
               'Could not load products. Check your connection and try again.',
             ),
             onRetry: () => setState(() {
-              _products = _productService.allProductsStream();
+              _products = _productService.allProductsStream(
+                includeMetadataChanges: true,
+              );
               _shownIds = null;
             }),
           );
@@ -428,7 +457,15 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
         // What opening Explore found is what is shown; later posts wait for
         // the pill or a refresh (see _shownIds).
         _latestIds = {for (final d in all) d.id};
-        final shown = _shownIds ??= {..._latestIds};
+        final feed = exploreFeed(
+          fixed: _shownIds,
+          latest: _latestIds,
+          fromCache: snapshot.data?.metadata.isFromCache ?? false,
+          atTop: !_grid.hasClients || _grid.offset <= 0,
+        );
+        _shownIds = feed.fixed;
+        if (feed.fresh.isNotEmpty) _freshIds = feed.fresh;
+        final shown = feed.shown;
 
         // On sale, and in the category and barangay the buyer picked.
         bool listed(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -539,9 +576,6 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                 icon: isFiltered
                     ? Icons.search_off_rounded
                     : Icons.eco_outlined,
-                // A filtered search keeps its icon; an empty marketplace
-                // gets the produce picture.
-                art: isFiltered ? null : kEmptyProduceArt,
                 title: _selectedBarangay != 'All Locations'
                     ? tl('No listings yet in {0}', [_selectedBarangay])
                     : tl('No products available yet'),
@@ -598,25 +632,15 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                 // phones.
                 final cardWidth =
                     (constraints.maxWidth - padding * 2 - spacing) / 2;
-                // The banner tops the whole marketplace only, not a
-                // filtered view.
-                final showBanner =
-                    _selectedBarangay == 'All Locations' &&
-                    _selectedCategory == 'All Postings';
                 return NotificationListener<ScrollNotification>(
                   onNotification: _onGridScroll,
                   child: CustomScrollView(
                     controller: _grid,
                     slivers: [
-                      if (showBanner)
-                        const SliverPadding(
-                          padding: EdgeInsets.fromLTRB(padding, 4, padding, 12),
-                          sliver: SliverToBoxAdapter(child: ExploreBanner()),
-                        ),
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(
                           padding,
-                          showBanner ? 0 : 4,
+                          4,
                           padding,
                           DockedNavBar.listEndPadding(context),
                         ),

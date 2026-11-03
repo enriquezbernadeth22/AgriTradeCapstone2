@@ -588,7 +588,6 @@ class _EmptyState extends StatelessWidget {
     // The app-wide empty state; Orders is where its look comes from.
     return AgriEmptyState(
       icon: tab.emptyIcon,
-      art: kEmptyProduceArt,
       title: tab.emptyTitleIn(context),
       subtitle: subtitle,
       action: action,

@@ -296,8 +296,13 @@ class ProductService {
     return _products.where('farmerId', isEqualTo: user?.uid).snapshots();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> allProductsStream() {
-    return _products.snapshots();
+  /// Every listing, live. With [includeMetadataChanges] it also says when
+  /// the phone's saved copy has been confirmed by the server (see
+  /// SnapshotMetadata.isFromCache), which Explore waits for.
+  Stream<QuerySnapshot<Map<String, dynamic>>> allProductsStream({
+    bool includeMetadataChanges = false,
+  }) {
+    return _products.snapshots(includeMetadataChanges: includeMetadataChanges);
   }
 
   /// Fire-and-forget view counter — the "interaction" signal for

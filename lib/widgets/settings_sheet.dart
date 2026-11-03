@@ -11,7 +11,6 @@ import '../theme/app_colors.dart';
 import '../theme/theme_controller.dart';
 import 'agri_dialog.dart';
 import 'feedback_sheet.dart';
-import 'language_picker.dart';
 
 enum _SettingsChoice { share, notifications, manage, feedback, help, logout }
 
@@ -47,7 +46,7 @@ Future<void> showSettingsSheet(
 
   switch (choice) {
     case _SettingsChoice.share:
-      _shareApp(context);
+      shareAgriTrade(context);
     case _SettingsChoice.notifications:
       open(const NotificationPreferencesScreen());
     case _SettingsChoice.manage:
@@ -63,7 +62,10 @@ Future<void> showSettingsSheet(
   }
 }
 
-Future<void> _shareApp(BuildContext context) async {
+/// Share AgriTrade+: the share sheet with the app's message and link, or
+/// an error message when it cannot open. From the Settings sheet and the
+/// Buyer Profile.
+Future<void> shareAgriTrade(BuildContext context) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   try {
     await ProductShareService.shareApp(context);
@@ -152,26 +154,6 @@ class _SettingsList extends StatelessWidget {
                         activeTrackColor: AppColors.brandFill,
                       ),
                     ),
-                    _SettingsRow(
-                      icon: Icons.language_rounded,
-                      label: tl('Language'),
-                      onTap: () => showLanguagePicker(context),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            LanguageController.instance.value.label,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.grey(600),
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(Icons.chevron_right, color: AppColors.grey()),
-                        ],
-                      ),
-                    ),
                     groupLine,
                     closesWith(
                       _SettingsChoice.manage,
@@ -190,7 +172,7 @@ class _SettingsList extends StatelessWidget {
                       t.helpSupport,
                     ),
                     groupLine,
-                    _LogOutButton(
+                    LogOutButton(
                       label: t.logOut,
                       onTap: () =>
                           Navigator.pop(context, _SettingsChoice.logout),
@@ -256,12 +238,13 @@ class _SettingsRow extends StatelessWidget {
   }
 }
 
-/// Log Out: a soft red button with a red outline, across the sheet.
-class _LogOutButton extends StatelessWidget {
+/// Log Out: a soft red button with a red outline, across the sheet (and the
+/// Buyer Profile).
+class LogOutButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _LogOutButton({required this.label, required this.onTap});
+  const LogOutButton({super.key, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

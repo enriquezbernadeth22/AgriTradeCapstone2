@@ -3,7 +3,6 @@
 
 import 'dart:async';
 
-import 'package:agritrade/widgets/agri_empty_state.dart';
 import 'package:agritrade/services/order_format.dart';
 import 'package:agritrade/services/order_seen_service.dart';
 import 'package:agritrade/widgets/order_status_pager.dart';
@@ -234,8 +233,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No shipped orders yet'), findsOneWidget);
     expect(find.text('Shipped orders will appear here.'), findsOneWidget);
-    // The empty page shows the produce picture.
-    expect(find.image(const AssetImage(kEmptyProduceArt)), findsOneWidget);
+    expect(find.byIcon(Icons.local_shipping_outlined), findsOneWidget);
 
     // Swipe right: back to Confirmed.
     await tester.fling(find.byType(TabBarView), const Offset(400, 0), 1500);

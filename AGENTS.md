@@ -22,8 +22,12 @@ Cloud Functions (Node 22, `functions/`, region `asia-southeast1`), Hosting
 
 ## Language
 
-The mobile app is English or Tagalog, chosen in Settings → Language;
-the Admin Portal, emails, push notifications and legal policies are English.
+The mobile app is **English only** (decided by the user 2026-11-04 before the
+defense): no Language row in Settings and no language picker (removed);
+`LanguageController.load()` always starts in English, so a phone that had
+chosen Tagalog opens in English. The Tagalog texts (`tagalog_strings.dart`)
+and `tl()` are kept for a language choice later. The Admin Portal, emails,
+push notifications and legal policies are English.
 Screen text is written in English inside `tl('...')` (values as `{0}`, passed
 as `tl('Order #{0}', [id])`), with its Tagalog in `tagalog_strings.dart`; a text
 with no entry shows in English. Never translate values saved to Firestore.
@@ -162,11 +166,9 @@ test/         widget + unit tests (one file per feature)
   over it; attachments are not counted.
 - Popup icons (`AgriDialog`) are black on a grey circle for every tone, like
   the Notifications screen's; the tone shows on the buttons instead.
-- A little life in the mobile app (2026-11-04, the user's go-ahead): Explore
-  opens with `ExploreBanner` (farmland photo, "Fresh from Laurel farms",
-  only when no filter is on); `AgriEmptyState(art: kEmptyProduceArt)` shows
-  a produce crate on empty Explore, Liked Products and Orders; Buyer Profile
-  counts sit on pale green tiles. Words only, never made-up figures.
+- Buyer Profile counts sit on pale green tiles. A banner on Explore and a
+  produce picture on empty pages were tried on 2026-11-04 and removed by
+  the user: empty pages keep the icon (`AgriEmptyState`).
 - **The buyer's area is the feed's priority** (decided by the user,
   2026-11-04): in Explore and Search, listings whose delivery coverage
   reaches the buyer's saved area (`BuyerAreaWatcher`, users/{uid}
@@ -250,9 +252,17 @@ colours, so both modes stay right.
 Mobile app: text fields are pills (`PillInputBorder`), but anything that opens
 a dropdown list is a **rounded rectangle** (`AppTheme.dropdownRadius`,
 `compactDropdownRadius`, `dropdownDecoration`). Headers are rectangular bars
-(`PageHeader` on the tabs, `AgriAppBar` on inner screens). Settings is one
-bottom sheet for both roles (`showSettingsSheet`), opened from the gear beside
-the bell in every tab's header.
+(`PageHeader` on the tabs, `AgriAppBar` on inner screens). Settings: the
+**farmer** has the bottom sheet (`showSettingsSheet`) from the gear beside the
+bell; the **buyer** has no gear (2026-11-04) — the same options are rows on
+the Buyer Profile: My Activity (My Reviews, Liked Products, Purchase History
+= Orders → Completed), Preferences & Account (Delivery & Pick-up, Manage
+Account, Notification Settings, Appearance = Dark Mode), Support & More
+(Share, Feedback, Help), then `LogOutButton`. Both reuse the same screens
+(`shareAgriTrade`, `showFeedbackSheet`, `AppearanceScreen`). Registration
+asks before Back throws away a filled-in form (`RegisterScreen`). Explore
+fixes its list only once the server has answered and lets new posts in at
+once at the top of the feed (`exploreFeed`).
 
 User preferences for the admin UI (keep them): neutral black/white/grey,
 **dark green only for buttons/active/selected**, no pale-green surfaces,

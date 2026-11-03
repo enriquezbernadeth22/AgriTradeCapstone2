@@ -152,7 +152,6 @@ class _BuyerSavedProductsScreenState extends State<BuyerSavedProductsScreen> {
     return Center(
       child: AgriEmptyState(
         icon: Icons.favorite_border_rounded,
-        art: kEmptyProduceArt,
         title: unavailable
             ? tl('Your liked products are no longer available')
             : tl('No liked products yet'),

@@ -1305,7 +1305,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // ---- Message to Order (primary) | Order Now ----
+  // ---- Order Now (outlined) | Message (filled, on the right) ----
+  // Two compact buttons of the same size, centred and balanced; Message,
+  // the dark green one, is the main action (buyers talk to the farmer first).
   // No Map here: the Farm Location section above has Open Map.
   // Sticky: it is the Scaffold's bottom bar, so it never scrolls away.
   Widget _bottomBar(Map<String, dynamic> data) {
@@ -1335,22 +1337,70 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: canOrder
-                    ? () => _messageFarmer(farmerId, farmerName, name)
-                    : null,
+            _actionSlot(
+              OutlinedButton.icon(
+                key: const Key('orderNow'),
+                onPressed: !canOrder
+                    ? null
+                    : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PlaceOrderScreen(
+                            sellerId: farmerId,
+                            sellerName: farmerName,
+                            productId: widget.productId,
+                            productName: name,
+                            productPrice: formatPriceWithUnit(price, unit),
+                            productImage: _imageUrl ?? '',
+                            deliveryAvailable: delivery,
+                            pickupAvailable: pickup,
+                            unit: unit,
+                          ),
+                        ),
+                      ),
                 icon: Icon(
-                  available > 0 ? Icons.chat_bubble_outline : Icons.block,
-                  size: 18,
+                  available > 0 ? Icons.shopping_bag_outlined : Icons.block,
+                  size: 17,
                 ),
                 label: Text(
-                  available > 0 ? tl('Message to Order') : tl('Out of Stock'),
+                  available > 0 ? tl('Order Now') : tl('Out of Stock'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.brand,
+                  backgroundColor: AppColors.surface,
+                  disabledForegroundColor: AppColors.grey(500),
+                  side: BorderSide(
+                    color: canOrder ? AppColors.brand : AppColors.grey(300),
+                    width: 1.4,
+                  ),
+                  minimumSize: const Size.fromHeight(_actionHeight),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            _actionSlot(
+              ElevatedButton.icon(
+                key: const Key('messageFarmer'),
+                onPressed: canOrder
+                    ? () => _messageFarmer(farmerId, farmerName, name)
+                    : null,
+                icon: const Icon(Icons.chat_bubble_outline, size: 17),
+                label: Text(
+                  tl('Message'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1361,34 +1411,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   disabledForegroundColor: AppColors.grey(600),
                   elevation: 0,
                   minimumSize: const Size.fromHeight(_actionHeight),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(_actionHeight / 2),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: const StadiumBorder(),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            _iconAction(
-              icon: Icons.shopping_bag_outlined,
-              tooltip: tl('Order Now'),
-              onTap: !canOrder
-                  ? null
-                  : () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PlaceOrderScreen(
-                          sellerId: farmerId,
-                          sellerName: farmerName,
-                          productId: widget.productId,
-                          productName: name,
-                          productPrice: formatPriceWithUnit(price, unit),
-                          productImage: _imageUrl ?? '',
-                          deliveryAvailable: delivery,
-                          pickupAvailable: pickup,
-                          unit: unit,
-                        ),
-                      ),
-                    ),
             ),
           ],
         ),
@@ -1396,37 +1422,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // One height for every action on this screen; the buttons are pills and
-  // circles of it.
-  static const double _actionHeight = 50;
+  // One height for every action on this screen; the buttons are pills of it.
+  static const double _actionHeight = 44;
 
-  // A small icon-only action: light green fill, thin green outline.
-  Widget _iconAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    return Tooltip(
-      message: tooltip,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.brand,
-          backgroundColor: enabled ? AppColors.tint : AppColors.grey(100),
-          side: BorderSide(
-            color: enabled
-                ? AppColors.brand.withValues(alpha: 0.35)
-                : AppColors.grey(300),
-          ),
-          minimumSize: const Size(_actionHeight, _actionHeight),
-          padding: EdgeInsets.zero,
-          shape: const CircleBorder(),
-        ),
-        child: Icon(icon, size: 22),
-      ),
-    );
-  }
+  // A bottom-bar button: up to this wide, narrower on a small phone.
+  static const double _actionMaxWidth = 160;
+
+  Widget _actionSlot(Widget button) => Flexible(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _actionMaxWidth),
+      child: SizedBox(width: double.infinity, child: button),
+    ),
+  );
 
   Future<void> _messageFarmer(
     String farmerId,
