@@ -369,6 +369,16 @@ class MarketDemandService {
     ];
   }
 
+  /// Every completed order from buyers in [area] in [month] — what each
+  /// product's share in [productsBoughtIn] is out of.
+  static int ordersInArea({
+    required Iterable<Map<String, dynamic>> sales,
+    required DateTime month,
+    required String area,
+  }) => parseSales(
+    sales,
+  ).where((sale) => sale.area == area && _inMonth(sale.date, month)).length;
+
   /// The buyer areas with the most completed orders in [month]. Sales with
   /// no buyer area on record are left out rather than guessed.
   static List<BuyerLocation> topBuyerLocations({

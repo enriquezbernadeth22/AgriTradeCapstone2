@@ -1,5 +1,5 @@
 // Videos in a chat: Record Video and Choose Video in the + menu, at most
-// 20 MB, shown as their first frame with a play button. And the message box
+// 100 MB (recorded up to 30 seconds), shown as their first frame with a play button. And the message box
 // looks like the Log In field: a grey outline at rest, the soft green glow
 // with no outline while typing.
 import 'package:agritrade/screen/chat_attachments.dart';
@@ -12,11 +12,16 @@ import 'package:google_fonts/google_fonts.dart';
 void main() {
   setUp(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  test('a chat video may be up to 20 MB', () {
-    expect(kChatVideoMaxBytes, 20 * 1024 * 1024);
-    expect(chatVideoFits(20 * 1024 * 1024), isTrue);
-    expect(chatVideoFits(20 * 1024 * 1024 + 1), isFalse);
-    expect(kChatVideoMaxDuration, const Duration(minutes: 1));
+  test('a chat video may be up to 100 MB, recorded up to 30 seconds', () {
+    expect(kChatVideoMaxBytes, 100 * 1024 * 1024);
+    expect(chatVideoFits(100 * 1024 * 1024), isTrue);
+    expect(chatVideoFits(100 * 1024 * 1024 + 1), isFalse);
+    expect(kChatVideoMaxDuration, const Duration(seconds: 30));
+  });
+
+  test('sizes read as megabytes', () {
+    expect(formatMegabytes(58 * 1024 * 1024), '58 MB');
+    expect(formatMegabytes((4.2 * 1024 * 1024).round()), '4.2 MB');
   });
 
   test('a video is shown by its first frame, from Cloudinary', () {
@@ -50,9 +55,9 @@ void main() {
     );
     final choice = showChatAttachmentMenu(plus);
     await tester.pumpAndSettle();
-    expect(find.text('Record Video'), findsOneWidget);
-    expect(find.text('Choose Video'), findsOneWidget);
-    await tester.tap(find.text('Choose Video'));
+    expect(find.text('Record Video (30 sec max)'), findsOneWidget);
+    expect(find.text('Choose Video (100 MB max)'), findsOneWidget);
+    await tester.tap(find.text('Choose Video (100 MB max)'));
     await tester.pumpAndSettle();
     expect(await choice, ChatAttachment.chooseVideo);
   });

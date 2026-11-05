@@ -222,7 +222,7 @@ class _HistoricalDemandPreviewDialogState
               Text(
                 'Import Historical Demand Data',
                 style: TextStyle(
-                  color: c.textPrimary,
+                  color: c.heading,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -286,7 +286,7 @@ class _HistoricalDemandPreviewDialogState
                         ),
                         elevation: 0,
                         textStyle: const TextStyle(
-                          fontFamily: 'Montserrat',
+                          fontFamily: kAdminFontFamily,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                         ),

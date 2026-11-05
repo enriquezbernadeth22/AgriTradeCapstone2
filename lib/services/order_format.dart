@@ -156,7 +156,10 @@ class OrderInfo {
 
   DateTime? get createdAt => _date('createdAt');
   DateTime? get updatedAt => _date('updatedAt');
-  DateTime? get confirmedAt => _date('confirmedAt');
+
+  /// When the farmer confirmed it: the stock stamp confirming makes (see
+  /// OrderService.updateStatus), for orders that have one.
+  DateTime? get confirmedAt => _date('confirmedAt') ?? _date('stockDeductedAt');
   DateTime? get shippedAt => _date('shippedAt');
   DateTime? get completedAt => _date('completedAt');
   DateTime? get rejectedAt => _date('rejectedAt');

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../services/order_format.dart';
@@ -8,9 +9,13 @@ import 'orders_view.dart';
 // and bottom nav). The screen itself is shared with the Buyer side; see
 // OrdersView.
 class OrdersTab extends StatelessWidget {
-  const OrdersTab({super.key});
+  /// A status tab to open on request (Market's Orders Today opens
+  /// Confirmed).
+  final ValueListenable<String?>? showStatus;
+
+  const OrdersTab({super.key, this.showStatus});
 
   @override
   Widget build(BuildContext context) =>
-      const OrdersView(role: OrderRole.farmer);
+      OrdersView(role: OrderRole.farmer, showStatus: showStatus);
 }

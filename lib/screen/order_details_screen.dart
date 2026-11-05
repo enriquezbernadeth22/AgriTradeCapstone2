@@ -7,6 +7,7 @@ import '../services/market_price_helpers.dart';
 import '../services/order_contact_service.dart';
 import '../services/order_format.dart';
 import '../widgets/order_card.dart';
+import '../widgets/pickup_place_card.dart';
 import '../widgets/order_contact_section.dart';
 import '../widgets/profile_avatar.dart';
 import 'order_actions.dart';
@@ -129,7 +130,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ],
                 ),
               ),
-              if (actions.isNotEmpty) _actionBar(actions),
+              if (actions.isNotEmpty) OrderActionBar(actions: actions),
             ],
           );
         },
@@ -497,20 +498,32 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
           ],
           if (order.isPickup)
-            // Only the farmer's general area is ever shown; the exact
-            // pick-up point is agreed in Messages.
+            // The buyer: the farmer's general area while the order is
+            // pending; once confirmed, the pick-up address, a map of the
+            // farm and directions (PickupPlaceCard).
             FutureBuilder<Map<String, dynamic>>(
               future: _role == OrderRole.buyer ? _otherProfile : null,
               builder: (context, snapshot) {
                 final area = _area(snapshot.data ?? const {});
+                if (_role == OrderRole.buyer &&
+                    OrderContactService.isShared(order.status)) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: PickupPlaceCard(orderId: order.id, area: area),
+                  );
+                }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (area.isNotEmpty) _line(tl('Pick-up area'), area),
                     _note(
-                      tl(
-                        'Arrange the exact pick-up point and time in Messages.',
-                      ),
+                      _role == OrderRole.buyer && order.status == 'pending'
+                          ? tl(
+                              'The pick-up address and map appear here once the farmer confirms your order.',
+                            )
+                          : tl(
+                              'Arrange the exact pick-up point and time in Messages.',
+                            ),
                     ),
                   ],
                 );
@@ -796,37 +809,72 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       ),
     );
   }
+}
 
-  Widget _actionBar(List<OrderCardAction> actions) => Container(
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      border: Border(top: BorderSide(color: AppColors.grey(200))),
-    ),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        // Three do not fit on one line: the first takes its own.
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (actions.length > 2) ...[
-              OrderActionButton(actions.first, large: true),
-              const SizedBox(height: 8),
-            ],
-            Row(
-              children: [
-                for (final (i, action)
-                    in actions.skip(actions.length > 2 ? 1 : 0).indexed) ...[
-                  if (i > 0) const SizedBox(width: 10),
-                  Expanded(child: OrderActionButton(action, large: true)),
+/// The buttons at the foot of Order Details.
+class OrderActionBar extends StatelessWidget {
+  final List<OrderCardAction> actions;
+  const OrderActionBar({super.key, required this.actions});
+
+  // The buttons at the foot of the screen. Two side by side, the same
+  // size. With three (a confirmed order: Cancel Order, Report Delay, Ready
+  // for Pick-up), the two that move the order on sit side by side and
+  // Cancel Order is a quieter red text button centred under them, so the
+  // row stays balanced and cancelling is never tapped by mistake.
+  @override
+  Widget build(BuildContext context) {
+    final split = actions.length > 2;
+    final quiet = split
+        ? [
+            for (final a in actions)
+              if (a.kind == OrderActionKind.destructive) a,
+          ]
+        : const <OrderCardAction>[];
+    final main = [
+      for (final a in actions)
+        if (!quiet.contains(a)) a,
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.grey(200))),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(14, 10, 14, quiet.isEmpty ? 10 : 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  for (final (i, action) in main.indexed) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    Expanded(child: OrderActionButton(action, large: true)),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+              for (final action in quiet)
+                Center(
+                  child: TextButton.icon(
+                    key: Key('quietAction-${action.label}'),
+                    onPressed: action.onTap,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.tone(Colors.red, 700),
+                      textStyle: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: Text(action.label),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

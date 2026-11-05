@@ -65,6 +65,34 @@ class _AppBootstrapState extends State<AppBootstrap> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
   }
 
+  // Opened without internet: checked again every few seconds, and the app
+  // carries on from the splash as soon as the connection is back.
+  Timer? _offlineRetry;
+
+  void _waitForInternet() {
+    if (_offlineRetry?.isActive ?? false) return;
+    _offlineRetry = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted || _phase != _BootPhase.offline) {
+        _offlineRetry?.cancel();
+        return;
+      }
+      final back = await ConnectivityService.instance.checkNow(
+        force: true,
+        reason: 'waiting on the splash',
+      );
+      if (back && mounted && _phase == _BootPhase.offline) {
+        _offlineRetry?.cancel();
+        _boot();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _offlineRetry?.cancel();
+    super.dispose();
+  }
+
   Future<void> _boot() async {
     // ---- Step 1: nothing is decided from the network interface alone ----
     // connectivity_plus can report "none" on a device that is in fact
@@ -115,8 +143,10 @@ class _AppBootstrapState extends State<AppBootstrap> {
     if (!mounted) return;
     if (!reachable) {
       setState(() => _phase = _BootPhase.offline);
+      _waitForInternet();
       return;
     }
+    _offlineRetry?.cancel();
 
     // ---- Step 4: auth-adjacent setup (push notifications) ----
     setState(() => _phase = _BootPhase.checkingAuthentication);
@@ -195,8 +225,12 @@ class _AppBootstrapState extends State<AppBootstrap> {
           ),
         );
       case _BootPhase.offline:
+        // The phone waits on the splash, saying there is no internet, and
+        // goes on by itself once it is back; the Admin website keeps its
+        // own offline page.
+        if (!kIsWeb) return BrandedLoadingScreen(onRetryOffline: _boot);
         return NoInternetScreen(
-          message: kIsWeb ? kNoInternetAdminMessage : kNoInternetMessage,
+          message: kNoInternetAdminMessage,
           onRetry: _boot,
         );
       case _BootPhase.ready:

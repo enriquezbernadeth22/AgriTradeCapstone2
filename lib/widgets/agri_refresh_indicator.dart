@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
+import '../services/connectivity_service.dart';
 import '../theme/app_colors.dart';
+import 'app_scaffold_messenger.dart';
 
 /// Pull to refresh, with the app's own spinner: a plain green circle in a
 /// small white disc at the top while it loads.
@@ -15,6 +18,16 @@ class AgriRefreshIndicator extends StatefulWidget {
     this.color,
   });
 
+  /// Whether a refresh can reach the internet. Once the app has checked
+  /// its connection (from startup on), it asks again (a recent answer is
+  /// reused); before any check — tests, previews — it lets the refresh go
+  /// ahead as before.
+  static Future<bool> Function() online = () async {
+    final connectivity = ConnectivityService.instance;
+    if (connectivity.lastKnownOnline == null) return true;
+    return connectivity.checkNow(reason: 'pull to refresh');
+  };
+
   @override
   State<AgriRefreshIndicator> createState() => _AgriRefreshIndicatorState();
 }
@@ -25,6 +38,20 @@ class _AgriRefreshIndicatorState extends State<AgriRefreshIndicator> {
   Future<void> _refresh() async {
     if (mounted) setState(() => _refreshing = true);
     try {
+      // Without internet there is nothing new to fetch: what is on screen
+      // stays, and the user is told why nothing changed.
+      if (!await AgriRefreshIndicator.online()) {
+        if (mounted) {
+          showAppMessage(
+            context,
+            tl(
+              'No internet connection. What is already on screen stays; pull again once you are back online.',
+            ),
+            kind: MessageKind.warning,
+          );
+        }
+        return;
+      }
       await widget.onRefresh();
     } finally {
       if (mounted) setState(() => _refreshing = false);

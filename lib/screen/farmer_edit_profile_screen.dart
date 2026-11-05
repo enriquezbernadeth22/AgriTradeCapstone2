@@ -54,6 +54,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   BuyerLocationResult? _buyerLocation;
 
   bool _loading = false;
+
+  // What the save is doing now, shown on the card over the page.
+  String _savingStep = '';
   bool _savingLocation = false;
   bool _initialLoading = true;
   bool _recoveryEmailVerified = false;
@@ -199,7 +202,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _savingStep = _pickedPhoto != null
+          ? tl('Uploading your photo…')
+          : tl('Saving your changes…');
+    });
     try {
       final user = _user;
       if (user != null) {
@@ -235,6 +243,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           await user.updatePhotoURL(uploadedUrl);
         }
 
+        if (mounted) setState(() => _savingStep = tl('Saving your changes…'));
         if (user.displayName != name) {
           await user.updateDisplayName(name);
         }
@@ -566,219 +575,300 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  // While saving: the page dimmed, and a card in the middle with a spinner
+  // and what is happening now (uploading the photo, then saving). It also
+  // keeps the form from being changed half-way.
+  Widget _savingOverlay() => Positioned.fill(
+    child: ColoredBox(
+      color: Colors.black.withValues(alpha: 0.28),
+      child: Center(
+        child: Container(
+          key: const Key('profileSavingCard'),
+          width: 240,
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: AppColors.cardBorder,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 34,
+                height: 34,
+                child: CircularProgressIndicator(
+                  color: AppColors.brand,
+                  strokeWidth: 3,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _savingStep,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                tl('Please wait a moment.'),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.page,
-      appBar: AgriAppBar(title: tr(context).editProfile),
-      body: _initialLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.brand))
-          : SingleChildScrollView(
-              // Room between the header and the photo.
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.formPageMargin,
-                AppTheme.formSectionGap,
-                AppTheme.formPageMargin,
-                AppTheme.formSectionGap,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _avatarWithEditBadge(),
-                  const SizedBox(height: 24),
+    return PopScope(
+      // No leaving half-way through a save.
+      canPop: !_loading,
+      child: Scaffold(
+        backgroundColor: AppColors.page,
+        appBar: AgriAppBar(title: tr(context).editProfile),
+        body: Stack(children: [_form(), if (_loading) _savingOverlay()]),
+      ),
+    );
+  }
 
-                  _fieldLabel(tl('Full Name')),
-                  FormFieldGlow(
-                    child: TextField(
-                      controller: _nameController,
-                      style: GoogleFonts.montserrat(fontSize: 14),
-                      decoration: _fieldDecoration(Icons.person_outline),
-                    ),
+  Widget _form() {
+    return _initialLoading
+        ? Center(child: CircularProgressIndicator(color: AppColors.brand))
+        : SingleChildScrollView(
+            // Room between the header and the photo.
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.formPageMargin,
+              AppTheme.formSectionGap,
+              AppTheme.formPageMargin,
+              AppTheme.formSectionGap,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _avatarWithEditBadge(),
+                const SizedBox(height: 24),
+
+                _fieldLabel(tl('Full Name')),
+                FormFieldGlow(
+                  child: TextField(
+                    controller: _nameController,
+                    style: GoogleFonts.montserrat(fontSize: 14),
+                    decoration: _fieldDecoration(Icons.person_outline),
                   ),
-                  const SizedBox(height: AppTheme.formFieldGap),
+                ),
+                const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel(tr(context).emailAddress),
-                  TextField(
-                    controller: _emailController,
-                    enabled:
-                        false, // email changes need re-auth; edit elsewhere if needed
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    decoration: _fieldDecoration(Icons.mail_outline),
+                _fieldLabel(tr(context).emailAddress),
+                TextField(
+                  controller: _emailController,
+                  enabled:
+                      false, // email changes need re-auth; edit elsewhere if needed
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
                   ),
-                  const SizedBox(height: AppTheme.formFieldGap),
+                  decoration: _fieldDecoration(Icons.mail_outline),
+                ),
+                const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel(tl('Recovery Email')),
-                  FormFieldGlow(
-                    child: TextField(
-                      controller: _recoveryEmailController,
-                      keyboardType: TextInputType.emailAddress,
-                      style: GoogleFonts.montserrat(fontSize: 14),
-                      decoration: _fieldDecoration(Icons.security_outlined)
-                          .copyWith(
-                            hintText: tl('Add a backup email'),
-                            // Verified / Not verified only for a second
-                            // address (not the login email): Verified once
-                            // its code was entered, a newly typed one not yet.
-                            suffixIcon: !_hasOwnRecoveryEmail
-                                ? null
-                                : Padding(
-                                    padding: const EdgeInsets.only(right: 10),
-                                    child: RecoveryEmailStatusChip(
-                                      verified:
-                                          _recoveryEmailVerified &&
-                                          !_recoveryChanged,
-                                    ),
+                _fieldLabel(tl('Recovery Email')),
+                FormFieldGlow(
+                  child: TextField(
+                    controller: _recoveryEmailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: GoogleFonts.montserrat(fontSize: 14),
+                    decoration: _fieldDecoration(Icons.security_outlined)
+                        .copyWith(
+                          hintText: tl('Add a backup email'),
+                          // Verified / Not verified only for a second
+                          // address (not the login email): Verified once
+                          // its code was entered, a newly typed one not yet.
+                          suffixIcon: !_hasOwnRecoveryEmail
+                              ? null
+                              : Padding(
+                                  padding: const EdgeInsets.only(right: 10),
+                                  child: RecoveryEmailStatusChip(
+                                    verified:
+                                        _recoveryEmailVerified &&
+                                        !_recoveryChanged,
                                   ),
-                            suffixIconConstraints: const BoxConstraints(),
-                          ),
-                    ),
-                  ),
-                  if (_sameAsLogin(_recoveryEmailController.text))
-                    _fieldNote(tl(_sameAsLoginMessage), error: true)
-                  else if (_hasOwnRecoveryEmail &&
-                      !(_recoveryEmailVerified && !_recoveryChanged))
-                    _fieldNote(
-                      tl('We will email it a 6-digit code to verify it.'),
-                    ),
-                  // A saved but unverified address can be verified now.
-                  if (!_recoveryEmailVerified &&
-                      !_recoveryChanged &&
-                      _hasOwnRecoveryEmail)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: _verifyingRecovery ? null : _verifyRecovery,
-                        icon: _verifyingRecovery
-                            ? SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.brand,
                                 ),
-                              )
-                            : const Icon(
-                                Icons.mark_email_read_outlined,
-                                size: 16,
-                              ),
-                        label: Text(tl('Verify now')),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.brand,
-                          textStyle: GoogleFonts.montserrat(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          suffixIconConstraints: const BoxConstraints(),
                         ),
-                      ),
-                    ),
-                  const SizedBox(height: AppTheme.formFieldGap),
-
-                  _fieldLabel(tl('Phone Number')),
-                  FormFieldGlow(
-                    child: TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: kPhMobileInputFormatters,
-                      style: GoogleFonts.montserrat(fontSize: 14),
-                      // The +63 is fixed, not editable: only the 10 digits
-                      // after it are.
-                      decoration: AppTheme.formFieldDecoration(
-                        icon: Icons.call_outlined,
-                        prefixText: kPhMobilePrefix,
-                        hint: kPhMobileHint,
-                        onGlowPlate: true,
+                  ),
+                ),
+                if (_sameAsLogin(_recoveryEmailController.text))
+                  _fieldNote(tl(_sameAsLoginMessage), error: true)
+                else if (_hasOwnRecoveryEmail &&
+                    !(_recoveryEmailVerified && !_recoveryChanged))
+                  _fieldNote(
+                    tl('We will email it a 6-digit code to verify it.'),
+                  ),
+                // A saved but unverified address can be verified now.
+                if (!_recoveryEmailVerified &&
+                    !_recoveryChanged &&
+                    _hasOwnRecoveryEmail)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: _verifyingRecovery ? null : _verifyRecovery,
+                      icon: _verifyingRecovery
+                          ? SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.brand,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.mark_email_read_outlined,
+                              size: 16,
+                            ),
+                      label: Text(tl('Verify now')),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.brand,
+                        textStyle: GoogleFonts.montserrat(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppTheme.formFieldGap),
+                const SizedBox(height: AppTheme.formFieldGap),
 
-                  if (_role != null) ...[
-                    RegistrationRoleDetails(
-                      isFarmer: _role == 'farmer',
-                      value: _accountType,
-                      onChanged: (value) =>
-                          setState(() => _accountType = value),
+                _fieldLabel(tl('Phone Number')),
+                FormFieldGlow(
+                  child: TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: kPhMobileInputFormatters,
+                    style: GoogleFonts.montserrat(fontSize: 14),
+                    // The +63 is fixed, not editable: only the 10 digits
+                    // after it are.
+                    decoration: AppTheme.formFieldDecoration(
+                      icon: Icons.call_outlined,
+                      prefixText: kPhMobilePrefix,
+                      hint: kPhMobileHint,
+                      onGlowPlate: true,
                     ),
-                    const SizedBox(height: AppTheme.formFieldGap),
-                  ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.formFieldGap),
 
-                  _fieldLabel(tl('Location')),
-                  if (_role == 'buyer')
-                    Builder(
-                      builder: (fieldContext) => FormFieldGlow(
-                        radius: AppTheme.dropdownRadius,
-                        child: TextField(
-                          controller: _locationController,
-                          readOnly: true,
-                          onTap: () => _editBuyerLocation(fieldContext),
-                          style: GoogleFonts.montserrat(fontSize: 14),
-                          decoration:
-                              AppTheme.formDropdownDecoration(
-                                icon: Icons.location_on_outlined,
-                                hint: tl('Tap to set your location'),
-                                onGlowPlate: true,
-                              ).copyWith(
-                                suffixIcon: _savingLocation
-                                    ? Padding(
-                                        padding: EdgeInsets.all(14),
-                                        child: SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.brand,
-                                          ),
-                                        ),
-                                      )
-                                    : Icon(
-                                        Icons.expand_more_rounded,
-                                        color: AppTheme.formIconColor,
-                                        size: AppTheme.formIconSize,
-                                      ),
-                              ),
-                        ),
-                      ),
-                    )
-                  else
-                    FormFieldGlow(
+                if (_role != null) ...[
+                  RegistrationRoleDetails(
+                    isFarmer: _role == 'farmer',
+                    value: _accountType,
+                    onChanged: (value) => setState(() => _accountType = value),
+                  ),
+                  const SizedBox(height: AppTheme.formFieldGap),
+                ],
+
+                _fieldLabel(tl('Location')),
+                if (_role == 'buyer')
+                  Builder(
+                    builder: (fieldContext) => FormFieldGlow(
+                      radius: AppTheme.dropdownRadius,
                       child: TextField(
                         controller: _locationController,
+                        readOnly: true,
+                        onTap: () => _editBuyerLocation(fieldContext),
                         style: GoogleFonts.montserrat(fontSize: 14),
-                        decoration: _fieldDecoration(
-                          Icons.location_on_outlined,
-                        ),
+                        decoration:
+                            AppTheme.formDropdownDecoration(
+                              icon: Icons.location_on_outlined,
+                              hint: tl('Tap to set your location'),
+                              onGlowPlate: true,
+                            ).copyWith(
+                              suffixIcon: _savingLocation
+                                  ? Padding(
+                                      padding: EdgeInsets.all(14),
+                                      child: SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.brand,
+                                        ),
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.expand_more_rounded,
+                                      color: AppTheme.formIconColor,
+                                      size: AppTheme.formIconSize,
+                                    ),
+                            ),
                       ),
                     ),
-
-                  if (_role == 'farmer') ...[
-                    const SizedBox(height: AppTheme.formFieldGap),
-                    _farmLocationSection(),
-                  ],
-                  const SizedBox(height: AppTheme.formSectionGap),
-
-                  ElevatedButton(
-                    onPressed: _loading ? null : _save,
-                    style: AppTheme.primaryButton(),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            tr(context).saveChanges,
-                            style: AppTheme.buttonText(),
-                          ),
+                  )
+                else
+                  FormFieldGlow(
+                    child: TextField(
+                      controller: _locationController,
+                      style: GoogleFonts.montserrat(fontSize: 14),
+                      decoration: _fieldDecoration(Icons.location_on_outlined),
+                    ),
                   ),
+
+                if (_role == 'farmer') ...[
+                  const SizedBox(height: AppTheme.formFieldGap),
+                  _farmLocationSection(),
                 ],
-              ),
+                const SizedBox(height: AppTheme.formSectionGap),
+
+                ElevatedButton(
+                  onPressed: _loading ? null : _save,
+                  // Stays dark green while saving, so "Saving…" can be read.
+                  style: AppTheme.primaryButton().copyWith(
+                    backgroundColor: WidgetStatePropertyAll(
+                      _loading
+                          ? AppColors.brandFill.withValues(alpha: 0.8)
+                          : AppColors.brandFill,
+                    ),
+                  ),
+                  child: _loading
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              tl('Saving…'),
+                              style: AppTheme.buttonText().copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          tr(context).saveChanges,
+                          style: AppTheme.buttonText(),
+                        ),
+                ),
+              ],
             ),
-    );
+          );
   }
 }

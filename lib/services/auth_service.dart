@@ -658,9 +658,11 @@ class AuthService {
       // how long it lasts, so the caller shows the dialog with no timer.
       if (e.code == 'too-many-requests') return loginRateLimitedSentinel;
 
-      // An unknown email, a wrong password and a Google-only account all
-      // get the same answer and are counted the same way, so nothing here
-      // tells the caller whether the email is registered.
+      // Firebase gives an unknown email, a wrong password and a Google-only
+      // account the same error. The server says which it was, so the
+      // person is told plainly: not registered, use Google, or a wrong
+      // password (counted towards the pause). Before that server is
+      // deployed — or offline — it stays "Incorrect email or password".
       const wrongCredentials = {
         'user-not-found',
         'wrong-password',
@@ -670,6 +672,8 @@ class AuthService {
         final outcome = await _loginThrottle('reportLoginFailure', {
           'email': email.trim(),
         });
+        if (outcome?['registered'] == false) return notRegisteredMessage;
+        if (outcome?['passwordless'] == true) return googleOnlyMessage;
         if (outcome?['locked'] == true) return _lockedSentinel(outcome!);
         final remaining = (outcome?['attemptsRemaining'] as num?)?.toInt();
         // After the 3rd and 4th wrong password: warn how many tries are
@@ -702,6 +706,14 @@ class AuthService {
   /// or one are left, which the login form shows under the Password field
   /// instead of as a pop-up.
   static const String wrongCredentialsMessage = 'Incorrect email or password.';
+
+  /// logIn result for an email with no AgriTrade+ account.
+  static const String notRegisteredMessage =
+      'This email is not registered. Check the email, or create an account.';
+
+  /// logIn result for an account that signs in with Google only.
+  static const String googleOnlyMessage =
+      'This email signs in with Google. Use Continue with Google instead.';
 
   /// Wrong passwords in a row before the pause (mirrors the server).
   static const int loginMaxFailedAttempts = 5;

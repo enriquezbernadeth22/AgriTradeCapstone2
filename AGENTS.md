@@ -105,8 +105,14 @@ test/         widget + unit tests (one file per feature)
   `pending → confirmed → shipped → completed` (plus `rejected`,
   `cancelled`). A buyer can cancel while pending; a farmer can cancel a
   confirmed order with a reason; a pending order unanswered for 3 days is
-  cancelled by `expirePendingOrders`; `handleOrderReschedule` returns the
-  stock. The buyer confirms a shipped order ("Order Received"); the farmer may
+  cancelled by `expirePendingOrders`. **Stock comes off the listing when the
+  farmer confirms** (decided by the user, 2026-11-05): placing an order only
+  checks there is enough (`stockOnConfirm: true`), confirming takes it in
+  the same transaction (`stockDeductedAt`; refused if not enough left,
+  enforced by `farmerStockStepOk` in the rules), and only an order that took
+  stock gives it back on cancel (`orderTookStock` /
+  `order_stock_logic.js`; orders from before took it when placed, and
+  older app versions may still place that way). The buyer confirms a shipped order ("Order Received"); the farmer may
   complete it only 3 days after shipping (`kBuyerConfirmWindow`, also in the
   rules and `order_reminder_logic.js`). `firestore.rules` checks the
   order's price against the listing (keep it in step with
@@ -120,6 +126,17 @@ test/         widget + unit tests (one file per feature)
   sold ("Eggplant (kg)", "Cattle (head)"; units never added together).
   Decided by the user, 2026-11-01. The Buyer's demand badge stays order-based
   (`MarketDemandService.demandLeaders`, top 10).
+- Farmer's Market tab (decided by the user, 2026-11-05): under Sales
+  Performance, "AgriTrade+ Insights" is a dropdown ("View AgriTrade+
+  insights": Current Market Average, Best-Selling Products, Top Buyer
+  Locations) showing only the one chosen (`MarketInsight`); its first-time
+  hints are two (Sales Performance, the insights picker). Orders Today
+  counts the orders confirmed today and still Confirmed
+  (`confirmedTodayCount`) and opens Orders on the Confirmed tab. Orders
+  (buyer and farmer) has a period filter under the header (Today, Last 7 /
+  30 days, Last 3 / 6 months, This year, All time, Custom range;
+  `OrderDateFilter`, by the day placed). Placing an order ends with an
+  "Order Placed!" summary (`showOrderPlacedDialog`).
 - Market tab cards (`market_demand_cards.dart`): Best-Selling Products lists
   the top 5 (`bestSellerLimit`); each card has its **own month** (picking one
   on a card never moves the other). Tapping a Top Buyer Locations row shows
@@ -141,8 +158,26 @@ test/         widget + unit tests (one file per feature)
   (`heart`, `like`, `wow`, `sad`, `angry`; `true` from before = Like); the
   same one again takes it off (`MessageService.setReaction`).
   `firestore.rules` allows exactly these keys.
-- Chat videos: Record Video / Choose Video in the + menu, at most 20 MB
-  (`kChatVideoMaxBytes`; recording stops at 1 minute), uploaded to
+- Held messages (decided by the user, 2026-11-05; `message_actions.dart`):
+  the rest of the chat blurs, the message stays sharp with the reactions
+  above it and a menu under it — Reply, Copy (text), Pin / Unpin, Unsend
+  (your own: content cleared, `unsent: true`, "You unsent a message") and
+  Report (theirs: a `reports` doc, `targetType: 'message'`). One pinned
+  message per conversation (`pinnedMessage`), shown as a banner with an ×.
+  Messages slide under the finger to reply (`SwipeToReply`): received
+  ones to the right, your own to the left.
+- Tapping outside a text field takes its focus and the keyboard away, in
+  every screen (`TapOutsideToUnfocus` in main.dart). On "Continue with
+  Google", the profile form's Cancel goes back to choosing Buyer/Farmer
+  (still signed in), not out to Log In. A login with an unregistered email
+  says "This email is not registered" (and a Google-only one says to use
+  Google): `reportLoginFailure` looks the email up — the user accepted that
+  this reveals whether an email is registered.
+- Chat videos: Record Video / Choose Video in the + menu, at most 100 MB
+  (`kChatVideoMaxBytes`, the most Cloudinary takes in one upload; 20 MB
+  turned away 1080p clips past ~10 s) and recorded up to 30 seconds
+  (`kChatVideoMaxDuration`); both limits are on the menu labels and the
+  upload bar shows "12 of 58 MB". Uploaded to
   Cloudinary as a video and sent as `type: 'video'`, `videoUrl`. The bubble
   shows Cloudinary's first frame (`CloudinaryService.videoThumbnail`) and
   plays in `ChatVideoPlayerScreen` (`video_player`). The message box uses
@@ -169,12 +204,45 @@ test/         widget + unit tests (one file per feature)
 - Buyer Profile counts sit on pale green tiles. A banner on Explore and a
   produce picture on empty pages were tried on 2026-11-04 and removed by
   the user: empty pages keep the icon (`AgriEmptyState`).
+- **No internet** (decided by the user, 2026-11-05): opened offline, the
+  phone stays on the splash with a note and Try Again, and carries on by
+  itself once online (`AppBootstrap._waitForInternet`; the Admin website
+  keeps its NoInternetScreen). Offline mid-session, what is on screen
+  stays, and pull-to-refresh says there is no internet instead of loading
+  (`AgriRefreshIndicator.online`). Buyer Search suggests commodities,
+  listing and farmer names as they type, with the matching products under
+  them (`suggestedSearchTerms`). Product Details' map preview opens Farm
+  Location (`BuyerMapView`), which shows the distance from the last known
+  position at once and has a refresh; Order Now and Message fill the bar.
+- **What a buyer buys comes first** (decided by the user, 2026-11-05):
+  Explore puts the products a buyer buys most (from their own orders;
+  `boughtFirst` / `boughtCounts`) ahead of the rest, inside the area tiers
+  below, and each pull-to-refresh deals a fresh mix (`_feedMix`). Search's
+  Recommended Products puts listings of a product they bought first, and
+  shows no "based on…" line. A confirmed pick-up order shows the buyer the
+  pick-up address, a map of the farm pin and Get Directions
+  (`PickupPlaceCard`; the farmer shares them on confirming, in
+  orders/{id}/private/farmer, `pickupAddress`/`pickupLat`/`pickupLng`).
+  Map points for an area wait at most 3 s for geocoding (`geocodeWait`),
+  then use the barangay's reference point and finish in the background.
 - **The buyer's area is the feed's priority** (decided by the user,
   2026-11-04): in Explore and Search, listings whose delivery coverage
   reaches the buyer's saved area (`BuyerAreaWatcher`, users/{uid}
   barangay/municipality/province) come first via `deliveringFirst`, each
   group keeping the feed's own ranking; nothing is hidden. Their card shows
   "Delivers to you". No location saved → order unchanged.
+- **Photos and listings** (decided by the user, 2026-11-05): a listing has
+  up to 5 photos (`AddProductScreen.maxPhotos`: the main photo plus a "More
+  photos" row); Product Details swipes through them, and every photo that
+  can be tapped (product, storefront, review) opens `openPhotoGallery`
+  (`chat_photo_viewer.dart`: swipe, "2 / 5", zoom, Save). The farm map on
+  Product Details is a still preview (no gestures; lite mode on Android);
+  tapping it or Open map opens the movable map. The storefront shows the
+  farmer's reviews (rating, latest two, See all = `ProductReviewsScreen`
+  with no productId). The buyer's product grids (Explore, Search, Liked)
+  have no farmer line (`ExploreProductCard.showFarmer` is off by default).
+  Tapping the "Welcome to AgriTrade+!" notification shows
+  `showWelcomeDialog` (greets by first name), then Help & Support.
 - **Livestock is sold live only** (decided by the user, 2026-11-04): no
   Selling Option in Add Product, no slaughtered price in Price Management;
   a livestock listing saves `sellingOption: 'live'` and shows no suffix.
@@ -197,13 +265,26 @@ those, not individual screens:
 - `AdminPalette` (`admin_dashboard_screen.dart`): `light` and `dark`
   (neutral: near-black/greys; green only for accent + success). Read it with
   `AdminThemeScope.of(context).palette`; in dialogs (outside the scope) use
-  `AdminPalette.fallback(context)`.
+  `AdminPalette.fallback(context)`. Titles, headings and field labels use
+  `palette.heading` (bold dark green, like the Admin login's "Welcome" and
+  "Email Address"); small spaced capitals ("ADMIN DASHBOARD", sidebar
+  groups) use `palette.eyebrow` (medium green, like "ADMIN PORTAL"); body
+  text and figures stay near-black. Decided by the user, 2026-11-04.
 - `adminThemeData(context, palette)`: the portal's Material theme (buttons,
   inputs, checkboxes, dialogs, menus, grey hover/focus).
-- `AdminRadii`: `card` 16 (cards, tables, modals), `control` 10 (buttons,
-  form inputs), `pill` (dropdowns, search, date/year pickers, chips, badges).
+- Font: **Inter** (`kAdminFontFamily`, bundled in `assets/fonts`; `adminFont()`
+  for a style of its own). The mobile app keeps Montserrat. The Admin login and
+  Forgot Password forms are in Inter too (`AdminAuthShell._forms`): outside
+  the portal theme the web default is Google Fonts Montserrat in its regular
+  file only, where bold cannot be drawn.
+- `AdminRadii`: `card` 10 (cards, tables; `kAdminTableRadius` 10), `control`
+  10 (buttons, form inputs, search, dropdowns, date/year pickers: all
+  `kAdminFieldRadius`), `pill` (chips, badges only). The Admin login and
+  Forgot Password fields and buttons are the same rounded rectangles
+  (`GlowField(radius: AppTheme.adminFieldRadius)`). Header buttons (Announce, Dark Mode, bell): white
+  rounded squares with a grey border (`adminHeaderButtonDecoration`).
 - `admin_filter_controls.dart`: `kAdminControlHeight` = 40,
-  `AdminInputGlow` (the white **pill** plate behind every search/dropdown/
+  `AdminInputGlow` (the white rounded plate behind every search/dropdown/
   date picker), `adminFieldDecoration` (16px inset, 16px icon),
   `AdminPillDropdown`, `AdminPillSearch`, `AdminMonthPill`, `AdminYearPill`,
   `AdminPillToggle`, `adminPillControlStyle` (a date button styled as a
@@ -215,7 +296,20 @@ those, not individual screens:
 - Dark Mode: `adminDarkMode` (ValueNotifier, saved per browser) and the
   moon/sun `AdminThemeToggle` beside Announce. Default is light. Not every
   page has been checked in dark mode.
-- Sidebar: `lib/widgets/admin_sidebar.dart` (`AdminSidebarColors.of(context)`).
+- Sidebar: `lib/widgets/admin_sidebar.dart` (`AdminSidebarColors.of(context)`):
+  white top (logo, "AgriTrade+" bold dark green, "Admin Panel"; no green
+  band, removed by the user 2026-11-05), dark green group names,
+  pages in groups MAIN / MODERATION (`AdminSidebarEntry.section`, a line
+  between groups), the open page a dark green block with 8px corners
+  (`kAdminSidebarRowRadius`), sub-pages with a small dot. Dashboard look
+  (2026-11-04, from the user's mock-up; the bar beside the welcome text, the
+  leaf before "Overview" and the icons before card titles were removed by
+  the user on 2026-11-05): Overview cards with a pale green (amber for
+  attention) icon box and a soft wave in the corner. Pop-up notices
+  (`AdminAlertToasts`, admin_notifications.dart): what happens while the
+  portal is open (orders, applications, approvals, reports; not the
+  Admin's own announcements or sign-ins) pops up at the top right for 6 s
+  (held while hovered, at most 3, click opens its page).
 
 Mobile forms (Log In, Forgot Password, Choose Role, registration, the Google
 profile form, Edit Profile, Change Password, and any new form) share one
@@ -262,11 +356,18 @@ Account, Notification Settings, Appearance = Dark Mode), Support & More
 (`shareAgriTrade`, `showFeedbackSheet`, `AppearanceScreen`). Registration
 asks before Back throws away a filled-in form (`RegisterScreen`). Explore
 fixes its list only once the server has answered and lets new posts in at
-once at the top of the feed (`exploreFeed`).
+once at the top of the feed (`exploreFeed`). Its category pills and location
+dropdown hide while scrolling down and come back after a deliberate scroll
+up (`FiltersOnScroll`, 140px) or at the top. Legal policies are version
+1.0, effective and last updated November 5, 2026 (`kPolicyEffectiveDate`),
+set with the user on 2026-11-05.
 
 User preferences for the admin UI (keep them): neutral black/white/grey,
-**dark green only for buttons/active/selected**, no pale-green surfaces,
-pill-shaped dropdowns/search/date pickers, square checkboxes (4px radius),
+**dark green only for buttons/active/selected** (plus the pale green icon boxes of the 2026-11-04 mock-up), no other pale-green
+surfaces,
+rounded-rectangle text fields, search, dropdowns and date pickers (10px,
+`kAdminFieldRadius`, like the Admin login's fields: icon, thin line, text;
+changed from pills by the user on 2026-11-04), square checkboxes (4px radius),
 standalone info icons (no box), every control in a toolbar the same height.
 
 ## Analytics Dashboard specifics
@@ -285,7 +386,12 @@ standalone info icons (no box), every control in a toolbar the same height.
   than the first completed order are ignored.
 - **Export Report** (`export_options_dialog.dart` → `ReportExportService` →
   `PdfReportService`/Excel): paper size A4 / Short / Long
-  (`ReportPaper`), never scrolls (scales down on short windows). Market Demand
+  (`ReportPaper`). Choices on the left (sections in two columns; a short
+  window scrolls them, nothing is shrunk), and from 900px wide a live
+  preview on the right of the very report they make: the PDF's pages
+  (`ReportExportService.build` + `Printing.raster`) or the Excel sheets'
+  first rows. The data is read once when the dialog opens
+  (`ReportExportService.loadData`) and reused by the preview and Export. Market Demand
   and Market Change Analysis come from `MarketReportSections`.
 
 ## Onboarding
@@ -311,7 +417,13 @@ entrance plays before it appears on a first open.
 - Splash (web, mobile, admin): `BrandedLoadingScreen` + `SproutLoadingBar`
   — logo, name, a pale green bar filling dark green with a small sprout at
   the end of the fill, and "Loading AgriTrade+…" (no percentage). 3 seconds;
-  the app waits for it (`SproutLoadingBar.untilFilled`).
+  the app waits for it (`SproutLoadingBar.untilFilled`). On the web,
+  `web/index.html` shows an HTML/CSS copy of it while Flutter downloads
+  (same sizes, colours and sprout, matched to the pixel). That bar never
+  fills (70% in 2.1 s, then creeps to 90%: `pageBarProgress`), and
+  Flutter's bar finishes from where it got to (`window.agriTradeSplashStart`,
+  read once by `takePageSplashStart`, so a hot restart fills afresh);
+  change both together.
 - Data loading in the portal: `AdminLoadingBar` (fills ~50% at 1s, ~85% at
   3s, creeps to 92%, never full; real data is never delayed for it).
 

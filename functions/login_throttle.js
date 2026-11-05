@@ -13,9 +13,12 @@
  * email, not the device: restarting the app, clearing its storage or
  * switching phones does not reset them.
  *
- * Nothing here looks the email up in Firebase Auth. An address with no
- * account is counted and paused exactly like a real one, so the answers
- * never reveal whether an email is registered.
+ * reportLoginFailure looks the email up in Firebase Auth and says when it
+ * has no account (or only Google sign-in), so the app can tell the person
+ * plainly; an unknown email is not counted. This tells a caller whether an
+ * email is registered — accepted by the user (2026-11-05) for clearer login
+ * messages.
+ * checkLoginAllowed still answers the same for every email.
  *
  * What this cannot do: the app reports its own failed attempts, so someone
  * calling Firebase's sign-in API directly, outside the app, is not counted
@@ -26,6 +29,7 @@
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const throttle = require("./login_throttle_logic");
 
@@ -34,6 +38,20 @@ const db = getFirestore();
 const REGION = "asia-southeast1";
 
 const throttles = db.collection("loginThrottles");
+
+// What Firebase Authentication knows of [email]: registered, and whether
+// it has a password (a Google-only account has none). Unknown (null) when
+// the lookup itself fails, so the app falls back to its usual message.
+async function accountFor(email) {
+  try {
+    const user = await getAuth().getUserByEmail(email);
+    const providers = (user.providerData || []).map((p) => p.providerId);
+    return { registered: true, passwordless: !providers.includes("password") };
+  } catch (e) {
+    if (e && e.code === "auth/user-not-found") return { registered: false, passwordless: false };
+    return { registered: null, passwordless: false };
+  }
+}
 
 function emailFrom(request) {
   const email = throttle.normalizeEmail(request.data && request.data.email);
@@ -49,6 +67,17 @@ exports.checkLoginAllowed = onCall({ region: REGION }, async (request) => {
 
 exports.reportLoginFailure = onCall({ region: REGION }, async (request) => {
   const email = emailFrom(request);
+  // Whether the email has an account, and whether it can sign in with a
+  // password, so the app can say "not registered" or "use Google" instead
+  // of "incorrect email or password" (decided by the user, 2026-11-05). An
+  // unknown email is not counted towards the pause.
+  const account = await accountFor(email);
+  if (account.registered === false) {
+    return { locked: false, attemptsRemaining: null, registered: false };
+  }
+  if (account.passwordless) {
+    return { locked: false, attemptsRemaining: null, registered: true, passwordless: true };
+  }
   const ref = throttles.doc(throttle.keyFor(email));
   // One transaction, so attempts arriving together are each counted once.
   return db.runTransaction(async (tx) => {

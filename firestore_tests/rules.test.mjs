@@ -43,7 +43,8 @@ const seed = () => env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'conversations/c1/messages/m1'), { senderId: 'farmer', text: 'Hello' });
 });
 
-// The same two writes as OrderService.createOrder, in one commit.
+// The same two writes as OrderService.createOrder made before stock was taken
+// on confirmation (older app versions still do), in one commit.
 function place(db, id, product, quantity, pricePerUnit, total, before = 100) {
   const batch = writeBatch(db);
   batch.update(doc(db, `products/${product}`), { quantity: before - quantity, lastOrderId: id });
@@ -90,6 +91,52 @@ await check('a buyer cannot cancel as "expired"', () => assertFails(cancel(buyer
 await check('a cancel cannot change anything else', () => assertFails(updateDoc(doc(buyer(), 'orders/pending1'), {
   status: 'cancelled', cancelReason: 'buyer', cancelledAt: serverTimestamp(), quantity: 1,
 })));
+
+// The current app: placing an order leaves the listing alone, and the
+// farmer's confirmation takes the stock (stockOnConfirm).
+function placeNew(db, id, quantity, extra = {}) {
+  return setDoc(doc(db, `orders/${id}`), {
+    sellerId: 'farmer', buyerId: 'buyer', buyerName: 'Ana', buyerAddress: 'Laurel', productId: 'corn',
+    productName: 'Corn', quantity, unit: 'kg', pricingType: 'retail', pricePerUnit: 50, unitPrice: 50,
+    subtotal: 50 * quantity, total: 50 * quantity, deliveryMethod: 'pickup', status: 'pending',
+    stockOnConfirm: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...extra,
+  });
+}
+const seedNewPending = () => env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'orders/new1'), {
+  buyerId: 'buyer', sellerId: 'farmer', productId: 'corn', productName: 'Corn', quantity: 2,
+  status: 'pending', stockOnConfirm: true,
+}));
+// The same two writes as OrderService.updateStatus confirming, in one commit.
+function confirmTaking(db, id, newQuantity) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'products/corn'), { quantity: newQuantity });
+  batch.update(doc(db, `orders/${id}`), {
+    status: 'confirmed', stockDeductedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  return batch.commit();
+}
+
+await check('an order is placed without touching the listing\'s stock', () => assertSucceeds(placeNew(buyer(), 'n1', 3)));
+await check('it cannot ask for more than the listing has', () => assertFails(placeNew(buyer(), 'n2', 101)));
+await check('it cannot arrive marked as having taken stock', () => assertFails(placeNew(buyer(), 'n3', 3, { stockDeductedAt: serverTimestamp() })));
+await check('confirming takes exactly its quantity off the listing', async () => {
+  await seedNewPending();
+  await assertSucceeds(confirmTaking(farmer(), 'new1', 98));
+});
+await check('confirming without taking the stock is refused', async () => {
+  await seedNewPending();
+  await assertFails(updateDoc(doc(farmer(), 'orders/new1'), { status: 'confirmed', updatedAt: serverTimestamp() }));
+});
+await check('confirming that takes the wrong amount is refused', async () => {
+  await seedNewPending();
+  await assertFails(confirmTaking(farmer(), 'new1', 99));
+});
+await check('an older order is confirmed as before, taking nothing again', () => assertSucceeds(
+  updateDoc(doc(farmer(), 'orders/pending1'), { status: 'confirmed', updatedAt: serverTimestamp() }),
+));
+await check('shipping cannot touch the stock mark', () => assertFails(
+  updateDoc(doc(farmer(), 'orders/confirmed1'), { status: 'shipped', stockDeductedAt: serverTimestamp(), updatedAt: serverTimestamp() }),
+));
 
 await check('a farmer cannot list every completed order', () => assertFails(getDocs(query(collection(farmer(), 'orders'), where('status', '==', 'completed')))));
 await check('a farmer can list their own', () => assertSucceeds(getDocs(query(collection(farmer(), 'orders'), where('sellerId', '==', 'farmer')))));

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'admin_filter_controls.dart' show kAdminFontFamily;
 import '../services/audit_log_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -269,12 +269,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // screen below; the request, cooldown and leave question are the same
   // code.
   // ================================================================
-  // The field and the buttons are pills, like the sign-in form's and the
-  // mobile app's.
+  // The field and the buttons are rounded rectangles
+  // (AppTheme.adminFieldRadius), like the sign-in form's and the rest of
+  // the Admin Portal; the text is in the portal's font (Inter, with its
+  // real weights), so bold shows as bold in a browser.
   static const double _adminControlHeight = 46;
 
-  TextStyle _mont(double size, {FontWeight? weight, Color? color}) =>
-      GoogleFonts.montserrat(fontSize: size, fontWeight: weight, color: color);
+  TextStyle _mont(double size, {FontWeight? weight, Color? color}) => TextStyle(
+    fontFamily: kAdminFontFamily,
+    fontSize: size,
+    fontWeight: weight,
+    color: color,
+  );
 
   // Logo, wordmark and the "ADMIN PORTAL" label at the top of the card.
   List<Widget> _adminBrand() => [
@@ -328,7 +334,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         disabledBackgroundColor: AppColors.brandFill.withValues(alpha: 0.55),
         disabledForegroundColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_adminControlHeight / 2),
+          borderRadius: BorderRadius.circular(AppTheme.adminFieldRadius),
         ),
       ),
       child: loading
@@ -392,9 +398,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       style: _mont(12.5, weight: FontWeight.w600, color: AppColors.text),
     ),
     const SizedBox(height: 8),
-    // The Admin login's own field (GlowField, compact): a white pill on a
-    // soft shadow with no outline, glowing green while typed in — 46 high,
-    // like the button under it. The cursor starts here.
+    // The Admin login's own field (GlowField, compact): a white rounded
+    // rectangle with a light grey outline, glowing green while typed in —
+    // 46 high, like the button under it. The cursor starts here.
     SizedBox(
       key: const Key('admin-reset-field'),
       height: _adminControlHeight,
@@ -402,6 +408,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         controller: _emailController,
         compact: true,
         autofocus: true,
+        radius: AppTheme.adminFieldRadius,
         readOnly: _sending,
         hint: tl('Enter your admin email address'),
         icon: Icons.email_outlined,

@@ -50,6 +50,16 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   final _addProductKey = GlobalKey();
   final _ordersTabKey = GlobalKey();
 
+  // Which status tab Orders should open (Market's Orders Today: Confirmed).
+  final _ordersStatus = ValueNotifier<String?>(null);
+
+  void _openOrders(String status) {
+    // Set afresh, so asking for the same tab again still moves to it.
+    _ordersStatus.value = null;
+    _ordersStatus.value = status;
+    setState(() => _selectedIndex = 2);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +93,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   @override
   void dispose() {
     globalFarmerTabIndex.removeListener(_onGlobalTabIndexChanged);
+    _ordersStatus.dispose();
     super.dispose();
   }
 
@@ -243,10 +254,11 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               children: [
                 MarketTab(
                   onNavigateToTab: (i) => setState(() => _selectedIndex = i),
+                  onOpenOrders: _openOrders,
                   onNotificationsPressed: _openNotifications,
                 ),
                 const ChatListScreen(),
-                const OrdersTab(),
+                OrdersTab(showStatus: _ordersStatus),
                 const ProfileTab(),
               ],
             ),

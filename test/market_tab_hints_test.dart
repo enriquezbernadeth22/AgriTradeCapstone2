@@ -34,7 +34,7 @@ void main() {
                 children: [
                   // Like the welcome header and stats above the cards.
                   const SizedBox(height: 300),
-                  for (var i = 0; i < 4; i++) ...[
+                  for (var i = 0; i < kMarketGuideItems.length; i++) ...[
                     Container(
                       key: hints.keys[i],
                       height: 300,
@@ -77,44 +77,39 @@ void main() {
     expect(titled(0), findsOneWidget);
     expect(titled(1), findsNothing);
 
-    // Scrolling on past it puts it away, and the next card's hint comes
-    // when that card is in view — never two at once.
+    // Scrolling on past it puts it away, and the next card's hint (the
+    // AgriTrade+ Insights picker) comes when that card is in view — never
+    // two at once.
     await tester.drag(find.byType(ListView), const Offset(0, -300));
     await settle(tester);
     expect(titled(0), findsNothing);
     expect(titled(1), findsOneWidget);
-    expect(titled(2), findsNothing);
 
-    // A tap puts it away too; the next one waits for its card.
+    // A tap puts it away too.
     await tester.tapAt(const Offset(200, 700));
     await settle(tester);
     expect(titled(1), findsNothing);
-    await tester.drag(find.byType(ListView), const Offset(0, -320));
-    await settle(tester);
-    expect(titled(2), findsOneWidget);
 
-    await tester.tapAt(const Offset(200, 700));
-    await settle(tester);
-    await tester.drag(find.byType(ListView), const Offset(0, -320));
-    await settle(tester);
-    expect(titled(3), findsOneWidget);
-    await tester.tapAt(const Offset(200, 700));
-    await settle(tester);
-    expect(titled(3), findsNothing);
-
-    // All four shown: remembered for this account.
+    // Both shown: remembered for this account.
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getInt('market_tab_hints_next_farmer-1'), 4);
+    expect(prefs.getInt('market_tab_hints_next_farmer-1'), 2);
+  });
+
+  test('two hints: Sales Performance, then the AgriTrade+ Insights picker', () {
+    expect(kMarketGuideItems.map((i) => i.title), [
+      'Sales Performance',
+      'AgriTrade+ Insights',
+    ]);
   });
 
   testWidgets('already seen: nothing more', (tester) async {
     SharedPreferences.setMockInitialValues({
-      'market_tab_hints_next_farmer-1': 4,
+      'market_tab_hints_next_farmer-1': 2,
     });
     await pumpTab(tester);
     await tester.drag(find.byType(ListView), const Offset(0, -20));
     await settle(tester);
-    for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < kMarketGuideItems.length; i++) {
       expect(titled(i), findsNothing);
     }
   });

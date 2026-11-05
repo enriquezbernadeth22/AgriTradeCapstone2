@@ -118,8 +118,8 @@ void main() {
     expect(rowColor(tester, 'Dashboard')!.a, 0);
   });
 
-  testWidgets('the active tab is dark green, flush with the left edge and '
-      'rounded on the right only', (tester) async {
+  testWidgets('the active page is a dark green block with rounded corners, '
+      'inset from both sides of the sidebar', (tester) async {
     await pump(tester);
     final row = find
         .ancestor(
@@ -127,20 +127,19 @@ void main() {
           matching: find.byType(AnimatedContainer),
         )
         .first;
-    expect(
-      tester.getTopLeft(row).dx,
-      tester.getTopLeft(find.byType(AdminSidebar)).dx,
-    );
+    final sidebar = tester.getRect(find.byType(AdminSidebar));
+    final block = tester.getRect(row);
+    expect(block.left - sidebar.left, 12);
+    expect(sidebar.right - block.right, inInclusiveRange(12, 13));
     final decoration =
         tester.widget<AnimatedContainer>(row).decoration as BoxDecoration;
     expect(decoration.color, AdminSidebarColors.light.activeBackground);
     expect(decoration.border, isNull);
     expect(decoration.boxShadow, isNull);
-    final radius = decoration.borderRadius as BorderRadius;
-    expect(radius.topLeft, Radius.zero);
-    expect(radius.bottomLeft, Radius.zero);
-    expect(radius.topRight.x, inInclusiveRange(16, 20));
-    expect(radius.bottomRight.x, inInclusiveRange(16, 20));
+    expect(
+      decoration.borderRadius,
+      BorderRadius.circular(kAdminSidebarRowRadius),
+    );
     // White icon and text on it.
     expect(
       tester.widget<Text>(find.text('Dashboard')).style!.color,
@@ -254,6 +253,66 @@ void main() {
     await tester.pumpAndSettle();
     expect(collapsed, isFalse);
     expect(tester.getSize(find.byType(AdminSidebar)).width, 248);
+  });
+
+  testWidgets('the logo band says Admin Panel, and the pages sit in titled '
+      'groups with a line between them', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    Widget sidebar({required bool collapsed}) => MaterialApp(
+      home: Scaffold(
+        body: Row(
+          children: [
+            AdminSidebar(
+              entries: const [
+                AdminSidebarEntry(
+                  Icons.dashboard_outlined,
+                  'Dashboard',
+                  section: 'Main',
+                ),
+                AdminSidebarEntry(Icons.map_outlined, 'Demand Heatmap'),
+                AdminSidebarEntry(
+                  Icons.gavel_outlined,
+                  'Moderation',
+                  section: 'Moderation',
+                ),
+                AdminSidebarEntry(Icons.fact_check_outlined, 'Audit Log'),
+              ],
+              selectedIndex: 0,
+              collapsed: collapsed,
+              onSelect: (_) {},
+            ),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(sidebar(collapsed: false));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Admin Panel'), findsOneWidget);
+    expect(find.text('MAIN'), findsOneWidget);
+    expect(find.text('MODERATION'), findsOneWidget);
+    double top(Finder f) => tester.getTopLeft(f).dy;
+    expect(top(find.text('MAIN')), lessThan(top(find.text('Dashboard'))));
+    expect(
+      top(find.text('MODERATION')),
+      greaterThan(top(find.text('Demand Heatmap'))),
+    );
+    expect(
+      top(find.text('MODERATION')),
+      lessThan(top(find.text('Moderation'))),
+    );
+    // One line, between the two groups (none above the first).
+    expect(find.byType(Divider), findsOneWidget);
+
+    // The rail keeps the line but has no room for the names.
+    await tester.pumpWidget(sidebar(collapsed: true));
+    expect(tester.takeException(), isNull);
+    expect(find.text('MAIN'), findsNothing);
+    expect(find.text('Admin Panel'), findsNothing);
+    expect(find.byType(Divider), findsOneWidget);
   });
 
   testWidgets('scrolls on its own when the window is too short', (

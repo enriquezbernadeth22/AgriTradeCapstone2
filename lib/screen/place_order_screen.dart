@@ -537,16 +537,16 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      appSnackBar(
-        method == 'unspecified'
-            ? tl('Order request sent.')
-            : tl('Order request sent for {0}.', [
-                method == 'pickup' ? 'pick-up' : 'delivery',
-              ]),
-        kind: MessageKind.success,
-      ),
+    // The buyer sees what was placed — the same lines as the summary they
+    // submitted — before going back (to the chat, when ordered from one).
+    await showOrderPlacedDialog(
+      context,
+      farmerName: widget.sellerName,
+      lines: _summaryLines(),
+      total: _summaryTotal().total,
+      totalNote: _summaryTotal().note,
     );
+    if (!mounted) return;
     // A few orders in, the app asks for feedback (FeedbackService).
     unawaited(
       FeedbackService.instance.recordAction(FeedbackTrigger.orderPlaced),
@@ -1126,6 +1126,25 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             ]),
             enabled: true,
           ),
+        if (_offersPickup && _fulfillment == 'pickup')
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 2, bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.place_outlined, size: 16, color: AppColors.brand),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    tl(
+                      'Once the farmer confirms, the pick-up address, a map and directions appear in the details of this order.',
+                    ),
+                    style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1296,6 +1315,61 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     );
   }
 
+  // The order's lines as the summary shows them, for the Order Placed popup.
+  List<(String, String)> _summaryLines() {
+    final quote = _currentQuote;
+    final fee = _knownDeliveryFee;
+    final fulfillment = switch (_fulfillment) {
+      'delivery' when _isLongDistance => 'Delivery (long-distance, arranged)',
+      'delivery' => 'Delivery',
+      'pickup' when _coverage.origin.name.isNotEmpty =>
+        'Pick-up in ${_coverage.origin.name}',
+      'pickup' => 'Pick-up',
+      _ => 'To be arranged with seller',
+    };
+    final needed = _neededBy;
+    return [
+      (tl('Product'), widget.productName),
+      (tl('Order type'), quote.isWholesale ? 'Wholesale' : 'Retail'),
+      (tl('Quantity'), formatStock(quote.quantity, _unit)),
+      (tl('Unit price'), formatPriceWithUnit(quote.unitPrice, _unit)),
+      (tl('Product subtotal'), formatPeso(quote.subtotal)),
+      if (_fulfillment == 'delivery')
+        (
+          tl('Delivery fee'),
+          fee != null ? formatPeso(fee) : tl('To be arranged with seller'),
+        ),
+      (tl('Fulfillment'), fulfillment),
+      if (needed != null)
+        (tl('Requested date'), '${needed.month}/${needed.day}/${needed.year}'),
+    ];
+  }
+
+  // The total, or why there is none yet (a delivery fee still to agree).
+  ({String? total, String? note}) _summaryTotal() {
+    final quote = _currentQuote;
+    if (_deliveryFeePending) {
+      return (
+        total: null,
+        note:
+            'Product subtotal ${formatPeso(quote.subtotal)} + delivery fee. '
+            'The final total will be confirmed with the seller.',
+      );
+    }
+    if (!_canChooseDelivery) {
+      return (
+        total: null,
+        note:
+            'Product subtotal ${formatPeso(quote.subtotal)}. Any delivery '
+            'cost is arranged with the seller.',
+      );
+    }
+    return (
+      total: formatPeso(quote.subtotal + (_knownDeliveryFee ?? 0)),
+      note: null,
+    );
+  }
+
   // ---- Order summary (what the buyer is about to submit) ----
   Widget _orderSummary() {
     final quote = _currentQuote;
@@ -1419,4 +1493,122 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       ),
     );
   }
+}
+
+/// The buyer's confirmation that an order went through: "Order Placed!",
+/// who it went to, a summary of what was ordered ([lines], then the
+/// [total] or, while a delivery fee is still to be agreed, [totalNote]),
+/// and that the farmer still has to confirm it. Closed with Done.
+Future<void> showOrderPlacedDialog(
+  BuildContext context, {
+  required String farmerName,
+  required List<(String, String)> lines,
+  String? total,
+  String? totalNote,
+}) {
+  return showAgriDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AgriDialog(
+      icon: Icons.check_circle_outline_rounded,
+      scrollable: true,
+      title: Text(tl('Order Placed!')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            tl(
+              'Your order was sent to {0}. You will be notified once they confirm it.',
+              [farmerName],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+          Container(
+            key: const Key('orderPlacedSummary'),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAlt,
+              border: Border.all(color: AppColors.grey(200)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (label, value) in lines)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.grey(700),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            value,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const Divider(height: 16),
+                if (total != null)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tl('Total'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        total,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.brand,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    totalNote ?? '',
+                    style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        AgriDialogButton(
+          key: const Key('orderPlacedDone'),
+          label: tl('Done'),
+          kind: AgriButtonKind.primary,
+          onPressed: () => Navigator.of(dialogContext).pop(),
+        ),
+      ],
+    ),
+  );
 }

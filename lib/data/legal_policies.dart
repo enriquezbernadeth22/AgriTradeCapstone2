@@ -63,6 +63,12 @@ class PolicyDocument {
       'Last updated: ${lastUpdated ?? '[to be set when the policy is approved]'}';
 }
 
+/// When the policies (version 1.0) took effect and were last changed, set
+/// by the team on 2026-11-05. A material change to a policy's text gets a
+/// new version and new dates; the text says users are told in the app.
+const String kPolicyEffectiveDate = 'November 5, 2026';
+const String kPolicyLastUpdated = 'November 5, 2026';
+
 /// Who runs AgriTrade+ and how to reach them about these policies — the
 /// AgriTrade+ team and its support email (data/mobile_faqs.dart).
 const String kPolicyOperator = 'the AgriTrade+ Team';
@@ -76,7 +82,9 @@ const String kPolicyPrivacyOfficer =
 
 const PolicyDocument kTermsOfService = PolicyDocument(
   title: 'Terms of Service',
-  version: 'tos-draft-1',
+  version: 'tos-1.0',
+  effectiveDate: kPolicyEffectiveDate,
+  lastUpdated: kPolicyLastUpdated,
   intro:
       'These Terms govern the use of AgriTrade+, a marketplace that connects '
       'farmers in Laurel, Batangas with buyers, operated by $kPolicyOperator. '
@@ -221,7 +229,9 @@ const PolicyDocument kTermsOfService = PolicyDocument(
 
 const PolicyDocument kPrivacyPolicy = PolicyDocument(
   title: 'Privacy Policy',
-  version: 'privacy-draft-1',
+  version: 'privacy-1.0',
+  effectiveDate: kPolicyEffectiveDate,
+  lastUpdated: kPolicyLastUpdated,
   intro:
       'This Privacy Policy explains what personal information AgriTrade+ '
       'collects, why, who can see it, and how it is protected. AgriTrade+ is '
@@ -388,7 +398,9 @@ const PolicyDocument kPrivacyPolicy = PolicyDocument(
 
 const PolicyDocument kAdminGuidelines = PolicyDocument(
   title: 'Administrator Guidelines',
-  version: 'admin-guidelines-draft-1',
+  version: 'admin-guidelines-1.0',
+  effectiveDate: kPolicyEffectiveDate,
+  lastUpdated: kPolicyLastUpdated,
   intro:
       'Internal guidelines for administrators of the AgriTrade+ Admin '
       'Portal. They are not part of the public Terms of Service, and apply in '

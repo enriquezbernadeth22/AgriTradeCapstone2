@@ -284,7 +284,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Most ordered by buyers here in November 2026'),
+      find.text('Completed orders from buyers here in November 2026'),
       findsOneWidget,
     );
     expect(find.text('2 orders'), findsOneWidget);

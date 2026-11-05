@@ -40,6 +40,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   double _rating = 0;
   bool _submitting = false;
   XFile? _selectedImage;
+  // The chosen photo's bytes, read once for its preview.
+  Uint8List? _selectedBytes;
 
   @override
   void dispose() {
@@ -79,7 +81,155 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
     );
 
     if (!mounted || picked == null) return;
-    setState(() => _selectedImage = picked);
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _selectedImage = picked;
+      _selectedBytes = bytes;
+    });
+  }
+
+  void _removeImage() => setState(() {
+    _selectedImage = null;
+    _selectedBytes = null;
+  });
+
+  // The photo part: an inviting tile to add one, or — once chosen — the
+  // photo itself, large, with round Change and Remove buttons on it.
+  Widget _photoSection() {
+    final bytes = _selectedBytes;
+    final Widget body;
+    if (bytes == null) {
+      body = Material(
+        color: AppColors.tint,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          key: const Key('reviewAddPhoto'),
+          borderRadius: BorderRadius.circular(16),
+          onTap: _submitting ? null : _pickImage,
+          child: CustomPaint(
+            painter: _DashedOutlinePainter(
+              color: AppColors.brand.withValues(alpha: 0.45),
+              radius: 16,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+              child: Column(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                      border: AppColors.cardBorder,
+                    ),
+                    child: Icon(
+                      Icons.add_a_photo_outlined,
+                      color: AppColors.brand,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    tl('Add a photo'),
+                    style: TextStyle(
+                      color: AppColors.brand,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tl('Take one or choose from your gallery'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      Widget roundButton({
+        required Key key,
+        required IconData icon,
+        required String tooltip,
+        required VoidCallback onTap,
+      }) => Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 2,
+          shadowColor: Colors.black38,
+          child: InkWell(
+            key: key,
+            customBorder: const CircleBorder(),
+            onTap: _submitting ? null : onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Icon(icon, size: 18, color: AppTheme.dark),
+            ),
+          ),
+        ),
+      );
+      body = ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: AspectRatio(
+          aspectRatio: 4 / 3,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Row(
+                  children: [
+                    roundButton(
+                      key: const Key('reviewChangePhoto'),
+                      icon: Icons.edit_outlined,
+                      tooltip: tl('Change photo'),
+                      onTap: _pickImage,
+                    ),
+                    const SizedBox(width: 8),
+                    roundButton(
+                      key: const Key('reviewRemovePhoto'),
+                      icon: Icons.close_rounded,
+                      tooltip: tl('Remove photo'),
+                      onTap: _removeImage,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(tl('Photo'), style: AppTheme.label()),
+            const SizedBox(width: 6),
+            Text(
+              tl('(optional)'),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        body,
+      ],
+    );
   }
 
   Future<void> _submit() async {
@@ -285,40 +435,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.add_a_photo_outlined),
-              label: Text(
-                _selectedImage == null
-                    ? tl('Add Image (Optional)')
-                    : tl('Change Image'),
-              ),
-            ),
-            if (_selectedImage != null) ...[
-              const SizedBox(height: 8),
-              FutureBuilder<List<int>>(
-                future: _selectedImage!.readAsBytes(),
-                builder: (context, snap) {
-                  if (!snap.hasData) {
-                    return Container(
-                      height: 120,
-                      color: AppColors.accent,
-                      alignment: Alignment.center,
-                      child: CircularProgressIndicator(color: AppColors.brand),
-                    );
-                  }
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(
-                      Uint8List.fromList(snap.data!),
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  );
-                },
-              ),
-            ],
+            _photoSection(),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -352,4 +469,39 @@ class _StarFillClipper extends CustomClipper<Rect> {
   @override
   bool shouldReclip(covariant _StarFillClipper oldClipper) =>
       oldClipper.fill != fill;
+}
+
+/// A dashed rounded outline, for the "Add a photo" tile.
+class _DashedOutlinePainter extends CustomPainter {
+  final Color color;
+  final double radius;
+  const _DashedOutlinePainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          Radius.circular(radius),
+        ).deflate(0.7),
+      );
+    const dash = 6.0;
+    const gap = 4.0;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(metric.extractPath(distance, distance + dash), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedOutlinePainter old) =>
+      old.color != color || old.radius != radius;
 }

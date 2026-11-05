@@ -72,6 +72,8 @@ class _BuyerMapViewState extends State<BuyerMapView> {
   // Why there is no distance, when the buyer could do something about it.
   String? _locationNotice;
   bool _fittedBoth = false;
+  // A GPS fix is being taken.
+  bool _locating = false;
 
   @override
   void initState() {
@@ -148,11 +150,31 @@ class _BuyerMapViewState extends State<BuyerMapView> {
         return;
       }
 
+      // A fresh GPS fix can take a while the first time; meanwhile the
+      // phone's last known position gives the distance at once.
+      if (mounted) setState(() => _locating = true);
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (mounted &&
+            last != null &&
+            isValidPublicCoordinate(last.latitude, last.longitude)) {
+          setState(() {
+            _myPosition = last;
+            _locationNotice = null;
+          });
+          _fitBuyerOnce();
+        }
+      } catch (_) {
+        // Not available on every device: the fresh fix below.
+      }
+
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
         ),
       );
+      if (mounted) setState(() => _locating = false);
       // Debug builds only — never compiled into a release.
       if (kDebugMode) {
         debugPrint(
@@ -180,10 +202,25 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     } catch (_) {
       if (kDebugMode) debugPrint('FarmLocation: buyer position NOT found');
       if (!mounted) return;
-      setState(
-        () => _locationNotice = tl('Could not get your location right now.'),
-      );
+      setState(() {
+        _locating = false;
+        // The last known position, if there was one, still stands.
+        if (_myPosition == null) {
+          _locationNotice = tl('Could not get your location right now.');
+        }
+      });
     }
+  }
+
+  /// Refresh: the farm's area and the buyer's position again, for an
+  /// up-to-date distance.
+  Future<void> _refresh() async {
+    if (_locating) return;
+    setState(() {
+      _fittedBoth = false;
+      _locationNotice = null;
+    });
+    await Future.wait([_loadFarm(), _determinePosition()]);
   }
 
   /// Buyer's current position -> the farmer's public barangay point.
@@ -409,7 +446,9 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      approxDistanceLabel(distanceKm),
+                      !hasDistance && _locating
+                          ? tl('Finding your location…')
+                          : approxDistanceLabel(distanceKm),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -421,6 +460,32 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                       ),
                     ),
                   ),
+                  // Refresh the distance (and the farm area); spins while
+                  // the location is being found.
+                  if (!canRetry)
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: _locating
+                          ? Padding(
+                              padding: const EdgeInsets.all(9),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.brand,
+                              ),
+                            )
+                          : IconButton(
+                              key: const Key('refreshDistance'),
+                              tooltip: tl('Refresh distance'),
+                              padding: EdgeInsets.zero,
+                              iconSize: 20,
+                              onPressed: _refresh,
+                              icon: Icon(
+                                Icons.refresh_rounded,
+                                color: AppColors.brand,
+                              ),
+                            ),
+                    ),
                   if (canRetry)
                     TextButton(
                       onPressed: _determinePosition,

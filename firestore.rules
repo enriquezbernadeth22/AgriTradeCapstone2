@@ -98,6 +98,25 @@ service cloud.firestore {
         getAfter(orderPath).data.quantity == before - after;
     }
 
+    // A farmer's update of an order, as far as its stock goes. Confirming an
+    // order that takes its stock on confirmation (stockOnConfirm) must take
+    // it in the same write: stockDeductedAt stamped now, and the listing
+    // down by exactly the order's quantity. No other update may touch
+    // stockDeductedAt.
+    function farmerStockStepOk() {
+      let productPath = /databases/$(database)/documents/products/$(resource.data.productId);
+      let takesStockNow = resource.data.get('stockOnConfirm', false) == true &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'confirmed' &&
+        resource.data.get('stockDeductedAt', null) == null;
+      return (takesStockNow &&
+          request.resource.data.get('stockDeductedAt', null) == request.time &&
+          getAfter(productPath).data.quantity == get(productPath).data.quantity - resource.data.quantity &&
+          getAfter(productPath).data.quantity >= 0) ||
+        (!takesStockNow &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['stockDeductedAt']));
+    }
+
     function marketplaceUser() {
       return isAdmin() || isBuyer() || isApprovedFarmer();
     }
@@ -420,8 +439,17 @@ service cloud.firestore {
           'farmerId', 'farmerName', 'productId', 'productName', 'productImageUrl',
           'productPrice', 'unit', 'deliveryAvailable', 'pickupOnly', 'farmerImage',
           'retailPrice', 'wholesalePrice', 'wholesaleMinimumQuantity', 'retailMaximumQuantity',
-          'hasMessages'
-        ]);
+          'hasMessages', 'pinnedMessage'
+        ]) &&
+        // A pinned message: one of this conversation's, pinned by whoever
+        // is pinning it now.
+        (!('pinnedMessage' in request.resource.data) ||
+          request.resource.data.pinnedMessage == resource.data.get('pinnedMessage', null) ||
+          (request.resource.data.pinnedMessage.keys().hasOnly(['messageId', 'text', 'senderId', 'pinnedBy', 'pinnedAt']) &&
+            request.resource.data.pinnedMessage.pinnedBy == request.auth.uid &&
+            request.resource.data.pinnedMessage.text is string &&
+            request.resource.data.pinnedMessage.text.size() <= 210 &&
+            exists(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.pinnedMessage.messageId))));
 
       match /messages/{messageId} {
         allow read: if marketplaceUser() && mayReadThread(conversationId);
@@ -451,6 +479,18 @@ service cloud.firestore {
           (request.resource.data.get('likes', {}).get(request.auth.uid, false) is bool ||
             request.resource.data.get('likes', {}).get(request.auth.uid, '') in
               ['heart', 'like', 'wow', 'sad', 'angry']);
+        // Unsend: only the sender, only taking the content away (marked
+        // unsent; nothing else changes, nothing new is written in).
+        allow update: if marketplaceUser() &&
+          resource.data.senderId == request.auth.uid &&
+          request.resource.data.unsent == true &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'unsent', 'unsentAt', 'text', 'imageUrl', 'videoUrl', 'latitude',
+            'longitude', 'replyTo', 'likes'
+          ]) &&
+          !request.resource.data.keys().hasAny([
+            'text', 'imageUrl', 'videoUrl', 'latitude', 'longitude', 'replyTo'
+          ]);
       }
 
       match /typing/{uid} {
@@ -488,9 +528,19 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.farmerId == request.resource.data.sellerId
         && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.get('isArchived', false) == false
         && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.get('isSuspended', false) == false
-        && getAfter(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.lastOrderId == orderId
-        && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.quantity -
-          getAfter(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.quantity == request.resource.data.quantity;
+        && !request.resource.data.keys().hasAny(['stockDeductedAt', 'stockRestoredAt'])
+        && (
+          // The stock is taken when the farmer confirms (stockOnConfirm):
+          // the order only asks for what the listing has now.
+          (request.resource.data.get('stockOnConfirm', false) == true
+            && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.quantity >= request.resource.data.quantity)
+          ||
+          // Older app versions take it when the order is placed.
+          (request.resource.data.get('stockOnConfirm', false) != true
+            && getAfter(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.lastOrderId == orderId
+            && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.quantity -
+              getAfter(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.quantity == request.resource.data.quantity)
+        );
 
       allow read: if marketplaceUser()
         && (
@@ -512,8 +562,9 @@ service cloud.firestore {
           'buyerName', 'buyerContact', 'buyerAddress', 'neededBy', 'updatedAt'
         ]);
 
-      // Buyer changes their mind before the farmer has answered. The
-      // reserved stock is returned by the handleOrderReschedule Cloud Function.
+      // Buyer changes their mind before the farmer has answered. Nothing is
+      // taken from the listing yet (an older order gets its stock back from
+      // the handleOrderReschedule Cloud Function).
       allow update: if isBuyer()
         && resource.data.buyerId == request.auth.uid
         && resource.data.status == 'pending'
@@ -548,12 +599,14 @@ service cloud.firestore {
         && request.resource.data.completedBy == 'buyer'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'completedBy']);
 
-      // Seller controls status transitions.
+      // Seller controls status transitions. Confirming takes the order's
+      // stock off the listing in the same write (farmerStockStepOk).
       allow update: if isApprovedFarmer()
         && resource.data.sellerId == request.auth.uid
         && request.resource.data.buyerId == resource.data.buyerId
         && request.resource.data.sellerId == resource.data.sellerId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'completedBy'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'completedBy', 'stockDeductedAt'])
+        && farmerStockStepOk()
         && (
           (resource.data.status == 'pending' &&
             (request.resource.data.status == 'confirmed' || request.resource.data.status == 'rejected'))
@@ -570,7 +623,7 @@ service cloud.firestore {
         );
 
       // Seller cannot fill a confirmed order after all. The buyer is told the
-      // reason, and the reserved stock is returned by the
+      // reason, and the stock confirming took is returned by the
       // handleOrderReschedule Cloud Function.
       allow update: if isApprovedFarmer()
         && resource.data.sellerId == request.auth.uid
@@ -652,10 +705,17 @@ service cloud.firestore {
         function contactShared() {
           return contactOrder().status in ['confirmed', 'shipped'];
         }
+        // The number, and — on the farmer's side of a pick-up order — where
+        // to pick it up (the farm's address and pin), each optional but
+        // well-formed.
         function validContact() {
-          return request.resource.data.keys().hasOnly(['contact', 'updatedAt'])
-            && request.resource.data.contact is string
-            && request.resource.data.contact.matches('[+]639[0-9]{9}');
+          let data = request.resource.data;
+          return data.keys().hasOnly(['contact', 'pickupAddress', 'pickupLat', 'pickupLng', 'updatedAt'])
+            && (!('contact' in data) || (data.contact is string && data.contact.matches('[+]639[0-9]{9}')))
+            && (side == 'farmer' || !data.keys().hasAny(['pickupAddress', 'pickupLat', 'pickupLng']))
+            && (!('pickupAddress' in data) || (data.pickupAddress is string && data.pickupAddress.size() <= 300))
+            && (!('pickupLat' in data) || (data.pickupLat is number && data.pickupLat >= -90 && data.pickupLat <= 90))
+            && (!('pickupLng' in data) || (data.pickupLng is number && data.pickupLng >= -180 && data.pickupLng <= 180));
         }
 
         allow get: if marketplaceUser() && (
@@ -776,7 +836,8 @@ service cloud.firestore {
         request.resource.data.keys().hasOnly([
           'issueType', 'description', 'reporterId', 'reporterName',
           'reportedUserId', 'reportedUserName', 'targetType', 'farmerId',
-          'productId', 'productName', 'reviewId', 'conversationId', 'status', 'createdAt'
+          'productId', 'productName', 'reviewId', 'conversationId', 'status', 'createdAt',
+          'messageId', 'messageText'
         ]) &&
         (request.resource.data.get('targetType', '') != 'review' || (
           request.resource.data.get('reviewId', '') is string &&

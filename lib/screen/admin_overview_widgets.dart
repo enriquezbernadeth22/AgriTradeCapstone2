@@ -113,12 +113,12 @@ class AdminOverviewStrip extends StatelessWidget {
     final radius = BorderRadius.circular(AdminRadii.card);
     // Material + InkWell, so a clickable card shows the pointer, a hover
     // tint and a ripple inside its own rounded shape.
-    // White with a light grey border, as every card; the icon box carries
-    // the colour. One needing attention keeps a faint amber, a warning.
+    // White with a light grey border, as every card; the icon box and a
+    // soft wave in the bottom right corner carry the colour (amber for a
+    // figure waiting on the Admin, green otherwise).
+    final tone = item.attention ? c.amber : c.green;
     return Material(
-      color: item.attention && !c.isDark
-          ? Color.alphaBlend(c.amber.withValues(alpha: 0.06), c.surface)
-          : c.surface,
+      color: c.surface,
       shape: RoundedRectangleBorder(
         borderRadius: radius,
         side: item.selected
@@ -126,24 +126,60 @@ class AdminOverviewStrip extends StatelessWidget {
                 color: item.attention ? c.amber : adminActionColor(c),
                 width: 1.5,
               )
-            : BorderSide(
-                color: item.attention && !c.isDark
-                    ? Color.alphaBlend(
-                        c.amber.withValues(alpha: 0.16),
-                        c.border,
-                      )
-                    : c.border,
-              ),
+            : BorderSide(color: c.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: item.onTap,
         hoverColor: c.surfaceAlt,
         splashColor: c.border,
-        child: _OverviewSegment(item: item),
+        child: Stack(
+          children: [
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: CustomPaint(
+                  size: const Size(96, 34),
+                  painter: _CornerWavePainter(tone),
+                ),
+              ),
+            ),
+            _OverviewSegment(item: item),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Two soft overlapping waves rising toward the bottom right corner of an
+/// Overview card, in faint steps of [color]. Decoration only.
+class _CornerWavePainter extends CustomPainter {
+  final Color color;
+  const _CornerWavePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final back = Path()
+      ..moveTo(0, h)
+      ..cubicTo(w * 0.35, h, w * 0.55, h * 0.15, w, 0)
+      ..lineTo(w, h)
+      ..close();
+    final front = Path()
+      ..moveTo(w * 0.3, h)
+      ..cubicTo(w * 0.6, h, w * 0.75, h * 0.45, w, h * 0.3)
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(back, Paint()..color = color.withValues(alpha: 0.08));
+    canvas.drawPath(front, Paint()..color = color.withValues(alpha: 0.12));
+  }
+
+  @override
+  bool shouldRepaint(_CornerWavePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _OverviewSegment extends StatelessWidget {
@@ -165,21 +201,22 @@ class _OverviewSegment extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              // Neutral, with the icon in dark green; amber when it needs
-              // attention.
-              color: item.attention ? c.amberBg : c.surfaceAlt,
-              borderRadius: BorderRadius.circular(12),
+              // A pale green box with the icon in dark green; amber when
+              // it needs attention.
+              color: item.attention ? c.amberBg : c.greenBg,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               item.icon,
-              size: 22,
+              size: 21,
               color: item.attention ? c.amber : adminActionColor(c),
             ),
           ),
@@ -194,9 +231,9 @@ class _OverviewSegment extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: c.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    color: c.heading,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -233,7 +270,7 @@ class _OverviewSegment extends StatelessWidget {
                   loading ? ' ' : item.caption,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: c.textMuted, fontSize: 12),
+                  style: TextStyle(color: c.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -362,9 +399,10 @@ class AdminCardHeader extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: c.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            color: c.heading,
+            fontSize: 17,
+            letterSpacing: -0.2,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 3),

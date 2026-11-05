@@ -94,10 +94,14 @@ void main() {
     expect(find.text('AgriTrade+ Privacy Policy'), findsOneWidget);
   });
 
-  test('no date is made up; the contact is the team support email', () {
+  test('every policy shows the dates the team set, and version 1.0; the '
+      'contact is the team support email', () {
     for (final doc in [kTermsOfService, kPrivacyPolicy, kAdminGuidelines]) {
-      expect(doc.effectiveDate, isNull, reason: doc.title);
-      expect(doc.lastUpdated, isNull, reason: doc.title);
+      expect(doc.effectiveDate, 'November 5, 2026', reason: doc.title);
+      expect(doc.lastUpdated, 'November 5, 2026', reason: doc.title);
+      expect(doc.effectiveLabel, 'Effective: November 5, 2026');
+      expect(doc.version, endsWith('-1.0'), reason: doc.title);
+      expect(doc.version, isNot(contains('draft')), reason: doc.title);
     }
     expect(kPolicyContact, contains('agritrade.team@gmail.com'));
     expect(kPolicyOperator, 'the AgriTrade+ Team');

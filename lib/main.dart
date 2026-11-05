@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/tap_outside_to_unfocus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -131,7 +132,9 @@ class AgriTradeApp extends StatelessWidget {
                 // Every message (SnackBar): 2 seconds, and the newest
                 // replaces the one showing (AppScaffoldMessenger).
                 child: AppScaffoldMessenger(
-                  child: child ?? const SizedBox.shrink(),
+                  child: TapOutsideToUnfocus(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),

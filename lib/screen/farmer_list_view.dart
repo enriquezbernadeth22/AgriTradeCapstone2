@@ -463,7 +463,6 @@ class _FarmerListTable extends StatelessWidget {
             DataColumn(label: Text('Municipality')),
             DataColumn(label: Text('Date Approved')),
             DataColumn(label: Text('Active Listings'), numeric: true),
-            DataColumn(label: Text('Completed Orders'), numeric: true),
             DataColumn(label: Text('Status')),
             DataColumn(label: Text('Actions')),
           ],
@@ -498,7 +497,6 @@ class _FarmerListTable extends StatelessWidget {
                 DataCell(Text(r.municipality)),
                 DataCell(Text(dateApproved)),
                 DataCell(Text('${r.activeListings}')),
-                DataCell(Text('${r.completedOrders}')),
                 DataCell(
                   AdminStatusBadge(
                     text: 'Approved',
@@ -982,7 +980,7 @@ class _FarmerListDetailDialogState extends State<_FarmerListDetailDialog>
         Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: scheme.onSurface.withValues(alpha: 0.1)),
           ),
           child: LayoutBuilder(

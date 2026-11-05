@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/login_hero.dart' show BrandHeadline, BrandLockup;
 import '../widgets/login_form_fields.dart';
+import 'admin_filter_controls.dart' show kAdminFontFamily;
 import 'forgot_password_screen.dart';
 
 /// The Admin Portal's (web) login page: a full-height farm photo with the
@@ -147,6 +148,27 @@ class _AdminAuthShellState extends State<AdminAuthShell>
   }
 
   Widget _forms(BuildContext context, bool narrow) {
+    // The forms are in the portal's own font (Inter, with its real bold
+    // and semi-bold files), like every page after the login. The app's
+    // default font on the web is Montserrat loaded in its regular weight
+    // only, where a browser cannot draw bold: "Welcome" and the labels
+    // came out thin.
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        textTheme: theme.textTheme.apply(fontFamily: kAdminFontFamily),
+        primaryTextTheme: theme.primaryTextTheme.apply(
+          fontFamily: kAdminFontFamily,
+        ),
+      ),
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(fontFamily: kAdminFontFamily),
+        child: _formStack(context, narrow),
+      ),
+    );
+  }
+
+  Widget _formStack(BuildContext context, bool narrow) {
     return Stack(
       // Narrow: the forms take the page's width and their own height.
       // Wide: both fill the form area and centre themselves in it.

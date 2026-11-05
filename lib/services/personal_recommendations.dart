@@ -17,7 +17,9 @@ enum RecommendationBasis {
 
 /// "Recommended Products" in a buyer's Search, in three steps:
 ///
-/// 1. **Their own history**, when they have any:
+/// 1. **Their own history**, when they have any. Listings of a product
+///    (commodity) they have bought come first, then the rest; within each,
+///    ranked by:
 ///      40%  category — the categories they buy most, and those of the
 ///           products they liked (a purchase counts more than a like)
 ///      25%  searches — the listing matches something they searched lately
@@ -121,7 +123,12 @@ class PersonalRecommendations {
           }
         }
         final repeatPart = boughtCommodities.contains(commodity) ? 1.0 : 0.0;
+        // The same product they buy always comes first (decided by the
+        // user, 2026-11-05): the other parts add up to at most 1, so this
+        // whole point puts every listing of something they bought ahead
+        // of everything else, the weights then ranking within each group.
         score[e.key] =
+            repeatPart +
             weightCategory * categoryPart +
             weightSearch * searchPart +
             weightRepeat * repeatPart +

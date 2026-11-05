@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
-import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -77,6 +76,14 @@ class AdminPalette {
   final Color textPrimary;
   final Color textSecondary;
   final Color textMuted;
+
+  /// Titles, headings and field labels: the Admin login's bold dark green
+  /// ("Welcome", "Email Address").
+  final Color heading;
+
+  /// The small spaced capitals over a title ("ADMIN DASHBOARD", the
+  /// sidebar's group names), like the login's "ADMIN PORTAL".
+  final Color eyebrow;
   final Color iconInactive;
   final Color green;
   final Color greenBg;
@@ -97,6 +104,8 @@ class AdminPalette {
     required this.textPrimary,
     required this.textSecondary,
     required this.textMuted,
+    required this.heading,
+    required this.eyebrow,
     required this.iconInactive,
     required this.green,
     required this.greenBg,
@@ -126,6 +135,8 @@ class AdminPalette {
     textPrimary: Color(0xFF1C1F23),
     textSecondary: Color(0xFF676D78),
     textMuted: Color(0xFFA0A5AF),
+    heading: AppTheme.dark,
+    eyebrow: AppTheme.mid,
     iconInactive: Color(0xFF52575F),
     green: Color(0xFF24833D),
     greenBg: Color(0x2024833D),
@@ -150,6 +161,9 @@ class AdminPalette {
     textPrimary: Color(0xFFF1F3F5),
     textSecondary: Color(0xFFA3A9B1),
     textMuted: Color(0xFF6E747C),
+    // The dark green would not show on charcoal: light greens instead.
+    heading: Color(0xFFA5D6A7),
+    eyebrow: Color(0xFF81C784),
     iconInactive: Color(0xB3FFFFFF),
     green: Color(0xFF5DBB74),
     greenBg: Color(0x295DBB74),
@@ -176,7 +190,7 @@ class AdminPalette {
 /// search, dropdowns, date pickers), and [pill] for the small things only.
 class AdminRadii {
   AdminRadii._();
-  static const double card = 16;
+  static const double card = 10;
   static const double control = 10;
 
   /// Status badges, small filter chips, counters and compact options to
@@ -250,15 +264,12 @@ class AdminThemeToggle extends StatelessWidget {
         label: label,
         excludeSemantics: true,
         child: InkWell(
-          customBorder: const CircleBorder(),
+          customBorder: adminHeaderButtonShape,
           onTap: () => setAdminDarkMode(!dark),
           // 40 across, the height of the search beside it.
           child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: c.surfaceAlt,
-            ),
+            padding: const EdgeInsets.all(9),
+            decoration: adminHeaderButtonDecoration(c),
             child: Icon(
               dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
               color: c.textSecondary,
@@ -1102,10 +1113,10 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
         Text(
           'ADMIN DASHBOARD',
           style: TextStyle(
-            color: adminActionColor(c),
+            color: c.eyebrow,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 2,
           ),
         ),
         const SizedBox(height: 4),
@@ -1118,10 +1129,11 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 27,
+                  color: c.heading,
+                  fontSize: 28,
                   height: 1.15,
-                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1132,7 +1144,7 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
           "Here's what's happening with AgriTrade+ today.",
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: c.textSecondary, fontSize: 13),
+          style: TextStyle(color: c.textSecondary, fontSize: 13.5),
         ),
       ],
     );
@@ -1145,7 +1157,7 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: c.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AdminRadii.card),
             border: Border.all(color: c.border),
           ),
           child: wide
@@ -1153,17 +1165,30 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(width: 22),
-                    Expanded(flex: 5, child: greeting),
+                    Expanded(
+                      flex: 5,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: greeting,
+                      ),
+                    ),
                     const SizedBox(width: 20),
-                    // The picture, shown exactly as supplied: scaled to the
-                    // banner's height.
+                    // The picture, scaled to the banner's height, fading
+                    // into the card on its left so it has no hard edge.
                     Expanded(
                       flex: 6,
-                      child: Image.asset(
-                        kAdminDashboardBanner,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.centerRight,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      child: ShaderMask(
+                        blendMode: BlendMode.dstIn,
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [Colors.transparent, Colors.black],
+                          stops: [0, 0.3],
+                        ).createShader(bounds),
+                        child: Image.asset(
+                          kAdminDashboardBanner,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.centerRight,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                     // Today's date and the time, in the right corner.
@@ -1237,6 +1262,13 @@ final List<AdminSidebarEntry> _sidebarEntries = [
     AdminSidebarEntry(
       _navItems[i].icon,
       _topNavLabels[i],
+      // Two groups: the marketplace's pages, then the ones about reports,
+      // violations and the record of Admin actions.
+      section: switch (i) {
+        0 => 'Main',
+        _moderationPage => 'Moderation',
+        _ => null,
+      },
       children: switch (i) {
         _accountsPage => [
           for (final section in UserAccountsSection.values) section.label,
@@ -1300,7 +1332,7 @@ class _AdminUtilityBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: c.textPrimary,
+                    color: c.heading,
                   ),
                 ),
               ),
@@ -1349,10 +1381,11 @@ class _AdminUtilityBar extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     'AgriTrade+',
-                    style: AppTheme.brandText(fontSize: 19).copyWith(
-                      // The wordmark's own dark green would not show on
-                      // the dark theme's surface.
-                      color: c.isDark ? c.textPrimary : null,
+                    style: adminFont(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      // The dark green would not show on the dark theme.
+                      color: c.isDark ? c.textPrimary : AppTheme.dark,
                     ),
                   ),
                 ],
@@ -1467,13 +1500,14 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
       final url = (profile?.photoUrl ?? '').trim();
       return CircleAvatar(
         radius: radius,
-        backgroundColor: c.surfaceAlt,
+        // Pale green with dark green initials, until a photo is set.
+        backgroundColor: c.greenBg,
         foregroundImage: url.isEmpty ? null : NetworkImage(url),
         onForegroundImageError: url.isEmpty ? null : (_, _) {},
         child: Text(
           initials.isEmpty ? 'AD' : initials,
           style: TextStyle(
-            color: c.textPrimary,
+            color: adminActionColor(c),
             fontWeight: FontWeight.bold,
             fontSize: radius * 0.66,
           ),
@@ -1506,7 +1540,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
             const SizedBox(width: 12),
             Text(
               label,
-              style: GoogleFonts.montserrat(
+              style: adminFont(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: color ?? c.textPrimary,
@@ -1566,7 +1600,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                         profile?.name ?? 'Admin',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.montserrat(
+                        style: adminFont(
                           color: c.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -1574,20 +1608,14 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                       ),
                       Text(
                         'Administrator',
-                        style: GoogleFonts.montserrat(
-                          color: c.textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: adminFont(color: c.textSecondary, fontSize: 12),
                       ),
                       if (email.isNotEmpty)
                         Text(
                           email,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.montserrat(
-                            color: c.textMuted,
-                            fontSize: 11.5,
-                          ),
+                          style: adminFont(color: c.textMuted, fontSize: 11.5),
                         ),
                     ],
                   ),
@@ -1622,11 +1650,11 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: collapsed
-              ? withProfile((profile) => avatar(16, profile))
+              ? withProfile((profile) => avatar(18, profile))
               : withProfile(
                   (profile) => Row(
                     children: [
-                      avatar(16, profile),
+                      avatar(18, profile),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -1637,18 +1665,18 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                               profile?.name ?? 'Admin',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.montserrat(
+                              style: adminFont(
                                 color: c.textPrimary,
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               'Administrator',
                               maxLines: 1,
-                              style: GoogleFonts.montserrat(
+                              style: adminFont(
                                 color: c.textSecondary,
-                                fontSize: 10.5,
+                                fontSize: 11.5,
                               ),
                             ),
                           ],
@@ -2021,10 +2049,13 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: c.textPrimary,
-            fontSize: 19,
-            fontWeight: FontWeight.w600,
+            color: c.heading,
+            fontSize: 20,
+            letterSpacing: -0.2,
+            fontWeight: FontWeight.w700,
           ),
         ),
         if (subtitle != null) ...[
@@ -3672,7 +3703,7 @@ class _HeatmapMapState extends State<_HeatmapMap> {
       key: _mapKey,
       borderRadius: widget.isFullscreen
           ? BorderRadius.zero
-          : BorderRadius.circular(16),
+          : BorderRadius.circular(AdminRadii.card),
       child: Stack(
         children: [
           Positioned.fill(
@@ -5491,9 +5522,13 @@ class _PriceImportPreviewDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Import Preview',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AdminPalette.fallback(context).heading,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -6095,20 +6130,14 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
         side: BorderSide(color: palette.border),
         padding: adminButtonPadding,
         minimumSize: adminButtonMinimumSize,
-        textStyle: GoogleFonts.montserrat(
-          fontSize: 13.5,
-          fontWeight: FontWeight.w600,
-        ),
+        textStyle: adminFont(fontSize: 13.5, fontWeight: FontWeight.w600),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         shape: adminButtonShape,
         foregroundColor: palette.textPrimary,
-        textStyle: GoogleFonts.montserrat(
-          fontSize: 13.5,
-          fontWeight: FontWeight.w600,
-        ),
+        textStyle: adminFont(fontSize: 13.5, fontWeight: FontWeight.w600),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -6118,10 +6147,7 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
         foregroundColor: adminOnActionColor(palette),
         padding: adminButtonPadding,
         minimumSize: adminButtonMinimumSize,
-        textStyle: GoogleFonts.montserrat(
-          fontSize: 13.5,
-          fontWeight: FontWeight.w600,
-        ),
+        textStyle: adminFont(fontSize: 13.5, fontWeight: FontWeight.w600),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -6132,10 +6158,7 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
         foregroundColor: adminOnActionColor(palette),
         padding: adminButtonPadding,
         minimumSize: adminButtonMinimumSize,
-        textStyle: GoogleFonts.montserrat(
-          fontSize: 13.5,
-          fontWeight: FontWeight.w600,
-        ),
+        textStyle: adminFont(fontSize: 13.5, fontWeight: FontWeight.w600),
       ),
     ),
     cardTheme: CardThemeData(
@@ -6150,21 +6173,21 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: palette.surface,
-      // The 16px inset keeps the text clear of the pill's rounded ends.
+      // The 16px inset matches the other fields.
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-      // White, a light grey border, a pill — the same as the search
-      // fields and dropdowns; darker grey when typed in. Fields several
-      // lines tall keep rounded corners (adminMultilineDecoration).
+      // White, a light grey border, rounded corners (kAdminFieldRadius)
+      // — the same as the search fields and dropdowns; darker grey when
+      // typed in.
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.pill),
+        borderRadius: BorderRadius.circular(kAdminFieldRadius),
         borderSide: BorderSide(color: palette.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.pill),
+        borderRadius: BorderRadius.circular(kAdminFieldRadius),
         borderSide: BorderSide(color: palette.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AdminRadii.pill),
+        borderRadius: BorderRadius.circular(kAdminFieldRadius),
         borderSide: BorderSide(color: palette.textSecondary, width: 1.2),
       ),
     ),
@@ -6197,10 +6220,7 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
         borderRadius: BorderRadius.circular(kAdminPopupRadius),
         side: BorderSide(color: palette.border),
       ),
-      textStyle: GoogleFonts.montserrat(
-        color: palette.textPrimary,
-        fontSize: 13,
-      ),
+      textStyle: adminFont(color: palette.textPrimary, fontSize: 13),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: palette.surface,
@@ -6212,12 +6232,12 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
         borderRadius: BorderRadius.circular(kAdminPopupRadius),
         side: BorderSide(color: palette.border),
       ),
-      titleTextStyle: GoogleFonts.montserrat(
+      titleTextStyle: adminFont(
         fontSize: 17,
         fontWeight: FontWeight.w700,
-        color: palette.textPrimary,
+        color: palette.heading,
       ),
-      contentTextStyle: GoogleFonts.montserrat(
+      contentTextStyle: adminFont(
         fontSize: 13,
         height: 1.45,
         color: palette.textPrimary,

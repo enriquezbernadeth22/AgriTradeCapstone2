@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,6 +27,7 @@ import 'place_order_screen.dart';
 import 'product_reviews_screen.dart';
 import 'buyer_market_view.dart';
 import 'farmer_storefront_screen.dart';
+import '../widgets/chat_photo_viewer.dart' show openPhotoGallery;
 import '../widgets/profile_avatar.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
@@ -216,19 +218,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     // public_farm_location.dart) — the same source the Farm Location map
     // uses, so both show the same stable area and neither can reveal a
     // farm's exact pin.
-    final farm = await loadPublicFarmLocation(farmerId);
-
-    DocumentSnapshot<Map<String, dynamic>>? buyerGeo;
-    if (buyerId != null && buyerId.isNotEmpty) {
-      buyerGeo = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(buyerId)
-          .collection('private')
-          .doc('geo')
-          .get();
+    // The farm's area and the buyer's saved position, read at the same
+    // time; the buyer's not being readable only leaves out the distance.
+    Future<Map<String, dynamic>?> buyerPosition() async {
+      if (buyerId == null || buyerId.isEmpty) return null;
+      try {
+        return (await FirebaseFirestore.instance
+                .collection('users')
+                .doc(buyerId)
+                .collection('private')
+                .doc('geo')
+                .get())
+            .data();
+      } catch (_) {
+        return null;
+      }
     }
 
-    final buyerData = buyerGeo?.data() ?? const <String, dynamic>{};
+    final farmLookup = loadPublicFarmLocation(farmerId);
+    final buyerLookup = buyerPosition();
+    final farm = await farmLookup;
+    final buyerData = await buyerLookup ?? const <String, dynamic>{};
     // A saved position outside the Philippines (e.g. captured from an
     // emulator's default location) is not used: it would show a distance
     // of thousands of kilometres.
@@ -290,6 +300,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           );
         }
         final center = LatLng(location.centerLat!, location.centerLng!);
+        final buyer = hasBuyer
+            ? LatLng(location.buyerLat!, location.buyerLng!)
+            : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -311,47 +324,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               style: TextStyle(color: AppColors.grey(700), fontSize: 12.5),
             ),
             const SizedBox(height: 10),
+            // A still preview: it does not move under a finger, so the page
+            // scrolls past it. Tapping it opens Farm Location (the same as
+            // Open Map above), with the distance and a refresh.
             SizedBox(
               height: 190,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: center,
-                    zoom: 12,
-                  ),
-                  zoomControlsEnabled: false,
-                  myLocationButtonEnabled: false,
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('farmer_area'),
-                      position: center,
-                      infoWindow: InfoWindow(
-                        title: tl('Approximate farm area'),
-                      ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    IgnorePointer(
+                      child: _farmAreaMap(center, buyer, preview: true),
                     ),
-                    if (hasBuyer)
-                      Marker(
-                        markerId: const MarkerId('buyer'),
-                        position: LatLng(
-                          location.buyerLat!,
-                          location.buyerLng!,
-                        ),
-                        infoWindow: InfoWindow(
-                          title: tl('Your saved location'),
+                    Positioned.fill(
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: InkWell(
+                          key: const Key('farmMapPreview'),
+                          onTap: _openFarmLocation,
                         ),
                       ),
-                  },
-                  circles: {
-                    Circle(
-                      circleId: const CircleId('approximate_farmer_area'),
-                      center: center,
-                      radius: 700,
-                      fillColor: AppColors.brandFill.withValues(alpha: 0.12),
-                      strokeColor: AppColors.brand.withValues(alpha: 0.6),
-                      strokeWidth: 1,
                     ),
-                  },
+                  ],
                 ),
               ),
             ),
@@ -365,6 +360,66 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         );
       },
+    );
+  }
+
+  // The farm's approximate area (and the buyer's saved location, if any)
+  // on a map. As a [preview] nothing moves it; full screen it pans and
+  // zooms.
+  Widget _farmAreaMap(LatLng center, LatLng? buyer, {bool preview = false}) {
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(target: center, zoom: 12),
+      zoomControlsEnabled: !preview,
+      myLocationButtonEnabled: false,
+      mapToolbarEnabled: !preview,
+      scrollGesturesEnabled: !preview,
+      zoomGesturesEnabled: !preview,
+      rotateGesturesEnabled: !preview,
+      tiltGesturesEnabled: !preview,
+      // On Android the preview is a still picture of the map (lite mode),
+      // which also keeps the page light.
+      liteModeEnabled:
+          preview && defaultTargetPlatform == TargetPlatform.android,
+      markers: {
+        Marker(
+          markerId: const MarkerId('farmer_area'),
+          position: center,
+          infoWindow: InfoWindow(title: tl('Approximate farm area')),
+        ),
+        if (buyer != null)
+          Marker(
+            markerId: const MarkerId('buyer'),
+            position: buyer,
+            infoWindow: InfoWindow(title: tl('Your saved location')),
+          ),
+      },
+      circles: {
+        Circle(
+          circleId: const CircleId('approximate_farmer_area'),
+          center: center,
+          radius: 700,
+          fillColor: AppColors.brandFill.withValues(alpha: 0.12),
+          strokeColor: AppColors.brand.withValues(alpha: 0.6),
+          strokeWidth: 1,
+        ),
+      },
+    );
+  }
+
+  // Farm Location full screen (the same as Open Map beside the section
+  // title): the approximate area, the distance from the buyer, and a
+  // refresh for it.
+  void _openFarmLocation() {
+    final farmerId = _currentData['farmerId']?.toString() ?? '';
+    if (farmerId.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BuyerMapView(
+          farmerId: farmerId,
+          farmerName: _currentData['farmerName']?.toString() ?? 'Farmer',
+        ),
+      ),
     );
   }
 
@@ -385,8 +440,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (urls.isEmpty && _imageUrl != null && _imageUrl!.isNotEmpty) {
       urls.add(_imageUrl!);
     }
-    return urls;
+    // A listing has at most five photos (see AddProductScreen.maxPhotos).
+    return urls.take(5).toList();
   }
+
+  // Opens the listing's photos full screen at [index], to swipe through,
+  // zoom and save.
+  void _openPhotos(int index) =>
+      openPhotoGallery(context, _galleryUrls, initialIndex: index);
 
   Widget _networkImage(String url) => Image.network(
     url,
@@ -410,13 +471,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // Tapping a photo opens it full screen (a stored photo, with no
+          // address to open, stays as it is).
           if (single)
-            _productImage()
+            GestureDetector(
+              key: const Key('productPhoto'),
+              onTap: urls.isEmpty || _imageBytes != null
+                  ? null
+                  : () => _openPhotos(0),
+              child: _productImage(),
+            )
           else
             PageView.builder(
               itemCount: urls.length,
               onPageChanged: (page) => _galleryPage.value = page,
-              itemBuilder: (context, index) => _networkImage(urls[index]),
+              itemBuilder: (context, index) => GestureDetector(
+                key: Key('productPhoto$index'),
+                onTap: () => _openPhotos(index),
+                child: _networkImage(urls[index]),
+              ),
             ),
           // The content panel's rounded top edge, drawn over the foot of
           // the image so the photo curves into the white panel below.
@@ -1306,7 +1379,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   // ---- Order Now (outlined) | Message (filled, on the right) ----
-  // Two compact buttons of the same size, centred and balanced; Message,
+  // Two buttons of the same size filling the bar's width; Message,
   // the dark green one, is the main action (buyers talk to the farmer first).
   // No Map here: the Farm Location section above has Open Map.
   // Sticky: it is the Scaffold's bottom bar, so it never scrolls away.
@@ -1425,15 +1498,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // One height for every action on this screen; the buttons are pills of it.
   static const double _actionHeight = 44;
 
-  // A bottom-bar button: up to this wide, narrower on a small phone.
-  static const double _actionMaxWidth = 160;
-
-  Widget _actionSlot(Widget button) => Flexible(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _actionMaxWidth),
-      child: SizedBox(width: double.infinity, child: button),
-    ),
-  );
+  // A bottom-bar button: the two share the bar's whole width equally, so
+  // there is no empty space beside them.
+  Widget _actionSlot(Widget button) =>
+      Expanded(child: SizedBox(width: double.infinity, child: button));
 
   Future<void> _messageFarmer(
     String farmerId,

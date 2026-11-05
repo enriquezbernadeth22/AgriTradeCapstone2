@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +11,8 @@ import '../services/admin_session_service.dart';
 import '../services/audit_log_service.dart';
 import '../services/dashboard_data_service.dart';
 import '../services/rsba_number.dart';
-import 'admin_dashboard_screen.dart' show AdminPalette, AdminThemeScope;
+import 'admin_dashboard_screen.dart'
+    show AdminPalette, AdminThemeScope, adminDarkMode;
 import 'admin_filter_controls.dart';
 
 // The Admin Portal's notifications: a feed of what has happened on the
@@ -39,13 +42,22 @@ class AdminNotificationItem {
   final DateTime at;
   final AdminNotificationTarget? target;
 
+  /// Pops up on screen when it happens while the portal is open
+  /// ([AdminAlertToasts]). Not for what the Admin did themselves (an
+  /// announcement sent, their own sign-in).
+  final bool popsUp;
+
   const AdminNotificationItem({
     required this.icon,
     required this.title,
     required this.detail,
     required this.at,
     this.target,
+    this.popsUp = true,
   });
+
+  /// Tells one happening apart from another, so it pops up only once.
+  String get key => '$title|$detail|${at.millisecondsSinceEpoch}';
 }
 
 /// A Firestore document as the feed reads it: its id and fields.
@@ -83,6 +95,7 @@ List<AdminNotificationItem> buildAdminNotifications({
     String title,
     String detail, [
     AdminNotificationTarget? target,
+    bool popsUp = true,
   ]) {
     if (at == null || at.isBefore(since) || at.isAfter(now)) return;
     items.add(
@@ -92,6 +105,7 @@ List<AdminNotificationItem> buildAdminNotifications({
         detail: detail,
         at: at,
         target: target,
+        popsUp: popsUp,
       ),
     );
   }
@@ -206,6 +220,7 @@ List<AdminNotificationItem> buildAdminNotifications({
           ? 'Your account was logged in from a new device · $device'
           : 'Your account was logged in · $device',
       AdminNotificationTarget.auditLog,
+      false,
     );
   }
 
@@ -217,6 +232,8 @@ List<AdminNotificationItem> buildAdminNotifications({
       maintenance ? Icons.build_circle_outlined : Icons.campaign_outlined,
       maintenance ? 'Maintenance notice sent' : 'Announcement sent',
       _text(data['title'], 'Untitled'),
+      null,
+      false,
     );
   }
 
@@ -234,6 +251,304 @@ String adminNotificationTime(DateTime at, DateTime now) {
   return DateFormat('MMM d').format(at);
 }
 
+/// Which of [items] should pop up now: those that pop up at all, that
+/// happened after [since] (when the portal was opened, so the history
+/// already there does not pop up), and that have not popped up yet (their
+/// [AdminNotificationItem.key] is not in [shown]). Oldest first, and only
+/// the newest [max] of them when many arrive at once; the rest are in the
+/// bell. Pure, so it can be tested without Firestore.
+List<AdminNotificationItem> adminAlertsToPopUp(
+  Iterable<AdminNotificationItem> items, {
+  required DateTime since,
+  required Set<String> shown,
+  int max = AdminAlertToasts.maxOnScreen,
+}) {
+  final fresh = [
+    for (final item in items)
+      if (item.popsUp && item.at.isAfter(since) && !shown.contains(item.key))
+        item,
+  ]..sort((a, b) => a.at.compareTo(b.at));
+  return fresh.length > max ? fresh.sublist(fresh.length - max) : fresh;
+}
+
+/// The cards that pop up at the top right, under the bell, when something
+/// happens on the marketplace while the portal is open (a new order, an
+/// order completed, a farmer application, a report…). Each goes after
+/// [shownFor], or sooner when its × is clicked; the pointer resting on one
+/// keeps it up. Clicking one opens its page, as in the bell. The newest is
+/// on top, and no more than [maxOnScreen] are up at once.
+class AdminAlertToasts {
+  static const Duration shownFor = Duration(seconds: 6);
+  static const int maxOnScreen = 3;
+
+  final ValueNotifier<List<_LiveAlert>> _alerts =
+      ValueNotifier<List<_LiveAlert>>(const []);
+  OverlayEntry? _entry;
+
+  // The entry is in an overlay (it only reads as mounted once built).
+  bool _inserted = false;
+
+  /// The cards up now, newest first (for tests).
+  @visibleForTesting
+  List<AdminNotificationItem> get showing => [
+    for (final alert in _alerts.value) alert.item,
+  ];
+
+  /// Pops [item] up over the page [context] is in.
+  void show(BuildContext context, AdminNotificationItem item) {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+    final entry = _entry ??= OverlayEntry(
+      builder: (_) =>
+          _AdminAlertStack(alerts: _alerts, onClose: _dismiss, onHover: _hold),
+    );
+    if (!_inserted) {
+      overlay.insert(entry);
+      _inserted = true;
+    }
+    final alert = _LiveAlert(item);
+    final kept = [alert, ..._alerts.value];
+    for (final dropped in kept.skip(maxOnScreen)) {
+      dropped.timer?.cancel();
+    }
+    _alerts.value = kept.take(maxOnScreen).toList();
+    _hold(alert, false);
+  }
+
+  // The pointer is on [alert] (its timer stops) or has left it (it goes
+  // after a full [shownFor] from then).
+  void _hold(_LiveAlert alert, bool hovered) {
+    alert.timer?.cancel();
+    alert.timer = hovered ? null : Timer(shownFor, () => _dismiss(alert));
+  }
+
+  void _dismiss(_LiveAlert alert) {
+    alert.timer?.cancel();
+    _alerts.value = [
+      for (final other in _alerts.value)
+        if (!identical(other, alert)) other,
+    ];
+  }
+
+  void dispose() {
+    for (final alert in _alerts.value) {
+      alert.timer?.cancel();
+    }
+    if (_inserted) _entry!.remove();
+    _inserted = false;
+    _entry?.dispose();
+    _alerts.dispose();
+  }
+}
+
+class _LiveAlert {
+  final AdminNotificationItem item;
+  Timer? timer;
+  _LiveAlert(this.item);
+}
+
+/// The column of pop-up cards, at the top right under the header.
+class _AdminAlertStack extends StatelessWidget {
+  final ValueNotifier<List<_LiveAlert>> alerts;
+  final void Function(_LiveAlert alert) onClose;
+  final void Function(_LiveAlert alert, bool hovered) onHover;
+
+  const _AdminAlertStack({
+    required this.alerts,
+    required this.onClose,
+    required this.onHover,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 72,
+      right: 24,
+      width: 360,
+      // Outside the page's AdminThemeScope: follows the portal's Dark Mode
+      // by itself.
+      child: ValueListenableBuilder<bool>(
+        valueListenable: adminDarkMode,
+        builder: (context, dark, _) => ValueListenableBuilder<List<_LiveAlert>>(
+          valueListenable: alerts,
+          builder: (context, list, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final alert in list)
+                _AdminAlertCard(
+                  key: ObjectKey(alert),
+                  item: alert.item,
+                  c: dark ? AdminPalette.dark : AdminPalette.light,
+                  onClose: () => onClose(alert),
+                  onHover: (hovered) => onHover(alert, hovered),
+                  onOpen: alert.item.target == null
+                      ? null
+                      : () {
+                          adminOpenPageRequest.value = alert.item.target;
+                          onClose(alert);
+                        },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One pop-up card: the icon on a pale green square, the title in bold
+/// dark green, what happened, "Just now", and a × to close it. It slides
+/// in from the right as it appears.
+class _AdminAlertCard extends StatefulWidget {
+  final AdminNotificationItem item;
+  final AdminPalette c;
+  final VoidCallback onClose;
+  final ValueChanged<bool> onHover;
+  final VoidCallback? onOpen;
+
+  const _AdminAlertCard({
+    super.key,
+    required this.item,
+    required this.c,
+    required this.onClose,
+    required this.onHover,
+    this.onOpen,
+  });
+
+  @override
+  State<_AdminAlertCard> createState() => _AdminAlertCardState();
+}
+
+class _AdminAlertCardState extends State<_AdminAlertCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _in = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  )..forward();
+
+  @override
+  void dispose() {
+    _in.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    final item = widget.item;
+    final entrance = CurvedAnimation(parent: _in, curve: Curves.easeOutCubic);
+    TextStyle text(double size, FontWeight weight, Color color) => TextStyle(
+      fontFamily: kAdminFontFamily,
+      fontSize: size,
+      fontWeight: weight,
+      color: color,
+      height: 1.35,
+      decoration: TextDecoration.none,
+    );
+
+    final card = Material(
+      color: c.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kAdminFieldRadius),
+        side: BorderSide(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: widget.onOpen,
+        mouseCursor: widget.onOpen == null
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
+        hoverColor: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: c.greenBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(item.icon, size: 19, color: adminActionColor(c)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text(13.5, FontWeight.w700, c.heading),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: text(12.5, FontWeight.w400, c.textSecondary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Just now',
+                      style: text(11, FontWeight.w500, c.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Close',
+                visualDensity: VisualDensity.compact,
+                iconSize: 18,
+                onPressed: widget.onClose,
+                icon: Icon(Icons.close_rounded, color: c.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: MouseRegion(
+        onEnter: (_) => widget.onHover(true),
+        onExit: (_) => widget.onHover(false),
+        child: FadeTransition(
+          opacity: entrance,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0.25, 0),
+              end: Offset.zero,
+            ).animate(entrance),
+            child: Semantics(
+              liveRegion: true,
+              // A soft shadow, so it floats over the page.
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(kAdminFieldRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: card,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The button beside the bell that opens the announcement form.
 class AdminAnnounceButton extends StatelessWidget {
   const AdminAnnounceButton({super.key});
@@ -244,15 +559,12 @@ class AdminAnnounceButton extends StatelessWidget {
     return Tooltip(
       message: 'Send an announcement',
       child: InkWell(
-        customBorder: const CircleBorder(),
+        customBorder: adminHeaderButtonShape,
         onTap: () => showAdminAnnouncementDialog(context),
         // 40 across, the height of the search beside it.
         child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: c.surfaceAlt,
-          ),
+          padding: const EdgeInsets.all(9),
+          decoration: adminHeaderButtonDecoration(c),
           child: Icon(
             Icons.campaign_outlined,
             color: c.textSecondary,
@@ -294,11 +606,44 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
   String get _seenKey =>
       'admin_notifications_seen_${FirebaseAuth.instance.currentUser?.uid ?? ''}';
 
+  // What happens from now on pops up on screen; what is already in the
+  // feed when the portal opens does not.
+  final DateTime _liveSince = DateTime.now();
+  final Set<String> _poppedUp = {};
+  final AdminAlertToasts _toasts = AdminAlertToasts();
+
   @override
   void initState() {
     super.initState();
     DashboardDataService.instance.ensureLoaded();
     _loadSeen();
+  }
+
+  @override
+  void dispose() {
+    _toasts.dispose();
+    super.dispose();
+  }
+
+  // Pops up whatever in [items] is new since the last look, after this
+  // frame (the overlay cannot change while the header is being built).
+  void _popUpNew(List<AdminNotificationItem> items) {
+    final fresh = adminAlertsToPopUp(
+      items,
+      since: _liveSince,
+      shown: _poppedUp,
+    );
+    // Everything new counts as seen by the pop-ups, even past the few shown.
+    for (final item in items) {
+      if (item.at.isAfter(_liveSince)) _poppedUp.add(item.key);
+    }
+    if (fresh.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final item in fresh) {
+        _toasts.show(context, item);
+      }
+    });
   }
 
   Future<void> _loadSeen() async {
@@ -352,6 +697,7 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
                   signIns: _records(signIns.data?.docs),
                   now: DateTime.now(),
                 );
+                _popUpNew(items);
                 final unread = items.where((i) => i.at.isAfter(_seen)).length;
                 return _bell(c, items, unread);
               },
@@ -453,8 +799,8 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
       ],
       // 40 across, the height of the search beside it.
       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(shape: BoxShape.circle, color: c.surfaceAlt),
+        padding: const EdgeInsets.all(9),
+        decoration: adminHeaderButtonDecoration(c),
         child: Stack(
           clipBehavior: Clip.none,
           children: [

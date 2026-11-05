@@ -43,6 +43,57 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets(
+    'carries on from the web page\'s own loading bar, not from empty',
+    (tester) async {
+      // The Admin website's page showed its copy of the bar for 1.5 s while
+      // Flutter downloaded: the rest of the three seconds is left.
+      final pageStart = DateTime.now().subtract(
+        const Duration(milliseconds: 1500),
+      );
+      SproutLoadingBar.earlierStart = () => pageStart;
+      addTearDown(() => SproutLoadingBar.earlierStart = () => null);
+
+      await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
+      var done = false;
+      SproutLoadingBar.untilFilled().then((_) => done = true);
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(done, isFalse);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(done, isTrue);
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets('after a slow page load the last stretch is still seen filling, '
+      'not shown full at once', (tester) async {
+    // A debug build on localhost: the page's bar waited 20 s for Flutter.
+    final pageStart = DateTime.now().subtract(const Duration(seconds: 20));
+    SproutLoadingBar.earlierStart = () => pageStart;
+    addTearDown(() => SproutLoadingBar.earlierStart = () => null);
+
+    await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
+    var done = false;
+    SproutLoadingBar.untilFilled().then((_) => done = true);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(done, isFalse);
+    expect(tester.binding.hasScheduledFrame, isTrue); // still filling
+    await tester.pump(SproutLoadingBar.minFinishTime);
+    expect(done, isTrue);
+    await tester.pumpAndSettle();
+  });
+
+  test('the web page\'s bar never fills on its own', () {
+    double at(int ms) =>
+        SproutLoadingBar.pageBarProgress(Duration(milliseconds: ms));
+    expect(at(0), 0);
+    expect(at(1000), allOf(greaterThan(0.3), lessThan(0.7)));
+    expect(at(2100), closeTo(0.7, 1e-9));
+    expect(at(7050), closeTo(0.8, 1e-9));
+    expect(at(12000), 0.9);
+    expect(at(600000), 0.9);
+  });
+
   testWidgets('says it is loading, with no percentage', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: BrandedLoadingScreen()));
     await tester.pump(const Duration(milliseconds: 1500));

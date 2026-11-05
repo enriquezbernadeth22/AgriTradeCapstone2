@@ -26,6 +26,43 @@ class ExportResult {
   const ExportResult({required this.filename, required this.missingDataSections});
 }
 
+/// The records a report is made from, read once from Firestore. The Export
+/// Report dialog reads them when it opens and reuses them for its preview
+/// and the export, so changing an option does not read them again.
+class ReportSourceData {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> users;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> completedOrders;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> marketPrices;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> products;
+  final DateTime readAt;
+  const ReportSourceData({
+    required this.users,
+    required this.completedOrders,
+    required this.marketPrices,
+    required this.products,
+    required this.readAt,
+  });
+}
+
+/// A report built in memory, before it is saved: the file itself and what
+/// went into it.
+class BuiltReport {
+  final Uint8List bytes;
+  final String filename;
+  final String mimeType;
+  final ReportFormat format;
+  final List<ReportSection> sections;
+  final List<String> missingDataSections;
+  const BuiltReport({
+    required this.bytes,
+    required this.filename,
+    required this.mimeType,
+    required this.format,
+    required this.sections,
+    required this.missingDataSections,
+  });
+}
+
 /// Orchestrates the Export Report dialog: fetches real Firestore data once
 /// (not streams — this is a one-shot action), re-runs the exact same
 /// DashboardAnalyticsService logic the live dashboard uses for whichever
@@ -41,6 +78,28 @@ class ReportExportService {
         _ => null,
       };
 
+  /// Reads the records every report is made from (completed orders only,
+  /// as all analytics).
+  static Future<ReportSourceData> loadData() async {
+    final firestore = FirebaseFirestore.instance;
+    final results = await Future.wait([
+      firestore.collection('users').get(),
+      firestore.collection('orders').where('status', isEqualTo: 'completed').get(),
+      firestore.collection('market_prices').get(),
+      firestore.collection('products').get(),
+    ]);
+    return ReportSourceData(
+      users: results[0].docs,
+      completedOrders: results[1].docs,
+      marketPrices: results[2].docs,
+      products: results[3].docs,
+      readAt: DateTime.now(),
+    );
+  }
+
+  /// Builds the report and saves it (the browser's download, or the PDF
+  /// share/print sheet), then logs the export to the Audit Log. [data] is
+  /// what the dialog already read; without it, the latest is read now.
   static Future<ExportResult> export({
     required ReportFormat format,
     required Set<DashboardSection> sections,
@@ -54,7 +113,66 @@ class ReportExportService {
     ReportPaper paper = ReportPaper.a4,
     required bool includeDataTables,
     required String notes,
+    ReportSourceData? data,
     // Told what the export is doing at each step, to show the Admin.
+    void Function(String step, double progress)? onProgress,
+  }) async {
+    if (format == ReportFormat.png) {
+      return _exportPng(sections: sections, range: range);
+    }
+    final built = await build(
+      format: format,
+      sections: sections,
+      selectedCommodities: selectedCommodities,
+      onlyCommodity: onlyCommodity,
+      range: range,
+      reportTitle: reportTitle,
+      landscape: landscape,
+      paper: paper,
+      includeDataTables: includeDataTables,
+      notes: notes,
+      data: data,
+      onProgress: onProgress,
+    );
+
+    onProgress?.call('Saving the file…', 0.97);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    if (format == ReportFormat.pdf) {
+      await PdfReportService.share(built.bytes, built.filename);
+    } else {
+      WebDownloadHelper.download(built.bytes, built.filename, built.mimeType);
+    }
+
+    final rangeLabel = _rangeLabel(range);
+    AuditLogService.log(
+      AuditAction.exportReport,
+      'Exported the Dashboard Overview report (${_formatName(format)}), $rangeLabel, '
+      'sections: ${sections.map((s) => s.label).join(', ')}.',
+    );
+
+    onProgress?.call('Export complete', 1);
+
+    return ExportResult(filename: built.filename, missingDataSections: built.missingDataSections);
+  }
+
+  static String _rangeLabel(DateTimeRange? range) => range == null
+      ? 'All time'
+      : '${DateFormat('MMM d, y').format(range.start)} – ${DateFormat('MMM d, y').format(range.end)}';
+
+  /// Builds the report in memory, exactly as [export] would save it, without
+  /// saving or logging anything: the dialog's preview. PDF, Excel or CSV.
+  static Future<BuiltReport> build({
+    required ReportFormat format,
+    required Set<DashboardSection> sections,
+    required Set<String> selectedCommodities,
+    String? onlyCommodity,
+    required DateTimeRange? range,
+    required String reportTitle,
+    required bool landscape,
+    ReportPaper paper = ReportPaper.a4,
+    required bool includeDataTables,
+    required String notes,
+    ReportSourceData? data,
     void Function(String step, double progress)? onProgress,
   }) async {
     // Says what is happening and lets the screen draw it before the next
@@ -64,25 +182,15 @@ class ReportExportService {
       await Future<void>.delayed(const Duration(milliseconds: 40));
     }
 
-    await step('Loading the latest data…', 0.08);
-    final firestore = FirebaseFirestore.instance;
-    final results = await Future.wait([
-      firestore.collection('users').get(),
-      firestore.collection('orders').where('status', isEqualTo: 'completed').get(),
-      firestore.collection('market_prices').get(),
-      firestore.collection('products').get(),
-    ]);
-    final userDocs = results[0].docs;
-    final orders = results[1].docs;
-    final priceDocs = results[2].docs;
-    final products = results[3].docs;
+    if (data == null) await step('Loading the latest data…', 0.08);
+    final source = data ?? await loadData();
+    final userDocs = source.users;
+    final orders = source.completedOrders;
+    final priceDocs = source.marketPrices;
+    final products = source.products;
     final now = DateTime.now();
     final orderData = [for (final doc in orders) doc.data()];
     final productData = [for (final doc in products) doc.data()];
-
-    if (format == ReportFormat.png) {
-      return _exportPng(sections: sections, range: range);
-    }
 
     final missing = <String>[];
     final reportSections = <ReportSection>[];
@@ -149,9 +257,7 @@ class ReportExportService {
       range: range,
     );
 
-    final rangeLabel = range == null
-        ? 'All time'
-        : '${DateFormat('MMM d, y').format(range.start)} – ${DateFormat('MMM d, y').format(range.end)}';
+    final rangeLabel = _rangeLabel(range);
     final adminName =
         FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? 'Admin';
     final baseName = _fileBaseName(range);
@@ -209,23 +315,14 @@ class ReportExportService {
       0.93,
     );
 
-    final filename = 'AgriTrade_Analytics_$baseName.$extension';
-    await step('Saving the file…', 0.97);
-    if (format == ReportFormat.pdf) {
-      await PdfReportService.share(bytes, filename);
-    } else {
-      WebDownloadHelper.download(bytes, filename, mimeType);
-    }
-
-    AuditLogService.log(
-      AuditAction.exportReport,
-      'Exported the Dashboard Overview report (${_formatName(format)}), $rangeLabel, '
-      'sections: ${sections.map((s) => s.label).join(', ')}.',
+    return BuiltReport(
+      bytes: bytes,
+      filename: 'AgriTrade_Analytics_$baseName.$extension',
+      mimeType: mimeType,
+      format: format,
+      sections: reportSections,
+      missingDataSections: missing,
     );
-
-    onProgress?.call('Export complete', 1);
-
-    return ExportResult(filename: filename, missingDataSections: missing);
   }
 
   static Future<ExportResult> _exportPng({

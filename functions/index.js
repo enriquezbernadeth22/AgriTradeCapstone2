@@ -27,6 +27,7 @@ const { categoryOf, pushAllowed, deliveryChannels, WELCOME } = require("./notifi
 const { COMMODITY_ARCHIVED, archiveChange, commodityNotice } = require("./commodity_notice");
 const { suspensionEndText } = require("./suspension_logic");
 const { outsideCoverage } = require("./delivery_coverage_logic");
+const { stockWasTaken, cancelledNoticeForFarmer } = require("./order_stock_logic");
 const {
   completionReminderDue, receivedReminderDue, pendingOrderExpired, PENDING_ORDER_DAYS,
 } = require("./order_reminder_logic");
@@ -256,7 +257,8 @@ exports.notifyNewOrder = onDocumentCreated("orders/{orderId}", async (event) => 
   // A delivery order outside the listing's coverage is turned away before
   // anyone is told about it: the app never places one, but the database
   // rules cannot check places, so one written another way is caught here.
-  // Its stock goes back; notifyOrderStatusChange tells the buyer why.
+  // An older order that took its stock when placed gets it back;
+  // notifyOrderStatusChange tells the buyer why.
   if (order.deliveryMethod === "delivery" && order.productId) {
     const orderRef = event.data.ref;
     const productRef = db.collection("products").doc(order.productId);
@@ -270,7 +272,9 @@ exports.notifyNewOrder = onDocumentCreated("orders/{orderId}", async (event) => 
         rejectionReason: "outside_coverage",
         updatedAt: FieldValue.serverTimestamp(),
       });
-      if (productSnap.exists && typeof current.quantity === "number") {
+      // Only an order from before stock was taken on confirmation has any
+      // to give back here (it is still pending).
+      if (productSnap.exists && typeof current.quantity === "number" && stockWasTaken(current)) {
         tx.update(productRef, { quantity: FieldValue.increment(current.quantity) });
       }
       return true;
@@ -811,8 +815,8 @@ Object.assign(exports, require("./app_feedback"));
 //   delay reported / updated  -> the buyer is told why, and the new date
 //   buyer accepted the date   -> the farmer is told
 //   buyer cancelled           -> the farmer is told, and the quantity the
-//                                order had reserved goes back to the
-//                                listing, exactly once (stockRestoredAt
+//                                order took on confirmation goes back to
+//                                the listing, exactly once (stockRestoredAt
 //                                marks it; a buyer cannot write a
 //                                product's stock, so it is done here)
 //
@@ -847,9 +851,12 @@ exports.handleOrderReschedule = onDocumentUpdated("orders/{orderId}", async (eve
   // ---- Cancelled, by the buyer, the farmer or expirePendingOrders ----
   if (before.status !== "cancelled" && after.status === "cancelled") {
     const orderRef = event.data.after.ref;
-    await db.runTransaction(async (tx) => {
+    // The quantity goes back only if the order had taken it (it does so on
+    // the farmer's confirmation; see order_stock_logic.js).
+    const returned = await db.runTransaction(async (tx) => {
       const order = (await tx.get(orderRef)).data();
-      if (!order || order.status !== "cancelled" || order.stockRestoredAt) return;
+      if (!order || order.status !== "cancelled" || order.stockRestoredAt) return false;
+      if (!stockWasTaken(order)) return false;
       const quantity = typeof order.quantity === "number" ? order.quantity : Number(order.quantity) || 0;
       if (order.productId && quantity > 0) {
         const productRef = db.collection("products").doc(order.productId);
@@ -860,6 +867,7 @@ exports.handleOrderReschedule = onDocumentUpdated("orders/{orderId}", async (eve
         }
       }
       tx.update(orderRef, { stockRestoredAt: FieldValue.serverTimestamp() });
+      return true;
     });
 
     if (after.cancelReason === "expired" && after.buyerId) {
@@ -885,14 +893,9 @@ exports.handleOrderReschedule = onDocumentUpdated("orders/{orderId}", async (eve
     }
 
     if (after.sellerId && after.cancelReason !== "farmer") {
-      const buyer = after.buyerName || "The buyer";
       await notifyUser(after.sellerId, {
         title: "Order Cancelled",
-        body: after.cancelReason === "expired"
-          ? `The ${product} order from ${buyer} was cancelled because it was not answered within ${PENDING_ORDER_DAYS} days. The reserved stock is back on your listing.`
-          : after.cancelReason === "buyer"
-            ? `${buyer} cancelled the ${product} order. The reserved stock is back on your listing.`
-            : `${buyer} cancelled the ${product} order after the delay. The quantity has been returned to your listing.`,
+        body: cancelledNoticeForFarmer(after, { returned, pendingDays: PENDING_ORDER_DAYS }),
         type: "order_status",
         relatedId: orderId,
         data: { orderId, status: "cancelled" },

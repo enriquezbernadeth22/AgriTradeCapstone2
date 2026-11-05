@@ -6,7 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../data/legal_policies.dart';
 import '../theme/app_theme.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette, AdminThemeScope;
-import 'admin_filter_controls.dart' show adminActionColor;
+import 'admin_filter_controls.dart' show adminActionColor, kAdminFontFamily;
 import 'admin_help_center.dart' show showAdminHelpCenter;
 
 // The Admin menu's information popups: Terms & Privacy, Help & Support
@@ -161,7 +161,7 @@ class _TermsPrivacyDialog extends StatelessWidget {
                       child: Text(
                         'Terms & Privacy',
                         style: TextStyle(
-                          color: adminActionColor(c),
+                          color: c.heading,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -180,12 +180,12 @@ class _TermsPrivacyDialog extends StatelessWidget {
                 dividerColor: c.border,
                 labelPadding: const EdgeInsets.symmetric(horizontal: 14),
                 labelStyle: const TextStyle(
-                  fontFamily: 'Montserrat',
+                  fontFamily: kAdminFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
                 unselectedLabelStyle: const TextStyle(
-                  fontFamily: 'Montserrat',
+                  fontFamily: kAdminFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -294,7 +294,7 @@ class _PolicyViewState extends State<_PolicyView> {
           Text(
             doc.title,
             style: TextStyle(
-              color: adminActionColor(c),
+              color: c.heading,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),

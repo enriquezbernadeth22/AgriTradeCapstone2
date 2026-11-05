@@ -5,7 +5,10 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, HapticFeedback;
+import '../widgets/agri_dialog.dart';
+import '../widgets/message_actions.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import '../widgets/chat_photo_viewer.dart';
 import '../widgets/chat_video.dart';
@@ -107,7 +110,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _likeHoldTimer;
   bool _typingActive = false;
   Map<String, dynamic>? _replyTo;
-  double _horizontalDragDistance = 0;
   String? _lastReadMarkedMessageId;
   DateTime? _typingExpiryFor;
 
@@ -161,6 +163,20 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // The pinned message, kept current for both people.
+    _pinnedSub = FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .snapshots()
+        .listen((snap) {
+          final pinned = snap.data()?['pinnedMessage'];
+          if (!mounted) return;
+          setState(
+            () => _pinned = pinned is Map
+                ? Map<String, dynamic>.from(pinned)
+                : null,
+          );
+        }, onError: (_) {});
     _prefs.addListener(_onPrefsChanged);
     _prefs.load(FirebaseAuth.instance.currentUser?.uid);
     _controller.addListener(_onComposerChanged);
@@ -337,48 +353,271 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageService.setTyping(widget.conversationId, false).catchError((_) {});
   }
 
-  void _beginLikeHold(
+  // Each message's data and a key on its bubble, for the menu a held
+  // message opens (where it is on screen, and what can be done to it).
+  final Map<String, Map<String, dynamic>> _messageData = {};
+  final Map<String, GlobalKey> _holdKeys = {};
+  GlobalKey _holdKeyFor(String messageId) =>
+      _holdKeys.putIfAbsent(messageId, GlobalKey.new);
+
+  // The pinned message at the top of this chat, if any.
+  Map<String, dynamic>? _pinned;
+  StreamSubscription? _pinnedSub;
+
+  void _beginHold(
     String messageId,
-    Offset position,
-    Map<String, dynamic> likes,
-  ) {
+    Map<String, dynamic> likes, {
+    required GlobalKey key,
+    required Widget preview,
+  }) {
     _likeHoldTimer?.cancel();
     // Flutter's long-press recognizer starts after about half a second; this
-    // additional half-second makes the reaction appear after roughly 1s held.
+    // additional half-second makes the menu appear after roughly 1s held.
     _likeHoldTimer = Timer(const Duration(milliseconds: 500), () {
-      if (mounted) _showReactionPicker(messageId, position, likes);
+      if (mounted) _openMessageActions(messageId, likes, key, preview);
     });
   }
 
-  // Heart, Like, Wow, Sad or Angry over the held message; the same one
-  // again takes the reaction off.
-  Future<void> _showReactionPicker(
+  // Held: everything else blurs, the message stays sharp with the
+  // reactions above it and Reply, Copy, Pin, Unsend (yours) or Report
+  // (theirs) under it.
+  Future<void> _openMessageActions(
     String messageId,
-    Offset position,
     Map<String, dynamic> likes,
+    GlobalKey key,
+    Widget preview,
   ) async {
+    final box = key.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached) return;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    final data = _messageData[messageId] ?? const <String, dynamic>{};
+    final isMe = data['senderId'] == _myUid;
+    final text = (data['text'] ?? '').toString();
+    final pinnedId = _pinned?['messageId'];
     HapticFeedback.selectionClick();
-    final reaction = await showReactionPicker(
+    final choice = await showMessageActions(
       context,
-      position: position,
-      current: reactionKeyOf(likes[_myUid]),
+      rect: rect,
+      message: preview,
+      mine: isMe,
+      canCopy: text.trim().isNotEmpty,
+      pinned: pinnedId == messageId,
+      currentReaction: reactionKeyOf(likes[_myUid]),
     );
+    if (choice == null || !mounted) return;
+    final reaction = choice.reaction;
     if (reaction != null) {
-      try {
-        await _messageService.setReaction(
-          widget.conversationId,
-          messageId,
-          reaction,
-        );
-      } catch (_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          appSnackBar(
-            tl('Could not react to this message.'),
-            kind: MessageKind.error,
+      await _react(messageId, reaction);
+      return;
+    }
+    switch (choice.action) {
+      case MessageAction.reply:
+        _setReplyTarget(data, messageId);
+      case MessageAction.copy:
+        await Clipboard.setData(ClipboardData(text: text));
+        if (mounted) {
+          showAppMessage(
+            context,
+            tl('Message copied.'),
+            kind: MessageKind.success,
+          );
+        }
+      case MessageAction.pin:
+        await _guard(
+          () => _messageService.pinMessage(
+            widget.conversationId,
+            messageId,
+            text: _quoteOf(data),
+            senderId: (data['senderId'] ?? '').toString(),
           ),
+          done: tl('Message pinned.'),
+          failed: tl('Could not pin this message.'),
         );
-      }
+      case MessageAction.unpin:
+        await _guard(
+          () => _messageService.unpinMessage(widget.conversationId),
+          done: tl('Message unpinned.'),
+          failed: tl('Could not unpin this message.'),
+        );
+      case MessageAction.unsend:
+        final sure = await showAgriConfirm(
+          context: context,
+          icon: Icons.undo_rounded,
+          tone: AgriTone.destructive,
+          title: tl('Unsend message?'),
+          message: tl(
+            'It will be removed for both of you. {0} will see that you unsent a message.',
+            [_realName],
+          ),
+          confirmLabel: tl('Unsend'),
+        );
+        if (!sure || !mounted) return;
+        await _guard(
+          () => _messageService.unsendMessage(widget.conversationId, messageId),
+          done: tl('Message unsent.'),
+          failed: tl('Could not unsend this message.'),
+        );
+      case MessageAction.report:
+        await _reportMessage(messageId, data);
+      case null:
+        return;
+    }
+  }
+
+  // At the top of the chat: the pinned message, with who sent it and an ×
+  // to unpin it (either person can).
+  Widget _pinnedBanner(Map<String, dynamic> pinned) {
+    final mine = pinned['senderId'] == _myUid;
+    return Container(
+      key: const Key('pinnedBanner'),
+      padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.grey(200))),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.push_pin_rounded, size: 18, color: AppColors.brand),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mine
+                      ? tl('Pinned · your message')
+                      : tl('Pinned · {0}', [_realName]),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.brand,
+                  ),
+                ),
+                Text(
+                  (pinned['text'] ?? '').toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: AppColors.text),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: tl('Unpin'),
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _guard(
+              () => _messageService.unpinMessage(widget.conversationId),
+              done: tl('Message unpinned.'),
+              failed: tl('Could not unpin this message.'),
+            ),
+            icon: Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // What a message says, as a pinned or quoted line.
+  String _quoteOf(Map<String, dynamic> message) {
+    final text = (message['text'] ?? '').toString().trim();
+    if (text.isNotEmpty) return text;
+    return switch (message['type']) {
+      'video' => 'Video',
+      'location' => 'Location',
+      'pricingOptions' => 'Order options',
+      'receipt' => 'Receipt',
+      _ =>
+        (message['imageUrl'] ?? '').toString().isNotEmpty ? 'Photo' : 'Message',
+    };
+  }
+
+  // Runs [action], then says how it went.
+  Future<void> _guard(
+    Future<void> Function() action, {
+    required String done,
+    required String failed,
+  }) async {
+    try {
+      await action();
+      if (mounted) showAppMessage(context, done, kind: MessageKind.success);
+    } catch (_) {
+      if (mounted) showAppMessage(context, failed, kind: MessageKind.error);
+    }
+  }
+
+  // Report: why, then off to the Admin's Moderation Queue.
+  Future<void> _reportMessage(
+    String messageId,
+    Map<String, dynamic> data,
+  ) async {
+    final controller = TextEditingController();
+    final send = await showAgriDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AgriDialog(
+        icon: Icons.flag_outlined,
+        tone: AgriTone.warning,
+        title: Text(tl('Report this message?')),
+        content: TextField(
+          controller: controller,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 300,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            hintText: tl('Tell us what is wrong with this message.'),
+          ),
+        ),
+        actions: [
+          AgriDialogButton(
+            label: tl('Cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          AgriDialogButton(
+            label: tl('Report'),
+            kind: AgriButtonKind.primary,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      ),
+    );
+    final reason = controller.text.trim();
+    controller.dispose();
+    if (send != true || !mounted) return;
+    await _guard(
+      () => _messageService.reportMessage(
+        conversationId: widget.conversationId,
+        messageId: messageId,
+        messageText: _quoteOf(data),
+        reportedUserId: widget.otherUserId,
+        reportedUserName: _realName,
+        reason: reason.isEmpty ? 'No reason given' : reason,
+      ),
+      done: tl('Message reported. The Admin will review it.'),
+      failed: tl('Could not report this message.'),
+    );
+  }
+
+  // A reaction from the held message's menu; the same one again takes it
+  // off.
+  Future<void> _react(String messageId, String reaction) async {
+    try {
+      await _messageService.setReaction(
+        widget.conversationId,
+        messageId,
+        reaction,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(
+          tl('Could not react to this message.'),
+          kind: MessageKind.error,
+        ),
+      );
     }
   }
 
@@ -529,6 +768,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _pinnedSub?.cancel();
     _otherProfileSub?.cancel();
     _prefs.removeListener(_onPrefsChanged);
     _typingTimer?.cancel();
@@ -662,22 +902,26 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // The upload on show over the message box and in the notification bar;
   // null when nothing is going up.
-  ({bool video, double progress})? _upload;
+  ({bool video, double progress, int? bytes})? _upload;
   UploadProgressNotification? _uploadNotice;
 
   // Shows a photo or video upload starting; returns what to tell as it goes.
-  void Function(double) _startUpload({required bool video}) {
+  void Function(double) _startUpload({required bool video, int? bytes}) {
     final notice = UploadProgressNotification(
       title: video
           ? 'Sending video to $_realName'
           : 'Sending photo to $_realName',
     );
     _uploadNotice = notice;
-    setState(() => _upload = (video: video, progress: 0));
+    setState(() => _upload = (video: video, progress: 0, bytes: bytes));
     notice.update(0);
     return (progress) {
       notice.update(progress);
-      if (mounted) setState(() => _upload = (video: video, progress: progress));
+      if (mounted) {
+        setState(
+          () => _upload = (video: video, progress: progress, bytes: bytes),
+        );
+      }
     };
   }
 
@@ -699,7 +943,12 @@ class _ChatScreenState extends State<ChatScreen> {
     if (picked == null || !mounted || _sending) return;
 
     setState(() => _sending = true);
-    final progress = _startUpload(video: true);
+    int? size;
+    try {
+      size = await picked.length();
+    } catch (_) {}
+    if (!mounted) return;
+    final progress = _startUpload(video: true, bytes: size);
     try {
       final videoUrl = await _cloudinaryService.uploadVideo(
         picked,
@@ -922,6 +1171,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTapDetails: _startNegotiation,
                 onDraftMessage: _setDraft,
               ),
+            if (_pinned != null) _pinnedBanner(_pinned!),
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: _messagesStream,
@@ -996,6 +1246,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                     final imageUrl = data['imageUrl']
                                         ?.toString();
                                     final ts = data['createdAt'] as Timestamp?;
+                                    // Kept for the menu a held message opens.
+                                    _messageData[docs[i].id] = data;
+                                    if (data['unsent'] == true) {
+                                      return _unsentMessage(isMe, ts?.toDate());
+                                    }
                                     if (data['type'] == 'pricingOptions') {
                                       return _replyGesture(
                                         messageId: docs[i].id,
@@ -1109,12 +1364,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                               data['replyTo'] as Map,
                                             )
                                           : null,
-                                      onReply: isMe
-                                          ? null
-                                          : () => _setReplyTarget(
-                                              data,
-                                              docs[i].id,
-                                            ),
+                                      onReply: () =>
+                                          _setReplyTarget(data, docs[i].id),
                                     );
                                     // The buyer asked for the health
                                     // certificate: the farmer can answer
@@ -1174,6 +1425,7 @@ class _ChatScreenState extends State<ChatScreen> {
     Map<String, dynamic> likes = const {},
     Map<String, dynamic>? replyTo,
     VoidCallback? onReply,
+    bool overlay = false,
   }) {
     // A photo on its own is shown as just the photo — no green or white
     // bubble around it.
@@ -1182,26 +1434,17 @@ class _ChatScreenState extends State<ChatScreen> {
         imageUrl.isNotEmpty &&
         text.isEmpty &&
         replyTo == null;
-    return GestureDetector(
-      onLongPressStart: (details) =>
-          _beginLikeHold(messageId, details.globalPosition, likes),
-      onLongPressEnd: (_) => _likeHoldTimer?.cancel(),
-      onHorizontalDragStart: (_) => _horizontalDragDistance = 0,
-      onHorizontalDragUpdate: (details) {
-        if (!isMe) _horizontalDragDistance += details.delta.dx;
-      },
-      onHorizontalDragEnd: (_) {
-        if (!isMe && _horizontalDragDistance > 48) onReply?.call();
-        _horizontalDragDistance = 0;
-      },
-      child: Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            Container(
+    final holdKey = _holdKeyFor(messageId);
+    final body = Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          KeyedSubtree(
+            key: overlay ? null : holdKey,
+            child: Container(
               margin: const EdgeInsets.symmetric(vertical: 3),
               padding: imageOnly
                   ? EdgeInsets.zero
@@ -1335,34 +1578,58 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
-            if (time != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  _formatBubbleTime(time),
-                  style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
-                ),
+          ),
+          if (!overlay && time != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                _formatBubbleTime(time),
+                style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
               ),
-            if (likes.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(right: 5),
-                child: MessageReactionSummary(likes: likes),
-              ),
-            if (isMe)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: isLastOutgoing && time != null
-                    ? _lastMessageStatus(time, isPending)
-                    : Text(
-                        isPending ? tl('Sending…') : tl('Sent'),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppColors.grey(500),
-                        ),
+            ),
+          if (!overlay && likes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 5),
+              child: MessageReactionSummary(likes: likes),
+            ),
+          if (!overlay && isMe)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: isLastOutgoing && time != null
+                  ? _lastMessageStatus(time, isPending)
+                  : Text(
+                      isPending ? tl('Sending…') : tl('Sent'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.grey(500),
                       ),
-              ),
-          ],
+                    ),
+            ),
+        ],
+      ),
+    );
+    if (overlay) return body;
+    // Slides to reply; held, the actions menu (see _beginHold).
+    return SwipeToReply(
+      mine: isMe,
+      onReply: onReply,
+      child: GestureDetector(
+        onLongPressStart: (_) => _beginHold(
+          messageId,
+          likes,
+          key: holdKey,
+          preview: _messageBubble(
+            messageId,
+            text,
+            isMe,
+            time,
+            imageUrl: imageUrl,
+            replyTo: replyTo,
+            overlay: true,
+          ),
         ),
+        onLongPressEnd: (_) => _likeHoldTimer?.cancel(),
+        child: body,
       ),
     );
   }
@@ -1373,17 +1640,11 @@ class _ChatScreenState extends State<ChatScreen> {
     required bool isMe,
     required Widget child,
   }) {
-    return GestureDetector(
-      onHorizontalDragStart: (_) => _horizontalDragDistance = 0,
-      onHorizontalDragUpdate: (details) {
-        if (!isMe) _horizontalDragDistance += details.delta.dx;
-      },
-      onHorizontalDragEnd: (_) {
-        if (!isMe && _horizontalDragDistance > 48) {
-          _setReplyTarget(data, messageId);
-        }
-        _horizontalDragDistance = 0;
-      },
+    // The message slides under the finger: a received one to the right,
+    // your own to the left; far enough, and it is the one being replied to.
+    return SwipeToReply(
+      mine: isMe,
+      onReply: () => _setReplyTarget(data, messageId),
       child: child,
     );
   }
@@ -1392,20 +1653,48 @@ class _ChatScreenState extends State<ChatScreen> {
     String messageId,
     Widget message,
     Map<String, dynamic> likes,
-  ) => GestureDetector(
-    onLongPressStart: (details) =>
-        _beginLikeHold(messageId, details.globalPosition, likes),
-    onLongPressEnd: (_) => _likeHoldTimer?.cancel(),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        message,
-        if (likes.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: MessageReactionSummary(likes: likes),
-          ),
-      ],
+  ) {
+    final key = _holdKeyFor(messageId);
+    return GestureDetector(
+      onLongPressStart: (_) =>
+          _beginHold(messageId, likes, key: key, preview: message),
+      onLongPressEnd: (_) => _likeHoldTimer?.cancel(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          KeyedSubtree(key: key, child: message),
+          if (likes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: MessageReactionSummary(likes: likes),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // "You unsent a message" / "… unsent a message": what is left of an
+  // unsent message, for both people. Nothing to hold or reply to.
+  Widget _unsentMessage(bool isMe, DateTime? time) => Align(
+    alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+    child: Container(
+      key: const Key('unsentMessage'),
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.grey(300)),
+      ),
+      child: Text(
+        isMe
+            ? tl('You unsent a message')
+            : tl('{0} unsent a message', [_realName]),
+        style: TextStyle(
+          fontSize: 13,
+          fontStyle: FontStyle.italic,
+          color: AppColors.textSecondary,
+        ),
+      ),
     ),
   );
 
@@ -1529,7 +1818,11 @@ class _ChatScreenState extends State<ChatScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_upload case final upload?)
-            ChatUploadProgress(video: upload.video, progress: upload.progress),
+            ChatUploadProgress(
+              video: upload.video,
+              progress: upload.progress,
+              totalBytes: upload.bytes,
+            ),
           if (_replyTo != null)
             Container(
               margin: const EdgeInsets.only(bottom: 8),

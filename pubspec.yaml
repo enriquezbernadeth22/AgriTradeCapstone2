@@ -75,9 +75,23 @@ flutter:
     - assets/images/bg_panel.png
     - assets/images/market_farmer.png
 
-  # Montserrat with its real weights, for the Admin Portal: a browser does
+  # Montserrat with its real weights, for the mobile app: a browser does
   # not fake a bold from the regular file, so titles need the bold one.
   fonts:
+    # Inter (SIL Open Font License, see assets/fonts/Inter-OFL.txt), the
+    # Admin Portal's font (kAdminFontFamily), with its real weights.
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800
     - family: Montserrat
       fonts:
         - asset: assets/fonts/Montserrat-Regular.ttf

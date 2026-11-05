@@ -743,25 +743,27 @@ class AppTheme {
   // outline is [glowFieldOutline], drawn on top (foregroundDecoration) so
   // that it adds nothing to the field's height. FormFieldGlow gives a field
   // built on InputDecoration the same plate.
-  static BoxDecoration glowFieldWrapper({bool focused = false}) =>
-      BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(pillRadius),
-        boxShadow: focused
-            ? [
-                BoxShadow(
-                  color: AppColors.mid.withValues(alpha: 0.18),
-                  blurRadius: 12,
-                  spreadRadius: 0.5,
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ]
-            : null,
-      );
+  static BoxDecoration glowFieldWrapper({
+    bool focused = false,
+    double radius = pillRadius,
+  }) => BoxDecoration(
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(radius),
+    boxShadow: focused
+        ? [
+            BoxShadow(
+              color: AppColors.mid.withValues(alpha: 0.18),
+              blurRadius: 12,
+              spreadRadius: 0.5,
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ]
+        : null,
+  );
 
   /// GlowField's outline: light grey at rest, none while typed in (the
   /// glow of [glowFieldWrapper] shows instead). For a foregroundDecoration.
@@ -801,6 +803,10 @@ class AppTheme {
   /// The corner radius that turns a box of any height into a pill: Flutter
   /// shrinks a radius larger than half the box's height to fit it.
   static const double pillRadius = 999;
+
+  /// How round the Admin Portal's fields, buttons and cards are (see
+  /// kAdminFieldRadius): rounded rectangles, not pills.
+  static const double adminFieldRadius = 10;
 
   /// Dropdowns are rounded rectangles, unlike the pill text fields: this is
   /// the radius of a full-size one in a form, [compactDropdownRadius] of a

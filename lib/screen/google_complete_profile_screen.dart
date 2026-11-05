@@ -34,7 +34,7 @@ import '../l10n/app_language.dart';
 /// for farmers, the same RSBSA No. and barangay RegisterScreen asks for.
 ///
 /// The role is fixed here: Back returns to [ChooseRoleScreen] to change it,
-/// and Cancel pops with `true` so that screen leaves too (and signs out).
+/// and so does Cancel; leaving that screen signs the Google account out.
 class GoogleCompleteProfileScreen extends StatefulWidget {
   final String uid;
   final String email;
@@ -175,9 +175,10 @@ class _GoogleCompleteProfileScreenState
     showAppMessage(context, tl(message), kind: MessageKind.error);
   }
 
-  // Leaves sign-up altogether: ChooseRoleScreen sees `true`, leaves as well,
-  // and signs the Google account out as it goes.
-  void _cancel() => Navigator.of(context).pop(true);
+  // Cancel: back to choosing Buyer or Farmer, still signed in with Google
+  // (not out to Log In — decided by the user, 2026-11-05). Leaving the
+  // role choice itself is what signs the Google account out.
+  void _cancel() => Navigator.of(context).pop();
 
   Future<void> _finish() async {
     setState(() => _triedSubmit = true);

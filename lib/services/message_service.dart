@@ -332,6 +332,116 @@ class MessageService {
     });
   }
 
+  /// The fields a message's content lives in — cleared when it is unsent.
+  static const List<String> contentFields = [
+    'text',
+    'imageUrl',
+    'videoUrl',
+    'latitude',
+    'longitude',
+    'replyTo',
+    'likes',
+  ];
+
+  /// Unsend: the sender takes back their own message, for both people. Its
+  /// content is cleared (the bubble then reads "You unsent a message" / "…
+  /// unsent a message"), and when it was the conversation's last message,
+  /// the conversation list says so too. A pinned copy of it is unpinned.
+  Future<void> unsendMessage(String conversationId, String messageId) async {
+    await _requireOnline();
+    final conversation = _conversations.doc(conversationId);
+    final ref = conversation.collection('messages').doc(messageId);
+    // Whether it is the newest message (then the list shows it was unsent).
+    var wasLast = false;
+    try {
+      final newest = await conversation
+          .collection('messages')
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+      wasLast = newest.docs.isNotEmpty && newest.docs.first.id == messageId;
+    } catch (_) {}
+    await _firestore.runTransaction((transaction) async {
+      final message = await transaction.get(ref);
+      final convo = await transaction.get(conversation);
+      final data = message.data();
+      if (data == null || data['senderId'] != currentUid) return;
+      transaction.update(ref, {
+        'unsent': true,
+        'unsentAt': FieldValue.serverTimestamp(),
+        for (final field in contentFields)
+          if (data.containsKey(field)) field: FieldValue.delete(),
+      });
+      final pinned = convo.data()?['pinnedMessage'];
+      final convoChanges = <String, dynamic>{
+        if (pinned is Map && pinned['messageId'] == messageId)
+          'pinnedMessage': FieldValue.delete(),
+        if (wasLast) 'lastMessage': 'Message unsent',
+      };
+      if (convoChanges.isNotEmpty) {
+        transaction.update(conversation, convoChanges);
+      }
+    });
+  }
+
+  /// Pins [messageId] at the top of the conversation for both people (one
+  /// pinned message at a time; pinning another replaces it).
+  Future<void> pinMessage(
+    String conversationId,
+    String messageId, {
+    required String text,
+    required String senderId,
+  }) async {
+    await _requireOnline();
+    await _conversations.doc(conversationId).update({
+      'pinnedMessage': {
+        'messageId': messageId,
+        'text': text.length > 200 ? '${text.substring(0, 200)}…' : text,
+        'senderId': senderId,
+        'pinnedBy': currentUid,
+        'pinnedAt': FieldValue.serverTimestamp(),
+      },
+    });
+  }
+
+  /// Takes the pinned message off the top of the conversation.
+  Future<void> unpinMessage(String conversationId) async {
+    await _requireOnline();
+    await _conversations.doc(conversationId).update({
+      'pinnedMessage': FieldValue.delete(),
+    });
+  }
+
+  /// Reports one message to the Admin (Moderation Queue), with what it
+  /// said, who sent it and the reporter's [reason].
+  Future<void> reportMessage({
+    required String conversationId,
+    required String messageId,
+    required String messageText,
+    required String reportedUserId,
+    required String reportedUserName,
+    required String reason,
+  }) async {
+    await _requireOnline();
+    final me = _auth.currentUser;
+    await _firestore.collection('reports').add({
+      'issueType': 'Message Report',
+      'description': reason.trim(),
+      'reporterId': currentUid,
+      'reporterName': me?.displayName ?? 'User',
+      'reportedUserId': reportedUserId,
+      'reportedUserName': reportedUserName,
+      'targetType': 'message',
+      'conversationId': conversationId,
+      'messageId': messageId,
+      'messageText': messageText.length > 500
+          ? '${messageText.substring(0, 500)}…'
+          : messageText,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Real-time stream of conversations for the current user.
   Stream<QuerySnapshot<Map<String, dynamic>>> myConversationsStream() {
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;

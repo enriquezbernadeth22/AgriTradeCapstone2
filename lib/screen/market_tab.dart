@@ -21,6 +21,7 @@ import '../widgets/notification_bell.dart';
 import 'add_product_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
@@ -57,16 +58,58 @@ String firstNameOf(String fullName) {
   return (max: (maxRevenue * 1.05 / step).ceil() * step, step: step);
 }
 
+/// Market's "Orders Today": the farmer's orders confirmed today that are
+/// still Confirmed (not yet shipped) — the ones waiting on Orders'
+/// Confirmed tab. Confirmed when stockDeductedAt was stamped, or — for an
+/// older order without it — when it was last updated.
+int confirmedTodayCount(
+  Iterable<Map<String, dynamic>> orders, {
+  required DateTime now,
+}) {
+  DateTime? at(dynamic value) => value is Timestamp
+      ? value.toDate()
+      : value is DateTime
+      ? value
+      : null;
+  return orders.where((order) {
+    if ((order['status'] ?? '').toString().toLowerCase() != 'confirmed') {
+      return false;
+    }
+    final when =
+        at(order['confirmedAt']) ??
+        at(order['stockDeductedAt']) ??
+        at(order['updatedAt']);
+    return when != null &&
+        when.year == now.year &&
+        when.month == now.month &&
+        when.day == now.day;
+  }).length;
+}
+
+/// What the Market tab's "View AgriTrade+ insights" dropdown can show.
+enum MarketInsight {
+  marketAverage('Current Market Average'),
+  bestSellers('Best-Selling Products'),
+  buyerLocations('Top Buyer Locations');
+
+  final String label;
+  const MarketInsight(this.label);
+}
+
 class MarketTab extends StatefulWidget {
   final ValueChanged<int>? onNavigateToTab;
 
   /// The notification bell in this tab's header.
   final VoidCallback? onNotificationsPressed;
 
+  /// Opens Orders at a status tab (Orders Today opens Confirmed).
+  final ValueChanged<String>? onOpenOrders;
+
   const MarketTab({
     super.key,
     this.onNavigateToTab,
     this.onNotificationsPressed,
+    this.onOpenOrders,
   });
 
   @override
@@ -666,20 +709,10 @@ class _MarketTabState extends State<MarketTab> {
                               key: _hints.keys[0],
                               child: _salesPerformanceLineCard(productCount),
                             ),
-                            const SizedBox(height: 16),
-                            // What supported products are selling for right now.
-                            KeyedSubtree(
-                              key: _hints.keys[1],
-                              child: const MarketAverageCard(),
-                            ),
-                            const SizedBox(height: 16),
-                            // They open on the Sales Performance month, and
-                            // have their own month selector.
-                            MarketDemandCards(
-                              month: _analyticsMonth,
-                              bestSellersKey: _hints.keys[2],
-                              locationsKey: _hints.keys[3],
-                            ),
+                            const SizedBox(height: 20),
+                            // The whole marketplace, one view at a time:
+                            // the farmer picks which.
+                            _insightsSection(),
                           ],
                         ),
                       ),
@@ -691,6 +724,90 @@ class _MarketTabState extends State<MarketTab> {
           ],
         );
       },
+    );
+  }
+
+  // Which AgriTrade+ insight is showing.
+  MarketInsight _insight = MarketInsight.marketAverage;
+
+  // "AgriTrade+ Insights": a dropdown to choose what to see about the whole
+  // marketplace — the current market average, the best-selling products or
+  // the top buyer locations — and under it only the one chosen. The demand
+  // cards open on the Sales Performance month, with their own month picker.
+  Widget _insightsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(tl('AgriTrade+ Insights'), style: AppTheme.heading(17)),
+        const SizedBox(height: 2),
+        Text(
+          tl('What is happening across the whole marketplace.'),
+          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 10),
+        KeyedSubtree(
+          key: _hints.keys[1],
+          child: DropdownButtonFormField<MarketInsight>(
+            key: const Key('marketInsightPicker'),
+            initialValue: _insight,
+            isExpanded: true,
+            dropdownColor: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppTheme.dropdownRadius),
+            icon: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.brand,
+              size: 22,
+            ),
+            decoration: AppTheme.dropdownDecoration(
+              context,
+              InputDecoration(
+                labelText: tl('View AgriTrade+ insights'),
+                prefixIcon: Icon(
+                  Icons.insights_rounded,
+                  color: AppColors.brand,
+                  size: 20,
+                ),
+                isDense: true,
+              ),
+            ),
+            style: TextStyle(
+              fontFamily: 'Montserrat',
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.brand,
+            ),
+            items: [
+              for (final insight in MarketInsight.values)
+                DropdownMenuItem(
+                  value: insight,
+                  child: Text(tl(insight.label)),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _insight = value);
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: KeyedSubtree(
+            key: ValueKey(_insight),
+            child: switch (_insight) {
+              // What supported products are selling for right now.
+              MarketInsight.marketAverage => const MarketAverageCard(),
+              MarketInsight.bestSellers => MarketDemandCards(
+                month: _analyticsMonth,
+                only: MarketDemandList.bestSellers,
+              ),
+              MarketInsight.buyerLocations => MarketDemandCards(
+                month: _analyticsMonth,
+                only: MarketDemandList.locations,
+              ),
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -808,18 +925,10 @@ class _MarketTabState extends State<MarketTab> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _statOrders,
       builder: (context, snapshot) {
-        final today = DateTime.now();
-        final totalOrdersToday = (snapshot.data?.docs ?? const []).where((doc) {
-          final data = doc.data();
-          final status = (data['status'] ?? '').toString().toLowerCase();
-          final createdAt = data['createdAt'];
-          final date = createdAt is Timestamp ? createdAt.toDate() : null;
-          return (status == 'pending' || status == 'confirmed') &&
-              date != null &&
-              date.year == today.year &&
-              date.month == today.month &&
-              date.day == today.day;
-        }).length;
+        final totalOrdersToday = confirmedTodayCount(
+          [for (final doc in snapshot.data?.docs ?? const []) doc.data()],
+          now: DateTime.now(),
+        );
 
         return IntrinsicHeight(
           child: Row(
@@ -827,10 +936,13 @@ class _MarketTabState extends State<MarketTab> {
             children: [
               Expanded(
                 child: _statCard(
-                  // Today's new and confirmed orders — what it counts.
+                  // The orders confirmed today and still to be sent — the
+                  // ones on Orders' Confirmed tab, which it opens.
                   tr(context).ordersToday,
                   '$totalOrdersToday',
-                  onTap: () => widget.onNavigateToTab?.call(_ordersTabIndex),
+                  onTap: () => widget.onOpenOrders != null
+                      ? widget.onOpenOrders!('confirmed')
+                      : widget.onNavigateToTab?.call(_ordersTabIndex),
                 ),
               ),
               const SizedBox(width: 12),

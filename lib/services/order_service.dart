@@ -8,6 +8,14 @@ import 'order_contact_service.dart';
 import 'pricing_tier_service.dart';
 import '../data/commodity_master_list.dart';
 
+/// Whether [order]'s quantity has come off its listing. An order takes its
+/// stock when the farmer confirms it (stockDeductedAt marks that); an order
+/// placed before this rule (no stockOnConfirm) took it when it was placed.
+/// So a cancelled or rejected order gives stock back only when this is
+/// true. The same rule as stockWasTaken in functions/order_stock_logic.js.
+bool orderTookStock(Map<String, dynamic> order) =>
+    order['stockOnConfirm'] != true || order['stockDeductedAt'] != null;
+
 class OrderService {
   final _orders = FirebaseFirestore.instance.collection('orders');
 
@@ -158,11 +166,15 @@ class OrderService {
             ? listedCategory
             : categoryOfCommodity(frozenCommodity);
 
-        transaction.update(productRef, {
-          'quantity': available - q,
-          'lastOrderId': orderRef.id,
-        });
+        // Placing an order does not touch the listing's stock: the farmer's
+        // confirmation takes it (see updateStatus). Until then the order
+        // only asks for it, so a pending, rejected, cancelled or expired
+        // order never takes anything off the listing.
         transaction.set(orderRef, {
+          // Marks an order whose stock is taken on confirmation, not when
+          // placed (orders from before this took it when placed): see
+          // orderTookStock.
+          'stockOnConfirm': true,
           'sellerId': sellerId,
           'sellerName': sellerName,
           'buyerId': buyerId,
@@ -237,8 +249,6 @@ class OrderService {
     }
   }
 
-  // Confirm / ship / complete an order. Rejecting needs rejectOrder below
-  // instead, since it also has to give the reserved stock back.
   /// Buyer: "Order Received" on a shipped / ready-for-pick-up order —
   /// completes it (the receipt is issued as when the farmer completes it).
   Future<String?> confirmReceived(String id) async {
@@ -275,6 +285,9 @@ class OrderService {
     }
   }
 
+  /// Farmer: confirm, ship or complete an order. Confirming also takes the
+  /// order's quantity off the listing (refused when there is not enough
+  /// left). Rejecting is [rejectOrder].
   Future<String?> updateStatus(String id, String status) async {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
@@ -302,9 +315,47 @@ class OrderService {
           throw StateError('Order cannot move from $current to $next.');
         }
 
+        // Confirming is when the order's quantity comes off the listing —
+        // in this same transaction, so the two never happen apart. Only
+        // what is still in stock can be confirmed.
+        final takeStock =
+            current == 'pending' &&
+            next == 'confirmed' &&
+            data['stockOnConfirm'] == true &&
+            data['stockDeductedAt'] == null;
+        if (takeStock) {
+          final productId = (data['productId'] ?? '').toString();
+          final qty = (data['quantity'] as num?)?.toDouble() ?? 0;
+          if (productId.isEmpty) {
+            throw StateError('This order has no product to confirm.');
+          }
+          final productRef = FirebaseFirestore.instance
+              .collection('products')
+              .doc(productId);
+          final product = await transaction.get(productRef);
+          if (!product.exists) {
+            throw StateError('This product no longer exists.');
+          }
+          final available =
+              (product.data()?['quantity'] as num?)?.toDouble() ?? 0;
+          if (qty > available) {
+            final unit = (data['unit'] ?? '').toString();
+            throw StateError(
+              available <= 0
+                  ? 'Not enough stock to confirm this order: the listing is '
+                        'out of stock. Add stock first, or reject the order.'
+                  : 'Not enough stock to confirm this order: only '
+                        '${formatStock(available, unit)} left. Add stock '
+                        'first, or reject the order.',
+            );
+          }
+          transaction.update(productRef, {'quantity': available - qty});
+        }
+
         transaction.update(orderRef, {
           'status': next,
           'updatedAt': FieldValue.serverTimestamp(),
+          if (takeStock) 'stockDeductedAt': FieldValue.serverTimestamp(),
           if (next == 'completed') ...{
             'completedAt': FieldValue.serverTimestamp(),
             'completedBy': 'farmer',
@@ -324,11 +375,10 @@ class OrderService {
     }
   }
 
-  // Rejects a pending order and returns its reserved stock to the product
-  // — createOrder decrements the product's quantity immediately when the
-  // order is placed (not on confirm), so rejecting without restocking
-  // would leak that inventory. Both writes happen in one transaction so
-  // they can never happen only one at a time.
+  // Rejects a pending order. A pending order has taken no stock (that
+  // happens on confirmation), so the listing is left as it is — except for
+  // an order placed before that change, which took its stock when placed
+  // and gets it back here, in the same transaction.
   Future<String?> rejectOrder(String id) async {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
@@ -347,7 +397,9 @@ class OrderService {
 
         final productId = orderData['productId']?.toString();
         final qty = (orderData['quantity'] as num?) ?? 0;
-        if (productId != null && productId.isNotEmpty) {
+        if (orderTookStock(orderData) &&
+            productId != null &&
+            productId.isNotEmpty) {
           final productRef = FirebaseFirestore.instance
               .collection('products')
               .doc(productId);
@@ -373,8 +425,8 @@ class OrderService {
   }
 
   // ---- Delay / reschedule ----
-  // All three keep the same order: same id, same reserved stock, same
-  // prices. Nothing is re-ordered and no stock is deducted again. Firestore
+  // All three keep the same order: same id, same stock taken on
+  // confirmation, same prices. Nothing is re-ordered and no stock is deducted again. Firestore
   // rules allow each only to the right person, in the right state, touching
   // only these fields.
 
@@ -445,8 +497,8 @@ class OrderService {
   }
 
   /// Farmer: cancel a confirmed order they cannot fill after all. The buyer
-  /// is told [reason]; the reserved quantity goes back to the listing through
-  /// the handleOrderReschedule Cloud Function.
+  /// is told [reason]; the quantity confirming took goes back to the
+  /// listing through the handleOrderReschedule Cloud Function.
   Future<String?> cancelConfirmedOrder(String id, String reason) async {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
@@ -464,10 +516,11 @@ class OrderService {
     }
   }
 
-  /// Buyer: cancel an order the farmer has not answered yet. The reserved
-  /// quantity goes back to the listing through the handleOrderReschedule
-  /// Cloud Function, as in [cancelDelayedOrder]. Refused by the rules once
-  /// the farmer has answered.
+  /// Buyer: cancel an order the farmer has not answered yet. It has taken no
+  /// stock, so the listing is unchanged (an order placed before stock was
+  /// taken on confirmation gets its quantity back through the
+  /// handleOrderReschedule Cloud Function). Refused by the rules once the
+  /// farmer has answered.
   Future<String?> cancelPendingOrder(String id) async {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
@@ -484,8 +537,8 @@ class OrderService {
     }
   }
 
-  /// Buyer: cancel an order whose new date they do not want. The reserved
-  /// quantity is given back to the farmer's listing by the
+  /// Buyer: cancel an order whose new date they do not want. The quantity
+  /// confirming took is given back to the farmer's listing by the
   /// handleOrderReschedule Cloud Function (a buyer cannot write to a
   /// product's stock).
   Future<String?> cancelDelayedOrder(String id) async {

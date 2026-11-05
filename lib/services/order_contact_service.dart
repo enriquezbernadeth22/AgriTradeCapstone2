@@ -54,24 +54,85 @@ class OrderContactService {
       _save(orderId, buyerSide, contact);
 
   /// Called when the farmer confirms an order: puts the number from the
-  /// farmer's own profile on that order for the buyer. Does nothing if the
-  /// profile has no valid number.
+  /// farmer's own profile on that order for the buyer — and, for a pick-up
+  /// order, where to pick it up: the farm's address from the profile and
+  /// the farm's pin (Set Farm Location), so the buyer gets a map and
+  /// directions. Readable by the buyer only while the order is going ahead
+  /// (see [isShared]). Nothing is written if there is nothing to share.
   Future<void> shareFarmerContact(String orderId) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final profile = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final data = profile.data();
-      await _save(
-        orderId,
-        farmerSide,
-        (data?['mobileNumber'] ?? data?['phone'])?.toString() ?? '',
+      final db = FirebaseFirestore.instance;
+      final order = (await db.collection('orders').doc(orderId).get()).data();
+      final pickup = order?['deliveryMethod'] == 'pickup';
+      final data = (await db.collection('users').doc(uid).get()).data();
+      final contact = normalized(
+        (data?['mobileNumber'] ?? data?['phone'])?.toString(),
       );
+
+      final shared = <String, dynamic>{
+        if (contact.isNotEmpty) 'contact': contact,
+      };
+      if (pickup) {
+        final address = pickupAddressOf(data ?? const {});
+        if (address.isNotEmpty) shared['pickupAddress'] = address;
+        try {
+          final geo =
+              (await db
+                      .collection('users')
+                      .doc(uid)
+                      .collection('private')
+                      .doc('geo')
+                      .get())
+                  .data();
+          final lat = (geo?['latitude'] as num?)?.toDouble();
+          final lng = (geo?['longitude'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            shared['pickupLat'] = lat;
+            shared['pickupLng'] = lng;
+          }
+        } catch (_) {
+          // No pin: the address alone still helps.
+        }
+      }
+      if (shared.isEmpty) return;
+      shared['updatedAt'] = FieldValue.serverTimestamp();
+      await _doc(orderId, farmerSide).set(shared);
     } catch (e) {
-      debugPrint('[OrderContact] farmer number not shared: $e');
+      // Never the number or address itself — only that it was not shared.
+      debugPrint('[OrderContact] farmer details not shared: $e');
+    }
+  }
+
+  /// The farm's address as a pick-up address: the full address the farmer
+  /// saved on their profile, else their barangay, town and province.
+  static String pickupAddressOf(Map<String, dynamic> profile) {
+    final full = (profile['location'] ?? profile['address'] ?? '')
+        .toString()
+        .trim();
+    if (full.isNotEmpty) {
+      return full.length > 300 ? full.substring(0, 300) : full;
+    }
+    return [profile['barangay'], profile['municipality'], profile['province']]
+        .map((part) => (part ?? '').toString().trim())
+        .where((part) => part.isNotEmpty)
+        .join(', ');
+  }
+
+  /// Where to pick up a confirmed pick-up order, as the farmer shared it:
+  /// null when there is nothing (yet), or it may not be read.
+  Future<PickupPlace?> pickupPlace(String orderId) async {
+    try {
+      final data = (await _doc(orderId, farmerSide).get()).data();
+      if (data == null) return null;
+      final address = (data['pickupAddress'] ?? '').toString().trim();
+      final lat = (data['pickupLat'] as num?)?.toDouble();
+      final lng = (data['pickupLng'] as num?)?.toDouble();
+      if (address.isEmpty && (lat == null || lng == null)) return null;
+      return PickupPlace(address: address, latitude: lat, longitude: lng);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -108,4 +169,22 @@ class OrderContactService {
     }
     return viewerIsFarmer ? normalized(legacyBuyerContact) : '';
   }
+}
+
+/// Where a buyer picks up a confirmed order: the farm's address and, when
+/// the farmer has set it, the farm's pin.
+class PickupPlace {
+  final String address;
+  final double? latitude;
+  final double? longitude;
+
+  const PickupPlace({required this.address, this.latitude, this.longitude});
+
+  bool get hasPin => latitude != null && longitude != null;
+
+  /// Google Maps directions to it: to the pin, else to the address.
+  Uri get directionsUri => Uri.https('www.google.com', '/maps/dir/', {
+    'api': '1',
+    'destination': hasPin ? '$latitude,$longitude' : address,
+  });
 }

@@ -132,7 +132,7 @@ class _ManageAccountState extends State<_ManageAccount> {
       title: Text(
         'Manage Account',
         style: TextStyle(
-          color: _inkOf(context),
+          color: AdminPalette.fallback(context).heading,
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
@@ -992,7 +992,7 @@ class _ActiveSessionsDialogState extends State<_ActiveSessionsDialog> {
           Container(
             decoration: BoxDecoration(
               color: c.surfaceAlt,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: c.border),
             ),
             child: const AdminEmptyState(
@@ -1082,7 +1082,7 @@ class _ActiveSessionsDialogState extends State<_ActiveSessionsDialog> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: c.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: c.border),
       ),
       child: Row(

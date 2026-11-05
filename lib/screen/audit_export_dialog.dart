@@ -187,7 +187,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                   Text(
                     'Export Audit Log',
                     style: TextStyle(
-                      color: c.textPrimary,
+                      color: c.heading,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -456,7 +456,7 @@ class _AuditExportDialogState extends State<AuditExportDialog> {
                         vertical: 10,
                       ),
                       textStyle: const TextStyle(
-                        fontFamily: 'Montserrat',
+                        fontFamily: kAdminFontFamily,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),

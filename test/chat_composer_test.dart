@@ -39,8 +39,8 @@ void main() {
     final order = [
       'Take Photo',
       'Choose Photo',
-      'Record Video',
-      'Choose Video',
+      'Record Video (30 sec max)',
+      'Choose Video (100 MB max)',
       'Share Location',
     ];
     for (var i = 1; i < order.length; i++) {
@@ -52,7 +52,7 @@ void main() {
     expect(find.byType(Divider), findsOneWidget);
     // A line sets Share Location apart.
     final line = tester.getTopLeft(find.byType(Divider)).dy;
-    expect(line, greaterThan(top('Choose Video')));
+    expect(line, greaterThan(top('Choose Video (100 MB max)')));
     expect(line, lessThan(top('Share Location')));
   });
 

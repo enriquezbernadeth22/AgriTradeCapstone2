@@ -101,7 +101,7 @@ class _VerificationQueueViewState extends State<VerificationQueueView> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: c.textPrimary,
+          color: c.heading,
         ),
       ),
     );
@@ -494,7 +494,7 @@ class FarmerApplicationCard extends StatelessWidget {
             minimumSize: const Size(0, 40),
             padding: const EdgeInsets.symmetric(horizontal: 18),
             textStyle: const TextStyle(
-              fontFamily: 'Montserrat',
+              fontFamily: kAdminFontFamily,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -588,7 +588,7 @@ class FarmerApplicationCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: c.border),
         boxShadow: [
           BoxShadow(
@@ -651,7 +651,7 @@ class FarmerApplicationCard extends StatelessWidget {
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         textStyle: const TextStyle(
-          fontFamily: 'Montserrat',
+          fontFamily: kAdminFontFamily,
           fontWeight: FontWeight.w600,
         ),
       );

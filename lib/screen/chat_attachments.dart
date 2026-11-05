@@ -26,13 +26,21 @@ import '../l10n/app_language.dart';
 
 enum ChatAttachment { camera, gallery, recordVideo, chooseVideo, location }
 
-/// The largest video a chat can send: about 30 seconds to a minute of
-/// phone video, enough to show produce or an animal, while keeping uploads
-/// quick and light on the other person's mobile data.
-const int kChatVideoMaxBytes = 20 * 1024 * 1024;
+/// The largest video a chat can send: 100 MB, the most Cloudinary takes in
+/// one upload. (20 MB was too little: a phone recording in 1080p passes it
+/// in about 10 seconds, so longer clips were turned away.)
+const int kChatVideoMaxBytes = 100 * 1024 * 1024;
 
-/// The longest video the camera records for a chat.
-const Duration kChatVideoMaxDuration = Duration(seconds: 60);
+/// The longest video the camera records for a chat: 30 seconds, about
+/// 60 MB at 1080p — within [kChatVideoMaxBytes], and quick enough to send
+/// and to play on mobile data.
+const Duration kChatVideoMaxDuration = Duration(seconds: 30);
+
+/// [bytes] in megabytes for people: "58 MB", "4.2 MB".
+String formatMegabytes(int bytes) {
+  final mb = bytes / (1024 * 1024);
+  return mb >= 10 ? '${mb.round()} MB' : '${mb.toStringAsFixed(1)} MB';
+}
 
 /// The + menu: Take Photo, Choose Photo, Record Video, Choose Video, then —
 /// under a line — Share Location — a small floating menu
@@ -41,7 +49,7 @@ Future<ChatAttachment?> showChatAttachmentMenu(BuildContext plusButtonContext) {
   return showAgriPopupMenu<ChatAttachment>(
     anchorContext: plusButtonContext,
     upward: true,
-    width: 196,
+    width: 236,
     items: [
       AgriMenuItem(
         value: ChatAttachment.camera,
@@ -56,12 +64,17 @@ Future<ChatAttachment?> showChatAttachmentMenu(BuildContext plusButtonContext) {
       AgriMenuItem(
         value: ChatAttachment.recordVideo,
         icon: Icons.videocam_outlined,
-        label: tl('Record Video'),
+        // The limits are on the menu, so nobody records a clip too long.
+        label: tl('Record Video ({0} sec max)', [
+          kChatVideoMaxDuration.inSeconds,
+        ]),
       ),
       AgriMenuItem(
         value: ChatAttachment.chooseVideo,
         icon: Icons.video_library_outlined,
-        label: tl('Choose Video'),
+        label: tl('Choose Video ({0} MB max)', [
+          kChatVideoMaxBytes ~/ (1024 * 1024),
+        ]),
       ),
       AgriMenuItem(
         value: ChatAttachment.location,
@@ -119,13 +132,18 @@ Future<XFile?> pickChatVideo(BuildContext context, ImageSource source) async {
         maxDuration: kChatVideoMaxDuration,
       );
       if (video == null || !context.mounted) return null;
-      if (!chatVideoFits(await video.length())) {
+      final size = await video.length();
+      if (!chatVideoFits(size)) {
         if (!context.mounted) return null;
         ScaffoldMessenger.of(context).showSnackBar(
           appSnackBar(
             tl(
-              'This video is over {0} MB. Choose a shorter one, or record up to 1 minute.',
-              [kChatVideoMaxBytes ~/ (1024 * 1024)],
+              'This video is {0}; the most a chat can send is {1} MB. Choose a shorter one, or record up to {2} seconds.',
+              [
+                formatMegabytes(size),
+                kChatVideoMaxBytes ~/ (1024 * 1024),
+                kChatVideoMaxDuration.inSeconds,
+              ],
             ),
             kind: MessageKind.warning,
           ),
@@ -579,10 +597,15 @@ class ChatUploadProgress extends StatelessWidget {
   /// 0 to 1.
   final double progress;
 
+  /// The file's size, when known: shown as "12 of 58 MB", so a big video's
+  /// wait is understood.
+  final int? totalBytes;
+
   const ChatUploadProgress({
     super.key,
     required this.video,
     required this.progress,
+    this.totalBytes,
   });
 
   @override
@@ -618,6 +641,19 @@ class ChatUploadProgress extends StatelessWidget {
                   style: TextStyle(fontSize: 12.5, color: AppColors.text),
                 ),
               ),
+              if (totalBytes case final total? when !finishing)
+                Text(
+                  tl('{0} of {1}', [
+                    formatMegabytes(
+                      (total * progress).round(),
+                    ).replaceAll(' MB', ''),
+                    formatMegabytes(total),
+                  ]),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 6),

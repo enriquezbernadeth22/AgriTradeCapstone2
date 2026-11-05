@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 import '../widgets/agri_dialog.dart';
+import '../l10n/app_language.dart';
 
 import '../main.dart' show rootNavigatorKey;
 import '../screen/buyer_marketplace_screen.dart';
@@ -17,6 +18,48 @@ import 'connectivity_service.dart';
 import 'order_format.dart';
 import '../screen/sign_in_activity_screen.dart';
 import '../widgets/change_password_dialog.dart';
+
+/// The welcome popup, opened from the "Welcome to AgriTrade+!"
+/// notification: greets the user by first name, says what the app does
+/// for them (buyer or [farmer], the same words as the notification), and
+/// Get Started leads on to Help & Support. Closed only with its button.
+Future<void> showWelcomeDialog(
+  BuildContext context, {
+  String? name,
+  required bool farmer,
+}) {
+  final first = (name ?? '').trim().split(RegExp(r'\s+')).first;
+  return showAgriDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AgriDialog(
+      icon: Icons.waving_hand_outlined,
+      title: Text(
+        first.isEmpty
+            ? tl('Welcome to AgriTrade+!')
+            : tl('Welcome to AgriTrade+, {0}!', [first]),
+      ),
+      content: Text(
+        farmer
+            ? tl(
+                'You can manage your products, communicate with buyers, track orders, and grow your local market presence.',
+              )
+            : tl(
+                'Discover local agricultural and livestock products, connect with farmers, and manage your orders in one place.',
+              ),
+        textAlign: TextAlign.center,
+      ),
+      actions: [
+        AgriDialogButton(
+          key: const Key('welcomeGetStarted'),
+          label: tl('Get Started'),
+          kind: AgriButtonKind.primary,
+          onPressed: () => Navigator.of(dialogContext).pop(),
+        ),
+      ],
+    ),
+  );
+}
 
 /// Where a notification of a given `type` should take the user. Used by
 /// three entry points that must never drift out of sync on this decision:
@@ -127,23 +170,28 @@ class NotificationNavigationService {
         return;
 
       case 'welcome':
-        // The first notification a new account gets: opens Help & Support,
-        // the getting-started questions for its role.
+        // The first notification a new account gets: a welcome greeting
+        // the user by name first, then Help & Support, the
+        // getting-started questions for its role.
         final uid = FirebaseAuth.instance.currentUser?.uid;
         String? role;
+        String? name;
         if (uid != null) {
           try {
-            role =
+            final user =
                 (await FirebaseFirestore.instance
                         .collection('users')
                         .doc(uid)
                         .get())
-                    .data()?['role']
-                    ?.toString();
+                    .data();
+            role = user?['role']?.toString();
+            name = (user?['fullName'] ?? user?['name'])?.toString();
           } catch (_) {
             role = null;
           }
         }
+        if (!context.mounted) return;
+        await showWelcomeDialog(context, name: name, farmer: role == 'farmer');
         if (!context.mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute(

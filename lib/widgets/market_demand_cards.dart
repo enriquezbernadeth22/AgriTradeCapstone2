@@ -431,38 +431,209 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
       month: month,
       area: location.area,
     );
+    final total = MarketDemandService.ordersInArea(
+      sales: sales,
+      month: month,
+      area: location.area,
+    );
     showAgriSheet<void>(
       context: context,
       title: location.area,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (context) => LocationOrdersSheet(
+        location: location,
+        products: products,
+        total: total,
+        month: month,
+      ),
+    );
+  }
+}
+
+/// What buyers in one area ordered in a month (Top Buyer Locations → an
+/// area): a summary on top — the area's demand level, its completed orders,
+/// and what its percentage on the card means (its demand against the
+/// busiest area's) — then each product with its orders and a bar showing
+/// its share of the area's orders.
+class LocationOrdersSheet extends StatelessWidget {
+  final BuyerLocation location;
+  final List<({String commodity, int orders})> products;
+
+  /// Every completed order from the area that month.
+  final int total;
+  final DateTime month;
+
+  const LocationOrdersSheet({
+    super.key,
+    required this.location,
+    required this.products,
+    required this.total,
+    required this.month,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final share = (location.relativeDemand.clamp(0.0, 1.0) * 100).round();
+    final (level, levelColor) = demandLevelStyle(location.demand);
+    TextStyle text(double size, FontWeight weight, Color color) =>
+        GoogleFonts.montserrat(
+          fontSize: size,
+          fontWeight: weight,
+          color: color,
+        );
+
+    Widget stat(String value, String label, {Color? color}) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          border: Border.all(color: AppColors.grey(200)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text(16, FontWeight.w700, color ?? AppColors.brand),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              style: text(10.5, FontWeight.w500, AppColors.grey(600)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          tl('Completed orders from buyers here in {0}', [
+            DateFormat('MMMM y').format(month),
+          ]),
+          style: text(12.5, FontWeight.w400, AppColors.grey(600)),
+        ),
+        const SizedBox(height: 12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              stat(level, tl('Demand'), color: levelColor),
+              const SizedBox(width: 8),
+              stat('$total', total == 1 ? tl('order') : tl('orders')),
+              const SizedBox(width: 8),
+              stat('$share%', tl('of the busiest area’s demand')),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          tl('Most ordered here'),
+          style: text(13.5, FontWeight.w700, AppColors.text),
+        ),
+        const SizedBox(height: 4),
+        if (products.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              tl('No completed orders here this month.'),
+              style: text(12.5, FontWeight.w400, AppColors.grey(600)),
+            ),
+          )
+        else
+          for (var i = 0; i < products.length; i++)
+            _productRow(i + 1, products[i], text),
+      ],
+    );
+  }
+
+  Widget _productRow(
+    int rank,
+    ({String commodity, int orders}) product,
+    TextStyle Function(double, FontWeight, Color) text,
+  ) {
+    final fraction = total == 0 ? 0.0 : product.orders / total;
+    final percent = (fraction * 100).round();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
         children: [
-          Text(
-            tl('Most ordered by buyers here in {0}', [
-              DateFormat('MMMM y').format(month),
-            ]),
-            style: GoogleFonts.montserrat(
-              fontSize: 12.5,
-              color: AppColors.grey(600),
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: rank == 1 ? AppColors.brandFill : AppColors.surfaceAlt,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$rank',
+              style: text(
+                12,
+                FontWeight.w700,
+                rank == 1 ? Colors.white : AppColors.grey(700),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          for (var i = 0; i < products.length; i++) ...[
-            if (i > 0) Divider(height: 1, color: AppColors.grey(200)),
-            _line(i + 1, products[i].commodity, [
-              Text(
-                products[i].orders == 1
-                    ? tl('1 order')
-                    : tl('{0} orders', [products[i].orders]),
-                style: GoogleFonts.montserrat(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.brand,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.commodity,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text(13.5, FontWeight.w600, AppColors.text),
+                      ),
+                    ),
+                    Text(
+                      product.orders == 1
+                          ? tl('1 order')
+                          : tl('{0} orders', [product.orders]),
+                      style: text(12, FontWeight.w600, AppColors.grey(700)),
+                    ),
+                  ],
                 ),
-              ),
-            ]),
-          ],
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: fraction,
+                          minHeight: 6,
+                          backgroundColor: AppColors.grey(200),
+                          valueColor: AlwaysStoppedAnimation(
+                            AppColors.brandFill,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 36,
+                      child: Text(
+                        '$percent%',
+                        textAlign: TextAlign.right,
+                        style: text(12, FontWeight.w700, AppColors.brand),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

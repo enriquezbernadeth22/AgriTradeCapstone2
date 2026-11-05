@@ -3,6 +3,8 @@
 // cover the layout at desktop, tablet and small-browser widths, the
 // transition between the two forms, and the checks made before anything
 // is sent.
+import 'package:agritrade/screen/admin_filter_controls.dart'
+    show kAdminFontFamily;
 import 'package:agritrade/screen/admin_login_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,6 +80,20 @@ Finder get resetBox => find.byKey(const Key('admin-reset-field'));
 
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  testWidgets('both forms are in the portal\'s font, with its real bold', (
+    tester,
+  ) async {
+    await pumpShell(tester, const Size(1440, 900));
+    String? family(Finder text) =>
+        DefaultTextStyle.of(tester.element(text)).style.fontFamily;
+    expect(family(find.text('Welcome back')), kAdminFontFamily);
+
+    await openForgot(tester);
+    final title = tester.widget<Text>(find.text('Forgot Password?'));
+    expect(title.style!.fontFamily, kAdminFontFamily);
+    expect(title.style!.fontWeight, FontWeight.w700);
+  });
 
   testWidgets('desktop: brand panel on the left, compact form on the right', (
     tester,

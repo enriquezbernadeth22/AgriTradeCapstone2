@@ -174,7 +174,7 @@ class _HelpCenterDialogState extends State<_HelpCenterDialog> {
               Text(
                 'Help & Support',
                 style: TextStyle(
-                  color: adminActionColor(c),
+                  color: c.heading,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
@@ -738,7 +738,7 @@ class _FaqManagerDialogState extends State<_FaqManagerDialog> {
                         child: Text(
                           'Manage FAQs',
                           style: TextStyle(
-                            color: adminActionColor(c),
+                            color: c.heading,
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),

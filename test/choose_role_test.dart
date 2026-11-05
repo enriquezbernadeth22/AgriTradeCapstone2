@@ -385,7 +385,7 @@ void main() {
       expect(signOuts, 1);
     });
 
-    testWidgets('Cancel on the form goes back to log in, signed out', (
+    testWidgets('Cancel on the form goes back to the role choice, still signed in', (
       tester,
     ) async {
       await openForGoogle(tester);
@@ -400,9 +400,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(GoogleCompleteProfileScreen), findsNothing);
-      expect(find.byType(ChooseRoleScreen), findsNothing);
-      expect(find.text('Log-in page'), findsOneWidget);
-      expect(signOuts, 1);
+      expect(find.text('How will you use AgriTrade+?'), findsOneWidget);
+      expect(find.text('Log-in page'), findsNothing);
+      expect(signOuts, 0);
     });
   });
 

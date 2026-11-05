@@ -3,12 +3,17 @@ import '../widgets/docked_nav_bar.dart';
 import '../widgets/notification_bell.dart';
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/commodity_master_list.dart';
+import '../services/bought_first.dart';
 import '../services/buyer_area_watcher.dart';
 import '../services/delivery_coverage.dart';
+import '../services/filters_on_scroll.dart';
+import '../services/order_service.dart';
 import '../services/product_service.dart';
 import '../services/product_recommendation_service.dart';
 import '../services/product_visibility_service.dart';
@@ -105,6 +110,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     setState(() {
       _feedMix++;
       _filtersHidden = false;
+      _filtersOnScroll.reset();
     });
     _grid.animateTo(
       0,
@@ -160,6 +166,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     // Listings that deliver to the buyer's area come first; reorder when
     // the area arrives or changes.
     BuyerAreaWatcher.instance.addListener(_onAreaChanged);
+    _watchMyOrders();
     _usersSub = FirebaseFirestore.instance
         .collection('publicProfiles')
         .snapshots()
@@ -186,8 +193,25 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
         });
   }
 
+  // How often this buyer bought each product (from their own orders), so
+  // what they buy most comes first in the feed.
+  Map<String, int> _boughtCounts = const {};
+  StreamSubscription? _ordersSub;
+
+  void _watchMyOrders() {
+    if (FirebaseAuth.instance.currentUser == null) return;
+    _ordersSub = OrderService().buyerOrdersStream().listen((snap) {
+      if (!mounted) return;
+      final counts = boughtCounts([for (final d in snap.docs) d.data()]);
+      if (!mapEquals(counts, _boughtCounts)) {
+        setState(() => _boughtCounts = counts);
+      }
+    }, onError: (_) {});
+  }
+
   @override
   void dispose() {
+    _ordersSub?.cancel();
     _usersSub?.cancel();
     _grid.dispose();
     BuyerAreaWatcher.instance.removeListener(_onAreaChanged);
@@ -206,11 +230,16 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     _shownIds = {..._latestIds};
   }
 
-  // Pull to refresh.
+  // Pull to refresh: the new posts come in, and the feed is dealt a fresh
+  // mix (as Back to the top does) — the products this buyer buys most
+  // still come first (see boughtFirst).
   Future<void> _refreshProducts() async {
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
-    setState(_bringInNewPosts);
+    setState(() {
+      _feedMix++;
+      _bringInNewPosts();
+    });
   }
 
   // The "new posts" pill: the same as pulling to refresh, then back to the
@@ -219,6 +248,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     setState(() {
       _bringInNewPosts();
       _filtersHidden = false;
+      _filtersOnScroll.reset();
     });
     if (_grid.hasClients) {
       _grid.animateTo(
@@ -341,24 +371,29 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     );
   }
 
-  // Scrolling the products: down hides the filters, up or back at the top
-  // shows them.
+  // Down hides the filters (category pills and the location dropdown); a
+  // deliberate scroll back up, or reaching the top, shows them again (see
+  // FiltersOnScroll).
+  final FiltersOnScroll _filtersOnScroll = FiltersOnScroll();
+
   bool _onGridScroll(ScrollNotification notification) {
     if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return false;
     }
     bool? hide;
-    if (notification is UserScrollNotification) {
-      if (notification.direction == ScrollDirection.reverse &&
-          notification.metrics.pixels > 40) {
-        hide = true;
-      } else if (notification.direction == ScrollDirection.forward) {
-        hide = false;
-      }
+    if (notification is UserScrollNotification &&
+        notification.direction == ScrollDirection.reverse &&
+        notification.metrics.pixels > _filtersOnScroll.hideAfter) {
+      hide = true;
     }
-    if (notification is ScrollUpdateNotification &&
-        notification.metrics.pixels <= 0) {
-      hide = false;
+    if (notification is ScrollUpdateNotification) {
+      hide =
+          _filtersOnScroll.update(
+            delta: notification.scrollDelta ?? 0,
+            pixels: notification.metrics.pixels,
+            dragging: notification.dragDetails != null,
+          ) ??
+          hide;
     }
     if (hide != null && hide != _filtersHidden) {
       setState(() => _filtersHidden = hide!);
@@ -535,6 +570,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             );
           });
         }
+        // What this buyer buys most comes first, most-bought first, each
+        // group still in the order above.
+        docs = boughtFirst(docs, _boughtCounts, (d) => d.data());
         // Then the buyer's area first: listings whose delivery reaches it,
         // each group still in the order above; nothing else is hidden.
         docs = deliveringFirst(

@@ -19,12 +19,30 @@ import 'admin_dashboard_screen.dart'
 // one toggle, all pill-shaped, so every page's filter row looks and reads
 // the same.
 
-/// The portal's font: Montserrat from the app's own font files (see
+/// The portal's font: Inter from the app's own font files (see
 /// pubspec.yaml), which has every weight — so a bold title is drawn with
 /// the bold file. It is the Admin theme's font, and is named outright in
 /// the few places that draw text with a style of their own instead of
-/// inheriting the page's (table cells, dropdowns, chart tooltips).
-const String kAdminFontFamily = 'Montserrat';
+/// inheriting the page's (table cells, dropdowns, chart tooltips). The
+/// mobile app keeps Montserrat.
+const String kAdminFontFamily = 'Inter';
+
+/// A text style in the portal's font, for the places that set one of
+/// their own rather than inheriting the theme's.
+TextStyle adminFont({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+}) => TextStyle(
+  fontFamily: kAdminFontFamily,
+  fontSize: fontSize,
+  fontWeight: fontWeight,
+  color: color,
+  height: height,
+  letterSpacing: letterSpacing,
+);
 
 /// The colour of a popup's main button and its chosen option: the app's
 /// dark green, or the portal's lighter green on the dark theme, where the
@@ -99,6 +117,11 @@ const double kAdminControlWidth = 200;
 /// …and this tall, so they line up wherever they sit side by side.
 const double kAdminControlHeight = 40;
 
+/// How round every text field, search, dropdown and date picker in the
+/// portal is: a rounded rectangle like the Admin login's fields (the
+/// cards' corners too, AdminRadii.card), not a pill.
+const double kAdminFieldRadius = AppTheme.adminFieldRadius;
+
 /// The inside of a text input (a search box), for inside [AdminInputGlow]:
 /// no fill and no outline of its own — the plate around it is the field.
 ///
@@ -107,6 +130,10 @@ const double kAdminControlHeight = 40;
 ///
 /// [inset]: the space at the start (before the icon) and at the end — the
 /// same on every control, so the pill's round ends never crowd it.
+/// The extra width the thin line after a field's icon takes
+/// ([adminFieldDecoration]), next to the gap it used to have.
+const double kAdminIconDividerRoom = 13;
+
 InputDecoration adminFieldDecoration(
   AdminPalette c, {
   String? hint,
@@ -117,11 +144,20 @@ InputDecoration adminFieldDecoration(
 }) => InputDecoration(
   hintText: hint,
   hintStyle: TextStyle(color: c.textMuted, fontSize: 13),
+  // The icon, then a thin line before the text, like the Admin login's
+  // fields.
   prefixIcon: icon == null
       ? null
       : Padding(
-          padding: EdgeInsets.only(left: inset, right: 8),
-          child: Icon(icon, size: iconSize, color: adminControlColor(c)),
+          padding: EdgeInsets.only(left: inset, right: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: iconSize, color: c.textSecondary),
+              const SizedBox(width: 10),
+              Container(width: 1, height: iconSize + 2, color: c.border),
+            ],
+          ),
         ),
   prefixIconConstraints: BoxConstraints(minHeight: iconSize),
   filled: false,
@@ -204,7 +240,7 @@ class _AdminInputGlowState extends State<AdminInputGlow> {
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius:
-              widget.borderRadius ?? BorderRadius.circular(AdminRadii.pill),
+              widget.borderRadius ?? BorderRadius.circular(kAdminFieldRadius),
           // One width either way, so nothing inside shifts on focus.
           border: Border.all(color: _focused ? c.textSecondary : c.border),
         ),
@@ -218,7 +254,9 @@ class _AdminInputGlowState extends State<AdminInputGlow> {
 /// Log's "Date range": the same white pill as the portal's dropdowns, with
 /// their height, padding and 16px icon.
 ButtonStyle adminPillControlStyle(AdminPalette c) => OutlinedButton.styleFrom(
-  shape: const StadiumBorder(),
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.all(Radius.circular(kAdminFieldRadius)),
+  ),
   backgroundColor: c.surface,
   foregroundColor: c.textPrimary,
   side: BorderSide(color: c.border),
@@ -315,14 +353,15 @@ class AdminPillDropdown<T> extends StatelessWidget {
       constraints: BoxConstraints(
         minWidth: button.size.width,
         maxWidth: button.size.width < 320 ? 320 : button.size.width,
-        maxHeight: 380,
+        maxHeight: 320,
       ),
       items: [
         for (final (i, item) in items.indexed)
           PopupMenuItem<int>(
             value: i,
             enabled: item.enabled,
-            height: 44,
+            // Compact rows, so a long list stays a small card.
+            height: 38,
             textStyle: TextStyle(
               fontFamily: kAdminFontFamily,
               fontSize: 13,
@@ -346,7 +385,9 @@ class AdminPillDropdown<T> extends StatelessWidget {
     final c = AdminThemeScope.of(context).palette;
     final shown = items.where((item) => item.value == value).firstOrNull;
     return SizedBox(
-      width: width,
+      // The line after the icon takes a little room: given back, so the
+      // longest option still fits.
+      width: icon == null ? width : width + kAdminIconDividerRoom,
       height: kAdminControlHeight,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -420,7 +461,7 @@ class AdminPillToggle<T> extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: c.surfaceAlt,
-        borderRadius: BorderRadius.circular(AdminRadii.pill),
+        borderRadius: BorderRadius.circular(kAdminFieldRadius),
         // No outline on the light theme; only on the dark one, where the
         // track would not show without one.
         border: c.isDark ? Border.all(color: c.border) : null,
@@ -442,7 +483,7 @@ class AdminPillToggle<T> extends StatelessWidget {
                     color: option.value == value
                         ? adminActionColor(c)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(AdminRadii.pill),
+                    borderRadius: BorderRadius.circular(kAdminFieldRadius - 3),
                   ),
                   child: Text(
                     option.label,
@@ -464,9 +505,7 @@ class AdminPillToggle<T> extends StatelessWidget {
 }
 
 /// The decoration of a text field several lines tall, in a dialog: the
-/// portal's field colours, with its label at the top. It keeps rounded
-/// corners rather than the single-line fields' pill, whose round ends
-/// would cut into the lines of text.
+/// portal's field colours and rounded corners, with its label at the top.
 InputDecoration adminMultilineDecoration(
   BuildContext context, {
   String? labelText,
@@ -636,7 +675,7 @@ BoxDecoration adminTableCard(AdminPalette c, {bool tabbed = false}) =>
     );
 
 /// How round a table card's corners are.
-const double kAdminTableRadius = 14;
+const double kAdminTableRadius = 10;
 
 /// Rows on one page of a table.
 const int kAdminRowsPerPage = 10;
@@ -1895,3 +1934,19 @@ class AdminAvatar extends StatelessWidget {
     );
   }
 }
+
+/// The header's round-cornered square buttons (Announce, Dark Mode, the
+/// bell): white with a light grey border, 40 across like the search.
+BoxDecoration adminHeaderButtonDecoration(AdminPalette c) => BoxDecoration(
+  color: c.surface,
+  borderRadius: BorderRadius.circular(kAdminHeaderButtonRadius),
+  border: Border.all(color: c.border),
+);
+
+/// How round the header's square buttons are.
+const double kAdminHeaderButtonRadius = 8;
+
+/// Their shape, for the ripple and hover.
+const ShapeBorder adminHeaderButtonShape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(kAdminHeaderButtonRadius)),
+);

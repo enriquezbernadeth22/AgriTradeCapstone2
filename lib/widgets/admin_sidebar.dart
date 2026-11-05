@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../screen/admin_filter_controls.dart' show adminFont;
 import '../theme/app_theme.dart';
-import 'agritrade_text.dart';
 
 /// One page in the Admin Portal's navigation. A page with several views of
 /// its own lists them as [children], which the sidebar shows as a
 /// collapsible submenu under it.
+///
+/// [section] starts a new group of pages ("Main", "Moderation"): the
+/// sidebar shows it as a small heading above this page, with a line above
+/// every heading but the first.
 class AdminSidebarEntry {
   final IconData icon;
   final String label;
   final List<String> children;
-  const AdminSidebarEntry(this.icon, this.label, {this.children = const []});
+  final String? section;
+  const AdminSidebarEntry(
+    this.icon,
+    this.label, {
+    this.children = const [],
+    this.section,
+  });
 }
 
 /// The sidebar's colours.
@@ -19,16 +28,18 @@ class AdminSidebarColors {
   final Color background;
   // The text and icons of every page that isn't open.
   final Color foreground;
-  // The open page's tab, and its icon and text.
+  // The open page's row, and its icon and text.
   final Color activeBackground;
   final Color activeForeground;
-  // The open submenu item's marker.
+  // The open submenu item's dot and text.
   final Color accent;
-  // The open submenu item's background.
-  final Color subSelectedBackground;
-  // The line between the sidebar and the page.
+  // The small group headings ("MAIN", "MODERATION"): dark green spaced
+  // capitals.
+  final Color sectionLabel;
+  // The line between the sidebar and the page, and between groups.
   final Color edge;
-  final bool lightWordmark;
+  // The "AgriTrade+" name at the top.
+  final Color brand;
 
   const AdminSidebarColors._({
     required this.background,
@@ -36,38 +47,39 @@ class AdminSidebarColors {
     required this.activeBackground,
     required this.activeForeground,
     required this.accent,
-    required this.subSelectedBackground,
+    required this.sectionLabel,
     required this.edge,
-    required this.lightWordmark,
+    required this.brand,
   });
 
   // White, with near-black text and icons (the portal's text colour), and
-  // the app's dark green — the same as the portal's main buttons — only
-  // for the open page's tab and the open submenu item's marker. The open
-  // submenu item sits on the portal's neutral grey, not a green tint.
+  // the app's dark green — the same as the portal's main buttons — for the
+  // name at the top, the group headings, the open page's row and the open
+  // submenu item.
   static const light = AdminSidebarColors._(
     background: Colors.white,
     foreground: Color(0xFF1C1F23),
     activeBackground: AppTheme.dark,
     activeForeground: Colors.white,
     accent: AppTheme.dark,
-    subSelectedBackground: Color(0xFFF1F3F5),
+    sectionLabel: AppTheme.dark,
     // Separates the white sidebar from the near-white page beside it.
     edge: Color(0xFFE2E5E9),
-    lightWordmark: false,
+    brand: AppTheme.dark,
   );
 
-  // Dark Mode: charcoal with light text and icons; the open page's tab a
-  // green deep enough for white text on it, the marker a lighter green.
+  // Dark Mode: charcoal with light text and icons; the open page's row a
+  // green deep enough for white text on it; the name, the headings and
+  // the open submenu item a lighter green (dark green would not show).
   static const dark = AdminSidebarColors._(
     background: Color(0xFF16181B),
     foreground: Color(0xFFE6E8EB),
     activeBackground: Color(0xFF2F7D45),
     activeForeground: Colors.white,
     accent: Color(0xFF5DBB74),
-    subSelectedBackground: Color(0xFF24282D),
+    sectionLabel: Color(0xFFA5D6A7),
     edge: Color(0xFF30353B),
-    lightWordmark: true,
+    brand: Color(0xFFA5D6A7),
   );
 
   /// The colours for the portal's theme at [context]: light or dark.
@@ -77,9 +89,10 @@ class AdminSidebarColors {
       : light;
 }
 
-/// The Admin Portal's navigation: a white column with the AgriTrade+ logo
-/// and wordmark on top and the pages under it, one item each. A page with [AdminSidebarEntry.children] has a small
-/// chevron and a submenu.
+/// The Admin Portal's navigation: the AgriTrade+
+/// logo, name and "Admin Panel" on top, and the pages under it in groups
+/// ([AdminSidebarEntry.section]), one row each. A page with
+/// [AdminSidebarEntry.children] has a small chevron and a submenu.
 ///
 /// The same widget is the full sidebar on a desktop window, the icon-only
 /// rail on a tablet-sized one ([collapsed]) and the contents of the
@@ -177,41 +190,66 @@ class _AdminSidebarState extends State<AdminSidebar> {
         width: collapsed
             ? AdminSidebar.collapsedWidth
             : AdminSidebar.expandedWidth,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _brand(),
-              // The pages scroll on their own if the window is too short
-              // for them; the brand above stays put.
-              Expanded(
-                child: SingleChildScrollView(
-                  // Nothing on the left: the active tab is flush with the
-                  // sidebar's edge.
-                  padding: EdgeInsets.fromLTRB(0, 4, collapsed ? 12 : 14, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < entries.length; i++) ..._entry(i),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _brand(),
+            // The pages scroll on their own if the window is too short
+            // for them; the brand above stays put.
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < entries.length; i++) ...[
+                      ..._sectionStart(i),
+                      ..._entry(i),
                     ],
-                  ),
+                  ],
                 ),
               ),
-              if (widget.footer != null) ...[
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: collapsed ? 12 : 14,
-                  endIndent: collapsed ? 12 : 14,
-                  color: colors.edge,
-                ),
-                widget.footer!,
-              ],
+            ),
+            if (widget.footer != null) ...[
+              Divider(height: 1, thickness: 1, color: colors.edge),
+              SafeArea(top: false, child: widget.footer!),
             ],
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  // The heading of a group of pages, above its first page: a line first
+  // (except for the very first group), then the name in small capitals.
+  // The rail has no room for the name, so it keeps only the line.
+  List<Widget> _sectionStart(int i) {
+    final section = widget.entries[i].section;
+    if (section == null) return const [];
+    final colors = AdminSidebarColors.of(context);
+    final first = !widget.entries.take(i).any((e) => e.section != null);
+    return [
+      if (!first)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Divider(height: 1, thickness: 1, color: colors.edge),
+        ),
+      if (!widget.collapsed)
+        Padding(
+          padding: EdgeInsets.fromLTRB(12, first ? 8 : 4, 12, 8),
+          child: Text(
+            section.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: adminFont(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.6,
+              color: colors.sectionLabel,
+            ),
+          ),
+        ),
+    ];
   }
 
   List<Widget> _entry(int i) {
@@ -252,7 +290,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
         alignment: Alignment.topCenter,
         child: open
             ? Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(top: 2, bottom: 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -275,112 +313,155 @@ class _AdminSidebarState extends State<AdminSidebar> {
   // button in its place.
   bool _brandHovered = false;
 
-  // The original logo asset and the app's own wordmark widget, with the
-  // sidebar button: at the end of the row when expanded, and in place of
-  // the logo on the rail while it is hovered.
+  /// How tall the top of the sidebar, with the logo, is.
+  static const double _brandHeight = 68;
+
+  // The top of the sidebar, on its own white: the logo, "AgriTrade+" in
+  // bold dark green with "Admin Panel" under it, and the sidebar button at
+  // the end. On the rail, the logo alone, which turns into the sidebar
+  // button while hovered.
   Widget _brand() {
     final collapsed = widget.collapsed;
     final colors = AdminSidebarColors.of(context);
     final onToggle = widget.onToggleCollapsed;
-    final logo = Image.asset(
-      'assets/images/logo.png',
-      height: 38,
-      fit: BoxFit.contain,
-      errorBuilder: (_, _, _) =>
-          Icon(Icons.agriculture_rounded, color: colors.foreground, size: 28),
+    final top = MediaQuery.paddingOf(context).top;
+    final logo = SizedBox(
+      width: 40,
+      height: 40,
+      // The file has a wide transparent margin round the artwork, so it is
+      // drawn larger than the box to fill it.
+      child: OverflowBox(
+        maxWidth: 72,
+        maxHeight: 48,
+        child: Image.asset(
+          'assets/images/logo.png',
+          width: 72,
+          height: 48,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, _, _) =>
+              Icon(Icons.eco_rounded, color: colors.brand, size: 26),
+        ),
+      ),
     );
 
+    final Widget content;
     if (collapsed) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(0, 20, 0, 18),
-        child: Center(
-          child: onToggle == null
-              ? logo
-              : MouseRegion(
-                  onEnter: (_) => setState(() => _brandHovered = true),
-                  onExit: (_) => setState(() => _brandHovered = false),
-                  child: SizedBox(
-                    height: 38,
-                    child: Center(
-                      child: _brandHovered
-                          ? _SidebarToggleButton(
-                              colors: colors,
-                              tooltip: 'Open sidebar',
-                              shortcut: widget.toggleShortcut,
-                              onTap: () {
-                                setState(() => _brandHovered = false);
-                                onToggle();
-                              },
-                            )
-                          : logo,
+      content = Center(
+        child: onToggle == null
+            ? logo
+            : MouseRegion(
+                onEnter: (_) => setState(() => _brandHovered = true),
+                onExit: (_) => setState(() => _brandHovered = false),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(
+                    child: _brandHovered
+                        ? _SidebarToggleButton(
+                            color: colors.foreground,
+                            tooltip: 'Open sidebar',
+                            shortcut: widget.toggleShortcut,
+                            onTap: () {
+                              setState(() => _brandHovered = false);
+                              onToggle();
+                            },
+                          )
+                        : logo,
+                  ),
+                ),
+              ),
+      );
+    } else {
+      content = Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, onToggle == null ? 16 : 10, 0),
+        child: Row(
+          children: [
+            // Logo and name open the first page (the Analytics
+            // Dashboard), like a website's logo.
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Tooltip(
+                  message: widget.entries.first.label,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => widget.onSelect(0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        logo,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'AgriTrade+',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: adminFont(
+                                  fontSize: 18,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.brand,
+                                ),
+                              ),
+                              Text(
+                                'Admin Panel',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: adminFont(
+                                  fontSize: 11.5,
+                                  height: 1.3,
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.foreground.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+              ),
+            ),
+            if (onToggle != null) ...[
+              const SizedBox(width: 4),
+              _SidebarToggleButton(
+                color: colors.foreground,
+                tooltip: 'Close sidebar',
+                shortcut: widget.toggleShortcut,
+                onTap: onToggle,
+              ),
+            ],
+          ],
         ),
       );
     }
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(14, 20, onToggle == null ? 14 : 10, 18),
-      child: Row(
-        children: [
-          // Logo and wordmark open the first page (the Analytics
-          // Dashboard), like a website's logo.
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Tooltip(
-                message: widget.entries.first.label,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () => widget.onSelect(0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      logo,
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: AgriTradeText(
-                            fontSize: 19,
-                            light: colors.lightWordmark,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (onToggle != null) ...[
-            const SizedBox(width: 4),
-            _SidebarToggleButton(
-              colors: colors,
-              tooltip: 'Close sidebar',
-              shortcut: widget.toggleShortcut,
-              onTap: onToggle,
-            ),
-          ],
-        ],
-      ),
+      padding: EdgeInsets.only(top: top),
+      child: SizedBox(height: _brandHeight, child: content),
     );
   }
 }
 
 /// The square button that opens or closes the sidebar, with the sidebar
-/// icon on it and a tooltip naming its keyboard shortcut. Light grey on
-/// hover, like the sidebar's rows.
+/// icon on it in [color] and a tooltip naming its keyboard shortcut. A
+/// faint tint of [color] on hover.
 class _SidebarToggleButton extends StatefulWidget {
-  final AdminSidebarColors colors;
+  final Color color;
   final String tooltip;
   final String? shortcut;
   final VoidCallback onTap;
 
   const _SidebarToggleButton({
-    required this.colors,
+    required this.color,
     required this.tooltip,
     required this.onTap,
     this.shortcut,
@@ -395,7 +476,7 @@ class _SidebarToggleButtonState extends State<_SidebarToggleButton> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = widget.colors;
+    final color = widget.color;
     final shortcut = widget.shortcut;
     return Tooltip(
       richMessage: TextSpan(
@@ -426,12 +507,12 @@ class _SidebarToggleButtonState extends State<_SidebarToggleButton> {
               height: 36,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: colors.foreground.withValues(alpha: _hovered ? 0.08 : 0),
-                borderRadius: BorderRadius.circular(10),
+                color: color.withValues(alpha: _hovered ? 0.12 : 0),
+                borderRadius: BorderRadius.circular(kAdminSidebarRowRadius),
               ),
               child: CustomPaint(
                 size: const Size(20, 18),
-                painter: _SidebarIconPainter(colors.foreground),
+                painter: _SidebarIconPainter(color),
               ),
             ),
           ),
@@ -467,9 +548,9 @@ class _SidebarIconPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// One row of the sidebar. Transparent until hovered or selected; the
-/// selected page becomes a green tab attached to the sidebar's left edge,
-/// rounded on the right. Both fade over 160 ms.
+/// One row of the sidebar. Transparent until hovered (light grey) or
+/// selected (a dark green rounded block, white icon and text, inset from
+/// both sides of the sidebar). Both fade over 160 ms.
 ///
 /// With [onToggle], the row is a submenu's parent: it ends in a small
 /// chevron that points down while the submenu is [expanded].
@@ -502,7 +583,7 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
   bool _hovered = false;
 
   static const double _height = 40;
-  static const double _iconSize = 18;
+  static const double _iconSize = 19;
 
   @override
   Widget build(BuildContext context) {
@@ -524,8 +605,8 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
                   widget.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14,
+                  style: adminFont(
+                    fontSize: 13.5,
                     fontWeight: widget.selected
                         ? FontWeight.w600
                         : FontWeight.w500,
@@ -576,23 +657,17 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
             height: _height,
-            // The row touches the sidebar's left edge, so the inset that
-            // lines the icons up with the logo is inside it. On the rail
-            // the inset keeps the icon centred under the logo.
             padding: widget.collapsed
-                ? const EdgeInsets.only(left: 12)
+                ? EdgeInsets.zero
                 : EdgeInsets.only(
-                    left: 26,
-                    right: widget.onToggle != null ? 6 : 12,
+                    left: 12,
+                    right: widget.onToggle != null ? 4 : 12,
                   ),
             decoration: BoxDecoration(
               color: widget.selected
                   ? colors.activeBackground
-                  : colors.foreground.withValues(alpha: _hovered ? 0.08 : 0),
-              // Square against the edge, rounded on the right only.
-              borderRadius: const BorderRadius.horizontal(
-                right: Radius.circular(18),
-              ),
+                  : colors.foreground.withValues(alpha: _hovered ? 0.06 : 0),
+              borderRadius: BorderRadius.circular(kAdminSidebarRowRadius),
             ),
             child: content,
           ),
@@ -619,9 +694,8 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
   }
 }
 
-/// One submenu row: smaller text, indented to line up under its parent's
-/// label. The open one is semi-bold on the portal's neutral grey, with a
-/// solid green marker in front of it.
+/// One submenu row: a small dot and smaller text, indented under its
+/// parent. The open one is semi-bold in dark green, with a green dot.
 class _AdminSidebarSubItem extends StatefulWidget {
   final String label;
   final AdminSidebarColors colors;
@@ -662,22 +736,20 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            height: 32,
-            margin: const EdgeInsets.only(left: 40, bottom: 2),
-            padding: const EdgeInsets.only(left: 10, right: 10),
+            height: 30,
+            margin: const EdgeInsets.only(left: 30, bottom: 1),
+            padding: const EdgeInsets.only(left: 12, right: 10),
             decoration: BoxDecoration(
-              color: selected
-                  ? colors.subSelectedBackground
-                  : colors.foreground.withValues(alpha: _hovered ? 0.05 : 0),
-              borderRadius: BorderRadius.circular(10),
+              color: colors.foreground.withValues(alpha: _hovered ? 0.05 : 0),
+              borderRadius: BorderRadius.circular(kAdminSidebarRowRadius),
             ),
             child: Row(
               children: [
                 // The marker: solid green on the open view.
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  width: 5,
-                  height: 5,
+                  width: 4,
+                  height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: selected
@@ -691,11 +763,11 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
                     widget.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 13,
+                    style: adminFont(
+                      fontSize: 12.5,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       color: selected
-                          ? colors.foreground
+                          ? colors.accent
                           : colors.foreground.withValues(
                               alpha: _hovered ? 0.92 : 0.72,
                             ),
@@ -710,3 +782,6 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
     );
   }
 }
+
+/// How round a sidebar row's corners are (the open page's green block).
+const double kAdminSidebarRowRadius = 8;

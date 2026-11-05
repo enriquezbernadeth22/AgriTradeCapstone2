@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
+import '../widgets/chat_photo_viewer.dart' show openPhotoGallery;
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
 
@@ -69,8 +70,12 @@ class ReviewStars extends StatelessWidget {
 /// Every review of one product, in full: the text, the buyer's photos, the
 /// Verified Purchase mark and the farmer's reply. Opened from "View All" on
 /// Product Details, whose preview cards only show a short excerpt.
+///
+/// With no [productId] it lists every review of the farmer's products
+/// instead (the storefront's "See all"), each naming its product;
+/// [productName] is then the farmer's name, shown on top.
 class ProductReviewsScreen extends StatefulWidget {
-  final String productId;
+  final String? productId;
   final String productName;
   final String? farmerId;
 
@@ -86,11 +91,17 @@ class ProductReviewsScreen extends StatefulWidget {
 }
 
 class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews =
-      FirebaseFirestore.instance
-          .collection('productReviews')
-          .where('productId', isEqualTo: widget.productId)
-          .snapshots();
+  bool get _forFarmer => widget.productId == null;
+
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews = _forFarmer
+      ? FirebaseFirestore.instance
+            .collection('productReviews')
+            .where('sellerId', isEqualTo: widget.farmerId)
+            .snapshots()
+      : FirebaseFirestore.instance
+            .collection('productReviews')
+            .where('productId', isEqualTo: widget.productId)
+            .snapshots();
 
   Future<void> _reportReview(
     String reviewId,
@@ -144,8 +155,10 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         'reportedUserName': (review['buyerName'] ?? 'Buyer').toString(),
         'targetType': 'review',
         'farmerId': sellerId,
-        'productId': widget.productId,
-        'productName': widget.productName,
+        'productId': widget.productId ?? review['productId']?.toString(),
+        'productName': _forFarmer
+            ? (review['productName'] ?? 'Product').toString()
+            : widget.productName,
         'reviewId': reviewId,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
@@ -183,43 +196,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
     return photos;
   }
 
-  void _openPhoto(String url) {
-    showDialog<void>(
-      context: context,
-      barrierColor: AppColors.text,
-      builder: (dialogContext) => GestureDetector(
-        onTap: () => Navigator.of(dialogContext).pop(),
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Icon(
-                    Icons.broken_image,
-                    color: Colors.white70,
-                    size: 48,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              right: 4,
-              child: SafeArea(
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _photos(List<String> photos) {
     const size = 96.0;
     return SizedBox(
@@ -228,8 +204,9 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: photos.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
+        // Full screen, to swipe through the review's photos.
         itemBuilder: (context, index) => GestureDetector(
-          onTap: () => _openPhoto(photos[index]),
+          onTap: () => openPhotoGallery(context, photos, initialIndex: index),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.network(
@@ -318,6 +295,21 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
               ),
           ],
         ),
+        // A farmer's whole list says which product each review is about.
+        if (_forFarmer &&
+            (review['productName'] ?? '').toString().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            tl('Reviewed: {0}', [review['productName'].toString()]),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey(700),
+            ),
+          ),
+        ],
         // Every review is tied to the buyer's own completed order (see
         // firestore.rules).
         if ((review['orderId'] ?? '').toString().isNotEmpty) ...[
@@ -410,9 +402,11 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
               child: AgriEmptyState(
                 icon: Icons.rate_review_outlined,
                 title: tl('No reviews yet'),
-                subtitle: tl(
-                  'Be the first to review this product after completing an order.',
-                ),
+                subtitle: _forFarmer
+                    ? tl('This farmer has no reviews yet.')
+                    : tl(
+                        'Be the first to review this product after completing an order.',
+                      ),
                 padding: EdgeInsets.all(32),
               ),
             );

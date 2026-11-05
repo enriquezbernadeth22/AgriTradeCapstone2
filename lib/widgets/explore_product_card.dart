@@ -13,7 +13,7 @@ import '../services/buyer_type_watcher.dart';
 import '../services/delivery_coverage.dart';
 
 /// One product in the Buyer Explore grid: image on top, then category (and
-/// rating), name, price, the wholesale badge, stock and the farmer.
+/// rating), name, price, the wholesale badge and stock.
 ///
 /// Every card in the grid is the same height — [extentFor] — whatever its
 /// name length or whether it has a rating or a wholesale badge. That height
@@ -30,8 +30,9 @@ class ExploreProductCard extends StatelessWidget {
   final bool saved;
   final VoidCallback? onToggleSave;
 
-  /// The farmer line at the bottom. Left out on the farmer's own public
-  /// profile, where every card would repeat the same name.
+  /// The farmer line (photo and name) at the bottom. Off by default: the
+  /// buyer's grids (Explore, Search, Liked) show the product alone, as the
+  /// user decided on 2026-11-05; the farmer is on Product Details.
   final bool showFarmer;
 
   const ExploreProductCard({
@@ -40,7 +41,7 @@ class ExploreProductCard extends StatelessWidget {
     this.onTap,
     this.saved = false,
     this.onToggleSave,
-    this.showFarmer = true,
+    this.showFarmer = false,
   });
 
   // Width : height of the product image, the same on every card.
@@ -71,7 +72,7 @@ class ExploreProductCard extends StatelessWidget {
   static double extentFor(
     double width,
     TextScaler textScaler, {
-    bool showFarmer = true,
+    bool showFarmer = false,
   }) {
     final scale = textScaler.scale(100) / 100;
     final full =

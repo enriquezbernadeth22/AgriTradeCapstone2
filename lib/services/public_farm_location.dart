@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,6 +71,10 @@ String _cacheKey(String area) =>
 ///   3. for a Laurel barangay, the app's own reference point for it;
 ///   4. otherwise nothing.
 /// Never random, never offset per call, and never derived from a farm pin.
+/// How long a map waits for an area's first look-up before showing the
+/// barangay's reference point instead.
+const Duration geocodeWait = Duration(seconds: 3);
+
 Future<({double lat, double lng})?> resolvePublicAreaPoint({
   required String barangay,
   required String area,
@@ -91,16 +97,39 @@ Future<({double lat, double lng})?> resolvePublicAreaPoint({
     }
   } catch (_) {}
 
-  final geocoded = await GeocodingService.forwardGeocode('$area, Philippines');
-  if (geocoded != null && isValidPublicCoordinate(geocoded.lat, geocoded.lng)) {
+  // Kept for this area once found, so the next look is instant.
+  Future<({double lat, double lng})?> keep(
+    ({double lat, double lng})? point,
+  ) async {
+    if (point == null || !isValidPublicCoordinate(point.lat, point.lng)) {
+      return null;
+    }
     try {
       await prefs?.setStringList(_cacheKey(area), [
-        geocoded.lat.toString(),
-        geocoded.lng.toString(),
+        point.lat.toString(),
+        point.lng.toString(),
       ]);
     } catch (_) {}
-    return _sessionPoints[area] = geocoded;
+    return _sessionPoints[area] = point;
   }
+
+  // The first look-up of an area can take many seconds (two services,
+  // each allowed eight). The map does not wait that long: past
+  // [geocodeWait] it shows the barangay's reference point below, and the
+  // look-up finishes in the background so the next visit has the exact
+  // point at once.
+  final lookup = GeocodingService.forwardGeocode('$area, Philippines');
+  var timedOut = false;
+  final geocoded = await lookup.timeout(
+    geocodeWait,
+    onTimeout: () {
+      timedOut = true;
+      return null;
+    },
+  );
+  final found = await keep(geocoded);
+  if (found != null) return found;
+  if (timedOut) unawaited(lookup.then(keep, onError: (_) => null));
 
   // Geocoding unavailable: a fixed reference point for the barangay. Not
   // cached, so a later successful geocode can replace it.

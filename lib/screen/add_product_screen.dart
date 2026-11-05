@@ -142,6 +142,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Uint8List? _bytes;
   String? _imageUrl;
 
+  /// A listing has at most this many photos: the main one above, and the
+  /// rest in the "More photos" row under it.
+  static const int maxPhotos = 5;
+
+  // The photos after the main one, in order: each a fresh pick (file and
+  // preview bytes) or one already posted (its URL, when editing).
+  final List<_ExtraPhoto> _extraPhotos = [];
+
   bool get _isEditing => widget.productId != null;
 
   bool get _hasImage =>
@@ -447,6 +455,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
           (data['imageUrls'] as List?)?.map((e) => e.toString()).toList() ?? [];
       if (list.isNotEmpty) {
         _imageUrl = list.first;
+        _extraPhotos.addAll([
+          for (final url in list.skip(1).take(maxPhotos - 1))
+            if (url.isNotEmpty) _ExtraPhoto(url: url),
+        ]);
       } else {
         final single = data['imageUrl']?.toString();
         if (single != null && single.isNotEmpty) _imageUrl = single;
@@ -500,6 +512,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _deliveryFeeController.text.trim(),
     _file?.path,
     _imageUrl,
+    _extraPhotos.map((p) => p.file?.path ?? p.url).join('|'),
   ].join('\u0000');
 
   bool get _hasChanges => _formSignature() != _openedForm;
@@ -724,7 +737,145 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _file = null;
       _bytes = null;
       _imageUrl = null;
+      // The next photo, if any, becomes the main one.
+      if (_extraPhotos.isNotEmpty) {
+        final next = _extraPhotos.removeAt(0);
+        _file = next.file;
+        _bytes = next.bytes;
+        _imageUrl = next.url;
+      }
     });
+  }
+
+  // Adds a photo to the "More photos" row (camera or gallery).
+  Future<void> _pickExtraPhoto() async {
+    if (_extraPhotos.length >= maxPhotos - 1) return;
+    final source = await showAgriSheet<ImageSource>(
+      context: context,
+      title: tl('Product photo'),
+      builder: _imageSourceSheet,
+    );
+    if (source == null) return;
+    final XFile? picked = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1000,
+      imageQuality: 70,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() => _extraPhotos.add(_ExtraPhoto(file: picked, bytes: bytes)));
+  }
+
+  // The row of photos after the main one: each with a × to take it out,
+  // and a tile to add another while there is room (five photos in all).
+  Widget _extraPhotosRow() {
+    final room = maxPhotos - 1 - _extraPhotos.length;
+    Widget thumb(_ExtraPhoto photo) => Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: photo.bytes != null
+                ? Image.memory(photo.bytes!, fit: BoxFit.cover)
+                : Image.network(
+                    photo.url!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: AppColors.accent,
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        color: AppColors.brand,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: Tooltip(
+            message: tl('Remove photo'),
+            child: Material(
+              color: AppColors.surface,
+              shape: CircleBorder(
+                side: BorderSide(color: AppColors.grey(300)),
+              ),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _loading
+                    ? null
+                    : () => setState(() => _extraPhotos.remove(photo)),
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 13,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tl('More photos (optional) · {0} of {1}', [
+              '${_extraPhotos.length}',
+              '${maxPhotos - 1}',
+            ]),
+            style: GoogleFonts.montserrat(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey(700),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 70,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(top: 6, right: 6),
+              children: [
+                for (final photo in _extraPhotos) ...[
+                  thumb(photo),
+                  const SizedBox(width: 12),
+                ],
+                if (room > 0)
+                  Material(
+                    color: AppColors.accent.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      key: const Key('addMorePhotos'),
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: _loading ? null : _pickExtraPhoto,
+                      child: SizedBox(
+                        width: 64,
+                        height: 64,
+                        child: Icon(
+                          Icons.add_a_photo_outlined,
+                          color: AppColors.brand,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool> _confirmRemoveImage() {
@@ -1062,6 +1213,25 @@ class _AddProductScreenState extends State<AddProductScreen> {
         imageUrls.add(url);
       } else if (_imageUrl != null && _imageUrl!.isNotEmpty) {
         imageUrls.add(_imageUrl!);
+      }
+      // Then the other photos, in their order: new ones uploaded, posted
+      // ones kept as they are.
+      for (final photo in _extraPhotos) {
+        if (photo.file == null) {
+          if (photo.url != null && photo.url!.isNotEmpty) {
+            imageUrls.add(photo.url!);
+          }
+          continue;
+        }
+        final url = await _cloudinaryService.uploadImage(photo.file!);
+        if (url == null) {
+          if (!mounted) return;
+          _showError(
+            tl('Image upload failed. Check your internet and try again.'),
+          );
+          return;
+        }
+        imageUrls.add(url);
       }
 
       // A listing flagged for its price by an earlier version of the app
@@ -2770,9 +2940,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // ---- Single photo slot ----
+                        // ---- The main photo, then up to four more ----
                         KeyedSubtree(key: _photoKey, child: _imageSlot()),
                         _fieldError(_photoKey),
+                        if (_hasImage) _extraPhotosRow(),
                         const SizedBox(height: 14),
 
                         _label(tl('Product Name'), key: _nameKey),
@@ -3400,4 +3571,13 @@ class _DashedBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
       oldDelegate.color != color || oldDelegate.radius != radius;
+}
+
+/// One of a listing's photos after the main one: a fresh pick ([file] and
+/// its preview [bytes]) or one already posted ([url]).
+class _ExtraPhoto {
+  final XFile? file;
+  final Uint8List? bytes;
+  final String? url;
+  const _ExtraPhoto({this.file, this.bytes, this.url});
 }

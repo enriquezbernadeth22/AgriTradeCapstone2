@@ -33,55 +33,112 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBbYUgbR0tHaSfrujL8184AXYOCTP5W6NE"></script>
   <!--
-    What shows while Flutter downloads, so the page is never blank. It matches
-    the Admin's Dark Mode (saved by the app in this browser) and goes when
-    Flutter draws its first frame.
+    What shows while Flutter downloads, so the page is never blank: a copy
+    of the app's own loading screen (BrandedLoadingScreen and
+    SproutLoadingBar in lib/widgets) — the round logo, the name, the green
+    bar with its sprout and "Loading AgriTrade+…" — in the same sizes and
+    colours. Flutter's bar carries on from this one's fill (it reads
+    window.agriTradeSplashStart), and this one goes when Flutter draws its
+    first frame, so the handoff does not show. Keep the two in step.
   -->
+  <link rel="preload" href="assets/assets/fonts/Montserrat-Bold.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="assets/assets/fonts/Montserrat-Medium.ttf" as="font" type="font/ttf" crossorigin>
   <style>
-    html, body { height: 100%; margin: 0; background: #F8F9FA; }
-    html.dark, html.dark body { background: #111315; }
+    @font-face {
+      font-family: "AgriTrade Montserrat"; font-weight: 700; font-display: swap;
+      src: url("assets/assets/fonts/Montserrat-Bold.ttf") format("truetype");
+    }
+    @font-face {
+      font-family: "AgriTrade Montserrat"; font-weight: 500; font-display: swap;
+      src: url("assets/assets/fonts/Montserrat-Medium.ttf") format("truetype");
+    }
+    /* How full the bar is, 0 to 1, animated like Flutter's (easeInOut). */
+    @property --fill { syntax: "<number>"; inherits: true; initial-value: 0; }
+    html, body { height: 100%; margin: 0; background: #FFFFFF; }
     #app-splash {
       position: fixed; inset: 0; z-index: 10;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      background: #F8F9FA; color: #1C1F23;
-      font-family: Montserrat, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #FFFFFF;
+      font-family: "AgriTrade Montserrat", Montserrat, "Segoe UI", Roboto, Arial, sans-serif;
       transition: opacity .25s ease;
     }
-    html.dark #app-splash { background: #111315; color: #F1F3F5; }
     #app-splash.done { opacity: 0; pointer-events: none; }
-    #app-splash img { width: 96px; height: 96px; object-fit: contain; }
-    #app-splash p { margin: 14px 0 22px; font-size: 26px; font-weight: 700; }
+    #app-splash .logo {
+      width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+    }
+    #app-splash .name {
+      /* The padding matches the room Flutter leaves above and below this
+         text (measured on screenshots of the two). */
+      margin: 18px 0 28px; padding: 3px 0 2px; line-height: normal;
+      font-size: 26px; font-weight: 700; letter-spacing: 0.26px;
+      color: #0E3210;
+    }
+    #app-splash .bar {
+      position: relative; width: min(260px, calc(100vw - 48px)); height: 28px;
+      --fill: 0;
+      animation: app-splash-fill 12s linear forwards;
+    }
     #app-splash .track {
-      position: relative; width: 200px; height: 4px; overflow: hidden;
-      border-radius: 2px; background: #E2E5E9;
+      position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+      border-radius: 3px; overflow: hidden; background: #C5DEB0;
     }
-    html.dark #app-splash .track { background: #30353B; }
-    #app-splash .track::after {
-      content: ""; position: absolute; top: 0; bottom: 0; left: -40%;
-      width: 40%; border-radius: 2px; background: #24833D;
-      animation: app-splash-move 1.3s ease-in-out infinite;
+    #app-splash .fill {
+      height: 100%; width: calc(var(--fill) * 100%); border-radius: 3px;
+      background: linear-gradient(to right, #0E3210, #3F8F2A);
     }
-    html.dark #app-splash .track::after { background: #5DBB74; }
-    @keyframes app-splash-move { to { left: 100%; } }
+    /* The sprout stands where the fill ends (kept on the bar at both ends),
+       growing from 55% to full size as the bar fills. */
+    #app-splash .sprout {
+      position: absolute; top: 23px; width: 0; height: 0;
+      left: clamp(6px, calc(var(--fill) * 100%), calc(100% - 6px));
+      transform: scale(calc(0.55 + 0.45 * var(--fill)));
+      transform-origin: 0 0;
+    }
+    #app-splash .sprout svg {
+      position: absolute; left: -10px; top: -21px; overflow: visible;
+    }
+    #app-splash .label {
+      margin-top: 12px; padding: 1px 0 2px; line-height: normal;
+      font-size: 13px; font-weight: 500; letter-spacing: 0.2px;
+      color: rgba(0, 0, 0, 0.54); white-space: nowrap;
+    }
+    /* Quickly (easing out) to 70% in 2.1 s, then creeping on to 90% by
+       12 s, where it waits: it never fills while Flutter downloads, so
+       Flutter's bar always has the last stretch to fill in view. Keep in
+       step with SproutLoadingBar.pageBarProgress. */
+    @keyframes app-splash-fill {
+      0% { --fill: 0; animation-timing-function: cubic-bezier(0, 0, .58, 1); }
+      17.5% { --fill: 0.7; animation-timing-function: linear; }
+      100% { --fill: 0.9; }
+    }
     @media (prefers-reduced-motion: reduce) {
-      #app-splash .track::after { animation: none; left: 0; width: 100%; }
+      #app-splash .bar { animation: none; --fill: 0.66; }
     }
   </style>
-  <script>
-    try {
-      if (localStorage.getItem('flutter.admin_dark_mode') === 'true') {
-        document.documentElement.classList.add('dark');
-      }
-    } catch (e) { /* Private browsing: light, then. */ }
-  </script>
+
 </head>
 <body>
   <div id="app-splash" role="status" aria-label="Loading AgriTrade+">
-    <img src="reset-password/logo.png" alt="">
-    <p>AgriTrade+</p>
-    <div class="track"></div>
+    <img class="logo" src="reset-password/logo.png" alt="">
+    <div class="name">AgriTrade+</div>
+    <div class="bar">
+      <div class="track"><div class="fill"></div></div>
+      <div class="sprout">
+        <svg width="21" height="22" viewBox="-10 -21 21 22" aria-hidden="true">
+          <line x1="0" y1="0" x2="0" y2="-11" stroke="#2E7D32" stroke-width="1.8" stroke-linecap="round"/>
+          <path fill="#2E7D32" d="M0 -11 Q-0.913 -19.036 -9 -19 Q-8.087 -10.964 0 -11 Z"/>
+          <path fill="#4CA531" d="M0 -11 Q9.148 -10.892 10 -20 Q0.852 -20.108 0 -11 Z"/>
+        </svg>
+      </div>
+    </div>
+    <div class="label" aria-hidden="true">Loading AgriTrade+…</div>
   </div>
+  <script>
+    // The bar above starts filling now; Flutter's bar picks up from here.
+    window.agriTradeSplashStart = Date.now();
+  </script>
+
   <script>
     window.addEventListener('flutter-first-frame', function () {
       var splash = document.getElementById('app-splash');

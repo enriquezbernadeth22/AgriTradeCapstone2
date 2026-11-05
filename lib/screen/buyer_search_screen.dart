@@ -12,6 +12,7 @@ import '../services/product_service.dart';
 import '../services/product_recommendation_service.dart';
 import '../services/product_visibility_service.dart';
 import '../services/saved_products_service.dart';
+import '../services/search_suggestions.dart';
 import '../services/search_trends.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/app_search_bar.dart';
@@ -103,9 +104,8 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   bool _productsFailed = false;
   StreamSubscription? _productsSub;
 
-  // The buyer's town, and what buyers there bought (for a buyer with no
-  // history of their own yet).
-  String _myTown = '';
+  // What buyers in the buyer's town bought (for a buyer with no history
+  // of their own yet).
   List<Map<String, dynamic>> _areaSales = const [];
 
   void _listenToProducts() {
@@ -147,7 +147,6 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
           .get();
       if (!mounted) return;
       setState(() {
-        _myTown = town;
         _areaSales = [for (final d in sales.docs) d.data()];
       });
     } catch (_) {
@@ -389,14 +388,30 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   // SUGGESTED SEARCHES = supported commodity names relevant to the typed
   // text — a master-list-only autocomplete, distinct from Trending
   // Searches (real aggregated activity) below.
-  List<String> get _suggestedSearches {
-    if (_typed.trim().isEmpty) return const [];
+  List<String> get _suggestedSearches => suggestedSearchTerms(
+    _typed,
+    commodities: CommodityRegistry.instance.all.map((c) => c.name),
+    listings: [for (final d in _liveListings) d.data()],
+  );
+
+  // Active listings, as the results show them.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> get _liveListings => [
+    for (final d in _allProducts ?? const [])
+      if (d.data()['isArchived'] != true && d.data()['isSuspended'] != true) d,
+  ];
+
+  // While typing: the listings that match what is typed so far (product or
+  // farmer name), best ranked first — the same match the results use.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> get _typedMatches {
     final q = _typed.trim().toLowerCase();
-    return CommodityRegistry.instance.all
-        .map((c) => c.name)
-        .where((c) => c.toLowerCase().contains(q))
-        .take(8)
-        .toList();
+    if (q.isEmpty) return const [];
+    final matches = _liveListings.where((d) {
+      final data = d.data();
+      final name = (data['name'] ?? '').toString().toLowerCase();
+      final farmer = (data['farmerName'] ?? '').toString().toLowerCase();
+      return name.contains(q) || farmer.contains(q);
+    }).toList();
+    return _rankedByVisibility(matches);
   }
 
   @override
@@ -505,6 +520,44 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
           _chipRow(_suggestedSearches, icon: Icons.search),
           const SizedBox(height: 22),
         ],
+        // As the buyer types: the products matching so far, before any
+        // Enter — the full list is one tap away.
+        if (_typed.trim().isNotEmpty) ...[
+          Row(
+            children: [
+              Expanded(child: _sectionHeading(tl('Matching Products'))),
+              if (_typedMatches.isNotEmpty)
+                TextButton(
+                  key: const Key('seeAllResults'),
+                  onPressed: () => _commitSearch(_typed),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.brand,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    tl('See all results ({0})', [_typedMatches.length]),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_typedMatches.isEmpty)
+            Text(
+              _allProducts == null
+                  ? tl('Loading products…')
+                  : tl('No products match “{0}” yet.', [_typed.trim()]),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 13),
+            )
+          else
+            _productGrid(_typedMatches.take(4).toList()),
+          const SizedBox(height: 22),
+        ],
         // Hidden entirely until there is real, recent search activity.
         if (_trendingSearches.isNotEmpty) ...[
           _sectionHeading(tl('Trending Searches')),
@@ -609,13 +662,6 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
     );
   }
 
-  String _basisLabel(RecommendationBasis basis) => switch (basis) {
-    RecommendationBasis.personal =>
-      'Based on what you buy, like and search for',
-    RecommendationBasis.area => 'Popular with buyers in $_myTown',
-    RecommendationBasis.newest => 'Newest from farmers',
-  };
-
   // The same two-column cards as Explore, sized the same way (height from
   // the column width and text size — see ExploreProductCard.extentFor).
   Widget _productGrid(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
@@ -700,12 +746,8 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 2),
-            Text(
-              _basisLabel(recommended.basis),
-              style: TextStyle(color: AppColors.grey(600), fontSize: 12),
-            ),
-            const SizedBox(height: 10),
+            // No line saying what they were chosen by: just the products.
+            const SizedBox(height: 8),
             _productGrid(recommended.docs),
           ],
         );

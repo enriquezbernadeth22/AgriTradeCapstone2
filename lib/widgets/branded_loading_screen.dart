@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'agritrade_text.dart';
 import 'sprout_loading_bar.dart';
+import '../l10n/app_language.dart';
 import '../theme/app_colors.dart';
 
 /// The very first thing Flutter draws after the native splash hands off,
@@ -13,7 +15,11 @@ import '../theme/app_colors.dart';
 /// the loading bar with its sprout ([SproutLoadingBar]) — fade in, on a
 /// plain white page.
 class BrandedLoadingScreen extends StatelessWidget {
-  const BrandedLoadingScreen({super.key});
+  /// Set when the app opened without internet: a note at the foot of the
+  /// splash saying it is waiting, with Try Again (this).
+  final VoidCallback? onRetryOffline;
+
+  const BrandedLoadingScreen({super.key, this.onRetryOffline});
 
   static const double _logoSize = 120;
 
@@ -46,52 +52,113 @@ class BrandedLoadingScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.page,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final below = Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AgriTradeText(fontSize: 26),
-              const SizedBox(height: 28),
-              SproutLoadingBar(width: math.min(260, constraints.maxWidth - 48)),
-            ],
-          );
-          // The logo, name and scene together, balanced in the
-          // middle of the page (shrunk to fit on a short screen). They
-          // start with the logo alone in the very middle, where the
-          // phone's native splash leaves it, then rise together into
-          // place as the rest fades in — so the handoff does not jump.
-          const group = _logoSize + _gap + _belowHeight;
-          const lift = (_gap + _belowHeight) / 2 / group;
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: _Entrance(
-                  builder: (shown) => AnimatedSlide(
-                    offset: Offset(0, shown ? 0 : lift),
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeOutCubic,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        logo,
-                        const SizedBox(height: _gap),
-                        AnimatedOpacity(
-                          opacity: shown ? 1 : 0,
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOut,
-                          child: below,
-                        ),
-                      ],
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final below = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const AgriTradeText(fontSize: 26),
+                    const SizedBox(height: 28),
+                    SproutLoadingBar(
+                      width: math.min(260, constraints.maxWidth - 48),
                     ),
+                  ],
+                );
+                // The logo, name and scene together, balanced in the
+                // middle of the page (shrunk to fit on a short screen). They
+                // start with the logo alone in the very middle, where the
+                // phone's native splash leaves it, then rise together into
+                // place as the rest fades in — so the handoff does not jump.
+                const group = _logoSize + _gap + _belowHeight;
+                const lift = (_gap + _belowHeight) / 2 / group;
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _Entrance(
+                        builder: (shown) => AnimatedSlide(
+                          offset: Offset(0, shown ? 0 : lift),
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeOutCubic,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              logo,
+                              const SizedBox(height: _gap),
+                              AnimatedOpacity(
+                                opacity: shown ? 1 : 0,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOut,
+                                child: below,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          // No internet when the app opened: it waits here, saying so,
+          // and carries on by itself once the connection is back.
+          if (onRetryOffline != null)
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 32,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  key: const Key('splashOffline'),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border.all(color: AppColors.grey(300)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.wifi_off_rounded,
+                        size: 20,
+                        color: AppColors.grey(700),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          tl(
+                            'No internet connection. AgriTrade+ will open once you are back online.',
+                          ),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: onRetryOffline,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.brand,
+                          textStyle: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(tl('Try Again')),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -110,7 +177,9 @@ class _Entrance extends StatefulWidget {
 }
 
 class _EntranceState extends State<_Entrance> {
-  static bool _played = false;
+  // On the web the page's own copy of this screen (web/index.html) is
+  // already showing everything in place, so there is no entrance to play.
+  static bool _played = kIsWeb;
   bool _shown = _played;
 
   @override

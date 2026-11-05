@@ -2,8 +2,16 @@ import '../widgets/agri_app_bar.dart';
 import '../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../services/saved_products_service.dart';
+import '../widgets/chat_photo_viewer.dart' show openPhotoGallery;
+import 'product_reviews_screen.dart'
+    show
+        ProductReviewsScreen,
+        ReviewStars,
+        averageReviewRating,
+        visibleProductReviews;
 import '../widgets/explore_product_card.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/save_product_button.dart';
@@ -12,13 +20,11 @@ import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
 
 /// A farmer's public profile, as a buyer sees it: photo, name, general
-/// location and Verified Farmer badge, then their active listings in a
-/// two-column grid. Everything comes from publicProfiles/{farmerId} (the
-/// allow-listed projection — no email, phone or exact location) and the
-/// farmer's own products.
-///
-/// There is no separate reviews list here: reviews belong to individual
-/// products and are shown on each one's Product Details.
+/// location and Verified Farmer badge, then what buyers said (the rating
+/// over all their products, the latest two reviews and See all), then their
+/// active listings in a two-column grid. Everything comes from
+/// publicProfiles/{farmerId} (the allow-listed projection — no email, phone
+/// or exact location), the farmer's own products and their reviews.
 class FarmerStorefrontScreen extends StatefulWidget {
   final String farmerId;
 
@@ -38,6 +44,12 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
       FirebaseFirestore.instance
           .collection('products')
           .where('farmerId', isEqualTo: widget.farmerId)
+          .snapshots();
+  // Every review of this farmer's products (reviews are open to read).
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews =
+      FirebaseFirestore.instance
+          .collection('productReviews')
+          .where('sellerId', isEqualTo: widget.farmerId)
           .snapshots();
 
   // The heart on each card (buyers only) — the shared LikedProducts state,
@@ -85,6 +97,13 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
               const SizedBox(height: 20),
               Divider(height: 1, color: AppColors.grey(200)),
               const SizedBox(height: 16),
+              _reviewsSection(
+                (profile['name'] ?? profile['fullName'] ?? tl('Farmer'))
+                    .toString(),
+              ),
+              const SizedBox(height: 12),
+              Divider(height: 1, color: AppColors.grey(200)),
+              const SizedBox(height: 16),
               _productsSection(),
             ],
           );
@@ -106,10 +125,18 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
 
     return Column(
       children: [
-        ProfileAvatar(
-          photoUrl: profile['photoUrl']?.toString(),
-          name: name,
-          radius: 46,
+        // The photo opens full screen when there is one.
+        GestureDetector(
+          key: const Key('storefrontPhoto'),
+          onTap: (profile['photoUrl'] ?? '').toString().isEmpty
+              ? null
+              : () =>
+                    openPhotoGallery(context, [profile['photoUrl'].toString()]),
+          child: ProfileAvatar(
+            photoUrl: profile['photoUrl']?.toString(),
+            name: name,
+            radius: 46,
+          ),
         ),
         const SizedBox(height: 12),
         Text(
@@ -276,6 +303,226 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
           },
         );
       },
+    );
+  }
+
+  // ---- Reviews: what buyers said about this farmer's products ----
+
+  Widget _reviewsSection(String farmerName) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _reviews,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.hasError && !snapshot.hasData) {
+          return _note(tl('Could not load this farmer’s reviews.'));
+        }
+        final reviews = visibleProductReviews(snapshot.data);
+        final average = averageReviewRating(reviews);
+        void seeAll() => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductReviewsScreen(
+              productId: null,
+              productName: farmerName,
+              farmerId: widget.farmerId,
+            ),
+          ),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tl('Reviews ({0})', [reviews.length]),
+                    style: AppTheme.heading(17),
+                  ),
+                ),
+                if (reviews.isNotEmpty)
+                  TextButton(
+                    key: const Key('storefrontSeeAllReviews'),
+                    onPressed: seeAll,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.brand,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: Text(tl('See all')),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (reviews.isEmpty)
+              _note(tl('No reviews yet.'))
+            else ...[
+              Row(
+                children: [
+                  Text(
+                    average.toStringAsFixed(1),
+                    style: AppTheme.heading(26).copyWith(height: 1),
+                  ),
+                  const SizedBox(width: 10),
+                  ReviewStars(rating: average, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      reviews.length == 1
+                          ? tl('(1 review)')
+                          : tl('({0} reviews)', [reviews.length]),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.grey(700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // The latest two; the rest under See all.
+              for (final doc in reviews.take(2)) ...[
+                _reviewCard(doc.data()),
+                const SizedBox(height: 10),
+              ],
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _reviewCard(Map<String, dynamic> review) {
+    final reviewer = (review['buyerName'] ?? tl('Buyer')).toString();
+    final rating = (review['rating'] as num?)?.toDouble() ?? 0;
+    final comment = (review['comment'] ?? '').toString().trim();
+    final product = (review['productName'] ?? '').toString().trim();
+    final created = (review['createdAt'] as Timestamp?)?.toDate();
+    final single = (review['imageUrl'] ?? '').toString();
+    final photos = <String>[
+      if (single.isNotEmpty) single,
+      if (review['imageUrls'] is List)
+        for (final url in review['imageUrls'] as List)
+          if ((url ?? '').toString().isNotEmpty && url.toString() != single)
+            url.toString(),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.grey(200)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Initials only — a review shows the buyer's name, not their
+              // profile.
+              ProfileAvatar(photoUrl: null, name: reviewer, radius: 15),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reviewer,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        ReviewStars(rating: rating, size: 13),
+                        if (created != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            DateFormat('MMM d, y').format(created),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.grey(600),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (product.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              tl('Reviewed: {0}', [product]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.grey(700),
+              ),
+            ),
+          ],
+          if (comment.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              comment,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppColors.text,
+              ),
+            ),
+          ],
+          if (photos.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: photos.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 6),
+                itemBuilder: (context, i) => GestureDetector(
+                  onTap: () =>
+                      openPhotoGallery(context, photos, initialIndex: i),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photos[i],
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 56,
+                        height: 56,
+                        color: AppColors.accent,
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          size: 18,
+                          color: AppColors.brand,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

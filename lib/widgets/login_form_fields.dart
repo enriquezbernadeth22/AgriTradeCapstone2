@@ -10,6 +10,7 @@ import '../services/first_entry_after_approval.dart';
 import '../services/registration_guard.dart';
 import '../theme/app_theme.dart';
 import '../screen/auth_route_handler.dart';
+import '../screen/admin_filter_controls.dart' show kAdminFontFamily;
 import '../screen/forgot_password_screen.dart';
 import '../screen/choose_role_screen.dart';
 import '../screen/page_transitions.dart';
@@ -399,19 +400,21 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
 
   // ---- Admin Portal (web) form ----
   // Same controllers and the same _login flow as the mobile form below,
-  // and the same pill-shaped controls (the fields are the shared
-  // GlowField) — only the copy and sizing differ, for a desktop panel.
+  // and the same fields (the shared GlowField), as rounded rectangles
+  // (AppTheme.adminFieldRadius) like the rest of the Admin Portal — only
+  // the copy, shape and sizing differ, for a desktop panel.
   // Email and password only: the Admin door has no Google sign-in.
   // One height for both fields and the button, so the controls line up as
-  // a single column of identical pills.
+  // a single column of identical rounded rectangles.
   static const _adminHeight = 46.0;
 
+  // Semi-bold dark green, like the field labels inside the portal.
   Widget _adminLabel(String text) => Text(
     text,
     style: TextStyle(
-      fontSize: 13,
+      fontSize: 13.5,
       fontWeight: FontWeight.w600,
-      color: AppColors.adapt(const Color(0xFF2B332A)),
+      color: AppColors.brand,
     ),
   );
 
@@ -421,7 +424,11 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
       width: 20,
       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
     );
-    const buttonShape = StadiumBorder();
+    const buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(
+        Radius.circular(AppTheme.adminFieldRadius),
+      ),
+    );
 
     return AutofillGroup(
       child: Column(
@@ -438,6 +445,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               hint: 'admin@example.com',
               icon: Icons.email_outlined,
               compact: true,
+              radius: AppTheme.adminFieldRadius,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _loading ? null : _login(),
               autofillHints: const [
@@ -477,6 +485,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               hint: tl('Enter your password'),
               icon: Icons.lock_outline,
               compact: true,
+              radius: AppTheme.adminFieldRadius,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _loading ? null : _login(),
               autofillHints: const [AutofillHints.password],
@@ -513,7 +522,13 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               ),
               child: _loading
                   ? spinner
-                  : Text('Login', style: AppTheme.buttonText()),
+                  : Text(
+                      'Login',
+                      // The portal's font (the form around it is in it).
+                      style: AppTheme.buttonText().copyWith(
+                        fontFamily: kAdminFontFamily,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 28),

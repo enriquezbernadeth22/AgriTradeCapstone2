@@ -17,21 +17,9 @@ List<({String title, String message})> get kMarketGuideItems => [
     ),
   ),
   (
-    title: tl('Current Market Average'),
+    title: tl('AgriTrade+ Insights'),
     message: tl(
-      'Whole marketplace: what other farmers are asking right now for each product. Use it as a guide when setting your price.',
-    ),
-  ),
-  (
-    title: tl('Best-Selling Products'),
-    message: tl(
-      'Whole marketplace: the products buyers purchased most across AgriTrade+ this month.',
-    ),
-  ),
-  (
-    title: tl('Top Buyer Locations'),
-    message: tl(
-      'Whole marketplace: the areas where the most completed orders came from this month. Tap an area to see what buyers there ordered.',
+      'Whole marketplace: choose what to see here — the current market average (what others ask for each product), the best-selling products this month, or the top buyer locations.',
     ),
   ),
 ];
@@ -43,7 +31,7 @@ List<({String title, String message})> get kMarketGuideItems => [
 /// device; the place reached is remembered, so a farmer who stops halfway
 /// carries on from there next time.
 ///
-/// Put [keys] on the four cards, in [kMarketGuideItems]' order, and call
+/// Put [keys] on the cards, in [kMarketGuideItems]' order, and call
 /// [onScroll] from the tab's scroll notifications.
 class MarketTabHints {
   /// The signed-in account, whose progress is remembered.

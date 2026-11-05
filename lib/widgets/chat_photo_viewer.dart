@@ -162,3 +162,106 @@ class ChatPhotoViewer extends StatelessWidget {
     );
   }
 }
+
+/// Opens [urls] full screen ([PhotoGalleryViewer]) at [initialIndex]: any
+/// photo in the app that can be tapped to see it whole (a product's photos,
+/// a storefront's, a review's).
+void openPhotoGallery(
+  BuildContext context,
+  List<String> urls, {
+  int initialIndex = 0,
+}) {
+  if (urls.isEmpty) return;
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PhotoGalleryViewer(
+        urls: urls,
+        initialIndex: initialIndex.clamp(0, urls.length - 1),
+      ),
+    ),
+  );
+}
+
+/// Photos full screen on black, swiped through left and right: "2 / 5" in
+/// the bar, pinch to zoom each one, and Save puts the one showing in the
+/// phone's gallery.
+class PhotoGalleryViewer extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+
+  const PhotoGalleryViewer({
+    super.key,
+    required this.urls,
+    this.initialIndex = 0,
+  });
+
+  @override
+  State<PhotoGalleryViewer> createState() => _PhotoGalleryViewerState();
+}
+
+class _PhotoGalleryViewerState extends State<PhotoGalleryViewer> {
+  late int _index = widget.initialIndex;
+  late final PageController _pages = PageController(
+    initialPage: widget.initialIndex,
+  );
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = widget.urls;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: urls.length < 2
+            ? null
+            : Text(
+                '${_index + 1} / ${urls.length}',
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+        actions: [
+          SaveToGalleryButton(
+            key: ValueKey('save-${urls[_index]}'),
+            url: urls[_index],
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _pages,
+        itemCount: urls.length,
+        onPageChanged: (i) => setState(() => _index = i),
+        itemBuilder: (context, i) => Center(
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 5,
+            child: Image.network(
+              urls[i],
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, progress) => progress == null
+                  ? child
+                  : const CircularProgressIndicator(color: Colors.white),
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.broken_image_outlined,
+                color: Colors.white54,
+                size: 48,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

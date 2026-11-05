@@ -12,7 +12,7 @@ import 'admin_filter_controls.dart'
         kAdminControlWidth,
         kAdminFontFamily;
 import 'admin_dashboard_screen.dart'
-    show AdminThemeScope, AdminPalette, AdminEmptyState;
+    show AdminThemeScope, AdminPalette, AdminEmptyState, AdminRadii;
 import 'admin_overview_widgets.dart'
     show AdminChartCard, AdminChartEmpty, adminGreenAt;
 
@@ -738,7 +738,7 @@ class AdminDemandByBarangayCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AdminRadii.card),
         border: Border.all(color: c.border),
       ),
       child: Column(
@@ -751,7 +751,7 @@ class AdminDemandByBarangayCard extends StatelessWidget {
                 child: Text(
                   'Demand by Barangay',
                   style: TextStyle(
-                    color: c.textPrimary,
+                    color: c.heading,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -869,7 +869,7 @@ class AdminRegistrationsCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AdminRadii.card),
         border: Border.all(color: c.border),
       ),
       child: Column(
@@ -878,7 +878,7 @@ class AdminRegistrationsCard extends StatelessWidget {
           Text(
             'New Registrations',
             style: TextStyle(
-              color: c.textPrimary,
+              color: c.heading,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -1008,7 +1008,7 @@ class AdminVerificationStatusCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AdminRadii.card),
         border: Border.all(color: c.border),
       ),
       child: Column(
@@ -1021,7 +1021,7 @@ class AdminVerificationStatusCard extends StatelessWidget {
                 child: Text(
                   'Verification Status',
                   style: TextStyle(
-                    color: c.textPrimary,
+                    color: c.heading,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),

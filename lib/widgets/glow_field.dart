@@ -36,6 +36,10 @@ class GlowField extends StatefulWidget {
   /// login, on a desktop screen).
   final bool compact;
 
+  /// How round its corners are: a pill unless given (the Admin Portal's
+  /// login uses rounded rectangles).
+  final double radius;
+
   const GlowField({
     super.key,
     required this.controller,
@@ -53,6 +57,7 @@ class GlowField extends StatefulWidget {
     this.autofocus = false,
     this.readOnly = false,
     this.compact = false,
+    this.radius = AppTheme.pillRadius,
   });
 
   @override
@@ -119,8 +124,14 @@ class _GlowFieldState extends State<GlowField> {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      decoration: AppTheme.glowFieldWrapper(focused: _focused),
-      foregroundDecoration: AppTheme.glowFieldOutline(focused: _focused),
+      decoration: AppTheme.glowFieldWrapper(
+        focused: _focused,
+        radius: widget.radius,
+      ),
+      foregroundDecoration: AppTheme.glowFieldOutline(
+        focused: _focused,
+        radius: widget.radius,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           minHeight: AppTheme.formFieldHeight,

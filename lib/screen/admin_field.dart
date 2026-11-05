@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'admin_dashboard_screen.dart' show AdminPalette, AdminThemeScope;
+import 'admin_filter_controls.dart' show kAdminFieldRadius;
+
 /// The Admin Portal's text field, in the look of the mobile app's
-/// registration fields (GlowField): the field's name above it, then a
-/// white pill on a soft shadow — an icon and a thin divider before the
-/// text — that glows green while it is being typed in.
+/// login fields: the field's name above it, then a white rounded rectangle
+/// with a light grey outline (corners [kAdminFieldRadius]) — an icon and a
+/// thin divider before the text — whose outline gives way to a soft green
+/// glow while it is being typed in.
 ///
 /// It takes a TextField's own arguments, so a field is switched over by
 /// its name alone: the [decoration]'s labelText becomes the name above,
@@ -242,7 +246,13 @@ class AdminFieldFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dark = scheme.brightness == Brightness.dark;
-    final radius = BorderRadius.circular(multiline ? 20 : 30);
+    // Also in a popup, outside the page's AdminThemeScope.
+    final c =
+        context
+            .dependOnInheritedWidgetOfExactType<AdminThemeScope>()
+            ?.palette ??
+        AdminPalette.fallback(context);
+    final radius = BorderRadius.circular(kAdminFieldRadius);
     final muted = scheme.onSurface.withValues(alpha: 0.6);
 
     Widget plate = AnimatedContainer(
@@ -250,36 +260,34 @@ class AdminFieldFrame extends StatelessWidget {
       decoration: BoxDecoration(
         color: dark
             ? Color.alphaBlend(
-                Colors.white.withValues(alpha: enabled ? 0.07 : 0.03),
-                scheme.surface,
+                Colors.white.withValues(alpha: enabled ? 0.05 : 0.02),
+                c.surface,
               )
-            : (enabled ? Colors.white : const Color(0xFFF4F5F1)),
+            : (enabled ? c.surface : c.surfaceAlt),
         borderRadius: radius,
-        // No outline, like the Admin login's fields — the shadow and the
-        // green glow while typing set it apart (an outline only in dark).
-        border: dark
-            ? Border.all(color: scheme.onSurface.withValues(alpha: 0.12))
-            : null,
+        // A light grey outline at rest, like the Admin login's fields;
+        // while typing, the outline goes (the same colour as the plate)
+        // and a soft green glow shows instead. One width either way, so
+        // nothing inside shifts.
+        border: Border.all(
+          color: focused
+              ? (dark
+                    ? Color.alphaBlend(
+                        Colors.white.withValues(alpha: 0.05),
+                        c.surface,
+                      )
+                    : c.surface)
+              : c.border,
+        ),
         boxShadow: focused
             ? [
                 BoxShadow(
-                  color: scheme.primary.withValues(alpha: 0.2),
+                  color: c.green.withValues(alpha: 0.2),
                   blurRadius: 12,
                   spreadRadius: 0.5,
                 ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
               ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: dark ? 0.25 : 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+            : null,
       ),
       child: Row(
         crossAxisAlignment: multiline
@@ -293,15 +301,11 @@ class AdminFieldFrame extends StatelessWidget {
                 right: 10,
                 top: multiline ? 14 : 0,
               ),
-              child: Icon(icon, size: 18, color: scheme.primary),
+              child: Icon(icon, size: 18, color: c.textSecondary),
             ),
             Padding(
               padding: EdgeInsets.only(top: multiline ? 13 : 0),
-              child: Container(
-                height: 20,
-                width: 1,
-                color: scheme.onSurface.withValues(alpha: 0.12),
-              ),
+              child: Container(height: 20, width: 1, color: c.border),
             ),
           ],
           Expanded(child: child),
@@ -326,10 +330,11 @@ class AdminFieldFrame extends StatelessWidget {
         if (label != null) ...[
           Text(
             label!,
+            // Bold dark green, like the Admin login's "Email Address".
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: scheme.onSurface,
+              color: c.heading,
             ),
           ),
           const SizedBox(height: 7),
