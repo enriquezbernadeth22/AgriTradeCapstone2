@@ -72,7 +72,7 @@ class AdminListingRow {
     return AdminListingRow(
       id: id,
       name: (data['name'] ?? '').toString().trim(),
-      category: normalizeCategory(data['category']),
+      category: listingCategory(data),
       farmer: (data['farmerName'] ?? '').toString().trim(),
       price: _positive(data['retailPrice'] ?? data['price']),
       wholesalePrice: wholesaleOn ? _positive(data['wholesalePrice']) : null,

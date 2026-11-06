@@ -11,6 +11,7 @@ import '../services/order_service.dart';
 import '../services/product_service.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/market_average_card.dart';
+import '../widgets/market_card_shell.dart';
 import '../widgets/market_demand_cards.dart';
 import '../widgets/market_tab_guide.dart';
 import '../widgets/month_year_picker.dart';
@@ -22,6 +23,7 @@ import 'add_product_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/fitted_menu_width.dart';
 import '../l10n/app_language.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
@@ -94,6 +96,106 @@ enum MarketInsight {
 
   final String label;
   const MarketInsight(this.label);
+}
+
+/// The Market insight selector, with a menu sized to its longest option.
+class MarketInsightPicker extends StatefulWidget {
+  final MarketInsight value;
+  final ValueChanged<MarketInsight> onChanged;
+
+  const MarketInsightPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  State<MarketInsightPicker> createState() => _MarketInsightPickerState();
+}
+
+class _MarketInsightPickerState extends State<MarketInsightPicker> {
+  late final FocusNode _focusNode = FocusNode()..addListener(_focusChanged);
+
+  void _focusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  // As wide as the longest insight, not the whole row (fittedMenuWidth).
+  double _menuWidth(BuildContext context) => fittedMenuWidth(context, [
+    for (final insight in MarketInsight.values) tl(insight.label),
+  ], style: _style);
+
+  TextStyle get _style => TextStyle(
+    fontFamily: 'Montserrat',
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: AppColors.text,
+  );
+
+  @override
+  void dispose() {
+    _focusNode
+      ..removeListener(_focusChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<MarketInsight>(
+          key: const Key('marketInsightPicker'),
+          value: widget.value,
+          focusNode: _focusNode,
+          isExpanded: true,
+          menuWidth: _menuWidth(context),
+          dropdownColor: AppColors.surface,
+          focusColor: AppColors.grey(200),
+          borderRadius: BorderRadius.circular(AppTheme.dropdownRadius),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: AppColors.grey(600),
+            size: 22,
+          ),
+          selectedItemBuilder: (context) => [
+            for (final insight in MarketInsight.values)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      tl(insight.label),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+          items: [
+            for (final insight in MarketInsight.values)
+              DropdownMenuItem(value: insight, child: Text(tl(insight.label))),
+          ],
+          onChanged: (value) {
+            if (value != null) widget.onChanged(value);
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class MarketTab extends StatefulWidget {
@@ -555,7 +657,8 @@ class _MarketTabState extends State<MarketTab> {
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: AppColors.adapt(const Color(0xFFE7EFE4))),
     ),
-    child: Text(tl(message),
+    child: Text(
+      tl(message),
       style: TextStyle(color: AppColors.grey(700), fontSize: 12),
     ),
   );
@@ -735,79 +838,44 @@ class _MarketTabState extends State<MarketTab> {
   // the top buyer locations — and under it only the one chosen. The demand
   // cards open on the Sales Performance month, with their own month picker.
   Widget _insightsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(tl('AgriTrade+ Insights'), style: AppTheme.heading(17)),
-        const SizedBox(height: 2),
-        Text(
-          tl('What is happening across the whole marketplace.'),
-          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+    return KeyedSubtree(
+      key: _hints.keys[1],
+      child: MarketCardShell(
+        header: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(tl('AgriTrade+ Insights'), style: AppTheme.heading(17)),
+            const SizedBox(height: 8),
+            MarketInsightPicker(
+              value: _insight,
+              onChanged: (value) => setState(() => _insight = value),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        KeyedSubtree(
-          key: _hints.keys[1],
-          child: DropdownButtonFormField<MarketInsight>(
-            key: const Key('marketInsightPicker'),
-            initialValue: _insight,
-            isExpanded: true,
-            dropdownColor: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppTheme.dropdownRadius),
-            icon: Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: AppColors.brand,
-              size: 22,
-            ),
-            decoration: AppTheme.dropdownDecoration(
-              context,
-              InputDecoration(
-                labelText: tl('View AgriTrade+ insights'),
-                prefixIcon: Icon(
-                  Icons.insights_rounded,
-                  color: AppColors.brand,
-                  size: 20,
-                ),
-                isDense: true,
-              ),
-            ),
-            style: TextStyle(
-              fontFamily: 'Montserrat',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.brand,
-            ),
-            items: [
-              for (final insight in MarketInsight.values)
-                DropdownMenuItem(
-                  value: insight,
-                  child: Text(tl(insight.label)),
-                ),
-            ],
-            onChanged: (value) {
-              if (value != null) setState(() => _insight = value);
-            },
-          ),
-        ),
-        const SizedBox(height: 14),
-        AnimatedSwitcher(
+        headerDivider: true,
+        child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           child: KeyedSubtree(
             key: ValueKey(_insight),
             child: switch (_insight) {
               // What supported products are selling for right now.
-              MarketInsight.marketAverage => const MarketAverageCard(),
+              MarketInsight.marketAverage => const MarketAverageCard(
+                embedded: true,
+              ),
               MarketInsight.bestSellers => MarketDemandCards(
                 month: _analyticsMonth,
                 only: MarketDemandList.bestSellers,
+                embedded: true,
               ),
               MarketInsight.buyerLocations => MarketDemandCards(
                 month: _analyticsMonth,
                 only: MarketDemandList.locations,
+                embedded: true,
               ),
             },
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -820,7 +888,10 @@ class _MarketTabState extends State<MarketTab> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? const <String, dynamic>{};
         final fullName =
-            (data['name'] ?? data['fullName'] ?? user.displayName ?? tl('Farmer'))
+            (data['name'] ??
+                    data['fullName'] ??
+                    user.displayName ??
+                    tl('Farmer'))
                 .toString()
                 .trim();
         // First name only: "Welcome, Daniella".
@@ -925,10 +996,9 @@ class _MarketTabState extends State<MarketTab> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _statOrders,
       builder: (context, snapshot) {
-        final totalOrdersToday = confirmedTodayCount(
-          [for (final doc in snapshot.data?.docs ?? const []) doc.data()],
-          now: DateTime.now(),
-        );
+        final totalOrdersToday = confirmedTodayCount([
+          for (final doc in snapshot.data?.docs ?? const []) doc.data(),
+        ], now: DateTime.now());
 
         return IntrinsicHeight(
           child: Row(

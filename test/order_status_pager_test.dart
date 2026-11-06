@@ -39,6 +39,7 @@ Widget _app(
   Stream<QuerySnapshot<Map<String, dynamic>>> stream, {
   bool newUser = false,
   OrderSeenStore seenStore = _seenStore,
+  Widget? belowTabs,
 }) => MaterialApp(
   home: Scaffold(
     body: OrderStatusPager(
@@ -54,6 +55,7 @@ Widget _app(
       tutorialEligible: () => newUser,
       activityOf: (doc) => doc.data()['activity'] as int,
       seenStore: seenStore,
+      belowTabs: belowTabs,
     ),
   ),
 );
@@ -73,6 +75,28 @@ void main() {
     _Doc('c1', 'confirmed'),
     for (var i = 0; i < 5; i++) _Doc('d$i', 'completed'),
   ]);
+
+  testWidgets('the period filter sits under the status tabs, above the cards', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Stream.value(orders),
+        belowTabs: const Text('All time', key: Key('period')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final period = tester.getRect(find.byKey(const Key('period')));
+    expect(
+      period.top,
+      greaterThanOrEqualTo(tester.getRect(find.byType(TabBar)).bottom),
+    );
+    expect(
+      period.bottom,
+      lessThanOrEqualTo(tester.getRect(find.text('order p1')).top),
+    );
+  });
 
   testWidgets('first load shows only a thin bar, never skeleton cards', (
     tester,

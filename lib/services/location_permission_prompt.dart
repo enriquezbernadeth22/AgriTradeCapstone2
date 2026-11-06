@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import '../l10n/app_language.dart';
 import '../widgets/permission_rationale_dialog.dart';
 
 /// Explains why (if the OS hasn't decided yet) and then requests location
@@ -30,7 +31,8 @@ Future<bool> maybeRequestLocationPermission(
       context,
       icon: Icons.location_off_outlined,
       title: title,
-      message: 'Location access for AgriTrade+ is currently turned off in your '
+      message:
+          'Location access for AgriTrade+ is currently turned off in your '
           'device settings. Please enable it there to use this feature.',
       denyLabel: 'Not now',
       allowLabel: 'Open Settings',
@@ -54,34 +56,33 @@ Future<bool> maybeRequestLocationPermission(
     if (!context.mounted) return false;
     permission = await Geolocator.requestPermission();
   }
-  return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
+  return permission == LocationPermission.always ||
+      permission == LocationPermission.whileInUse;
 }
+
+/// Why a farmer is asked for location, in one sentence: kept short so a
+/// farmer reads it all (the full wording is PrivacyPolicyScreen section E).
+const kFarmerLocationMessage =
+    'AgriTrade+ uses your location to show buyers how far your farm is, '
+    'help with delivery or pick-up, and give area-based market insights.';
+
+/// The two things a farmer needs to know about who sees their location.
+const kFarmerLocationPoints = [
+  'Buyers see only your barangay, town and province.',
+  'Your exact location stays private unless an order needs it.',
+];
 
 /// The one canonical "why we need your location" explanation for Farmer
 /// accounts — same title/wording everywhere a farmer screen asks for
 /// location, per AgriTrade+'s location-privacy policy (see PrivacyPolicyScreen
-/// section E). [blockedFeature], when given, names the specific setup step
-/// that can't continue without location (e.g. "Automatically detecting your
-/// barangay"), appended as an extra line — the dialog is otherwise identical.
-Future<bool> requestFarmerLocationPermission(
-  BuildContext context, {
-  String? blockedFeature,
-}) {
+/// section E). It is asked right after the farmer taps something that needs
+/// location, so it does not repeat what that was.
+Future<bool> requestFarmerLocationPermission(BuildContext context) {
   return maybeRequestLocationPermission(
     context,
-    title: 'Set Your Farm Location',
-    message: 'AgriTrade+ uses your location to estimate distance between '
-        'buyers and farmers, support delivery or pick-up coordination, and '
-        'improve location-based marketplace analytics.',
-    bullets: [
-      'Your general farm area may be shown to Buyers to help them understand '
-          'where products are located — your barangay, municipality/city, and province.',
-      'Exact location information is not publicly displayed unless required for an order.',
-      'Location may also be used for distance calculation, nearby marketplace '
-          'features, maps, and aggregated analytics.',
-      'Location is required for Farmer accounts to use location-based marketplace features.',
-      if (blockedFeature != null) '$blockedFeature requires location access to continue.',
-    ],
+    title: tl('Set Your Farm Location'),
+    message: kFarmerLocationMessage,
+    bullets: [for (final point in kFarmerLocationPoints) tl(point)],
     denyLabel: 'Not Now',
     allowLabel: 'Allow Location',
   );

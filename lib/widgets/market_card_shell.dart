@@ -12,7 +12,10 @@ import '../l10n/app_language.dart';
 /// [tag] on the right (the month shown) or a [tagWidget] in its place, then
 /// the card's own content.
 class MarketCardShell extends StatelessWidget {
-  final String title;
+  final String? title;
+  final Widget? header;
+  final bool headerDivider;
+  final bool embedded;
   final String? subtitle;
   final String? tag;
   final Widget? tagWidget;
@@ -20,7 +23,10 @@ class MarketCardShell extends StatelessWidget {
 
   const MarketCardShell({
     super.key,
-    required this.title,
+    this.title,
+    this.header,
+    this.headerDivider = false,
+    this.embedded = false,
     this.subtitle,
     required this.child,
     this.tag,
@@ -31,63 +37,85 @@ class MarketCardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.adapt(const Color(0xFFE9F0E4))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      padding: embedded
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: embedded
+          ? null
+          : BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.adapt(const Color(0xFFE9F0E4)),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 11.5,
-                          height: 1.35,
-                          color: AppColors.grey(600),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (tagWidget != null || tag != null) ...[
-                const SizedBox(width: 8),
-                tagWidget ?? MarketCardTag(label: tag!),
-              ],
-            ],
-          ),
-          const SizedBox(height: 14),
+          if (header != null)
+            header!
+          else if (title != null ||
+              subtitle != null ||
+              tagWidget != null ||
+              tag != null)
+            _titleRow(),
+          if (headerDivider)
+            Divider(height: 16, thickness: 1, color: AppColors.grey(200))
+          else if (header != null ||
+              title != null ||
+              subtitle != null ||
+              tagWidget != null ||
+              tag != null)
+            const SizedBox(height: 14),
           child,
         ],
       ),
     );
   }
+
+  Widget _titleRow() => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null)
+              Text(
+                title!,
+                style: GoogleFonts.montserrat(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle!,
+                style: GoogleFonts.montserrat(
+                  fontSize: 11.5,
+                  height: 1.35,
+                  color: AppColors.grey(600),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      if (tagWidget != null || tag != null) ...[
+        const SizedBox(width: 8),
+        tagWidget ?? MarketCardTag(label: tag!),
+      ],
+    ],
+  );
 }
 
 /// The small label at the top right of a market card.
@@ -147,7 +175,8 @@ class MarketCardEmpty extends StatelessWidget {
         children: [
           Icon(icon, size: 28, color: AppColors.grey(600)),
           const SizedBox(height: 8),
-          Text(tl(message),
+          Text(
+            tl(message),
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 12.5,

@@ -1,6 +1,7 @@
 // The first-time tour: a bouncing arrow and a short label at each button,
 // moved along by the user's own taps, never blocking them, and waiting
 // while a popup is in front.
+import 'package:agritrade/theme/app_colors.dart';
 import 'package:agritrade/widgets/coach_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,8 +73,17 @@ void main() {
     await tester.pump();
 
     expect(find.text('List your first product'), findsOneWidget);
-    // No dark screen over the page.
-    expect(find.byType(ModalBarrier), findsOneWidget); // the page's own
+    // The page dims around the highlighted target, and the hint stays light.
+    expect(find.byType(CustomPaint), findsWidgets);
+    final hintCard = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.text('List your first product'),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((hintCard.decoration! as BoxDecoration).color, AppColors.surface);
 
     // Tapping the button itself works, and brings up the next hint.
     await tester.tap(find.text('Add'));

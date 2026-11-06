@@ -1602,6 +1602,7 @@ const Map<String, String> kTagalogStrings = {
   'Livestock': 'Hayop',
   'Poultry': 'Manok at Ibon',
   'Root Crops': 'Halamang-ugat',
+  'Spices': 'Pampalasa',
   'Please log in again.': 'Mag-log in ulit.',
   'Verify your email before continuing.':
       'I-verify ang iyong email bago magpatuloy.',
@@ -1751,4 +1752,20 @@ const Map<String, String> kTagalogStrings = {
   'Why are you cancelling this order?':
       'Bakit mo kinakansela ang order na ito?',
   'Cancelled by farmer: {0}': 'Kinansela ng magsasaka: {0}',
+  'Please review the information you entered before registering. Make sure your name, email and mobile number are correct.':
+      'Pakisuri muna ang impormasyong inilagay mo bago mag-register. Siguraduhing tama ang iyong pangalan, email at mobile number.',
+  'Set Your Farm Location': 'Itakda ang Lokasyon ng Iyong Bukid',
+  'AgriTrade+ uses your location to show buyers how far your farm is, help with delivery or pick-up, and give area-based market insights.':
+      'Ginagamit ng AgriTrade+ ang iyong lokasyon para makita ng mga mamimili kung gaano kalayo ang iyong bukid, makatulong sa delivery o pick-up, at magbigay ng market insights ayon sa lugar.',
+  'Buyers see only your barangay, town and province.':
+      'Barangay, bayan at probinsya mo lang ang makikita ng mga mamimili.',
+  'Your exact location stays private unless an order needs it.':
+      'Pribado ang eksakto mong lokasyon maliban kung kailangan ito sa isang order.',
+  'Choose Role': 'Pumili ng Role',
+  'Your Information': 'Iyong Impormasyon',
+  'Account Setup': 'Pag-set Up ng Account',
+  'Step {0} of {1}: {2}': 'Hakbang {0} sa {1}: {2}',
+  'Tell us a little about yourself.': 'Magkuwento nang kaunti tungkol sa iyong sarili.',
+  'Add your contact details and a password.':
+      'Ilagay ang iyong contact details at password.',
 };

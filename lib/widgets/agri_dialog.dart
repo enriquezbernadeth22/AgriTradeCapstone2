@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -10,8 +11,8 @@ import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
 
 /// The one popup design for the whole AgriTrade+ mobile app (Farmer and
-/// Buyer): a frosted card — ~88% white over a light blur, thin light
-/// border, soft shadow — on a slightly dimmed background, in Montserrat.
+/// Buyer): an opaque navigation-bar surface, thin border and soft shadow
+/// over a slightly dimmed background, in Montserrat.
 ///
 /// Colour rules: dark green for titles, primary buttons, links and
 /// accents; orange only for warnings; red only for destructive actions.
@@ -46,6 +47,34 @@ class AgriFrostedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mobile popups use the same solid surface as the docked navigation bar.
+    // Web remains on its existing frosted treatment for the Admin Portal.
+    if (!kIsWeb) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: borderRadius,
+              border: AppColors.cardBorder,
+            ),
+            child: Material(type: MaterialType.transparency, child: child),
+          ),
+        ),
+      );
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,

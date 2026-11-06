@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- What search engines and link previews show. The page is listed in
+       /sitemap.xml and allowed by /robots.txt; the Admin Portal is not. -->
+  <title>AgriTrade+ | Farm Marketplace App for Laurel, Batangas</title>
+  <meta name="description" content="AgriTrade+ connects the farmers and buyers of Laurel, Batangas. Post your harvest, order fresh produce and livestock, chat with the farmer and arrange pick-up or delivery. Download the Android app.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://agritrade-bef87.web.app/get/">
+  <meta name="theme-color" content="#0E3210">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AgriTrade+">
+  <meta property="og:title" content="AgriTrade+ · The marketplace for Laurel, Batangas">
+  <meta property="og:description" content="Farmers post their harvest. Buyers order straight from them. Download the AgriTrade+ Android app.">
+  <meta property="og:url" content="https://agritrade-bef87.web.app/get/">
+  <meta property="og:image" content="https://agritrade-bef87.web.app/assets/assets/images/logo.png">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="/agritrade_favicon.png">
+  <!-- Tells search engines this is a free Android app and who it serves.
+       Only facts: no ratings or download counts. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "MobileApplication",
+        "name": "AgriTrade+",
+        "url": "https://agritrade-bef87.web.app/get/",
+        "description": "An agricultural marketplace app connecting the farmers and buyers of Laurel, Batangas, Philippines. Farmers post their harvest and livestock; buyers order from them, chat, and arrange pick-up or delivery.",
+        "operatingSystem": "Android 7.0 or newer",
+        "applicationCategory": "BusinessApplication",
+        "softwareVersion": "1.0.0",
+        "downloadUrl": "https://agritrade-bef87.web.app/download",
+        "inLanguage": "en",
+        "image": "https://agritrade-bef87.web.app/assets/assets/images/logo.png",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PHP" },
+        "areaServed": { "@type": "Place", "name": "Laurel, Batangas, Philippines" },
+        "publisher": { "@id": "https://agritrade-bef87.web.app/get/#org" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://agritrade-bef87.web.app/get/#org",
+        "name": "AgriTrade+",
+        "url": "https://agritrade-bef87.web.app/get/",
+        "logo": "https://agritrade-bef87.web.app/assets/assets/images/logo.png",
+        "email": "agritrade.team@gmail.com"
+      }
+    ]
+  }
+  </script>
+  <link rel="preload" as="image" href="/get/img/duo.webp">
+
+  <!--
+    The AgriTrade+ download page: what the app is, for whom, and how to
+    install the Android APK. It is a page of its own (like /reset-password),
+    so it loads in a moment on a phone, without the Admin Portal's Flutter
+    app. Fonts come from the Flutter build (assets/assets/fonts); the
+    pictures are small WebP copies of the app's own art in /get/img.
+    Every fact here is what the app really does: keep it in step with it.
+  -->
+  <style>
+    @font-face { font-family: "AT Montserrat"; font-weight: 400; font-display: swap; src: url("/assets/assets/fonts/Montserrat-Regular.ttf") format("truetype"); }
+    @font-face { font-family: "AT Montserrat"; font-weight: 500; font-display: swap; src: url("/assets/assets/fonts/Montserrat-Medium.ttf") format("truetype"); }
+    @font-face { font-family: "AT Montserrat"; font-weight: 600; font-display: swap; src: url("/assets/assets/fonts/Montserrat-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family: "AT Montserrat"; font-weight: 700; font-display: swap; src: url("/assets/assets/fonts/Montserrat-Bold.ttf") format("truetype"); }
+    @font-face { font-family: "AT Montserrat"; font-weight: 800; font-display: swap; src: url("/assets/assets/fonts/Montserrat-ExtraBold.ttf") format("truetype"); }
+
+    :root {
+      --forest: #0E3210;      /* AppTheme.dark: the brand's dark green */
+      --forest-2: #164A19;
+      --leaf: #2E7D32;        /* AppTheme.mid */
+      --sprout: #6FBF7C;
+      --pale: #DCEDC8;        /* AppTheme.accent */
+      --tint: #F1F7EC;        /* AppTheme.tint */
+      --cream: #FAF7EE;
+      --sun: #F2C230;         /* the yellow in the logo's leaves */
+      --ink: #142017;
+      --muted: #5B675E;
+      --line: #E3E8DF;
+      --white: #fff;
+      --radius: 28px;
+      --pill: 999px;
+      --shadow: 0 24px 60px -24px rgba(14, 50, 16, .35);
+      --font: "AT Montserrat", Montserrat, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; font-family: var(--font); color: var(--ink); background: var(--cream);
+      line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; }
+    h1, h2, h3 { line-height: 1.12; margin: 0; letter-spacing: -.02em; }
+    p { margin: 0; }
+    .wrap { width: min(1180px, 100% - 40px); margin-inline: auto; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    :focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; border-radius: 12px; }
+
+    /* ---------- Buttons: every one is a pill ---------- */
+    .btn {
+      --bg: var(--forest); --fg: #fff;
+      position: relative; isolation: isolate; overflow: hidden;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      min-height: 54px; padding: 0 28px; border-radius: var(--pill);
+      background: var(--bg); color: var(--fg); border: 1.5px solid var(--bg);
+      font: 700 15px/1 var(--font); letter-spacing: .01em; text-decoration: none; white-space: nowrap;
+      cursor: pointer; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s, background .25s;
+      box-shadow: 0 12px 28px -12px rgba(14, 50, 16, .7);
+    }
+    .btn svg { width: 20px; height: 20px; flex: none; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 18px 34px -14px rgba(14, 50, 16, .75); }
+    .btn:active { transform: translateY(0) scale(.98); }
+    /* A soft light that sweeps across the main button now and then. */
+    .btn.shine::after {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.28) 48%, transparent 66%);
+      transform: translateX(-120%); animation: shine 4.5s ease-in-out 1.2s infinite;
+    }
+    @keyframes shine { 0%, 60% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+    .btn.ghost { --bg: transparent; --fg: var(--forest); border-color: rgba(14,50,16,.25); box-shadow: none; }
+    .btn.ghost:hover { background: rgba(14,50,16,.06); }
+    .btn.light { --bg: #fff; --fg: var(--forest); border-color: #fff; }
+    .btn.outline-light { --bg: transparent; --fg: #fff; border-color: rgba(255,255,255,.45); box-shadow: none; }
+    .btn.outline-light:hover { background: rgba(255,255,255,.1); }
+    .btn.sm { min-height: 42px; padding: 0 20px; font-size: 14px; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px;
+      border-radius: var(--pill); font-size: 13px; font-weight: 600;
+      background: #fff; border: 1px solid var(--line); color: var(--forest);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); position: relative; }
+    .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; background: var(--sprout); opacity: .5; animation: ping 2s ease-out infinite; }
+    @keyframes ping { from { transform: scale(.6); opacity: .6; } to { transform: scale(2); opacity: 0; } }
+
+    .eyebrow { font-size: 12.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--leaf); }
+    .section { padding: clamp(72px, 10vw, 128px) 0; position: relative; }
+    .section-head { max-width: 680px; margin-bottom: clamp(36px, 5vw, 56px); }
+    .section-head.center { margin-inline: auto; text-align: center; }
+    .section-head h2 { font-size: clamp(30px, 4.4vw, 50px); font-weight: 800; color: var(--forest); margin-top: 12px; }
+    .section-head p { margin-top: 16px; color: var(--muted); font-size: clamp(15px, 1.6vw, 17.5px); }
+
+    /* ---------- Top bar ---------- */
+    .nav {
+      position: fixed; top: 14px; left: 50%; z-index: 50; transform: translateX(-50%);
+      width: min(1180px, 100% - 24px);
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 8px 8px 8px 16px; border-radius: var(--pill);
+      background: rgba(250, 247, 238, .72); backdrop-filter: saturate(1.6) blur(16px); -webkit-backdrop-filter: saturate(1.6) blur(16px);
+      border: 1px solid rgba(14,50,16,.08); transition: box-shadow .3s, background .3s;
+    }
+    .nav.scrolled { background: rgba(255,255,255,.86); box-shadow: 0 10px 30px -18px rgba(14,50,16,.45); }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .brand img { width: 36px; height: 36px; object-fit: contain; }
+    .brand b { font-weight: 800; font-size: 19px; color: var(--forest); letter-spacing: .01em; }
+    .nav ul { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
+    .nav ul a {
+      display: block; padding: 10px 16px; border-radius: var(--pill); text-decoration: none;
+      font-size: 14px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s;
+    }
+    .nav ul a:hover { background: rgba(14,50,16,.06); color: var(--forest); }
+
+    /* ---------- Hero ---------- */
+    .hero { position: relative; padding: 140px 0 80px; overflow: hidden; }
+    .hero::before, .hero::after {
+      content: ""; position: absolute; border-radius: 50%; filter: blur(60px); z-index: 0; pointer-events: none;
+    }
+    .hero::before { width: 620px; height: 620px; right: -160px; top: -140px; background: radial-gradient(circle, #CFE8BE 0%, transparent 70%); animation: drift 14s ease-in-out infinite alternate; }
+    .hero::after { width: 420px; height: 420px; left: -180px; bottom: -120px; background: radial-gradient(circle, #F7E3A1 0%, transparent 70%); opacity: .7; animation: drift 18s ease-in-out infinite alternate-reverse; }
+    @keyframes drift { to { transform: translate(-40px, 50px) scale(1.08); } }
+    /* Grid columns may shrink below their content, so nothing pushes the
+       page wider than the phone. */
+    .hero-grid > *, .roles > *, .install > * { min-width: 0; }
+    .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; }
+    .hero h1 { font-size: clamp(40px, 6.4vw, 78px); font-weight: 800; color: var(--forest); margin: 22px 0 22px; }
+    .hero h1 .line { display: block; overflow: hidden; padding-bottom: .06em; }
+    .hero h1 .line > span { display: inline-block; transform: translateY(105%); animation: rise .9s cubic-bezier(.2,.8,.2,1) forwards; }
+    .hero h1 .line:nth-child(2) > span { animation-delay: .12s; }
+    .hero h1 .line:nth-child(3) > span { animation-delay: .24s; }
+    @keyframes rise { to { transform: none; } }
+    .hl { position: relative; color: var(--leaf); white-space: nowrap; }
+    .hl svg { position: absolute; left: -2%; bottom: -.18em; width: 104%; height: .42em; overflow: visible; }
+    .hl path { fill: none; stroke: var(--sun); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 1.1s .9s cubic-bezier(.6,0,.2,1) forwards; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .lead { font-size: clamp(16px, 1.8vw, 19px); color: var(--muted); max-width: 540px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 22px; font-size: 13px; color: var(--muted); font-weight: 500; }
+    .meta span { display: inline-flex; align-items: center; gap: 6px; }
+    .meta svg { width: 16px; height: 16px; color: var(--leaf); }
+    .fade-up { opacity: 0; transform: translateY(18px); animation: fadeUp .8s cubic-bezier(.2,.8,.2,1) forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* The picture: the farmer and the buyer in an arch, with produce
+       going round them on a dotted orbit. */
+    .stage { position: relative; aspect-ratio: 1 / 1.02; width: min(560px, 100%); margin-inline: auto; }
+    .arch {
+      position: absolute; inset: 8% 12% 0; border-radius: 999px 999px 40px 40px;
+      background: linear-gradient(180deg, #E9F4DE 0%, #D5EBC4 100%);
+      box-shadow: inset 0 0 0 10px rgba(255,255,255,.55), var(--shadow); overflow: hidden;
+    }
+    .arch::before { /* Sun rays turning slowly behind the two. */
+      content: ""; position: absolute; left: 50%; top: 32%; width: 160%; aspect-ratio: 1; transform: translate(-50%, -50%);
+      background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.55) 0deg 7deg, transparent 7deg 22deg);
+      -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); mask: radial-gradient(circle, #000 0%, transparent 62%);
+      animation: spin 60s linear infinite;
+    }
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+    /* The whole of both people, from hat to shoes, standing on the arch's floor;
+       only the empty sides of the square picture are cut. */
+    .arch img { position: absolute; left: 0; right: 0; bottom: 0; top: 7%; width: 100%; height: 93%; object-fit: cover; object-position: 50% 100%; mix-blend-mode: multiply; }
+    .orbit { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(46,125,50,.22); animation: spin2 40s linear infinite; }
+    @keyframes spin2 { to { transform: rotate(360deg); } }
+    .orbit .fruit {
+      position: absolute; width: 74px; height: 74px; margin: -37px; border-radius: 50%; overflow: hidden;
+      border: 4px solid #fff; box-shadow: 0 12px 26px -10px rgba(14,50,16,.5); background: #fff;
+      animation: spin2 40s linear infinite reverse; /* Stays upright as the orbit turns. */
+    }
+    .orbit .fruit img { width: 100%; height: 100%; object-fit: cover; }
+    .orbit .fruit:nth-child(1) { left: 50%; top: 0; }
+    .orbit .fruit:nth-child(2) { left: 93.3%; top: 25%; }
+    .orbit .fruit:nth-child(3) { left: 93.3%; top: 75%; }
+    .orbit .fruit:nth-child(4) { left: 50%; top: 100%; }
+    .orbit .fruit:nth-child(5) { left: 6.7%; top: 75%; }
+    .orbit .fruit:nth-child(6) { left: 6.7%; top: 25%; }
+    .chip {
+      position: absolute; z-index: 3; display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px 10px 10px; border-radius: var(--pill);
+      background: rgba(255,255,255,.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 16px 34px -16px rgba(14,50,16,.45); border: 1px solid rgba(255,255,255,.9);
+      font-size: 13.5px; font-weight: 700; color: var(--forest); white-space: nowrap;
+      animation: bob 5s ease-in-out infinite;
+    }
+    .chip i { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--leaf); }
+    .chip i svg { width: 18px; height: 18px; }
+    .chip small { display: block; font-weight: 500; color: var(--muted); font-size: 11.5px; line-height: 1.2; }
+    .chip span { line-height: 1.25; }
+    .chip.c1 { left: -6%; top: 4%; } /* In the empty corner above the arch, clear of faces. */
+    .chip.c2 { right: -6%; top: 46%; animation-delay: -1.6s; }
+    .chip.c3 { left: 2%; bottom: 10%; animation-delay: -3.2s; }
+    @keyframes bob { 50% { transform: translateY(-10px); } }
+
+    /* ---------- What they can get: a moving band of the products ---------- */
+    .band { background: var(--forest); color: #fff; padding: 22px 0; overflow: hidden; position: relative; }
+    .band .track { display: flex; width: max-content; gap: 0; animation: marquee 50s linear infinite; }
+    .band:hover .track { animation-play-state: paused; }
+    .band .item { display: flex; align-items: center; gap: 22px; padding-right: 22px; font-size: clamp(18px, 2.4vw, 26px); font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+    .band .item em { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--sprout); border: 1px solid rgba(111,191,124,.4); padding: 5px 12px; border-radius: var(--pill); }
+    .band .item svg { width: 18px; height: 18px; color: var(--sun); }
+    @keyframes marquee { to { transform: translateX(-50%); } }
+
+    /* ---------- Buyer / Farmer switch ---------- */
+    .switch {
+      position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; padding: 6px;
+      border-radius: var(--pill); background: #fff; border: 1px solid var(--line); box-shadow: 0 10px 30px -20px rgba(14,50,16,.5);
+    }
+    .switch button {
+      position: relative; z-index: 1; border: 0; background: none; cursor: pointer;
+      min-width: 150px; min-height: 48px; padding: 0 22px; border-radius: var(--pill);
+      font: 700 15px var(--font); color: var(--muted); transition: color .3s; white-space: nowrap;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .switch button svg { width: 18px; height: 18px; }
+    .switch button[aria-selected="true"] { color: #fff; }
+    .switch .thumb { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc(50% - 6px); border-radius: var(--pill); background: var(--forest); transition: transform .45s cubic-bezier(.65,0,.2,1); }
+    .switch[data-role="farmer"] .thumb { transform: translateX(100%); }
+    .roles { display: grid; grid-template-columns: 1fr 380px; gap: clamp(32px, 6vw, 80px); align-items: center; margin-top: 44px; }
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .feature {
+      padding: 22px; border-radius: 24px; background: #fff; border: 1px solid var(--line);
+      transition: transform .3s, box-shadow .3s, border-color .3s;
+    }
+    .feature:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: transparent; }
+    .feature .ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--tint); color: var(--leaf); margin-bottom: 14px; }
+    .feature .ic svg { width: 22px; height: 22px; }
+    .feature h3 { font-size: 16.5px; font-weight: 700; color: var(--forest); }
+    .feature p { margin-top: 6px; font-size: 14px; color: var(--muted); line-height: 1.55; }
+    .panel[hidden] { display: none; }
+    .panel.show .feature { animation: fadeUp .55s cubic-bezier(.2,.8,.2,1) both; }
+    .panel.show .feature:nth-child(2) { animation-delay: .05s; }
+    .panel.show .feature:nth-child(3) { animation-delay: .1s; }
+    .panel.show .feature:nth-child(4) { animation-delay: .15s; }
+    .panel.show .feature:nth-child(5) { animation-delay: .2s; }
+    .panel.show .feature:nth-child(6) { animation-delay: .25s; }
+
+    /* A phone drawn in CSS, with the look of the app's real screens. Names
+       and prices are grey bars on purpose: no made-up listing is shown. */
+    .phone {
+      position: relative; width: 100%; max-width: 330px; aspect-ratio: 9 / 18.6; margin-inline: auto;
+      border-radius: 48px; padding: 12px; background: #0B140D;
+      box-shadow: 0 0 0 2px #26302A, 0 50px 80px -30px rgba(14,50,16,.6), inset 0 0 0 2px #333;
+      transform: rotate(-3deg); transition: transform .6s cubic-bezier(.2,.8,.2,1);
+    }
+    .phone:hover { transform: rotate(0deg) translateY(-6px); }
+    .phone::before { content: ""; position: absolute; top: 22px; left: 50%; width: 92px; height: 24px; transform: translateX(-50%); border-radius: var(--pill); background: #0B140D; z-index: 3; }
+    .screen[hidden] { display: none; }
+    .screen { position: relative; height: 100%; border-radius: 38px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+    .scr-head { padding: 52px 18px 12px; background: var(--forest); color: #fff; }
+    .scr-head b { font-size: 19px; font-weight: 800; }
+    .scr-search { margin-top: 12px; height: 38px; border-radius: var(--pill); background: rgba(255,255,255,.14); display: flex; align-items: center; gap: 8px; padding: 0 14px; font-size: 12px; color: rgba(255,255,255,.75); }
+    .scr-search svg { width: 15px; height: 15px; }
+    .cats { display: flex; gap: 6px; padding: 12px 14px 4px; overflow: hidden; }
+    .cats span { flex: none; padding: 6px 12px; border-radius: var(--pill); font-size: 10.5px; font-weight: 600; background: var(--tint); color: var(--forest); }
+    .cats span.on { background: var(--forest); color: #fff; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 14px; }
+    .card { border-radius: 16px; border: 1px solid var(--line); overflow: hidden; background: #fff; }
+    .card .pic { aspect-ratio: 1.15; background: #EEF3EA; position: relative; }
+    .card .pic img { width: 100%; height: 100%; object-fit: cover; }
+    .card .tag { position: absolute; left: 6px; bottom: 6px; font-size: 8.5px; font-weight: 700; padding: 3px 7px; border-radius: var(--pill); background: rgba(255,255,255,.95); color: var(--leaf); }
+    .card .txt { padding: 8px; display: grid; gap: 5px; }
+    .bar { height: 7px; border-radius: 4px; background: #E7ECE4; }
+    .bar.w60 { width: 60%; } .bar.w40 { width: 40%; } .bar.w80 { width: 80%; } .bar.g { background: #CFE3C2; }
+    .tabbar { margin-top: auto; display: flex; justify-content: space-around; padding: 10px 6px 16px; border-top: 1px solid var(--line); }
+    .tabbar i { width: 22px; height: 22px; border-radius: 7px; background: #E7ECE4; }
+    .tabbar i.on { background: var(--forest); }
+    .tile { margin: 10px 14px 0; padding: 14px; border-radius: 18px; border: 1px solid var(--line); }
+    .tile h4 { margin: 0 0 10px; font-size: 12px; font-weight: 700; color: var(--forest); }
+    .bars { display: flex; align-items: flex-end; gap: 7px; height: 82px; }
+    .bars span { flex: 1; border-radius: 6px 6px 3px 3px; background: #E7ECE4; }
+    .bars span.on { background: var(--leaf); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 14px 0; }
+    .row2 .tile { margin: 0; }
+    .select { margin: 10px 14px 0; height: 40px; border-radius: 12px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 11px; font-weight: 600; color: var(--forest); }
+    .select svg { width: 14px; height: 14px; }
+    .opts { margin: 6px 14px 0; border-radius: 14px; border: 1px solid var(--line); overflow: hidden; }
+    .opts div { padding: 9px 12px; font-size: 10.5px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .opts div:last-child { border: 0; }
+    .opts div.on { background: var(--tint); color: var(--forest); }
+
+    /* ---------- An order's journey ---------- */
+    .journey { background: #fff; border-radius: 40px; padding: clamp(32px, 5vw, 64px); border: 1px solid var(--line); }
+    .steps { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 10px; }
+    .steps::before, .steps .progress { content: ""; position: absolute; top: 31px; left: 12.5%; right: 12.5%; height: 4px; border-radius: 4px; background: var(--line); }
+    .steps .progress { background: linear-gradient(90deg, var(--leaf), var(--sprout)); transform-origin: left; transform: scaleX(0); transition: transform 1.8s cubic-bezier(.6,0,.2,1); }
+    .steps.in .progress { transform: scaleX(1); }
+    .step { position: relative; text-align: center; }
+    .step .num {
+      position: relative; z-index: 1; width: 66px; height: 66px; margin: 0 auto 18px; border-radius: 50%;
+      display: grid; place-items: center; background: #fff; border: 4px solid var(--line); color: var(--muted);
+      transition: background .4s, border-color .4s, color .4s; transition-delay: var(--d);
+    }
+    .step .num svg { width: 26px; height: 26px; }
+    .steps.in .step .num { background: var(--forest); border-color: var(--pale); color: #fff; }
+    .status { display: inline-block; padding: 5px 13px; border-radius: var(--pill); font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+    .s1 { background: #FFF4D6; color: #8A6100; } .s2 { background: #E3F0FF; color: #1F5AA6; }
+    .s3 { background: #EFE7FF; color: #5B3BA6; } .s4 { background: var(--pale); color: var(--forest); }
+    .step h3 { font-size: 17px; font-weight: 700; color: var(--forest); }
+    .step p { font-size: 13.5px; color: var(--muted); margin-top: 6px; line-height: 1.55; }
+    .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 44px; }
+    .rule { display: flex; gap: 12px; padding: 16px 18px; border-radius: 20px; background: var(--tint); font-size: 13.5px; color: var(--ink); }
+    .rule svg { width: 20px; height: 20px; flex: none; color: var(--leaf); margin-top: 1px; }
+
+    /* ---------- Bento: chat and market tools ---------- */
+    .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
+    .box {
+      position: relative; overflow: hidden; border-radius: var(--radius); padding: 28px;
+      background: #fff; border: 1px solid var(--line); min-height: 220px;
+      display: flex; flex-direction: column; transition: transform .35s, box-shadow .35s;
+    }
+    .box:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .box h3 { font-size: 20px; font-weight: 800; color: var(--forest); }
+    .box p { margin-top: 8px; color: var(--muted); font-size: 14.5px; }
+    .box .ic { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: var(--tint); color: var(--leaf); margin-bottom: auto; }
+    .box .ic svg { width: 24px; height: 24px; }
+    .box .ic + h3 { margin-top: 26px; }
+    .span-3 { grid-column: span 3; } .span-2 { grid-column: span 2; } .span-4 { grid-column: span 4; }
+    .box.dark { background: var(--forest); color: #fff; border-color: transparent; }
+    .box.dark h3 { color: #fff; } .box.dark p { color: rgba(255,255,255,.75); }
+    .box.dark .ic { background: rgba(255,255,255,.1); color: var(--sun); }
+    .reactions { display: flex; gap: 8px; margin-top: 18px; }
+    .reactions span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: var(--cream); border: 1px solid var(--line); transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+    .reactions span:hover { transform: translateY(-6px) scale(1.18); }
+    .bubbles { display: grid; gap: 8px; margin-top: 20px; }
+    .bub { height: 34px; border-radius: 18px 18px 18px 6px; background: var(--tint); width: 70%; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 12px; color: var(--muted); font-weight: 600; }
+    .bub svg { width: 16px; height: 16px; color: var(--leaf); }
+    .bub.me { justify-self: end; border-radius: 18px 18px 6px 18px; background: var(--forest); color: rgba(255,255,255,.85); width: 62%; }
+    .bub.me svg { color: var(--sun); }
+    .limits { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    .limits span { padding: 6px 12px; border-radius: var(--pill); font-size: 12px; font-weight: 700; background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.2); }
+
+    /* ---------- Market insights over the rice field ---------- */
+    .field {
+      position: relative; color: #fff; overflow: hidden; border-radius: 44px;
+      margin: 0 clamp(10px, 2vw, 24px); padding: clamp(72px, 9vw, 120px) 0;
+      background: #0B2A0D;
+    }
+    .field .bg { position: absolute; inset: -60px 0; background: url("/get/img/rice.webp") center/cover no-repeat; opacity: .55; will-change: transform; }
+    .field::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, rgba(8,30,10,.96) 0%, rgba(8,30,10,.78) 45%, rgba(8,30,10,.25) 100%); }
+    .field .wrap { position: relative; z-index: 1; }
+    .field .section-head h2 { color: #fff; }
+    .field .section-head p { color: rgba(255,255,255,.78); }
+    .field .eyebrow { color: var(--sun); }
+    .insights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 860px; }
+    .insight { padding: 22px; border-radius: 24px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: background .3s, transform .3s; }
+    .insight:hover { background: rgba(255,255,255,.14); transform: translateY(-4px); }
+    .insight svg { width: 26px; height: 26px; color: var(--sun); }
+    .insight h3 { font-size: 16.5px; font-weight: 700; margin-top: 14px; }
+    .insight p { font-size: 13.5px; color: rgba(255,255,255,.72); margin-top: 6px; line-height: 1.55; }
+
+    /* ---------- Numbers that are facts about the app ---------- */
+    .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .fact { padding: 28px 24px; border-radius: var(--radius); background: #fff; border: 1px solid var(--line); }
+    .fact b { display: block; font-size: clamp(40px, 5vw, 60px); font-weight: 800; color: var(--forest); line-height: 1; letter-spacing: -.03em; }
+    .fact b sup { font-size: .45em; color: var(--leaf); vertical-align: top; margin-left: 2px; }
+    .fact span { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 500; }
+
+    /* ---------- Trust ---------- */
+    .trust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .trust .feature { background: transparent; border-style: dashed; border-color: #CFD8CA; }
+    .trust .feature:hover { background: #fff; border-style: solid; }
+
+    /* ---------- Install ---------- */
+    .install { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; }
+    .howto { padding: clamp(28px, 4vw, 44px); border-radius: 36px; background: #fff; border: 1px solid var(--line); }
+    .howto ol { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 4px; }
+    .howto li { counter-increment: s; position: relative; padding: 16px 0 16px 64px; border-bottom: 1px dashed var(--line); }
+    .howto li:last-child { border: 0; }
+    .howto li::before {
+      content: counter(s); position: absolute; left: 0; top: 14px; width: 44px; height: 44px; border-radius: 50%;
+      display: grid; place-items: center; font-weight: 800; color: var(--forest); background: var(--pale);
+    }
+    .howto h3 { font-size: 16.5px; font-weight: 700; color: var(--forest); }
+    .howto p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .side { display: grid; gap: 20px; }
+    .qr {
+      padding: 28px; border-radius: 36px; background: var(--forest); color: #fff; display: grid;
+      grid-template-columns: auto 1fr; gap: 22px; align-items: center;
+    }
+    .qr .code { width: 132px; padding: 12px; border-radius: 22px; background: #fff; }
+    .qr h3 { font-size: 19px; font-weight: 800; }
+    .qr p { margin-top: 6px; font-size: 13.5px; color: rgba(255,255,255,.75); }
+    .needs { padding: 28px; border-radius: 36px; background: var(--tint); }
+    .needs h3 { font-size: 17px; font-weight: 800; color: var(--forest); margin-bottom: 12px; }
+    .needs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .needs li { display: flex; gap: 10px; font-size: 14px; }
+    .needs li svg { width: 20px; height: 20px; flex: none; color: var(--leaf); }
+    .needs .btn { margin-top: 20px; width: 100%; }
+
+    /* ---------- FAQ ---------- */
+    .faq { max-width: 860px; margin-inline: auto; display: grid; gap: 12px; }
+    .faq details { border-radius: 24px; background: #fff; border: 1px solid var(--line); transition: box-shadow .3s; }
+    .faq details[open] { box-shadow: 0 18px 40px -26px rgba(14,50,16,.45); }
+    .faq summary {
+      list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 20px 24px; font-weight: 700; font-size: 16px; color: var(--forest);
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary i { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); transition: transform .35s, background .35s; }
+    .faq summary i svg { width: 16px; height: 16px; color: var(--forest); }
+    .faq details[open] summary i { transform: rotate(45deg); background: var(--pale); }
+    .faq details p { padding: 0 24px 22px; color: var(--muted); font-size: 15px; }
+    .faq-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .faq-tabs button { border: 1px solid var(--line); background: #fff; min-height: 42px; padding: 0 20px; border-radius: var(--pill); font: 700 14px var(--font); color: var(--muted); cursor: pointer; transition: all .25s; }
+    .faq-tabs button[aria-pressed="true"] { background: var(--forest); color: #fff; border-color: var(--forest); }
+    .faq details[hidden] { display: none; }
+
+    /* ---------- Last call ---------- */
+    .final {
+      position: relative; overflow: hidden; text-align: center; color: #fff;
+      border-radius: 44px; padding: clamp(56px, 8vw, 100px) 24px;
+      background: radial-gradient(120% 140% at 50% 0%, var(--forest-2) 0%, var(--forest) 55%, #071A08 100%);
+    }
+    .final h2 { font-size: clamp(32px, 5vw, 58px); font-weight: 800; max-width: 760px; margin-inline: auto; }
+    .final p { margin: 18px auto 0; max-width: 560px; color: rgba(255,255,255,.75); font-size: 17px; }
+    .final .cta-row { justify-content: center; }
+    .final .logo-bg { position: absolute; width: 420px; right: -90px; bottom: -110px; opacity: .1; transform: rotate(-12deg); pointer-events: none; }
+    .sprouts { position: absolute; inset: 0; pointer-events: none; }
+    .sprouts span { position: absolute; bottom: -20px; width: 8px; height: 8px; border-radius: 50%; background: var(--sprout); opacity: 0; animation: float 9s linear infinite; }
+    @keyframes float { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: .7; } 100% { transform: translateY(-520px); opacity: 0; } }
+
+    footer { padding: 56px 0 120px; color: var(--muted); font-size: 14px; }
+    .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 28px; align-items: flex-start; }
+    .foot .brand { margin-bottom: 10px; }
+    .foot nav { display: flex; flex-wrap: wrap; gap: 6px; }
+    .foot nav a { padding: 8px 14px; border-radius: var(--pill); text-decoration: none; font-weight: 600; border: 1px solid var(--line); background: #fff; }
+    .foot nav a:hover { color: var(--forest); border-color: #C9D5C2; }
+    .copy { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 12.5px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+
+    /* On a phone: the download button stays within reach at the bottom. */
+    .dock {
+      position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 60;
+      display: none; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-radius: var(--pill);
+      background: rgba(14,50,16,.94); color: #fff; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 18px 40px -16px rgba(0,0,0,.5);
+      transform: translateY(140%); transition: transform .45s cubic-bezier(.2,.8,.2,1);
+    }
+    .dock.on { transform: none; }
+    .dock img { width: 32px; height: 32px; object-fit: contain; }
+    .dock div { flex: 1; min-width: 0; line-height: 1.25; }
+    .dock b { display: block; font-size: 14px; }
+    .dock small { font-size: 11.5px; color: rgba(255,255,255,.7); }
+    .dock .btn { min-height: 44px; padding: 0 18px; font-size: 14px; }
+
+    /* Sections come in as they are scrolled to. */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1); transition-delay: var(--d, 0s); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* ---------- Smaller screens ---------- */
+    @media (max-width: 1020px) {
+      .hero-grid, .roles, .install { grid-template-columns: 1fr; }
+      .hero { padding-top: 120px; text-align: center; }
+      .lead { margin-inline: auto; }
+      .cta-row, .meta { justify-content: center; }
+      .stage { width: min(500px, 100%); margin-top: 20px; }
+      .roles .phone-col { order: -1; }
+      .trust, .facts { grid-template-columns: 1fr 1fr; }
+      .insights { grid-template-columns: 1fr 1fr; }
+      .span-4, .span-3, .span-2 { grid-column: span 3; }
+    }
+    @media (max-width: 760px) {
+      .nav ul { display: none; }
+      .wrap { width: min(1180px, 100% - 32px); }
+      .features, .rules, .insights { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; gap: 0; text-align: left; }
+      .steps::before, .steps .progress { top: 33px; bottom: 33px; left: 31px; right: auto; width: 4px; height: auto; }
+      .steps .progress { transform: scaleY(0); transform-origin: top; }
+      .steps.in .progress { transform: scaleY(1); }
+      .step { display: grid; grid-template-columns: 66px 1fr; gap: 0 18px; text-align: left; padding-bottom: 26px; }
+      .step .num { margin: 0; grid-row: span 3; }
+      .bento { grid-template-columns: 1fr; }
+      .span-4, .span-3, .span-2 { grid-column: auto; }
+      .qr { display: none; } /* Already on the phone: no code to scan. */
+      .switch button { min-width: 0; padding: 0 18px; }
+      .chip.c1 { left: -2%; } .chip.c2 { right: -2%; }
+      .chip { font-size: 12px; padding: 8px 12px 8px 8px; }
+      .chip i { width: 28px; height: 28px; }
+      .orbit .fruit { width: 58px; height: 58px; margin: -29px; }
+      .dock { display: flex; }
+      .field, .final { border-radius: 32px; }
+    }
+    @media (max-width: 420px) {
+      .hero .pill { font-size: 11.5px; padding: 6px 12px 6px 9px; }
+      .switch button { padding: 0 14px; font-size: 14px; gap: 6px; }
+      .nav .btn.sm { padding: 0 16px; }
+      .needs { padding: 24px 20px; }
+      .needs .btn { padding: 0 16px; }
+      .trust, .facts { grid-template-columns: 1fr; }
+      .cta-row .btn { width: 100%; }
+      .chip small { display: none; }
+    }
+    /* The smallest phones: "straight to you." stays on one line. */
+    @media (max-width: 350px) {
+      .hero h1 { font-size: 35px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .hero h1 .line > span, .fade-up, .reveal { opacity: 1; transform: none; }
+      .hl path { stroke-dashoffset: 0; }
+      .steps .progress { transform: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Icons used more than once on the page. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 20h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5" stroke-width="1.8"/><path d="m8 12.3 2.7 2.7L16.2 9.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4c-9 0-15 4.5-15 11.5 0 1.6.4 3 1 4.2C7.5 15 11 11.5 15 9.5c-3.5 2.5-6.3 6-7.6 10C14.5 19.6 20 14 20 4Z"/></symbol>
+    <symbol id="i-android" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48 19.44 6.3a.38.38 0 0 0-.66-.38l-1.86 3.22a11.5 11.5 0 0 0-9.84 0L5.22 5.92a.38.38 0 1 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52ZM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a7.5 7.5 0 0 1-11 6.6L4 20l1.4-4.6A7.5 7.5 0 1 1 20 12Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.2l2.3 11h10.7l2-7.5H6.4"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></symbol>
+    <symbol id="i-sprout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-9"/><path d="M12 12c0-4 2.7-6.5 7-6.5 0 4.3-2.6 6.5-7 6.5Z"/><path d="M12 14.5c0-3.3-2.3-5.5-6.5-5.5 0 3.6 2.4 5.5 6.5 5.5Z"/></symbol>
+  </svg>
+
+  <header class="nav" id="nav">
+    <a class="brand" href="#top" aria-label="AgriTrade+ home">
+      <img src="/get/img/logo.webp" alt="" width="36" height="36">
+      <b>AgriTrade+</b>
+    </a>
+    <nav aria-label="Sections">
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#orders">How it works</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <a class="btn sm" href="/download" data-download>
+      <svg aria-hidden="true"><use href="#i-download"/></svg>Get the app
+    </a>
+  </header>
+
+  <main id="top">
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <span class="pill fade-up"><span class="dot"></span>For the farmers and buyers of Laurel, Batangas</span>
+          <h1>
+            <span class="line"><span>Fresh from</span></span>
+            <span class="line"><span>Laurel's farms,</span></span>
+            <span class="line"><span><span class="hl">straight to you.<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M4 14C70 5 160 3 296 10"/></svg></span></span></span>
+          </h1>
+          <p class="lead fade-up" style="animation-delay:.45s">
+            AgriTrade+ is the marketplace app that puts local farmers and buyers in one place.
+            Farmers post their harvest and livestock; buyers order straight from them, chat,
+            and pick up or get it delivered. No middlemen in between.
+          </p>
+          <div class="cta-row fade-up" style="animation-delay:.6s">
+            <a class="btn shine" href="/download" data-download>
+              <svg aria-hidden="true"><use href="#i-android"/></svg>Download for Android
+            </a>
+            <a class="btn ghost" href="#orders">See how it works
+              <svg aria-hidden="true"><use href="#i-down"/></svg>
+            </a>
+          </div>
+          <div class="meta fade-up" style="animation-delay:.75s">
+            <span><svg aria-hidden="true"><use href="#i-check"/></svg>Free to download</span>
+            <span><svg aria-hidden="true"><use href="#i-check"/></svg>Android 7.0 or newer</span>
+            <span><svg aria-hidden="true"><use href="#i-check"/></svg>Version 1.0.0</span>
+          </div>
+        </div>
+
+        <div class="stage fade-up" style="animation-delay:.3s" aria-hidden="true">
+          <div class="orbit">
+            <span class="fruit"><img src="/get/img/corn.webp" alt=""></span>
+            <span class="fruit"><img src="/get/img/tomato.webp" alt=""></span>
+            <span class="fruit"><img src="/get/img/eggplant.webp" alt=""></span>
+            <span class="fruit"><img src="/get/img/squash.webp" alt=""></span>
+            <span class="fruit"><img src="/get/img/coconut.webp" alt=""></span>
+            <span class="fruit"><img src="/get/img/vegetables.webp" alt=""></span>
+          </div>
+          <div class="arch"><img src="/get/img/duo.webp" alt="" width="900" height="900"></div>
+          <div class="chip c1"><i><svg><use href="#i-shield"/></svg></i><span>Verified farmers<small>Checked by the AgriTrade+ team</small></span></div>
+          <div class="chip c2"><i><svg><use href="#i-pin"/></svg></i><span>Delivers to you<small>Listings that reach your area first</small></span></div>
+          <div class="chip c3"><i><svg><use href="#i-chat"/></svg></i><span>Chat with the farmer<small>Photos, videos and location</small></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PRODUCTS BAND ================= -->
+    <div class="band" aria-label="Products on AgriTrade+: grains, root crops, vegetables, spices, fruits and livestock">
+      <div class="track" aria-hidden="true" id="track"></div>
+    </div>
+
+    <!-- ================= BUYER / FARMER ================= -->
+    <section class="section" id="features">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="eyebrow">One app, two sides</span>
+          <h2>Made for whoever you are at the market.</h2>
+          <p>Choose Buyer or Farmer when you sign up. Each one gets the tools that matter to them.</p>
+        </div>
+        <div style="text-align:center" class="reveal">
+          <div class="switch" role="tablist" aria-label="Show features for" id="switch" data-role="buyer">
+            <span class="thumb" aria-hidden="true"></span>
+            <button role="tab" id="tab-buyer" aria-selected="true" aria-controls="panel-buyer"><svg aria-hidden="true"><use href="#i-cart"/></svg>I'm a Buyer</button>
+            <button role="tab" id="tab-farmer" aria-selected="false" aria-controls="panel-farmer" tabindex="-1"><svg aria-hidden="true"><use href="#i-sprout"/></svg>I'm a Farmer</button>
+          </div>
+        </div>
+
+        <div class="roles">
+          <div>
+            <div class="panel show" id="panel-buyer" role="tabpanel" aria-labelledby="tab-buyer">
+              <div class="features">
+                <article class="feature"><div class="ic"><svg><use href="#i-pin"/></svg></div><h3>Your area comes first</h3><p>Listings whose delivery reaches your barangay show first, marked "Delivers to you". The products you buy most come up early too.</p></article>
+                <article class="feature"><div class="ic"><svg><use href="#i-search"/></svg></div><h3>Search as you type</h3><p>Suggestions for products, listings and farmers appear while you type, with matching products right under them.</p></article>
+                <article class="feature"><div class="ic"><svg><use href="#i-cart"/></svg></div><h3>Order in a few taps</h3><p>Pick the quantity, pick-up or delivery, and the date you need it. Bulk buyers see the wholesale price first.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5-2V4l5 2 6-2 5 2v14l-5-2-6 2Z"/><path d="M9 6v14M15 4v14"/></svg></div><h3>Directions to the farm</h3><p>For pick-up, a confirmed order shows the farm's address, a map and Get Directions.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.6 9l5.9.6-4.4 4 1.3 5.9L12 16.5l-5.4 3 1.3-5.9-4.4-4L9.4 9 12 3.5Z"/></svg></div><h3>Reviews you can trust</h3><p>Only buyers with a completed order can review. Reviewing earns you the Trusted Buyer badge.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z"/></svg></div><h3>Save what you like</h3><p>Tap the heart on any product and find it again under Liked Products in your profile.</p></article>
+              </div>
+            </div>
+            <div class="panel" id="panel-farmer" role="tabpanel" aria-labelledby="tab-farmer" hidden>
+              <div class="features">
+                <article class="feature"><div class="ic"><svg><use href="#i-plus"/></svg></div><h3>Post in a minute</h3><p>Pick the product from the list, set your price and stock, and add up to 5 photos. Choose pick-up, delivery, and the areas you deliver to.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 15l3.5-4 3 2.5L18 8"/></svg></div><h3>You set the price</h3><p>A suggested range from the current market guides you, but the price is always yours to decide.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 10h8M8 14h5"/></svg></div><h3>Orders and stock in one place</h3><p>Accept or reject orders. Stock comes off your listing only when you confirm, and Low Stock warns you at 20% left.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div><h3>Running late? Say so</h3><p>Report a delay on a confirmed order and propose a new date. The buyer can accept it or cancel.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Know your market</h3><p>See your sales, the current market average, the best-selling products and where your buyers are.</p></article>
+                <article class="feature"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/></svg></div><h3>Your own storefront</h3><p>Buyers see your products and reviews on your page. Share any product with a link.</p></article>
+              </div>
+            </div>
+          </div>
+
+          <div class="phone-col reveal" style="--d:.15s" aria-hidden="true">
+            <div class="phone">
+              <div class="screen" id="screen-buyer">
+                <div class="scr-head">
+                  <b>Explore</b>
+                  <div class="scr-search"><svg><use href="#i-search"/></svg>Search products or farmers</div>
+                </div>
+                <div class="cats"><span class="on">All</span><span>Grains</span><span>Root Crops</span><span>Vegetables</span><span>Spices</span></div>
+                <div class="grid2">
+                  <div class="card"><div class="pic"><img src="/get/img/eggplant.webp" alt=""><span class="tag">Delivers to you</span></div><div class="txt"><div class="bar w80"></div><div class="bar g w40"></div></div></div>
+                  <div class="card"><div class="pic"><img src="/get/img/corn.webp" alt=""></div><div class="txt"><div class="bar w60"></div><div class="bar g w40"></div></div></div>
+                  <div class="card"><div class="pic"><img src="/get/img/tomato.webp" alt=""><span class="tag">Delivers to you</span></div><div class="txt"><div class="bar w60"></div><div class="bar g w40"></div></div></div>
+                  <div class="card"><div class="pic"><img src="/get/img/squash.webp" alt=""></div><div class="txt"><div class="bar w80"></div><div class="bar g w40"></div></div></div>
+                </div>
+                <div class="tabbar"><i class="on"></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="screen" id="screen-farmer" hidden>
+                <div class="scr-head"><b>Market</b></div>
+                <div class="tile">
+                  <h4>Sales Performance</h4>
+                  <div class="bars"><span style="height:40%"></span><span style="height:62%"></span><span style="height:48%"></span><span style="height:75%"></span><span class="on" style="height:92%"></span><span style="height:58%"></span></div>
+                </div>
+                <div class="row2">
+                  <div class="tile"><h4>Orders Today</h4><div class="bar w40" style="height:16px"></div></div>
+                  <div class="tile"><h4>Total Products</h4><div class="bar w40" style="height:16px"></div></div>
+                </div>
+                <div class="select">View AgriTrade+ insights<svg><use href="#i-down"/></svg></div>
+                <div class="opts">
+                  <div class="on">Current Market Average</div>
+                  <div>Best-Selling Products</div>
+                  <div>Top Buyer Locations</div>
+                </div>
+                <div class="tabbar"><i></i><i class="on"></i><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ORDERS ================= -->
+    <section class="section" id="orders" style="padding-top:0">
+      <div class="wrap">
+        <div class="journey reveal">
+          <div class="section-head">
+            <span class="eyebrow">How an order moves</span>
+            <h2>Clear from the first tap to the last.</h2>
+            <p>One order is one product. Both sides see the same status at every step, and get a notification when it changes.</p>
+          </div>
+          <div class="steps" id="steps">
+            <span class="progress"></span>
+            <div class="step" style="--d:.1s">
+              <div class="num"><svg><use href="#i-cart"/></svg></div>
+              <span class="status s1">Pending</span>
+              <h3>The buyer orders</h3>
+              <p>Quantity, pick-up or delivery, and the date it's needed.</p>
+            </div>
+            <div class="step" style="--d:.55s">
+              <div class="num"><svg><use href="#i-check"/></svg></div>
+              <span class="status s2">Confirmed</span>
+              <h3>The farmer accepts</h3>
+              <p>The stock is set aside for this order.</p>
+            </div>
+            <div class="step" style="--d:1s">
+              <div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg></div>
+              <span class="status s3">Shipped · Ready for Pick-up</span>
+              <h3>On its way</h3>
+              <p>Delivered by the farmer, or ready at the farm.</p>
+            </div>
+            <div class="step" style="--d:1.45s">
+              <div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.6 9l5.9.6-4.4 4 1.3 5.9L12 16.5l-5.4 3 1.3-5.9-4.4-4L9.4 9 12 3.5Z"/></svg></div>
+              <span class="status s4">Completed</span>
+              <h3>Received</h3>
+              <p>The buyer taps Order Received, gets a receipt and can leave a review.</p>
+            </div>
+          </div>
+          <div class="rules">
+            <div class="rule reveal" style="--d:.05s"><svg><use href="#i-check"/></svg><span>A buyer can cancel while the order is still pending.</span></div>
+            <div class="rule reveal" style="--d:.1s"><svg><use href="#i-check"/></svg><span>An order left unanswered for 3 days is cancelled for you.</span></div>
+            <div class="rule reveal" style="--d:.15s"><svg><use href="#i-check"/></svg><span>If the buyer doesn't confirm, the farmer can complete it 3 days after shipping.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CHAT ================= -->
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Talk it through</span>
+          <h2>A chat made for farm deals.</h2>
+          <p>Ask about the harvest, agree on the details and share where to meet, all in the app.</p>
+        </div>
+        <div class="bento">
+          <article class="box dark span-4 reveal">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10.5 5-3v9l-5-3"/></svg></div>
+            <h3>See the produce before you buy</h3>
+            <p>Send photos, or a video straight from the camera. Save any of them to your phone's gallery.</p>
+            <div class="limits"><span>Videos up to 30 seconds</span><span>Up to 100 MB</span><span>Pinch to zoom</span></div>
+          </article>
+          <article class="box span-2 reveal" style="--d:.08s">
+            <div class="ic"><svg><use href="#i-pin"/></svg></div>
+            <h3>Share location</h3>
+            <p>Send a pin so the other side knows exactly where to go.</p>
+          </article>
+          <article class="box span-2 reveal">
+            <h3>React in a hold</h3>
+            <p>Hold a message to react, reply, copy, pin or unsend it.</p>
+            <div class="reactions" aria-label="Heart, Like, Wow, Sad, Angry"><span>❤️</span><span>👍</span><span>😮</span><span>😢</span><span>😠</span></div>
+          </article>
+          <article class="box span-2 reveal" style="--d:.08s">
+            <h3>Swipe to reply</h3>
+            <p>Slide a message to answer it. Pin the one that matters at the top.</p>
+            <div class="bubbles" aria-hidden="true">
+              <div class="bub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></svg><span class="bar w60" style="background:#D9E6D1;flex:1"></span></div>
+              <div class="bub me"><svg><use href="#i-check"/></svg><span class="bar w60" style="background:rgba(255,255,255,.25);flex:1"></span></div>
+            </div>
+          </article>
+          <article class="box span-2 reveal" style="--d:.16s">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
+            <h3>Health certificates</h3>
+            <p>Buying livestock? Ask the farmer for its health certificate right in the chat.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MARKET INSIGHTS ================= -->
+    <section class="field" aria-labelledby="insights-title">
+      <div class="bg" id="fieldBg"></div>
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">For farmers</span>
+          <h2 id="insights-title">Know your market before you post.</h2>
+          <p>The Market tab turns completed orders into insights, so you can plan what to plant, how much to list and where your buyers are.</p>
+        </div>
+        <div class="insights">
+          <article class="insight reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 15l3.5-4 3 2.5L18 8"/></svg><h3>Current Market Average</h3><p>The average asking price of each product that buyers can order right now.</p></article>
+          <article class="insight reveal" style="--d:.08s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><h3>Best-Selling Products</h3><p>The top 5 products of the month by quantity sold, each in its own unit.</p></article>
+          <article class="insight reveal" style="--d:.16s"><svg><use href="#i-pin"/></svg><h3>Top Buyer Locations</h3><p>Where the month's orders come from, and what buyers there ordered.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FACTS ================= -->
+    <section class="section">
+      <div class="wrap">
+        <div class="facts">
+          <div class="fact reveal"><b data-count="21">21</b><span>barangays of Laurel, Batangas, all on AgriTrade+</span></div>
+          <div class="fact reveal" style="--d:.08s"><b data-count="6">6</b><span>categories: grains, root crops, vegetables, spices, fruits and livestock</span></div>
+          <div class="fact reveal" style="--d:.16s"><b data-count="5">5</b><span>photos per listing, so buyers see what they're getting</span></div>
+          <div class="fact reveal" style="--d:.24s"><b data-count="3">3</b><span>days for a farmer to answer an order before it's cancelled</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TRUST ================= -->
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="eyebrow">Safe and fair</span>
+          <h2>Trust is built in.</h2>
+          <p>An Admin from the AgriTrade+ team looks after the marketplace.</p>
+        </div>
+        <div class="trust">
+          <article class="feature reveal"><div class="ic"><svg><use href="#i-shield"/></svg></div><h3>Verified farmers</h3><p>Every farmer account is reviewed with its RSBSA number before it can sell. Farmers must be from Laurel, Batangas.</p></article>
+          <article class="feature reveal" style="--d:.08s"><div class="ic"><svg><use href="#i-pin"/></svg></div><h3>Your location stays private</h3><p>Others see only your barangay, town and province, never your exact location, unless an order needs it.</p></article>
+          <article class="feature reveal" style="--d:.16s"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></div><h3>Report anything wrong</h3><p>Report a user, a listing or a single message. The Admin reviews every report.</p></article>
+          <article class="feature reveal" style="--d:.24s"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></div><h3>A secure account</h3><p>Strong passwords, a 6-digit email code to change them, and a recovery email if you're ever locked out.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= INSTALL ================= -->
+    <section class="section" id="install" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Install</span>
+          <h2>Up and running in four steps.</h2>
+          <p>AgriTrade+ is installed from this page as an APK file, not from the Play Store yet.</p>
+        </div>
+        <div class="install">
+          <div class="howto reveal">
+            <ol>
+              <li><h3>Download the app</h3><p>Tap <b>Download for Android</b>. The file, AgriTrade.apk, saves to your phone's Downloads.</p></li>
+              <li><h3>Open the file</h3><p>Tap the finished download in your notifications, or find it in the Files app under Downloads.</p></li>
+              <li><h3>Allow the install</h3><p>If your phone asks, turn on <b>Allow from this source</b> for your browser or Files app, go back, and tap <b>Install</b>.</p></li>
+              <li><h3>Sign up</h3><p>Open AgriTrade+, choose Buyer or Farmer, and fill in your details, or continue with Google.</p></li>
+            </ol>
+          </div>
+          <div class="side">
+            <div class="qr reveal" style="--d:.08s">
+              <div class="code" role="img" aria-label="QR code that downloads the AgriTrade+ app">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path stroke="#0E3210" d="M0 0.5h7m1 0h3m1 0h1m1 0h3m3 0h1m1 0h7M0 1.5h1m5 0h1m2 0h1m1 0h1m1 0h1m3 0h1m1 0h2m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m2 0h1m1 0h1m5 0h2m3 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h1m1 0h2m2 0h5m1 0h1m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h3m1 0h1m3 0h2m1 0h2m1 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h2m4 0h1m2 0h1m1 0h2M0 8.5h1m3 0h1m1 0h7m3 0h2m1 0h7m2 0h1M0 9.5h2m1 0h3m2 0h1m4 0h4m4 0h8M2 10.5h3m1 0h3m6 0h1m2 0h1m1 0h1m1 0h1m5 0h1M0 11.5h2m1 0h2m3 0h1m1 0h1m3 0h1m2 0h2m1 0h6m1 0h2M4 12.5h1m1 0h1m4 0h1m3 0h1m1 0h1m1 0h3m5 0h1M0 13.5h1m1 0h4m1 0h1m1 0h1m3 0h4m1 0h1m2 0h8M0 14.5h2m2 0h1m1 0h2m4 0h1m1 0h5m2 0h6m1 0h1M1 15.5h1m2 0h1m4 0h3m3 0h1m1 0h3m1 0h1m1 0h1m3 0h2M0 16.5h7m1 0h1m1 0h1m2 0h2m2 0h1m1 0h3m1 0h1m3 0h1M0 17.5h1m2 0h2m2 0h1m3 0h1m2 0h3m1 0h1m3 0h4m1 0h2M5 18.5h3m1 0h2m2 0h3m4 0h3m1 0h1m1 0h1m1 0h1M3 19.5h3m2 0h2m3 0h1m3 0h1m2 0h1m1 0h1m4 0h2M0 20.5h4m2 0h1m1 0h6m1 0h1m1 0h2m1 0h6m2 0h1M8 21.5h2m3 0h3m1 0h4m3 0h1m3 0h1M0 22.5h7m1 0h5m2 0h2m1 0h3m1 0h1m1 0h3m1 0h1M0 23.5h1m5 0h1m4 0h2m1 0h4m2 0h1m3 0h1m2 0h2M0 24.5h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h2m1 0h2m1 0h7m2 0h1M0 25.5h1m1 0h3m1 0h1m4 0h1m1 0h1m1 0h2m1 0h1m1 0h2m6 0h1M0 26.5h1m1 0h3m1 0h1m2 0h1m1 0h1m3 0h3m1 0h1m1 0h1m3 0h4M0 27.5h1m5 0h1m3 0h1m1 0h2m1 0h4m1 0h1m1 0h1m2 0h1m1 0h2M0 28.5h7m1 0h1m1 0h1m3 0h1m1 0h2m2 0h1m3 0h2m1 0h1"/></svg>
+              </div>
+              <div>
+                <h3>On a computer?</h3>
+                <p>Scan this with your Android phone's camera to download the app there.</p>
+              </div>
+            </div>
+            <div class="needs reveal" style="--d:.16s">
+              <h3>What you need</h3>
+              <ul>
+                <li><svg><use href="#i-android"/></svg><span>An Android phone with Android 7.0 or newer. iPhone isn't available yet.</span></li>
+                <li><svg><use href="#i-check"/></svg><span>An internet connection, and an email address to sign up.</span></li>
+                <li><svg><use href="#i-pin"/></svg><span>Location, if you allow it, to find your barangay and show distances. You can also pick your barangay by hand.</span></li>
+                <li><svg><use href="#i-shield"/></svg><span>Farmers: your RSBSA number, for verification.</span></li>
+              </ul>
+              <a class="btn" href="/download" data-download><svg aria-hidden="true"><use href="#i-download"/></svg>Download AgriTrade.apk</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section class="section" id="faq" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="eyebrow">Questions</span>
+          <h2>Good to know.</h2>
+        </div>
+        <div class="faq-tabs reveal" role="group" aria-label="Show questions for">
+          <button type="button" aria-pressed="true" data-faq="all">All</button>
+          <button type="button" aria-pressed="false" data-faq="buyer">Buyers</button>
+          <button type="button" aria-pressed="false" data-faq="farmer">Farmers</button>
+        </div>
+        <div class="faq reveal">
+          <details data-for="all"><summary>Is it free?<i><svg><use href="#i-plus"/></svg></i></summary><p>Yes. Downloading and using AgriTrade+ costs nothing. Buyers and farmers agree on the order in the app; payment is settled between them on pick-up or delivery.</p></details>
+          <details data-for="all"><summary>Is it safe to install an app from an APK file?<i><svg><use href="#i-plus"/></svg></i></summary><p>This APK comes straight from AgriTrade+'s own website. Android asks you to allow installs from your browser because the app isn't on the Play Store yet. Only download AgriTrade+ from this page.</p></details>
+          <details data-for="all"><summary>Is there an iPhone version?<i><svg><use href="#i-plus"/></svg></i></summary><p>Not yet. AgriTrade+ is available for Android phones (Android 7.0 or newer).</p></details>
+          <details data-for="farmer"><summary>Who can sell on AgriTrade+?<i><svg><use href="#i-plus"/></svg></i></summary><p>Farmers from Laurel, Batangas. Sign up as a Farmer with your RSBSA number and barangay. The AgriTrade+ team reviews every farmer account; once it's approved, log in again to start posting products.</p></details>
+          <details data-for="farmer"><summary>Who decides the price of my product?<i><svg><use href="#i-plus"/></svg></i></summary><p>You do. When you post, AgriTrade+ shows a suggested price range from the current market as a guide, but you can set any price. Buyers decide whether to buy at it.</p></details>
+          <details data-for="farmer"><summary>What can I sell?<i><svg><use href="#i-plus"/></svg></i></summary><p>Products from the supported list, under Grains, Root Crops, Vegetables, Spices, Fruits and Livestock. Livestock is sold live.</p></details>
+          <details data-for="farmer"><summary>How do I accept or reject an order?<i><svg><use href="#i-plus"/></svg></i></summary><p>Open Orders, tap Details on the order, then Accept or Reject at the bottom. The quantity comes off your stock only when you accept; rejecting leaves your stock as it is.</p></details>
+          <details data-for="farmer"><summary>What if I can't deliver on the agreed date?<i><svg><use href="#i-plus"/></svg></i></summary><p>Open the confirmed order and tap Report Delay. Choose the reason and propose a new date; the buyer can accept it or cancel the order.</p></details>
+          <details data-for="buyer"><summary>How do I place an order?<i><svg><use href="#i-plus"/></svg></i></summary><p>Open a product and tap Order Now. Choose the quantity, pick-up or delivery, and the date you need it, then place your order. The farmer confirms it.</p></details>
+          <details data-for="buyer"><summary>Why is delivery not available to my location?<i><svg><use href="#i-plus"/></svg></i></summary><p>Each farmer chooses the areas they deliver to. Message the farmer to ask them to add your area, or choose pick-up instead.</p></details>
+          <details data-for="buyer"><summary>I already received my order. What do I do?<i><svg><use href="#i-plus"/></svg></i></summary><p>Open the order and tap Order Received. It completes the order, issues your receipt and lets you review the product.</p></details>
+          <details data-for="all"><summary>How can I contact support?<i><svg><use href="#i-plus"/></svg></i></summary><p>Email the AgriTrade+ team at <a href="mailto:agritrade.team@gmail.com">agritrade.team@gmail.com</a>, or send a support request from Help &amp; Support in the app.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FINAL CALL ================= -->
+    <section class="wrap" style="padding-bottom:40px">
+      <div class="final reveal">
+        <div class="sprouts" aria-hidden="true" id="sprouts"></div>
+        <img class="logo-bg" src="/get/img/logo.webp" alt="" aria-hidden="true">
+        <h2>Bring Laurel's harvest to your phone.</h2>
+        <p>Join as a buyer to order fresh from local farms, or as a farmer to reach more buyers.</p>
+        <div class="cta-row">
+          <a class="btn light shine" href="/download" data-download><svg aria-hidden="true"><use href="#i-android"/></svg>Download for Android</a>
+          <a class="btn outline-light" href="#install">How to install</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot">
+        <div>
+          <a class="brand" href="#top"><img src="/get/img/logo.webp" alt="" width="36" height="36"><b>AgriTrade+</b></a>
+          <p style="max-width:340px">An agricultural marketplace connecting the farmers and buyers of Laurel, Batangas, Philippines.</p>
+        </div>
+        <nav aria-label="Footer">
+          <a href="#features">Features</a>
+          <a href="#orders">How it works</a>
+          <a href="#install">Install</a>
+          <a href="#faq">FAQ</a>
+          <a href="mailto:agritrade.team@gmail.com">Contact</a>
+        </nav>
+      </div>
+      <div class="copy">
+        <span>© <span id="year">2026</span> AgriTrade+. All rights reserved.</span>
+        <span>The Terms &amp; Conditions and Privacy Policy (version 1.0, effective November 5, 2026) are in the app.</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="dock" id="dock" aria-hidden="true">
+    <img src="/get/img/logo.webp" alt="">
+    <div><b>AgriTrade+</b><small>Android 7.0+ · Free</small></div>
+    <a class="btn light" href="/download" data-download tabindex="-1"><svg aria-hidden="true"><use href="#i-download"/></svg>Download</a>
+  </div>
+
+  <script>
+    (function () {
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // The products band: the starting commodity list under its
+      // categories, drawn twice so the loop never shows a gap.
+      var groups = [
+        ['Grains', ['Rice', 'Corn']],
+        ['Root Crops', ['Ube', 'Sweet Potato', 'Cassava']],
+        ['Vegetables', ['Eggplant', 'Okra', 'Sitaw', 'Ampalaya', 'Squash', 'Radish', 'Malunggay']],
+        ['Spices', ['Ginger', 'Turmeric']],
+        ['Fruits', ['Banana', 'Coconut']],
+        ['Livestock', ['Swine', 'Chicken', 'Cattle']]
+      ];
+      var leaf = '<svg viewBox="0 0 24 24"><use href="#i-leaf"/></svg>';
+      var html = groups.map(function (g) {
+        return '<span class="item"><em>' + g[0] + '</em>' + g[1].join(' ' + leaf + ' ') + ' ' + leaf + '</span>';
+      }).join('');
+      document.getElementById('track').innerHTML = html + html;
+
+      // The top bar gets a shadow once the page moves.
+      var nav = document.getElementById('nav');
+      var dock = document.getElementById('dock');
+      var hero = document.querySelector('.hero');
+      var fieldBg = document.getElementById('fieldBg');
+      function onScroll() {
+        var y = window.scrollY;
+        nav.classList.toggle('scrolled', y > 10);
+        // The phone's download bar shows once the hero's button is gone,
+        // and hides again near the end, where the big button is.
+        var past = y > hero.offsetHeight - 120;
+        var nearEnd = window.innerHeight + y > document.body.scrollHeight - 520;
+        dock.classList.toggle('on', past && !nearEnd);
+        if (!reduce && fieldBg) {
+          // A slow drift of the rice field as the panel passes, at most
+          // 40px either way (the picture reaches 60px past each edge).
+          var r = fieldBg.parentElement.getBoundingClientRect();
+          var vh = window.innerHeight;
+          var k = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / vh));
+          fieldBg.style.transform = "translateY(" + (k * -40).toFixed(1) + "px)";
+        }
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+
+      // Buyer / Farmer switch.
+      var sw = document.getElementById('switch');
+      var tabs = sw.querySelectorAll('[role="tab"]');
+      function choose(role, focus) {
+        sw.dataset.role = role;
+        tabs.forEach(function (t) {
+          var on = t.id === 'tab-' + role;
+          t.setAttribute('aria-selected', on);
+          t.tabIndex = on ? 0 : -1;
+          if (on && focus) t.focus();
+        });
+        ['buyer', 'farmer'].forEach(function (r) {
+          var p = document.getElementById('panel-' + r);
+          p.hidden = r !== role;
+          p.classList.toggle('show', r === role);
+          document.getElementById('screen-' + r).hidden = r !== role;
+        });
+      }
+      tabs.forEach(function (t) {
+        t.addEventListener('click', function () { choose(t.id.replace('tab-', '')); });
+        t.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            choose(sw.dataset.role === 'buyer' ? 'farmer' : 'buyer', true);
+          }
+        });
+      });
+
+      // Things come in as they are scrolled to; the numbers count up.
+      function countUp(el) {
+        var to = +el.dataset.count;
+        if (reduce) return;
+        var start = null;
+        function tick(t) {
+          if (!start) start = t;
+          var k = Math.min((t - start) / 1100, 1);
+          el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3)));
+          if (k < 1) requestAnimationFrame(tick);
+        }
+        el.textContent = '0';
+        requestAnimationFrame(tick);
+      }
+      if ('IntersectionObserver' in window && !reduce) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (!e.isIntersecting) return;
+            e.target.classList.add('in');
+            e.target.querySelectorAll('[data-count]').forEach(countUp);
+            io.unobserve(e.target);
+          });
+        }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.reveal, #steps').forEach(function (el) { io.observe(el); });
+      } else {
+        document.querySelectorAll('.reveal, #steps').forEach(function (el) { el.classList.add('in'); });
+      }
+
+      // FAQ filter: Buyers / Farmers / All.
+      var faqButtons = document.querySelectorAll('[data-faq]');
+      faqButtons.forEach(function (b) {
+        b.addEventListener('click', function () {
+          var who = b.dataset.faq;
+          faqButtons.forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+          document.querySelectorAll('.faq details').forEach(function (d) {
+            d.hidden = !(who === 'all' || d.dataset.for === 'all' || d.dataset.for === who);
+          });
+        });
+      });
+
+      // Small sprouts rising in the last panel.
+      if (!reduce) {
+        var sp = document.getElementById('sprouts');
+        for (var i = 0; i < 14; i++) {
+          var s = document.createElement('span');
+          s.style.left = (Math.random() * 100).toFixed(1) + '%';
+          s.style.animationDelay = (Math.random() * 9).toFixed(2) + 's';
+          s.style.animationDuration = (7 + Math.random() * 6).toFixed(2) + 's';
+          var size = (4 + Math.random() * 7).toFixed(0) + 'px';
+          s.style.width = s.style.height = size;
+          sp.appendChild(s);
+        }
+      }
+
+      document.getElementById('year').textContent = new Date().getFullYear();
+    })();
+  </script>
+</body>
+</html>

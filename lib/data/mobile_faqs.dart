@@ -42,7 +42,8 @@ const List<MobileFaq> _farmerFaqs = [
   MobileFaq(
     'How do I accept or reject an order?',
     'Open Orders, tap Details on the order, then Accept or Reject at the '
-        'bottom. Rejecting returns the quantity to your stock.',
+        'bottom. The quantity comes off your stock only when you accept; '
+        'rejecting leaves your stock as it is.',
   ),
   MobileFaq(
     'What if I cannot deliver on the agreed date?',

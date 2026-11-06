@@ -442,7 +442,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
       clipBehavior: Clip.antiAlias,
       menuPadding: const EdgeInsets.symmetric(vertical: 6),
       constraints: BoxConstraints(
-        minWidth: 200.0.clamp(0.0, maxWidth),
+        // As wide as the longest place name (the list sizes itself to
+        // its options), not a fixed 200.
+        minWidth: 140.0.clamp(0.0, maxWidth),
         maxWidth: maxWidth,
         maxHeight: maxHeight,
       ),
@@ -509,8 +511,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             return false;
           }
           if (_selectedCategory != 'All Postings' &&
-              // Root crops and spices are Vegetables (normalizeCategory).
-              normalizeCategory(data['category']).toLowerCase() !=
+              // Under its own category; Root Crops and Spices listings
+              // saved while they were Vegetables too (listingCategory).
+              listingCategory(data).toLowerCase() !=
                   _selectedCategory.toLowerCase()) {
             return false;
           }

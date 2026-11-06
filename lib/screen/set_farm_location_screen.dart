@@ -44,10 +44,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
   Future<void> _useMyLocation() async {
     setState(() => _locating = true);
     try {
-      final granted = await requestFarmerLocationPermission(
-        context,
-        blockedFeature: tl('Pinning your exact farm location'),
-      );
+      final granted = await requestFarmerLocationPermission(context);
       if (!granted) return;
 
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();

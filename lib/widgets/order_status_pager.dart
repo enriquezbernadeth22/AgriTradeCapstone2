@@ -165,6 +165,10 @@ class OrderStatusPager extends StatefulWidget {
   /// Orders count); followed whenever it changes.
   final ValueListenable<String?>? showStatus;
 
+  /// Shown right under the status tabs, above every page (e.g. the Orders
+  /// period filter), so it reads as part of the tabs it filters.
+  final Widget? belowTabs;
+
   const OrderStatusPager({
     super.key,
     required this.streamFactory,
@@ -180,6 +184,7 @@ class OrderStatusPager extends StatefulWidget {
     this.activityOf,
     this.seenStore,
     this.showStatus,
+    this.belowTabs,
   });
 
   @override
@@ -429,6 +434,7 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _tabRow(unseen),
+            ?widget.belowTabs,
             Expanded(child: body),
           ],
         );

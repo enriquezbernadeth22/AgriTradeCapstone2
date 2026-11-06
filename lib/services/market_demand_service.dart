@@ -55,16 +55,27 @@ class BestSeller {
 class BuyerLocation {
   final String area;
 
-  /// 0–1: this area's completed orders relative to the top area's.
+  /// 0–1: this area's completed orders relative to the top area's. Sets
+  /// its [demand] level.
   final double relativeDemand;
   final String mostPurchased;
   final DemandLevel demand;
+
+  /// Completed orders from buyers in this area that month.
+  final int orders;
+
+  /// This area's share, in whole percent, of every completed order with a
+  /// buyer area that month. The shares of all the month's areas add up to
+  /// exactly 100 (see [MarketDemandService.wholePercents]).
+  final int sharePercent;
 
   const BuyerLocation({
     required this.area,
     required this.relativeDemand,
     required this.mostPurchased,
     required this.demand,
+    required this.orders,
+    required this.sharePercent,
   });
 }
 
@@ -397,15 +408,42 @@ class MarketDemandService {
       });
     if (ranked.isEmpty) return const [];
     final topOrders = ranked.first.value.length;
+    // Shared out over every area of the month, not just the ones listed.
+    final shares = wholePercents([for (final e in ranked) e.value.length]);
 
     return [
-      for (final entry in ranked.take(locationLimit))
+      for (var i = 0; i < ranked.length && i < locationLimit; i++)
         BuyerLocation(
-          area: entry.key,
-          relativeDemand: entry.value.length / topOrders,
-          mostPurchased: _mostCommon(entry.value.map((s) => s.commodity)),
-          demand: _level(entry.value.length, topOrders),
+          area: ranked[i].key,
+          relativeDemand: ranked[i].value.length / topOrders,
+          mostPurchased: _mostCommon(ranked[i].value.map((s) => s.commodity)),
+          demand: _level(ranked[i].value.length, topOrders),
+          orders: ranked[i].value.length,
+          sharePercent: shares[i],
         ),
     ];
+  }
+
+  /// [counts] as whole percents of their sum that add up to exactly 100
+  /// (largest remainder: each gets its rounded-down share, then the ones
+  /// with the biggest remainders get a point each until 100 is reached).
+  /// All zeros, or an empty list, give all zeros.
+  static List<int> wholePercents(List<int> counts) {
+    final total = counts.fold<int>(0, (a, c) => a + c);
+    if (total == 0) return List.filled(counts.length, 0);
+    final exact = [for (final c in counts) c * 100 / total];
+    final result = [for (final e in exact) e.floor()];
+    var left = 100 - result.fold<int>(0, (a, p) => a + p);
+    final byRemainder = List.generate(counts.length, (i) => i)
+      ..sort((a, b) {
+        final byRest = (exact[b] - result[b]).compareTo(exact[a] - result[a]);
+        return byRest != 0 ? byRest : a.compareTo(b);
+      });
+    for (final i in byRemainder) {
+      if (left == 0) break;
+      result[i]++;
+      left--;
+    }
+    return result;
   }
 }

@@ -170,7 +170,7 @@ class AppTheme {
       // Fallback popup look for any dialog/sheet not built with
       // widgets/agri_dialog.dart (e.g. date pickers): same rounded white
       // card, Montserrat, dark-green title and the same dimmed barrier.
-      // New popups should use agri_dialog.dart for the full frosted style.
+      // New popups should use agri_dialog.dart for the shared app style.
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
@@ -226,10 +226,9 @@ class AppTheme {
       ),
 
       // Every dropdown list and popup menu opens as the same white panel
-      // with rounded corners (it used to take the app's greenish surface
-      // colour), with the current choice shown in pale green.
+      // with rounded corners, and selected or focused rows use neutral grey.
       canvasColor: AppColors.surface,
-      focusColor: AppColors.accent.withValues(alpha: 0.7),
+      focusColor: AppColors.grey(200),
       popupMenuTheme: PopupMenuThemeData(
         color: AppColors.surface,
         surfaceTintColor: Colors.transparent,

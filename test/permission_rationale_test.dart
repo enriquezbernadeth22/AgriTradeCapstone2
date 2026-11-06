@@ -1,5 +1,6 @@
 // The "allow notifications" explanation uses the app's own popup, and its
 // two buttons are stacked, the same size, with the main choice on top.
+import 'package:agritrade/theme/app_colors.dart';
 import 'package:agritrade/widgets/agri_dialog.dart';
 import 'package:agritrade/widgets/permission_rationale_dialog.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +48,23 @@ void main() {
     // The shared popup design.
     expect(find.byType(AgriDialog), findsOneWidget);
     expect(find.byType(AgriFrostedCard), findsOneWidget);
+    final popupSurface = tester.widget<Container>(
+      find.descendant(
+        of: find.byType(AgriFrostedCard),
+        matching: find.byType(Container),
+      ).first,
+    );
+    expect(
+      (popupSurface.decoration! as BoxDecoration).color,
+      AppColors.surface,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(AgriFrostedCard),
+        matching: find.byType(BackdropFilter),
+      ),
+      findsNothing,
+    );
 
     final notNow = tester.getSize(
       find.widgetWithText(AgriDialogButton, 'Not Now'),

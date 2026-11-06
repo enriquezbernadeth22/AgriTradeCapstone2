@@ -568,7 +568,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
           GlowField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            hint: 'you@example.com',
+            hint: 'Email Address',
             icon: Icons.email_outlined,
             textInputAction: TextInputAction.next,
             onSubmitted: (_) => FocusScope.of(context).nextFocus(),

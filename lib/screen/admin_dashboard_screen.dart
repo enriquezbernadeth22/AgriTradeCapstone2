@@ -5180,10 +5180,14 @@ class _PriceManagementViewState extends State<_PriceManagementView>
                       id: doc.id,
                       data: data,
                       name: name,
-                      // None stays none (not in a category yet).
-                      category: switch (normalizeCategory(
-                        data['category'] ?? categoryOfCommodity(name),
-                      )) {
+                      // None stays none (not in a category yet). A root crop
+                      // or spice saved as Vegetables while they were merged
+                      // shows its own category (listingCategory).
+                      category: switch (listingCategory({
+                        'name': name,
+                        'category':
+                            data['category'] ?? categoryOfCommodity(name),
+                      })) {
                         '' => null,
                         final category => category,
                       },
@@ -5829,8 +5833,8 @@ class _BaselinePriceDialogState extends State<_BaselinePriceDialog> {
     final unit = _editing
         ? (_unitChoice ?? '')
         : (_knownUnit(typedUnit) ?? typedUnit);
-    // "Root Crops" or "Spices" typed by hand is saved as Vegetables;
-    // any other category as typed (normalizeCategory).
+    // A built-in category in its usual spelling ("root crop" → "Root
+    // Crops"); any other category as typed (normalizeCategory).
     final category = normalizeCategory(_categoryController.text);
 
     if (name.isEmpty) {

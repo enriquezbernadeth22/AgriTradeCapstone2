@@ -2,6 +2,7 @@
 // with its text starting in the same place after the icon and its thin line;
 // a fixed "+63" shows before anything is typed; and the primary button is the
 // tallest control, dark green with white text.
+import 'package:agritrade/widgets/fitted_menu_width.dart';
 import 'package:agritrade/theme/app_colors.dart';
 import 'package:agritrade/theme/app_theme.dart';
 import 'package:agritrade/widgets/barangay_location_field.dart';
@@ -58,7 +59,7 @@ void main() {
       AppTheme.formFieldHeight,
     );
     expect(
-      heightOf(find.byType(DropdownButtonFormField<String>)),
+      heightOf(find.byType(FittedDropdownField<String>)),
       AppTheme.formFieldHeight,
     );
     expect(
@@ -70,6 +71,10 @@ void main() {
       ),
       AppTheme.formFieldHeight,
     );
+  });
+
+  test('dropdown focus and selected rows use neutral grey', () {
+    expect(AppTheme.themeData().focusColor, AppColors.grey(200));
   });
 
   testWidgets('the text starts in the same place in either kind of field', (

@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 import '../data/account_types.dart';
 import 'glow_field.dart';
+import 'fitted_menu_width.dart';
 
 /// The role-specific question shown on registration forms after role choice.
 class RegistrationRoleDetails extends StatelessWidget {
@@ -53,10 +54,12 @@ class RegistrationRoleDetails extends StatelessWidget {
               highlightColor: AppColors.adapt(Colors.grey.shade200),
               splashColor: AppColors.adapt(Colors.grey.shade300),
             ),
-            child: DropdownButtonFormField<String>(
+            // The open list is as wide as its longest option, not the
+            // whole field (FittedDropdownField).
+            child: FittedDropdownField<String>(
               key: ValueKey(isFarmer),
-              initialValue: value,
-              isExpanded: true,
+              value: options.contains(value) ? value : null,
+              labels: [for (final option in options) tl(option)],
               icon: Icon(
                 Icons.expand_more_rounded,
                 color: AppTheme.formIconColor,

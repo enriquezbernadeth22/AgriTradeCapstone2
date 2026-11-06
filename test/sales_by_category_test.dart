@@ -13,8 +13,7 @@ void main() {
   });
 
   test('however it was typed, it lands under the one category', () {
-    // Root crops and spices are Vegetables now, also on older orders.
-    expect(category({'category': ' root crops '}, null), 'Vegetables');
+    expect(category({'category': ' root crops '}, null), 'Root Crops');
     expect(category({'category': 'VEGETABLES'}, null), 'Vegetables');
     expect(category({'category': 'livestock'}, null), 'Livestock');
   });
@@ -24,7 +23,7 @@ void main() {
       category({'productName': 'Lakatan'}, {'category': 'Fruits'}),
       'Fruits',
     );
-    expect(category({'category': '  '}, {'category': 'Spices'}), 'Vegetables');
+    expect(category({'category': '  '}, {'category': 'Spices'}), 'Spices');
   });
 
   test('otherwise the commodity it names, matched exactly', () {
@@ -53,6 +52,18 @@ void main() {
     expect(category({'productName': 'Fresh Native Tomato'}, null), isNull);
     expect(category({'productName': 'Mystery Box'}, {'name': 'Box'}), isNull);
     expect(category({}, null), isNull);
+  });
+
+  test('a root crop saved as Vegetables while they were merged counts '
+      'under Root Crops again', () {
+    expect(
+      category({'commodity': 'Cassava', 'category': 'Vegetables'}, null),
+      'Root Crops',
+    );
+    expect(
+      category({'commodity': 'Eggplant', 'category': 'Vegetables'}, null),
+      'Vegetables',
+    );
   });
 
   test('every supported category is reported under its own name', () {

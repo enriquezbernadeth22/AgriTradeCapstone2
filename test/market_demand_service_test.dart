@@ -211,6 +211,18 @@ void main() {
     expect(locations[1].mostPurchased, 'Eggplant');
     expect(locations[1].relativeDemand, closeTo(0.6, 0.001));
     expect(locations[1].demand, DemandLevel.moderate);
+    // Shares of every area's orders that month: 5 and 3 of 8.
+    expect(locations.map((l) => l.orders), [5, 3]);
+    expect(locations.map((l) => l.sharePercent), [63, 37]);
+  });
+
+  test('area shares are whole percents that always add up to 100', () {
+    expect(MarketDemandService.wholePercents([1, 1, 1]), [34, 33, 33]);
+    expect(MarketDemandService.wholePercents([1]), [100]);
+    expect(MarketDemandService.wholePercents([2, 1, 1]), [50, 25, 25]);
+    expect(MarketDemandService.wholePercents([0, 0]), [0, 0]);
+    final odd = MarketDemandService.wholePercents([7, 5, 3, 3, 1]);
+    expect(odd.reduce((a, b) => a + b), 100);
   });
 
   test('what buyers in one area ordered: most orders first, that area and '

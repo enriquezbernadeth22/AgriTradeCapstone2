@@ -30,8 +30,13 @@ class MarketAverageCard extends StatefulWidget {
   /// Every commodity, on the card's own full-list screen; else the first
   /// few and "View all".
   final bool showAll;
+  final bool embedded;
 
-  const MarketAverageCard({super.key, this.showAll = false});
+  const MarketAverageCard({
+    super.key,
+    this.showAll = false,
+    this.embedded = false,
+  });
 
   @override
   State<MarketAverageCard> createState() => _MarketAverageCardState();
@@ -45,9 +50,10 @@ class _MarketAverageCardState extends State<MarketAverageCard> {
   @override
   Widget build(BuildContext context) {
     return MarketCardShell(
-      title: tr(context).currentMarketAverage,
+      title: widget.embedded ? null : tr(context).currentMarketAverage,
       subtitle: tr(context).marketAverageSubtitle,
       tag: tr(context).live,
+      embedded: widget.embedded,
       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _products,
         builder: (context, snapshot) {

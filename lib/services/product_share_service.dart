@@ -26,11 +26,18 @@ const String kProductLinkBase = 'https://agritrade-bef87.web.app';
 /// sent and apps already installed follow along.
 const String kAppDownloadUrl = '$kProductLinkBase/download';
 
-/// What "Share AgriTrade+" sends: a short message and the link to get the
-/// app. The app itself is never attached.
+/// The AgriTrade+ download page (web/get/index.html): what the app is, how
+/// to install it, and the button to [kAppDownloadUrl]. Shared links go here
+/// so whoever gets one sees what AgriTrade+ is before downloading anything.
+/// The app opens only /product/ links, so this stays a web page even on a
+/// phone that has the app.
+const String kAppPageUrl = '$kProductLinkBase/get/';
+
+/// What "Share AgriTrade+" sends: a short message and the link to the
+/// download page. The app itself is never attached.
 String appShareText() => tl(
   'Check out AgriTrade+, where farmers and buyers in Laurel, Batangas connect. Download the Android app: {0}',
-  [kAppDownloadUrl],
+  [kAppPageUrl],
 );
 
 /// The link to one product listing. Only the product's id is in it.

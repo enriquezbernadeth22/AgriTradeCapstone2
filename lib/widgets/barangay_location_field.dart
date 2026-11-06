@@ -80,10 +80,7 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
     // opens the list straight away.
     _dropdownPromptShown = true;
     try {
-      final granted = await requestFarmerLocationPermission(
-        context,
-        blockedFeature: tl('Automatically detecting your barangay'),
-      );
+      final granted = await requestFarmerLocationPermission(context);
       if (!mounted) return;
       if (!granted) {
         // The permission helper has just explained this (and offered

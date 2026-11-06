@@ -34,4 +34,17 @@ void main() {
     expect(faqs.last.answer, contains('agritrade.team@gmail.com'));
     expect(faqs.any((f) => f.question == 'How do I post a product?'), isFalse);
   });
+
+  test(
+    'rejecting an order is not said to give stock back: it is taken on accept',
+    () {
+      final answer = mobileFaqsFor(farmer: true)
+          .firstWhere(
+            (f) => f.question == 'How do I accept or reject an order?',
+          )
+          .answer;
+      expect(answer, contains('only when you accept'));
+      expect(answer, isNot(contains('returns the quantity')));
+    },
+  );
 }

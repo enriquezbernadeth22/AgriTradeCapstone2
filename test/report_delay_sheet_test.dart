@@ -1,6 +1,7 @@
 // Report Delay: the reason from a dropdown, a box for "Other" (at most 100
 // characters), and Send to Buyer only once it can be sent — closing with
 // what was filled in, and without errors after it has closed.
+import 'package:agritrade/widgets/fitted_menu_width.dart';
 import 'package:agritrade/screen/order_actions.dart';
 import 'package:agritrade/services/order_format.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +52,7 @@ void main() {
     );
 
     // A dropdown, no "Other" box yet, and nothing to send without a date.
-    expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+    expect(find.byType(FittedDropdownField<String>), findsOneWidget);
     expect(find.text('Weather / Natural Disaster'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Specify the reason'), findsNothing);
     expect(send().onPressed, isNull);

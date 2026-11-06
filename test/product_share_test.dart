@@ -74,7 +74,7 @@ void main() {
   test('the app is shared as a short message and one link', () {
     final text = appShareText();
     expect(text, contains('AgriTrade+'));
-    expect(text, endsWith(kAppDownloadUrl));
+    expect(text, endsWith(kAppPageUrl));
     expect(RegExp('https://').allMatches(text), hasLength(1));
     expect(text.length, lessThan(160));
   });

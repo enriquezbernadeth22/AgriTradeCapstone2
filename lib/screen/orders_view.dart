@@ -7,10 +7,11 @@ import 'package:intl/intl.dart';
 
 import '../services/order_date_filter.dart';
 import '../services/order_format.dart';
-import '../widgets/agri_dialog.dart' show showAgriSheet, AgriSheetAction;
+import '../widgets/agri_dialog.dart' show showAgriPopupMenu, AgriMenuItem;
 import '../services/order_seen_service.dart';
 import '../services/order_service.dart';
 import '../widgets/order_card.dart';
+import '../widgets/fitted_menu_width.dart';
 import '../widgets/order_status_pager.dart';
 import '../widgets/page_header.dart';
 import 'inventory_screen.dart';
@@ -86,28 +87,36 @@ class _OrdersViewState extends State<OrdersView> {
     return tl(_dateFilter.label);
   }
 
-  // The period picker: a sheet of the periods, then — for Custom range —
-  // the calendar to choose the days.
-  Future<void> _pickPeriod() async {
-    final chosen = await showAgriSheet<OrderDateFilter>(
-      context: context,
-      title: tl('Show orders from'),
-      builder: (sheetContext) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final option in OrderDateFilter.values)
-            AgriSheetAction(
-              icon: option == _dateFilter
-                  ? Icons.check_rounded
-                  : option == OrderDateFilter.custom
-                  ? Icons.date_range_outlined
-                  : Icons.calendar_today_outlined,
-              label: tl(option.label),
-              onTap: () => Navigator.pop(sheetContext, option),
-            ),
-          const SizedBox(height: 8),
-        ],
+  // The period picker: a menu that drops down from the period button
+  // itself (not a sheet from the bottom), then — for Custom range — the
+  // calendar to choose the days.
+  Future<void> _pickPeriod(BuildContext anchorContext) async {
+    final chosen = await showAgriPopupMenu<OrderDateFilter>(
+      anchorContext: anchorContext,
+      // As wide as the longest period: each row is the text plus its icon
+      // (20) and gap (12) — see AgriMenuItem.
+      width: fittedMenuWidth(
+        context,
+        [for (final option in OrderDateFilter.values) tl(option.label)],
+        style: GoogleFonts.montserrat(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+        extra: 32,
       ),
+      items: [
+        for (final option in OrderDateFilter.values)
+          AgriMenuItem(
+            value: option,
+            icon: option == _dateFilter
+                ? Icons.check_rounded
+                : option == OrderDateFilter.custom
+                ? Icons.date_range_outlined
+                : Icons.calendar_today_outlined,
+            label: tl(option.label),
+            dividerBefore: option == OrderDateFilter.custom,
+          ),
+      ],
     );
     if (chosen == null || !mounted) return;
     if (chosen == OrderDateFilter.custom) {
@@ -129,56 +138,58 @@ class _OrdersViewState extends State<OrdersView> {
     setState(() => _dateFilter = chosen);
   }
 
-  // Under the header: the period shown. All time is a quiet outlined
+  // Under the status tabs: the period shown. All time is a quiet outlined
   // button; any other period is dark green, with an × to go back to all.
   Widget _periodBar() {
     final active = _dateFilter != OrderDateFilter.all;
     final foreground = active ? Colors.white : AppColors.brand;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
       child: Row(
         children: [
-          Material(
-            color: active ? AppColors.brandFill : AppColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                AppTheme.compactDropdownRadius,
+          Builder(
+            builder: (anchorContext) => Material(
+              color: active ? AppColors.brandFill : AppColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  AppTheme.compactDropdownRadius,
+                ),
+                side: active
+                    ? BorderSide.none
+                    : BorderSide(color: AppColors.grey(300)),
               ),
-              side: active
-                  ? BorderSide.none
-                  : BorderSide(color: AppColors.grey(300)),
-            ),
-            child: InkWell(
-              key: const Key('ordersPeriod'),
-              borderRadius: BorderRadius.circular(
-                AppTheme.compactDropdownRadius,
-              ),
-              onTap: _pickPeriod,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.calendar_month_outlined,
-                      size: 16,
-                      color: foreground,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _periodLabel,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
+              child: InkWell(
+                key: const Key('ordersPeriod'),
+                borderRadius: BorderRadius.circular(
+                  AppTheme.compactDropdownRadius,
+                ),
+                onTap: () => _pickPeriod(anchorContext),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 16,
                         color: foreground,
                       ),
-                    ),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: foreground,
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Text(
+                        _periodLabel,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: foreground,
+                        ),
+                      ),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: foreground,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -360,7 +371,6 @@ class _OrdersViewState extends State<OrdersView> {
                 )
               : null,
         ),
-        _periodBar(),
         Expanded(
           child: OrderStatusPager(
             streamFactory: _isFarmer
@@ -368,6 +378,7 @@ class _OrdersViewState extends State<OrdersView> {
                 : _orderService.buyerOrdersStream,
             tabs: _tabs,
             showStatus: widget.showStatus,
+            belowTabs: _periodBar(),
             itemsBuilder: _cardsFor,
             headerBuilder: _header,
             onRefresh: _refresh,

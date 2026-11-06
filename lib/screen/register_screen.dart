@@ -22,6 +22,7 @@ import '../widgets/glow_field.dart';
 import '../widgets/password_requirements.dart';
 import '../widgets/public_location_preview.dart';
 import '../widgets/registration_role_details.dart';
+import '../widgets/registration_step_indicator.dart';
 import 'page_transitions.dart';
 import 'privacy_policy_screen.dart';
 import 'supported_products_screen.dart';
@@ -31,18 +32,60 @@ import '../services/person_name.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
 
+/// Data retained while the person returns to choose a different role.
+class RegistrationDraft {
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String mobile;
+  final String password;
+  final String confirmPassword;
+  final String rsbaNumber;
+  final String? barangay;
+  final String? buyerDescription;
+  final String? farmerDescription;
+  final bool agreedToTerms;
+  final bool supportedProductsAcknowledged;
+
+  const RegistrationDraft({
+    this.firstName = '', this.lastName = '', this.email = '', this.mobile = '',
+    this.password = '', this.confirmPassword = '', this.rsbaNumber = '',
+    this.barangay, this.buyerDescription, this.farmerDescription,
+    this.agreedToTerms = false, this.supportedProductsAcknowledged = false,
+  });
+
+  bool get hasInput =>
+      firstName.trim().isNotEmpty ||
+      lastName.trim().isNotEmpty ||
+      email.trim().isNotEmpty ||
+      mobile.trim().isNotEmpty ||
+      password.isNotEmpty ||
+      confirmPassword.isNotEmpty ||
+      rsbaNumber.trim().isNotEmpty ||
+      barangay != null ||
+      buyerDescription != null ||
+      farmerDescription != null ||
+      agreedToTerms ||
+      supportedProductsAcknowledged;
+}
+
 class RegisterScreen extends StatefulWidget {
   // The role this account is for, chosen on ChooseRoleScreen. The form has
   // no way to change it: going back there does.
   final String initialRole;
-  // Pre-fills the Email field — used by the login form's "Email not
+  // Pre-fills the Email field Ã¢â‚¬â€ used by the login form's "Email not
   // registered? Create One" prompt, so the email they already typed there
   // doesn't need to be retyped.
   final String? initialEmail;
+  final RegistrationDraft? draft;
+  final void Function(String role, RegistrationDraft draft)?
+  onChooseAnotherRole;
   const RegisterScreen({
     super.key,
     this.initialRole = 'buyer',
     this.initialEmail,
+    this.draft,
+    this.onChooseAnotherRole,
   });
 
   @override
@@ -59,12 +102,12 @@ class _RegisterScreenState extends State<RegisterScreen>
   late final _emailController = TextEditingController(
     text: widget.initialEmail ?? '',
   );
-  // Holds only the 10 local digits (e.g. "9123456789") — the fixed "+63 "
+  // Holds only the 10 local digits (e.g. "9123456789") Ã¢â‚¬â€ the fixed "+63 "
   // prefix is display-only (see GlowField's prefixText), never part of what
   // the user types or what's stored in this controller. Required for both
   // roles: it is how a buyer and a farmer reach each other about an order
   // (see place_order_screen.dart, which starts from this number). A valid
-  // format is all that is checked — the number is never treated as
+  // format is all that is checked Ã¢â‚¬â€ the number is never treated as
   // verified.
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -75,7 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   // back to Farmer does not lose what was typed.
   String? _selectedBarangay;
   final _rsbaController = TextEditingController();
-  // Set once the RSBSA field has been left with something in it — only
+  // Set once the RSBSA field has been left with something in it Ã¢â‚¬â€ only
   // then is a number that is not valid shown as an error.
   bool _rsbaTouched = false;
 
@@ -86,8 +129,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _triedSubmit = false; // becomes true once they tap Sign Up
+  int _step = 2;
 
-  // Registration consent (Terms & Conditions / Privacy Policy) — required
+  // Registration consent (Terms & Conditions / Privacy Policy) Ã¢â‚¬â€ required
   // for both roles, never pre-checked. Farmer-only supported-product
   // acknowledgment is separate, since it's specific to Farmer setup.
   bool _agreedToTerms = false;
@@ -104,15 +148,15 @@ class _RegisterScreenState extends State<RegisterScreen>
   // The button floats at the bottom of the screen while the form is longer
   // than the screen, and settles into its own place at the end of the form
   // (an empty gap of the same height, above the hint and the log-in link)
-  // once that place scrolls into view — see _registerButtonBottom.
+  // once that place scrolls into view Ã¢â‚¬â€ see _registerButtonBottom.
   static const double _registerButtonHeight = AppTheme.formButtonHeight;
   static const double _registerFloatGap = 6;
   // Everything under the button's place: the hint and the log-in link
   // (_formEnd gives them this fixed height), then the form's own bottom
   // padding. Fixed, so where the button rests is known from the scroll
   // position alone. Just tall enough for both lines at the largest text
-  // size allowed there (×1.3), so no empty band is left under them.
-  static const double _formEndTextHeight = 62;
+  // size allowed there (Ãƒâ€”1.3), so no empty band is left under them.
+  static const double _formEndTextHeight = 8;
   static const double _formBottomPadding = 8;
   // Where the button was last drawn; see the check at the top of build.
   double _drawnRegisterBottom = _registerFloatGap;
@@ -134,6 +178,22 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   void initState() {
     super.initState();
+
+    final draft = widget.draft;
+    if (draft != null) {
+      _firstNameController.text = draft.firstName;
+      _lastNameController.text = draft.lastName;
+      _emailController.text = draft.email;
+      _mobileController.text = draft.mobile;
+      _passwordController.text = draft.password;
+      _confirmController.text = draft.confirmPassword;
+      _rsbaController.text = draft.rsbaNumber;
+      _selectedBarangay = draft.barangay;
+      _buyerDescription = draft.buyerDescription;
+      _farmerDescription = draft.farmerDescription;
+      _agreedToTerms = draft.agreedToTerms;
+      _supportedProductsAcknowledged = draft.supportedProductsAcknowledged;
+    }
 
     // Rebuild on every keystroke so errors + the button update live.
     _firstNameController.addListener(_onChange);
@@ -157,8 +217,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // How far above the bottom of the screen area the Register button sits:
-  // floating just above the edge, or — once its place at the end of the
-  // form has scrolled up into view — resting in that place. With the
+  // floating just above the edge, or Ã¢â‚¬â€ once its place at the end of the
+  // form has scrolled up into view Ã¢â‚¬â€ resting in that place. With the
   // keyboard open it always stays in its place in the form, so it never
   // covers the field being typed in.
   double _registerButtonBottom(bool keyboardOpen) {
@@ -217,7 +277,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   bool _mobileNumberValid(String digits) => isValidPhMobile(digits);
 
-  // The "+63 " prefix is fixed/display-only (see GlowField's prefixText) —
+  // The "+63 " prefix is fixed/display-only (see GlowField's prefixText) Ã¢â‚¬â€
   // the controller only ever holds the 10 local digits, and inputFormatters
   // on the field itself already reject anything but digits and cap the
   // length at 10, so there's no separate "no special characters" check
@@ -225,7 +285,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   // type a wrong first digit); "required"/"incomplete" only after a submit
   // attempt, so mid-typing never looks like an error.
   String? get _mobileError {
-    // Shared rules for every mobile field in the app — see ph_mobile.dart.
+    // Shared rules for every mobile field in the app Ã¢â‚¬â€ see ph_mobile.dart.
     return phMobileError(
       _mobileController.text.trim(),
       required: true,
@@ -233,7 +293,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  // Shown only after a submit attempt — the live checklist under the
+  // Shown only after a submit attempt Ã¢â‚¬â€ the live checklist under the
   // password field (_passwordRequirements) already gives per-rule feedback
   // while typing, so this would be redundant noise before they've tried to
   // submit.
@@ -268,7 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!isValidNamePart(_firstNameController.text)) return false;
     if (!isValidNamePart(_lastNameController.text)) return false;
     if (!_emailPattern.hasMatch(email)) return false;
-    // Required for both roles — order/delivery/pick-up coordination.
+    // Required for both roles Ã¢â‚¬â€ order/delivery/pick-up coordination.
     if (!_mobileNumberValid(mobile)) return false;
     if (!_passwordMeetsRules(pass)) return false;
     if (confirm.isEmpty || confirm != pass) return false;
@@ -293,7 +353,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       return;
     }
 
-    // ── Internet check ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Internet check Ã¢â€â‚¬Ã¢â€â‚¬
     if (!await hasInternet()) {
       _showMessage(tl('No internet connection. Please check your connection.'));
       return;
@@ -326,14 +386,14 @@ class _RegisterScreenState extends State<RegisterScreen>
       return;
     }
 
-    // One role per account is already guaranteed by Firebase Auth itself —
+    // One role per account is already guaranteed by Firebase Auth itself Ã¢â‚¬â€
     // an email can only ever back one account/uid, and a role is fixed to
     // that account at creation and immutable afterward (see firestore
     // .rules' users/{userId} update rule). signUp below surfaces
     // "email-already-in-use" if this email is already registered under
     // any role.
 
-    // ---- Step 1: create the Firebase Auth account only — no Firestore
+    // ---- Step 1: create the Firebase Auth account only Ã¢â‚¬â€ no Firestore
     // profile yet. That's written in one shot, after email verification
     // actually succeeds, by EmailVerificationScreen (see
     // AuthService.completeRegistration's doc comment for why).
@@ -354,7 +414,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     // on.
     RegistrationGuard.remember(_emailController.text);
 
-    // Buyers no longer set a location at registration — they set it later,
+    // Buyers no longer set a location at registration Ã¢â‚¬â€ they set it later,
     // per order, when placing one (see place_order_screen.dart).
 
     final mobileDigits = _mobileController.text.trim();
@@ -368,11 +428,11 @@ class _RegisterScreenState extends State<RegisterScreen>
           _isFarmer && _supportedProductsAcknowledged,
       accountType: _accountType,
       barangay: _isFarmer ? _selectedBarangay : null,
-      // For the admin to check — a well-formed number approves nothing.
+      // For the admin to check Ã¢â‚¬â€ a well-formed number approves nothing.
       rsbaNumber: _isFarmer ? normalizeRsba(_rsbaController.text) : null,
     );
     // Durable (survives the app being closed while they check their
-    // email), not just an in-memory navigation argument — see
+    // email), not just an in-memory navigation argument Ã¢â‚¬â€ see
     // PendingRegistrationProfile's doc comment.
     if (uid != null) await _authService.savePendingProfile(uid, pendingProfile);
 
@@ -429,7 +489,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           inputFormatters: inputFormatters,
         ),
         // Rendered as its own line below the field, not inside it (GlowField
-        // no longer accepts an errorText of its own) — keeps every field's
+        // no longer accepts an errorText of its own) Ã¢â‚¬â€ keeps every field's
         // error visually outside the input itself.
         if (errorText != null) ...[
           const SizedBox(height: 6),
@@ -467,7 +527,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // Live password requirements — hidden until they start typing a
+  // Live password requirements Ã¢â‚¬â€ hidden until they start typing a
   // password, then each item turns green the moment it's satisfied.
   // ==========================================================
   Widget _passwordRequirements() =>
@@ -508,7 +568,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // Farmer supported-product awareness — a farmer must know the
+  // Farmer supported-product awareness Ã¢â‚¬â€ a farmer must know the
   // marketplace scope before they ever try to list something. A checkbox
   // right above the Terms agreement, ticked in place (required, never
   // pre-checked); "Supported Products" in its text opens the full list.
@@ -590,7 +650,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // Farmer public location preview — shown once a barangay is selected, so
+  // Farmer public location preview Ã¢â‚¬â€ shown once a barangay is selected, so
   // the farmer sees exactly what buyers will see before they finish
   // registering. Uses the real selected barangay (never a dummy value);
   // municipality/province are fixed since farmer registration is scoped to
@@ -605,7 +665,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // Registration consent — required for both roles, never pre-checked.
+  // Registration consent Ã¢â‚¬â€ required for both roles, never pre-checked.
   // Terms & Privacy each open their own screen so they're independently
   // readable before the user agrees.
   // ==========================================================
@@ -633,7 +693,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       text: TextSpan(
                         style: AppTheme.body(
                           color: AppColors.text,
-                          size: 12.5,
+                          size: 11.5,
                         ).copyWith(height: 1.4),
                         children: [
                           TextSpan(text: tl('I agree to the ')),
@@ -642,7 +702,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             style:
                                 AppTheme.body(
                                   color: AppColors.brand,
-                                  size: 12.5,
+                                  size: 11.5,
                                 ).copyWith(
                                   fontWeight: FontWeight.bold,
                                   decoration: TextDecoration.underline,
@@ -662,7 +722,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             style:
                                 AppTheme.body(
                                   color: AppColors.brand,
-                                  size: 12.5,
+                                  size: 11.5,
                                 ).copyWith(
                                   fontWeight: FontWeight.bold,
                                   decoration: TextDecoration.underline,
@@ -700,7 +760,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // RSBSA No. — farmers only, right after the name. It took the place of
+  // RSBSA No. Ã¢â‚¬â€ farmers only, right after the name. It took the place of
   // the certificate upload.
   // The Focus wrapper only listens: once the field is left with something
   // typed in it, a number that is not valid starts showing as an error.
@@ -729,7 +789,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   // ==========================================================
   // The Register button. It is drawn once, floating over the form (see
-  // build and _registerButtonBottom) — no bar or background behind it, so
+  // build and _registerButtonBottom) Ã¢â‚¬â€ no bar or background behind it, so
   // its disabled state is a solid grey rather than a see-through one.
   // ==========================================================
   Widget _registerButton(bool canSubmit) {
@@ -765,59 +825,110 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ==========================================================
-  // The end of the form: the Register button's own place, then the hint
-  // and the way back to Login. These scroll with the form.
+  // Reserves the floating Register button's place at the end of the form.
   // ==========================================================
-  Widget _formEnd() {
-    return Column(
+  Widget _formEnd() => const Column(
+    children: [
+      SizedBox(height: 16),
+      SizedBox(height: _registerButtonHeight, width: double.infinity),
+      SizedBox(height: _formEndTextHeight),
+    ],
+  );
+
+  /// A short reminder above Register to look over what was typed in. It
+  /// does not repeat the details: they are all on the form above it.
+  Widget _reviewInformation() => Padding(
+    padding: const EdgeInsets.only(top: 4, bottom: AppTheme.formFieldGap),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
-        // Empty on purpose — the floating button comes to rest here.
-        const SizedBox(height: _registerButtonHeight, width: double.infinity),
-        // A fixed height (see _formEndTextHeight), whether or not the hint
-        // is showing; very large font settings are held back a little so
-        // both lines always fit in it.
-        SizedBox(
-          height: _formEndTextHeight,
-          width: double.infinity,
-          child: MediaQuery.withClampedTextScaling(
-            maxScaleFactor: 1.3,
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                // Gentle hint when the button is disabled.
-                if (!_isFormValid && !_loading) ...[
-                  Text(
-                    tl('Please complete all fields first.'),
-                    style: AppTheme.body(color: AppColors.textMuted, size: 12),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                GestureDetector(
-                  onTap: () => Navigator.pop(context, true),
-                  child: RichText(
-                    textScaler: MediaQuery.textScalerOf(
-                      context,
-                    ).clamp(maxScaleFactor: 1.3),
-                    text: TextSpan(
-                      style: AppTheme.body(color: AppColors.text, size: 13.5),
-                      children: [
-                        TextSpan(text: tr(context).alreadyHaveAccount),
-                        TextSpan(
-                          text: tr(context).logIn,
-                          style: AppTheme.formLink(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(
+            Icons.info_outline,
+            size: 16,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            tl(
+              'Please review the information you entered before registering. '
+              'Make sure your name, email and mobile number are correct.',
             ),
+            style: AppTheme.body(color: AppColors.textSecondary, size: 12),
           ),
         ),
       ],
-    );
+    ),
+  );
+
+  bool get _informationValid =>
+      isValidNamePart(_firstNameController.text) &&
+      isValidNamePart(_lastNameController.text) &&
+      _accountType != null &&
+      (!_isFarmer ||
+          (_selectedBarangay != null && isValidRsba(_rsbaController.text)));
+
+  void _continueToAccount() {
+    setState(() => _triedSubmit = true);
+    if (!_informationValid) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    _scrollController.jumpTo(0);
+    setState(() {
+      _step = 3;
+      _triedSubmit = false;
+    });
   }
+
+  void _handleBack() {
+    if (_step == 3) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() {
+        _step = 2;
+        _triedSubmit = false;
+      });
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+      return;
+    }
+    if (widget.onChooseAnotherRole != null) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      widget.onChooseAnotherRole!(_selectedRole, _makeDraft());
+      return;
+    }
+    if (!_hasInput) {
+      Navigator.pop(context);
+      return;
+    }
+    _confirmLeave(null);
+  }
+
+  RegistrationDraft _makeDraft() => RegistrationDraft(
+    firstName: _firstNameController.text,
+    lastName: _lastNameController.text,
+    email: _emailController.text,
+    mobile: _mobileController.text,
+    password: _passwordController.text,
+    confirmPassword: _confirmController.text,
+    rsbaNumber: _rsbaController.text,
+    barangay: _selectedBarangay,
+    buyerDescription: _buyerDescription,
+    farmerDescription: _farmerDescription,
+    agreedToTerms: _agreedToTerms,
+    supportedProductsAcknowledged: _supportedProductsAcknowledged,
+  );
+  Widget _stepAction() => SizedBox(
+    height: _registerButtonHeight,
+    width: double.infinity,
+    child: ElevatedButton(
+      onPressed: _loading ? null : (_step == 2 ? _continueToAccount : _register),
+      style: AppTheme.primaryButton(),
+      child: _loading && _step == 3
+          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : Text(_step == 2 ? tl('Continue') : tr(context).registerButton, style: AppTheme.buttonText()),
+    ),
+  );
 
   // Anything typed or chosen on the form, which Back would throw away.
   bool get _hasInput =>
@@ -832,7 +943,9 @@ class _RegisterScreenState extends State<RegisterScreen>
       _emailController.text.trim() != (widget.initialEmail ?? '').trim() ||
       _selectedBarangay != null ||
       _buyerDescription != null ||
-      _farmerDescription != null;
+      _farmerDescription != null ||
+      _agreedToTerms ||
+      _supportedProductsAcknowledged;
 
   // Set once the person has agreed to leave, so the pop goes through.
   bool _leaving = false;
@@ -859,25 +972,36 @@ class _RegisterScreenState extends State<RegisterScreen>
     final canSubmit = _isFormValid && !_loading;
 
     // The form's height changes with the role, the errors showing and the
-    // keyboard — none of which is a scroll. So once this frame is laid
+    // keyboard Ã¢â‚¬â€ none of which is a scroll. So once this frame is laid
     // out, draw again if the button now belongs somewhere else.
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final bottom = _registerButtonBottom(keyboardOpen);
-      if ((bottom - _drawnRegisterBottom).abs() > 0.5) setState(() {});
-    });
+    // Only step 3 has the floating Register button: on step 2 its place is
+    // never drawn, so checking it would redraw every frame without end.
+    if (_step == 3) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final bottom = _registerButtonBottom(keyboardOpen);
+        if ((bottom - _drawnRegisterBottom).abs() > 0.5) setState(() {});
+      });
+    }
 
     return PopScope(
-      canPop: _leaving || _loading || !_hasInput,
+      canPop: _leaving ||
+          _loading ||
+          (widget.onChooseAnotherRole == null && _step == 2 && !_hasInput),
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _confirmLeave(result);
+        if (didPop) return;
+        _handleBack();
       },
       child: Scaffold(
         backgroundColor: AppColors.page,
-        // The compact header: Back, and the small logo and name — the only
+        // The compact header: Back, and the small logo and name Ã¢â‚¬â€ the only
         // logo on the page, quieter than its title.
-        appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
+        appBar: AgriAppBar(
+          titleWidget: const AgriTradeHeaderBrand(),
+        onBack: _handleBack,
+          backEnabled: !_loading,
+        ),
         body: SafeArea(
           top: false,
           child: Stack(
@@ -898,17 +1022,30 @@ class _RegisterScreenState extends State<RegisterScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        RegistrationStepIndicator(step: _step),
                         Center(
                           child: Text(
-                            tr(context).registerTitle,
+                            tl(_step == 2 ? 'Your Information' : 'Account Setup'),
                             textAlign: TextAlign.center,
                             style: AppTheme.pageTitle(),
                           ),
                         ),
                         const SizedBox(height: 6),
+                        Center(
+                          child: Text(
+                            tl(
+                              _step == 2
+                                  ? 'Tell us a little about yourself.'
+                                  : 'Add your contact details and a password.',
+                            ),
+                            textAlign: TextAlign.center,
+                            style: AppTheme.pageDescription(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
                         const SizedBox(height: AppTheme.formSectionGap),
-
+                        if (_step == 2) ...[
                         RegistrationRoleDetails(
                           isFarmer: _isFarmer,
                           value: _accountType,
@@ -946,6 +1083,19 @@ class _RegisterScreenState extends State<RegisterScreen>
                         // ---- RSBSA No. (farmers only) ----
                         if (_isFarmer) _rsbaField(),
 
+                        if (_isFarmer) ...[
+                          _laurelNotice(),
+                          const SizedBox(height: 16),
+                          BarangayLocationField(
+                            value: _selectedBarangay,
+                            errorText: _triedSubmit && _selectedBarangay == null
+                                ? tl('Please select a barangay in Laurel.') : null,
+                            onChanged: (value) => setState(() => _selectedBarangay = value),
+                          ),
+                          _publicLocationPreview(),
+                        ],
+                        _stepAction(),
+                        ] else ...[
                         // ---- Email ----
                         _buildField(
                           label: tr(context).emailAddress,
@@ -960,9 +1110,9 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                         // ---- Mobile Number ----
                         // Required for both roles (order/delivery/pick-up
-                        // coordination). Fixed +63 prefix — no country
+                        // coordination). Fixed +63 prefix Ã¢â‚¬â€ no country
                         // dropdown, PH-only scope; a number typed or pasted
-                        // as 09… or +639… is reduced to the same 10 digits.
+                        // as 09Ã¢â‚¬Â¦ or +639Ã¢â‚¬Â¦ is reduced to the same 10 digits.
                         _buildField(
                           label: 'Mobile Number',
                           controller: _mobileController,
@@ -1027,30 +1177,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                         ),
 
                         // ================================================
-                        // Farmers only — the Laurel notice, then the barangay
-                        // (BarangayLocationField, restricted to Laurel), for
-                        // verification. Buyers set no location at
-                        // registration; they set it later, per order (see
-                        // place_order_screen.dart). The supported-products
-                        // checkbox sits right above the Terms agreement.
-                        // ================================================
                         if (_isFarmer) ...[
-                          _laurelNotice(),
-                          const SizedBox(height: 16),
-                          BarangayLocationField(
-                            value: _selectedBarangay,
-                            errorText: _triedSubmit && _selectedBarangay == null
-                                ? tl('Please select a barangay in Laurel.')
-                                : null,
-                            onChanged: (value) =>
-                                setState(() => _selectedBarangay = value),
-                          ),
-                          _publicLocationPreview(),
                           _supportedProductsCheckbox(),
                         ],
                         const SizedBox(height: 4),
                         _consentCheckbox(),
-                        _formEnd(),
+                        _reviewInformation(),
+                        if (_step == 3) _formEnd(),
+                        ],
                       ],
                     ),
                   ),
@@ -1060,7 +1194,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               // ---- Register button: the only thing that floats, with    ----
               // ---- nothing behind it. It comes to rest in its own place ----
               // ---- at the end of the form (see _registerButtonBottom).  ----
-              ListenableBuilder(
+              if (_step == 3) ListenableBuilder(
                 listenable: _scrollController,
                 builder: (context, child) {
                   _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);

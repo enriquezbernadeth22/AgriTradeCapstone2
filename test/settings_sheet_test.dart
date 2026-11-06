@@ -123,7 +123,7 @@ void main() {
 
     expect(find.text('Manage Account'), findsNothing);
     final message = shared.single;
-    expect(message['text'], contains(kAppDownloadUrl));
+    expect(message['text'], contains(kAppPageUrl));
     expect(message['text'], contains('AgriTrade+'));
     expect(message['subject'], 'AgriTrade+');
     expect(message.containsKey('paths'), isFalse);

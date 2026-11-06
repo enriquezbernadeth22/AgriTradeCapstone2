@@ -82,9 +82,10 @@ class PriceHistoryService {
         doc.reference.collection('history').get().then((snap) {
           final data = doc.data();
           final name = (data['name'] ?? doc.id).toString();
-          final category = normalizeCategory(
-            data['category'] ?? categoryOfCommodity(name),
-          );
+          final category = listingCategory({
+            'name': name,
+            'category': data['category'] ?? categoryOfCommodity(name),
+          });
           final ordered =
               [
                 for (final entry in snap.docs)

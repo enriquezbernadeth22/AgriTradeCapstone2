@@ -39,6 +39,7 @@ class MarketDemandCards extends StatefulWidget {
 
   /// Every row, on a card's own full-list screen.
   final bool showAll;
+  final bool embedded;
 
   /// The `market_sales` records, without Firestore.
   @visibleForTesting
@@ -55,6 +56,7 @@ class MarketDemandCards extends StatefulWidget {
     this.locationsKey,
     this.only,
     this.showAll = false,
+    this.embedded = false,
     this.salesStream,
     this.now,
   });
@@ -265,7 +267,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
   }
 
   Widget _card({
-    required String title,
+    required String? title,
     String? subtitle,
     required Widget tag,
     required bool loading,
@@ -276,9 +278,10 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     required VoidCallback openAll,
   }) {
     return MarketCardShell(
-      title: title,
+      title: widget.embedded ? null : title,
       subtitle: subtitle,
       tagWidget: tag,
+      embedded: widget.embedded,
       child: loading
           ? const MarketCardLoading()
           : rows.isEmpty
@@ -380,15 +383,15 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     ]);
   }
 
-  // Rank, area, demand and its share against the busiest area — on one
-  // line. Tapping it shows what buyers there ordered (see
+  // Rank, area, demand and its share of the month's orders — on one
+  // line (the shares of all the month's areas add up to 100%). Tapping it shows what buyers there ordered (see
   // [_showLocationDetails]).
   Widget _locationRow(
     int rank,
     BuyerLocation location, {
     required VoidCallback onTap,
   }) {
-    final share = (location.relativeDemand.clamp(0.0, 1.0) * 100).round();
+    final share = location.sharePercent;
     return Semantics(
       button: true,
       hint: tl('Show what buyers here ordered'),
@@ -451,8 +454,8 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
 
 /// What buyers in one area ordered in a month (Top Buyer Locations → an
 /// area): a summary on top — the area's demand level, its completed orders,
-/// and what its percentage on the card means (its demand against the
-/// busiest area's) — then each product with its orders and a bar showing
+/// and what its percentage on the card means (its share of all buyer
+/// orders that month) — then each product with its orders and a bar showing
 /// its share of the area's orders.
 class LocationOrdersSheet extends StatelessWidget {
   final BuyerLocation location;
@@ -472,7 +475,7 @@ class LocationOrdersSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final share = (location.relativeDemand.clamp(0.0, 1.0) * 100).round();
+    final share = location.sharePercent;
     final (level, levelColor) = demandLevelStyle(location.demand);
     TextStyle text(double size, FontWeight weight, Color color) =>
         GoogleFonts.montserrat(
@@ -509,47 +512,52 @@ class LocationOrdersSheet extends StatelessWidget {
       ),
     );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          tl('Completed orders from buyers here in {0}', [
-            DateFormat('MMMM y').format(month),
-          ]),
-          style: text(12.5, FontWeight.w400, AppColors.grey(600)),
-        ),
-        const SizedBox(height: 12),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              stat(level, tl('Demand'), color: levelColor),
-              const SizedBox(width: 8),
-              stat('$total', total == 1 ? tl('order') : tl('orders')),
-              const SizedBox(width: 8),
-              stat('$share%', tl('of the busiest area’s demand')),
-            ],
+    // Lined up with the sheet's title (18 in), and scrolls on a short
+    // screen instead of running off the bottom.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 2, 18, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            tl('Completed orders from buyers here in {0}', [
+              DateFormat('MMMM y').format(month),
+            ]),
+            style: text(12.5, FontWeight.w400, AppColors.grey(600)),
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          tl('Most ordered here'),
-          style: text(13.5, FontWeight.w700, AppColors.text),
-        ),
-        const SizedBox(height: 4),
-        if (products.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              tl('No completed orders here this month.'),
-              style: text(12.5, FontWeight.w400, AppColors.grey(600)),
+          const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                stat(level, tl('Demand'), color: levelColor),
+                const SizedBox(width: 8),
+                stat('$total', total == 1 ? tl('order') : tl('orders')),
+                const SizedBox(width: 8),
+                stat('$share%', tl('of all buyer orders this month')),
+              ],
             ),
-          )
-        else
-          for (var i = 0; i < products.length; i++)
-            _productRow(i + 1, products[i], text),
-      ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            tl('Most ordered here'),
+            style: text(13.5, FontWeight.w700, AppColors.text),
+          ),
+          const SizedBox(height: 4),
+          if (products.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                tl('No completed orders here this month.'),
+                style: text(12.5, FontWeight.w400, AppColors.grey(600)),
+              ),
+            )
+          else
+            for (var i = 0; i < products.length; i++)
+              _productRow(i + 1, products[i], text),
+        ],
+      ),
     );
   }
 

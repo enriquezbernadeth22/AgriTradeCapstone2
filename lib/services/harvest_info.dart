@@ -1,22 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+import '../data/commodity_master_list.dart';
+
 /// Harvest information on a product listing (`products/{id}.harvestDate`).
 ///
 /// It is whatever date the farmer entered — the app never inspects the
 /// photo or judges freshness itself. Everything shown to buyers is derived
 /// from that one date by the plain rules below.
 
-/// The categories that have a harvest date. Livestock and the rest don't
-/// get a harvest field or "harvested N days ago" wording.
-const Set<String> kHarvestDateCategories = {'Vegetables', 'Fruits'};
+/// The categories that have a harvest date (crops; Root Crops and Spices
+/// kept theirs when they became categories of their own again). Livestock
+/// and Grains don't get a harvest field or "harvested N days ago" wording.
+const Set<String> kHarvestDateCategories = {
+  'Vegetables',
+  'Fruits',
+  'Root Crops',
+  'Spices',
+};
 
 bool categoryHasHarvestDate(String? category) =>
-    kHarvestDateCategories.contains(category?.trim());
+    kHarvestDateCategories.contains(normalizeCategory(category));
 
 /// A product's harvest date, if its category has one and the farmer set it.
 DateTime? harvestDateOf(Map<String, dynamic> product) {
-  if (!categoryHasHarvestDate(product['category']?.toString())) return null;
+  if (!categoryHasHarvestDate(listingCategory(product))) return null;
   final value = product['harvestDate'];
   return value is Timestamp ? value.toDate() : null;
 }

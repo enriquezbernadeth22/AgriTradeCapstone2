@@ -2140,7 +2140,7 @@ class _ReportDetailDialogState extends State<_ReportDetailDialog>
                           );
                         }
                         final name = (product['name'] ?? '—').toString();
-                        final saved = normalizeCategory(product['category']);
+                        final saved = listingCategory(product);
                         final category = saved.isEmpty ? '—' : saved;
                         final desc = (product['description'] ?? '—').toString();
                         final price = product['price'];

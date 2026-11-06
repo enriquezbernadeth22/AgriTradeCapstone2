@@ -94,7 +94,7 @@ class ExploreProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = (data['name'] ?? tl('Unnamed Product')).toString();
-    final savedCategory = normalizeCategory(data['category']);
+    final savedCategory = listingCategory(data);
     final category = savedCategory.isEmpty ? 'General' : savedCategory;
     final farmer = (data['farmerName'] ?? tl('Local Farmer')).toString();
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;

@@ -6,7 +6,9 @@ import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agri_app_bar.dart';
+import '../widgets/agri_dialog.dart';
 import '../widgets/agritrade_text.dart';
+import '../widgets/registration_step_indicator.dart';
 import 'google_complete_profile_screen.dart';
 import 'page_transitions.dart';
 import 'register_screen.dart';
@@ -46,6 +48,10 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
 
   String? _chosen;
   bool _leaving = false;
+  RegistrationDraft? _draft;
+  String? _draftRole;
+
+  bool get _hasDraftInput => _draft?.hasInput ?? false;
 
   @override
   void initState() {
@@ -67,17 +73,39 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
     }
     if (!mounted) return;
     final google = widget.google;
+    if (google == null) {
+      await Navigator.push(
+        context,
+        slideRoute(
+          RegisterScreen(
+            initialRole: role,
+            draft: _draftForRole(role),
+            onChooseAnotherRole: (previousRole, draft) {
+              if (!mounted) return;
+              setState(() {
+                _draft = draft;
+                _draftRole = previousRole;
+                _chosen = null;
+                _leaving = false;
+              });
+              Navigator.pop(context, 'change-role');
+            },
+          ),
+        ),
+      );
+      if (mounted) setState(() => _leaving = false);
+      return;
+    }
+
     final toLogIn = await Navigator.push(
       context,
       slideRoute(
-        google == null
-            ? RegisterScreen(initialRole: role)
-            : GoogleCompleteProfileScreen(
-                uid: google.uid!,
-                email: google.email ?? '',
-                initialName: google.displayName,
-                role: role,
-              ),
+        GoogleCompleteProfileScreen(
+          uid: google.uid!,
+          email: google.email ?? '',
+          initialName: google.displayName,
+          role: role,
+        ),
       ),
     );
     if (!mounted) return;
@@ -85,6 +113,56 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
     // The form's "Log in" link (or the Google form's Cancel) goes past this
     // screen as well.
     if (toLogIn == true) Navigator.pop(context);
+  }
+
+  RegistrationDraft? _draftForRole(String role) {
+    final draft = _draft;
+    if (draft == null || _draftRole == null || role == _draftRole) {
+      return draft;
+    }
+    if (role == 'buyer') {
+      return RegistrationDraft(
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        email: draft.email,
+        mobile: draft.mobile,
+        password: draft.password,
+        confirmPassword: draft.confirmPassword,
+        buyerDescription: draft.buyerDescription,
+        agreedToTerms: draft.agreedToTerms,
+      );
+    }
+    return RegistrationDraft(
+      firstName: draft.firstName,
+      lastName: draft.lastName,
+      email: draft.email,
+      mobile: draft.mobile,
+      password: draft.password,
+      confirmPassword: draft.confirmPassword,
+      rsbaNumber: draft.rsbaNumber,
+      barangay: draft.barangay,
+      farmerDescription: draft.farmerDescription,
+      agreedToTerms: draft.agreedToTerms,
+      supportedProductsAcknowledged: draft.supportedProductsAcknowledged,
+    );
+  }
+
+  Future<void> _handleExit() async {
+    if (_leaving) return;
+    if (_hasDraftInput) {
+      final discard = await showAgriConfirm(
+        context: context,
+        icon: Icons.edit_note_rounded,
+        title: tl('Leave registration?'),
+        message: tl('What you have filled in will be lost.'),
+        confirmLabel: tl('Leave'),
+        cancelLabel: tl('Keep Editing'),
+        tone: AgriTone.destructive,
+      );
+      if (!discard || !mounted) return;
+    }
+    setState(() => _leaving = true);
+    Navigator.pop(context);
   }
 
   // Only a pop reaches here: entering the app removes this screen without
@@ -107,24 +185,39 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(onPopInvokedWithResult: _leftScreen, child: _page(context));
+    return PopScope(
+      canPop: !_hasDraftInput || _leaving,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          _leftScreen(didPop, result);
+        } else {
+          _handleExit();
+        }
+      },
+      child: _page(context),
+    );
   }
 
   Widget _page(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
+      appBar: AgriAppBar(
+        titleWidget: const AgriTradeHeaderBrand(),
+        onBack: _handleExit,
+        backEnabled: !_leaving,
+      ),
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
-            20,
+            AppTheme.formPageMargin,
             AppTheme.formSectionGap,
-            20,
+            AppTheme.formPageMargin,
             AppTheme.formSectionGap,
           ),
           child: Column(
             children: [
+              const RegistrationStepIndicator(step: 1),
               Text(
                 tl('How will you use AgriTrade+?'),
                 textAlign: TextAlign.center,

@@ -55,11 +55,12 @@ Future<bool> showPermissionRationale(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Justified beside a list of details; a short message on its own
-          // is centred, where justifying would leave wide gaps.
+          // Left-aligned beside a list of details; a short message on its
+          // own is centred. Never justified: in a dialog this narrow it
+          // leaves wide gaps between words that make it harder to read.
           Text(tl(message),
             textAlign: (bullets?.isNotEmpty ?? false)
-                ? TextAlign.justify
+                ? TextAlign.start
                 : TextAlign.center,
             style: _messageStyle,
           ),
@@ -96,7 +97,7 @@ Future<bool> showPermissionRationale(
                           Expanded(
                             child: Text(
                               b,
-                              textAlign: TextAlign.justify,
+                              textAlign: TextAlign.start,
                               style: _bulletStyle,
                             ),
                           ),

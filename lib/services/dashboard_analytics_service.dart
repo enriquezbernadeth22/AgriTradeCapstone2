@@ -483,7 +483,7 @@ class DashboardAnalyticsService {
   static const List<String> salesCategories = kBuiltInCategories;
 
   // [raw] as one of the commodity list's categories however it was typed
-  // (" vegetables "; "Root Crops", now Vegetables — see normalizeCategory);
+  // (" vegetables ", "root crop" — see normalizeCategory);
   // null for anything that is not one.
   static String? _knownCategory(Object? raw) {
     final text = normalizeCategory(raw);
@@ -509,9 +509,11 @@ class DashboardAnalyticsService {
     Map<String, dynamic> order,
     Map<String, dynamic>? product,
   ) {
+    // listingCategory: a root crop or spice saved as Vegetables while they
+    // were part of it counts under its own category again.
     final recorded =
-        _knownCategory(order['category']) ??
-        _knownCategory(product?['category']);
+        _knownCategory(listingCategory(order)) ??
+        _knownCategory(listingCategory(product));
     if (recorded != null) return recorded;
     for (final name in [
       order['commodity'],

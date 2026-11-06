@@ -22,14 +22,9 @@ class CoachMarkStep {
   });
 }
 
-/// A light first-time tour, once ever per device per [prefsKey]: a small
-/// bouncing arrow and a short label pointing at each button in turn. It
-/// never darkens or blocks the screen — every tap still does what it
-/// always does — and it is the user's own taps that move it along: any tap
-/// anywhere puts the next hint up, and the last one away. While a popup or
-/// another screen is in front of [context]'s screen (the Market tab guide,
-/// a page opened from the tour), the hints wait, hidden, and taps there do
-/// not count. Completes when the tour is over.
+/// A first-time tour, once ever per device per [prefsKey]: it dims the page,
+/// highlights each button, and shows a light hint card. The user's taps move
+/// it along; while a popup or another screen is in front, the hints wait.
 ///
 /// Call it after the screen's first frame (e.g. from a post-frame callback
 /// in initState).
@@ -203,6 +198,7 @@ class _CoachHintsState extends State<_CoachHints>
 
     return Stack(
       children: [
+        Positioned.fill(child: CustomPaint(painter: _TutorialScrim(target))),
         // A soft ring around the button.
         Positioned.fromRect(
           rect: Rect.fromCircle(
@@ -241,8 +237,8 @@ class _CoachHintsState extends State<_CoachHints>
   }
 }
 
-/// The hint's label: dark green and small, with its place in the tour
-/// ([progress], e.g. "1/2") and a line on how it goes away ([footer]).
+/// The light hint card with its place in the tour ([progress], e.g. "1/2")
+/// and a line on how it goes away ([footer]).
 class _HintBubble extends StatelessWidget {
   final String title;
   final String message;
@@ -263,13 +259,14 @@ class _HintBubble extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         decoration: BoxDecoration(
-          color: AppColors.brandFill,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
+          border: Border.all(color: AppColors.grey(300)),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x40000000),
+              color: Colors.black.withValues(alpha: 0.18),
               blurRadius: 14,
-              offset: Offset(0, 4),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -282,11 +279,11 @@ class _HintBubble extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Montserrat',
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppColors.brand,
                     ),
                   ),
                 ),
@@ -296,18 +293,19 @@ class _HintBubble extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'Montserrat',
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: AppColors.textSecondary,
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 3),
-            Text(tl(message),
+            Text(
+              tl(message),
               style: TextStyle(
                 fontFamily: 'Montserrat',
                 fontSize: 12,
                 height: 1.4,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: AppColors.text,
               ),
             ),
             const SizedBox(height: 6),
@@ -317,7 +315,7 @@ class _HintBubble extends StatelessWidget {
                 fontFamily: 'Montserrat',
                 fontSize: 10.5,
                 fontStyle: FontStyle.italic,
-                color: AppColors.accent.withValues(alpha: 0.85),
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -490,6 +488,7 @@ class _SectionHintState extends State<_SectionHint>
         .toDouble();
     return Stack(
       children: [
+        Positioned.fill(child: CustomPaint(painter: _TutorialScrim(card))),
         // A soft outline around the card.
         Positioned.fromRect(
           rect: card.inflate(3),
@@ -528,4 +527,29 @@ class _SectionHintState extends State<_SectionHint>
       ],
     );
   }
+}
+
+/// Dims the page while leaving the tutorial target clear and easy to find.
+class _TutorialScrim extends CustomPainter {
+  final Rect target;
+
+  const _TutorialScrim(this.target);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(Offset.zero & size)
+      ..addRRect(
+        RRect.fromRectAndRadius(target.inflate(8), const Radius.circular(18)),
+      );
+    canvas.drawPath(
+      path,
+      Paint()..color = Colors.black.withValues(alpha: 0.42),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TutorialScrim oldDelegate) =>
+      oldDelegate.target != target;
 }

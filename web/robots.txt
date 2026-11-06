@@ -1,0 +1,8 @@
+# AgriTrade+ on Firebase Hosting. Search engines may list the download
+# page (/get/) and shared product pages; the Admin Portal (every other
+# page) carries its own "noindex", and password resets are kept out.
+User-agent: *
+Allow: /
+Disallow: /reset-password
+
+Sitemap: https://agritrade-bef87.web.app/sitemap.xml

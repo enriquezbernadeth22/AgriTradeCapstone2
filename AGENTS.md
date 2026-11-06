@@ -44,8 +44,9 @@ flutter build apk --release    # Android (signed with the debug key)
 firebase deploy --only firestore:rules,functions,hosting --project agritrade-bef87
 ```
 
-Share AgriTrade+ sends `kAppDownloadUrl` (`/download`), which a redirect in
-`firebase.json` points at the hosted APK; to move to the Play Store, change
+Share AgriTrade+ sends `kAppPageUrl` (`/get/`, the download page; decided by
+the user 2026-11-06), whose buttons go to `kAppDownloadUrl` (`/download`),
+which a redirect in `firebase.json` points at the hosted APK; to move to the Play Store, change
 that redirect's destination. The APK is not in git: after `flutter build web`
 (which empties `build/web`) and before deploying hosting, copy it in:
 
@@ -53,6 +54,22 @@ that redirect's destination. The APK is not in git: after `flutter build web`
 mkdir -p build/web/downloads
 cp build/app/outputs/flutter-apk/app-release.apk build/web/downloads/agritrade.apk
 ```
+
+The download page is `web/get/index.html` (served at `/get/`; Firebase sends `/get` there itself. Never add a
+redirect from `/get`: Firebase also matches it on `/get/`, and the page
+redirects to itself without end, as happened on 2026-11-06): a standalone HTML page like `/reset-password`, not
+Flutter, so it loads fast on a phone. Every button goes to `/download`; the
+fonts come from the Flutter build (`/assets/assets/fonts/`), the pictures
+are small WebP copies in `web/get/img/`. Its facts (Android 7.0+ from
+`minSdk` 24, version from `pubspec.yaml`, the commodity band, FAQs from
+`mobile_faqs.dart`) are written in by hand: update it when they change.
+The phone mock-ups show grey bars in place of names and prices, like the
+onboarding previews; never put made-up listings there.
+For search: the page has a canonical link and JSON-LD (MobileApplication,
+facts only), `web/sitemap.xml` lists it, `web/robots.txt` points to the
+sitemap, and the Admin Portal (`web/index.html`) is `noindex`. Google finds
+it sooner once the site is added in Google Search Console and the sitemap
+submitted there.
 
 - **Format only the files you edit** (`dart format <file>`), never a whole
   folder: some files (notably under `lib/services/`, e.g.
@@ -133,15 +150,19 @@ test/         widget + unit tests (one file per feature)
   hints are two (Sales Performance, the insights picker). Orders Today
   counts the orders confirmed today and still Confirmed
   (`confirmedTodayCount`) and opens Orders on the Confirmed tab. Orders
-  (buyer and farmer) has a period filter under the header (Today, Last 7 /
-  30 days, Last 3 / 6 months, This year, All time, Custom range;
-  `OrderDateFilter`, by the day placed). Placing an order ends with an
+  (buyer and farmer) has a period filter under the status tabs (`OrderStatusPager.belowTabs`;
+  Today, Last 7 / 30 days, Last 3 / 6 months, This year, All time, Custom
+  range; `OrderDateFilter`, by the day placed), whose menu drops down from
+  the button itself (`showAgriPopupMenu`), not a bottom sheet. Placing an order ends with an
   "Order Placed!" summary (`showOrderPlacedDialog`).
 - Market tab cards (`market_demand_cards.dart`): Best-Selling Products lists
   the top 5 (`bestSellerLimit`); each card has its **own month** (picking one
   on a card never moves the other). Tapping a Top Buyer Locations row shows
   what buyers there ordered that month, by completed orders
-  (`productsBoughtIn`).
+  (`productsBoughtIn`). Each area's percentage is its share of all the
+  month's buyer orders (`BuyerLocation.sharePercent`, `wholePercents`: the
+  areas always add up to 100%), decided by the user 2026-11-06; the counts
+  are real completed orders, never padded.
 - The mobile app is **portrait only** (`kAppOrientations` in `main.dart`, plus
   `MainActivity` in the Android manifest and the iPhone list in
   `Info.plist`); decided by the user, 2026-11-03. Screens need not handle
@@ -249,8 +270,13 @@ test/         widget + unit tests (one file per feature)
   Records saved as `slaughtered` before then still read so
   (`isSlaughtered`, "… (Slaughtered)") and stay out of live prices and
   price suggestions.
-- A product counts under its **commodity** (`demandProduct`): "Native
-  Chicken" → Chicken. Unknown names count under their own title-cased name.
+$1- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
+  Vegetables, Spices, Fruits, Livestock (`kBuiltInCategories`, listed in
+  that order, then any the Admin adds). Root Crops and Spices were part of
+  Vegetables from 2026-10-28 to 11-06; a listing or order saved as
+  Vegetables then counts under its commodity's category again
+  (`listingCategory`), and so do the built-in root crops and spices
+  that Price Management saved as Vegetables then (`applyAdminRecords`).
 - Other collections: `products`, `market_prices` (+ `history` subcollection:
   Admin reference prices), `historical_demand` (Admin imports), `reports`,
   `violations`, `audit_logs`, `announcements`, `adminSessions`,
@@ -332,6 +358,12 @@ Spacing: `formPageMargin` 24, `formLabelGap` 8, `formFieldGap` 16,
 `formSectionGap` 24. Account screens have the compact header
 (`AgriAppBar(titleWidget: AgriTradeHeaderBrand())`, no big logo in the body);
 registration shows `RegisteringAsBadge` instead of a role toggle.
+Registration is three steps (Choose Role → Your Information → Account
+Setup): under the header, `RegistrationStepIndicator` (numbered circles
+joined by lines, each step's name under it at 11, the active one bold
+green; done steps a tick; not tappable), then the page title, a one-line
+description and the badge. Above Register is only a reminder to review
+what was entered, not a copy of the details (the user's choice, 2026-11-06).
 `test/form_design_test.dart` checks the heights and alignment.
 
 Mobile dark mode (Settings → Dark Mode) comes from `AppColors`' dark values
@@ -345,7 +377,11 @@ colours, so both modes stay right.
 
 Mobile app: text fields are pills (`PillInputBorder`), but anything that opens
 a dropdown list is a **rounded rectangle** (`AppTheme.dropdownRadius`,
-`compactDropdownRadius`, `dropdownDecoration`). Headers are rectangular bars
+`compactDropdownRadius`, `dropdownDecoration`). An open dropdown list is
+only as wide as its longest option, not the whole field (decided by the
+user 2026-11-06): use `FittedDropdownField` for a form dropdown, or
+`menuWidth: fittedMenuWidth(...)` on a `DropdownButton`
+(`fitted_menu_width.dart`; `DropdownButtonFormField` cannot set it). Headers are rectangular bars
 (`PageHeader` on the tabs, `AgriAppBar` on inner screens). Settings: the
 **farmer** has the bottom sheet (`showSettingsSheet`) from the gear beside the
 bell; the **buyer** has no gear (2026-11-04) — the same options are rows on
@@ -354,7 +390,8 @@ the Buyer Profile: My Activity (My Reviews, Liked Products, Purchase History
 Account, Notification Settings, Appearance = Dark Mode), Support & More
 (Share, Feedback, Help), then `LogOutButton`. Both reuse the same screens
 (`shareAgriTrade`, `showFeedbackSheet`, `AppearanceScreen`). Registration
-asks before Back throws away a filled-in form (`RegisterScreen`). Explore
+asks before Back throws away a filled-in form ("Leave registration?":
+`RegisterScreen`, and the Google profile form, whose Cancel asks too). Explore
 fixes its list only once the server has answered and lets new posts in at
 once at the top of the feed (`exploreFeed`). Its category pills and location
 dropdown hide while scrolling down and come back after a deliberate scroll
@@ -448,8 +485,8 @@ entrance plays before it appears on a first open.
 
 ## Known open items (as of 2026-10-29)
 
-- Backend not redeployed recently: run the deploy command above (rules,
-  functions, hosting) before testing on the live site, then hard-refresh.
+- Rules, functions and hosting were last deployed on 2026-11-06 (with the
+  download page). Redeploy after backend changes, then hard-refresh.
 - Dark mode not verified on every admin page (tables, Moderation, Audit Log).
 - Long subtitles on Market Demand / Sales by Category are cut short at
   ~1440px wide screens (controls stay top-right by design).

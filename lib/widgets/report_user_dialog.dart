@@ -5,6 +5,7 @@ import 'app_scaffold_messenger.dart';
 
 import '../data/report_reasons.dart';
 import 'agri_dialog.dart';
+import 'fitted_menu_width.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
@@ -116,9 +117,10 @@ class _ReportUserFormState extends State<_ReportUserForm> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: _reason,
-            isExpanded: true,
+          // As wide as its longest reason (FittedDropdownField).
+          FittedDropdownField<String>(
+            value: _reason,
+            labels: [for (final reason in widget.reasons) tl(reason)],
             style: TextStyle(fontSize: 14, color: AppColors.text),
             dropdownColor: AppColors.surface,
             borderRadius: BorderRadius.circular(16),

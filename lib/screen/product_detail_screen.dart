@@ -1009,7 +1009,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _content(BuildContext context, Map<String, dynamic> data) {
     final name = data['name']?.toString() ?? 'Unnamed';
-    final category = normalizeCategory(data['category']);
+    final category = listingCategory(data);
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;
     final wholesalePrice = (data['wholesalePrice'] as num?)?.toDouble();
     final wholesaleMinimum = (data['wholesaleMinimumQuantity'] as num?) ?? 1;

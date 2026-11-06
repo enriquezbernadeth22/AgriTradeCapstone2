@@ -15,6 +15,7 @@ import 'chat_screen.dart';
 import 'order_details_screen.dart';
 import 'order_receipt_screen.dart';
 import '../theme/app_colors.dart';
+import '../widgets/fitted_menu_width.dart';
 import '../l10n/app_language.dart';
 
 /// Everything a user can do to an order from the Orders list, the order
@@ -728,6 +729,14 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
     if (picked != null && mounted) setState(() => _date = picked);
   }
 
+  // The reason list, in the field and in its open list.
+  TextStyle get _reasonStyle => TextStyle(
+    fontFamily: 'Montserrat',
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: AppColors.brand,
+  );
+
   @override
   Widget build(BuildContext context) {
     final dateText = _date == null
@@ -755,10 +764,11 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
           const SizedBox(height: 18),
 
           _label(tl('Reason')),
-          DropdownButtonFormField<String>(
-            initialValue: _reason,
-            isExpanded: true,
-            // The list opens as the same white panel as every dropdown.
+          // The list opens as the same white panel as every dropdown, as
+          // wide as its longest reason (FittedDropdownField).
+          FittedDropdownField<String>(
+            value: _reason,
+            labels: [for (final label in kOrderDelayReasons.values) tl(label)],
             dropdownColor: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             icon: Icon(
@@ -767,12 +777,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
               size: 20,
             ),
             decoration: AppTheme.dropdownDecoration(context, _field()),
-            style: TextStyle(
-              fontFamily: 'Montserrat',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.brand,
-            ),
+            style: _reasonStyle,
             items: [
               for (final entry in kOrderDelayReasons.entries)
                 DropdownMenuItem(

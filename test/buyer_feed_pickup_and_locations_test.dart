@@ -170,6 +170,8 @@ void main() {
                 relativeDemand: 0.5,
                 mostPurchased: 'Eggplant',
                 demand: DemandLevel.moderate,
+                orders: 4,
+                sharePercent: 40,
               ),
               products: const [
                 (commodity: 'Eggplant', orders: 3),
@@ -183,8 +185,8 @@ void main() {
       ),
     );
     expect(tester.takeException(), isNull);
-    expect(find.text('50%'), findsOneWidget); // against the busiest area
-    expect(find.textContaining('busiest area'), findsOneWidget);
+    expect(find.text('40%'), findsOneWidget); // of all buyer orders
+    expect(find.text('of all buyer orders this month'), findsOneWidget);
     expect(find.text('4'), findsOneWidget); // orders from here
     expect(find.text('75%'), findsOneWidget); // eggplant: 3 of 4
     expect(find.text('25%'), findsOneWidget);

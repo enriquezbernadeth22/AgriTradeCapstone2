@@ -98,6 +98,10 @@
         "destination": "/reset-password/index.html"
       },
       {
+        "source": "/get",
+        "destination": "/get/index.html"
+      },
+      {
         "source": "/product/**",
         "function": {
           "functionId": "productPage",
