@@ -364,6 +364,15 @@ joined by lines, each step's name under it at 11, the active one bold
 green; done steps a tick; not tappable), then the page title, a one-line
 description and the badge. Above Register is only a reminder to review
 what was entered, not a copy of the details (the user's choice, 2026-11-06).
+Choose Role has "Already have an account? Log in" under the cards (not on
+the forms after it; none for a new Google account), and the chosen card
+stays marked on coming back (2026-11-07). Moving between steps, the header
+and the steps never move: only the content under them slides in, from the
+right going on and from the left going back (the user's choice,
+2026-11-07). Between screens that is `registrationStepRoute` (no movement)
+plus `StepContentEntrance` on the content; inside RegisterScreen,
+`_playStepIn`. Keep the step indicator outside those animations.
+`test/registration_transition_test.dart` checks it.
 `test/form_design_test.dart` checks the heights and alignment.
 
 Mobile dark mode (Settings → Dark Mode) comes from `AppColors`' dark values

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/app_language.dart';
+import '../l10n/tr.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -9,8 +10,8 @@ import '../widgets/agri_app_bar.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/agritrade_text.dart';
 import '../widgets/registration_step_indicator.dart';
+import '../widgets/step_content_entrance.dart';
 import 'google_complete_profile_screen.dart';
-import 'page_transitions.dart';
 import 'register_screen.dart';
 
 /// The first step of creating an account: buyer or farmer. Choosing marks the
@@ -50,6 +51,9 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
   bool _leaving = false;
   RegistrationDraft? _draft;
   String? _draftRole;
+  // How many times they have come back here from a form: each return
+  // brings the cards in from the left (see StepContentEntrance).
+  int _returns = 0;
 
   bool get _hasDraftInput => _draft?.hasInput ?? false;
 
@@ -76,16 +80,17 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
     if (google == null) {
       await Navigator.push(
         context,
-        slideRoute(
+        registrationStepRoute(
           RegisterScreen(
             initialRole: role,
             draft: _draftForRole(role),
             onChooseAnotherRole: (previousRole, draft) {
               if (!mounted) return;
+              // The card chosen before stays marked, so they see what they
+              // picked; either card can still be tapped.
               setState(() {
                 _draft = draft;
                 _draftRole = previousRole;
-                _chosen = null;
                 _leaving = false;
               });
               Navigator.pop(context, 'change-role');
@@ -93,13 +98,18 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
           ),
         ),
       );
-      if (mounted) setState(() => _leaving = false);
+      if (mounted) {
+        setState(() {
+          _leaving = false;
+          _returns++;
+        });
+      }
       return;
     }
 
     final toLogIn = await Navigator.push(
       context,
-      slideRoute(
+      registrationStepRoute(
         GoogleCompleteProfileScreen(
           uid: google.uid!,
           email: google.email ?? '',
@@ -109,7 +119,10 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
       ),
     );
     if (!mounted) return;
-    setState(() => _leaving = false);
+    setState(() {
+      _leaving = false;
+      _returns++;
+    });
     // The form's "Log in" link (or the Google form's Cancel) goes past this
     // screen as well.
     if (toLogIn == true) Navigator.pop(context);
@@ -198,6 +211,17 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
     );
   }
 
+  // The first time, the whole screen arrives from Log In, so the content
+  // has no movement of its own; coming back from a form, it comes in from
+  // the left under the still header and steps.
+  Widget _comingBack(Widget content) => _returns == 0
+      ? content
+      : StepContentEntrance(
+          key: ValueKey(_returns),
+          fromLeft: true,
+          child: content,
+        );
+
   Widget _page(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.page,
@@ -217,56 +241,106 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
           ),
           child: Column(
             children: [
+              // The steps stay put; only what is under them moves.
               const RegistrationStepIndicator(step: 1),
-              Text(
-                tl('How will you use AgriTrade+?'),
-                textAlign: TextAlign.center,
-                style: AppTheme.pageTitle(color: AppColors.brand),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                tl('Choose the option that best fits you.'),
-                textAlign: TextAlign.center,
-                style: AppTheme.pageDescription(),
-              ),
-              if (widget.google?.email case final email?) ...[
-                const SizedBox(height: 6),
-                Text(
-                  tl('Logged in as {0}', [email]),
-                  textAlign: TextAlign.center,
-                  style: AppTheme.pageDescription().copyWith(fontSize: 12.5),
-                ),
-              ],
-              const SizedBox(height: 28),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              _comingBack(
+                Column(
                   children: [
-                    Expanded(
-                      child: _RoleCard(
-                        picture: ChooseRoleScreen.buyerCrop,
-                        title: tl('I\'m a Buyer'),
-                        description: tl('I want to buy agricultural products.'),
-                        selected: _chosen == 'buyer',
-                        onTap: () => _choose('buyer'),
-                      ),
+                    Text(
+                      tl('How will you use AgriTrade+?'),
+                      textAlign: TextAlign.center,
+                      style: AppTheme.pageTitle(color: AppColors.brand),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _RoleCard(
-                        picture: ChooseRoleScreen.farmerCrop,
-                        title: tl('I\'m a Farmer'),
-                        description: tl(
-                          'I want to sell my agricultural products.',
+                    const SizedBox(height: 8),
+                    Text(
+                      tl('Choose the option that best fits you.'),
+                      textAlign: TextAlign.center,
+                      style: AppTheme.pageDescription(),
+                    ),
+                    if (widget.google?.email case final email?) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        tl('Logged in as {0}', [email]),
+                        textAlign: TextAlign.center,
+                        style: AppTheme.pageDescription().copyWith(
+                          fontSize: 12.5,
                         ),
-                        selected: _chosen == 'farmer',
-                        onTap: () => _choose('farmer'),
+                      ),
+                    ],
+                    const SizedBox(height: 28),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _RoleCard(
+                              picture: ChooseRoleScreen.buyerCrop,
+                              title: tl('I\'m a Buyer'),
+                              description: tl(
+                                'I want to buy agricultural products.',
+                              ),
+                              selected: _chosen == 'buyer',
+                              onTap: () => _choose('buyer'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _RoleCard(
+                              picture: ChooseRoleScreen.farmerCrop,
+                              title: tl('I\'m a Farmer'),
+                              description: tl(
+                                'I want to sell my agricultural products.',
+                              ),
+                              selected: _chosen == 'farmer',
+                              onTap: () => _choose('farmer'),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    // The way back for someone who already has an account. It is
+                    // here, at the start of sign-up, and not on the forms after
+                    // it, which keep only their Back. A new Google account has no
+                    // other account to log in to, so it has no such link.
+                    if (widget.google == null) ...[
+                      const SizedBox(height: 28),
+                      _LogInLink(onTap: _handleExit),
+                    ],
                   ],
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Already have an account? Log in": back to the Log In page this screen
+/// was opened from (asking first if a form was started).
+class _LogInLink extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _LogInLink({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          child: Text.rich(
+            TextSpan(
+              style: AppTheme.body(color: AppColors.text, size: 13.5),
+              children: [
+                TextSpan(text: tr(context).alreadyHaveAccount),
+                TextSpan(text: tr(context).logIn, style: AppTheme.formLink()),
+              ],
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
       ),

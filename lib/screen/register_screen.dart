@@ -161,10 +161,27 @@ class _RegisterScreenState extends State<RegisterScreen>
   // Where the button was last drawn; see the check at the top of build.
   double _drawnRegisterBottom = _registerFloatGap;
 
-  // ---------- Entrance animation, matching the splash ----------
+  // ---------- How a step's content comes in ----------
+  // Only the content under the steps moves: the header and the steps stay
+  // still. It slides in from the right going on (and on opening, after
+  // Choose Role), from the left going back.
   late final AnimationController _animController;
   late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
+  late Animation<Offset> _slide;
+
+  Animation<Offset> _slideFrom(double dx) => Tween<Offset>(
+    begin: Offset(dx, 0),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+
+  void _playStepIn({required bool forward}) {
+    _slide = _slideFrom(forward ? 0.12 : -0.12);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _animController.value = 1;
+    } else {
+      _animController.forward(from: 0);
+    }
+  }
 
   // Only Gmail addresses are accepted for registration.
   final _emailPattern = RegExp(r'^[\w\.\-]+@gmail\.com$', caseSensitive: false);
@@ -206,14 +223,26 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 380),
     );
     _fade = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
-    _animController.forward();
+    _slide = _slideFrom(0.12);
+  }
+
+  bool _entered = false;
+
+  // The first entrance waits for MediaQuery, to know whether the phone has
+  // animations turned off; then the content simply appears.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entered) return;
+    _entered = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _animController.value = 1;
+    } else {
+      _animController.forward();
+    }
   }
 
   // How far above the bottom of the screen area the Register button sits:
@@ -880,6 +909,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       _step = 3;
       _triedSubmit = false;
     });
+    _playStepIn(forward: true);
   }
 
   void _handleBack() {
@@ -890,6 +920,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         _triedSubmit = false;
       });
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
+      _playStepIn(forward: false);
       return;
     }
     if (widget.onChooseAnotherRole != null) {
@@ -1014,7 +1045,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                   AppTheme.formPageMargin,
                   _formBottomPadding,
                 ),
-                child: FadeTransition(
+                // The steps stay put under the header; only what is under
+                // them moves when the step changes (see _playStepIn).
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RegistrationStepIndicator(step: _step),
+                    FadeTransition(
                   opacity: _fade,
                   child: SlideTransition(
                     position: _slide,
@@ -1022,7 +1060,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        RegistrationStepIndicator(step: _step),
                         Center(
                           child: Text(
                             tl(_step == 2 ? 'Your Information' : 'Account Setup'),
@@ -1189,6 +1226,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                     ),
                   ),
                 ),
+                  ],
+                ),
               ),
 
               // ---- Register button: the only thing that floats, with    ----
@@ -1205,7 +1244,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                     child: child!,
                   );
                 },
-                child: _registerButton(canSubmit),
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: _registerButton(canSubmit),
+                ),
               ),
             ],
           ),

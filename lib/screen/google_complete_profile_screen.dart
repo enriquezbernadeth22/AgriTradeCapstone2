@@ -13,6 +13,7 @@ import '../widgets/agritrade_text.dart';
 import '../widgets/barangay_location_field.dart';
 import '../widgets/public_location_preview.dart';
 import '../widgets/registration_role_details.dart';
+import '../widgets/step_content_entrance.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/glow_field.dart';
@@ -645,251 +646,254 @@ class _GoogleCompleteProfileScreenState
         // The compact header, as on RegisterScreen: Back (to ChooseRoleScreen,
         // to pick the other role), and the small logo and name.
         appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
-        body: SafeArea(
-          top: false,
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.formPageMargin,
-                  AppTheme.formSectionGap,
-                  AppTheme.formPageMargin,
-                  _formBottomPadding,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Center(
-                      child: Text(
-                        tl('Complete Your Profile'),
-                        textAlign: TextAlign.center,
-                        style: AppTheme.pageTitle(),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
-                    const SizedBox(height: AppTheme.formSectionGap),
-
-                    RegistrationRoleDetails(
-                      isFarmer: _isFarmer,
-                      value: _accountType,
-                      showRequired: _triedSubmit,
-                      onChanged: (value) =>
-                          setState(() => _accountType = value),
-                    ),
-                    const SizedBox(height: AppTheme.formFieldGap),
-
-                    _nameField(
-                      label: tr(context).firstName,
-                      controller: _firstNameController,
-                      hint: 'Juan',
-                      error: _firstNameError,
-                    ),
-                    const SizedBox(height: AppTheme.formFieldGap),
-                    _nameField(
-                      label: tr(context).lastName,
-                      controller: _lastNameController,
-                      hint: 'Santos',
-                      error: _lastNameError,
-                    ),
-                    const SizedBox(height: AppTheme.formFieldGap),
-
-                    // ---- RSBSA No. (farmers only) ----
-                    // In the same place as on RegisterScreen.
-                    if (_isFarmer) ...[
-                      Text(kRsbaLabel, style: AppTheme.label()),
-                      const SizedBox(height: AppTheme.formLabelGap),
-                      Focus(
-                        canRequestFocus: false,
-                        skipTraversal: true,
-                        onFocusChange: (hasFocus) {
-                          if (!hasFocus &&
-                              _rsbaController.text.isNotEmpty &&
-                              !_rsbaTouched) {
-                            setState(() => _rsbaTouched = true);
-                          }
-                        },
-                        child: FormFieldGlow(
-                          child: TextField(
-                            controller: _rsbaController,
-                            style: const TextStyle(fontSize: 14),
-                            // Plain keyboard with letters and numbers, no
-                            // autocorrect.
-                            keyboardType: TextInputType.visiblePassword,
-                            inputFormatters: kRsbaInputFormatters,
-                            onChanged: (_) => setState(() {}),
-                            decoration: AppTheme.inputBox(
-                              hint: kRsbaHint,
-                              icon: Icons.badge_outlined,
-                              onGlowPlate: true,
-                            ),
-                          ),
+        // The content comes in from the right, under the still header.
+        body: StepContentEntrance(
+          child: SafeArea(
+            top: false,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.formPageMargin,
+                    AppTheme.formSectionGap,
+                    AppTheme.formPageMargin,
+                    _formBottomPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Text(
+                          tl('Complete Your Profile'),
+                          textAlign: TextAlign.center,
+                          style: AppTheme.pageTitle(),
                         ),
                       ),
-                      // Under the field, so the glow goes round the field alone.
-                      if (_rsbaError != null) _fieldError(tl(_rsbaError!)),
-                      const SizedBox(height: AppTheme.formFieldGap),
-                    ],
-
-                    // ---- Email ----
-                    // The Google account's own address: shown so they know
-                    // which account this is, but not editable.
-                    Text(tr(context).emailAddress, style: AppTheme.label()),
-                    const SizedBox(height: AppTheme.formLabelGap),
-                    TextField(
-                      controller: _emailController,
-                      readOnly: true,
-                      // Nothing to type in: it never takes focus.
-                      canRequestFocus: false,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      decoration: AppTheme.inputBox(
-                        hint: '',
-                        icon: Icons.email_outlined,
-                        suffix: Icon(
-                          Icons.lock_outline,
-                          size: 18,
-                          color: AppColors.grey(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      tl('From your Google account.'),
-                      style: TextStyle(
-                        color: AppColors.grey(600),
-                        fontSize: 11.5,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.formFieldGap),
-
-                    // ---- Mobile Number ----
-                    // Required for both roles (order/delivery/pick-up
-                    // coordination). Fixed +63 prefix — no country
-                    // dropdown, PH-only scope.
-                    Text('Mobile Number', style: AppTheme.label()),
-                    const SizedBox(height: AppTheme.formLabelGap),
-                    FormFieldGlow(
-                      child: TextField(
-                        controller: _mobileController,
-                        style: const TextStyle(fontSize: 14),
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: kPhMobileInputFormatters,
-                        decoration: AppTheme.inputBox(
-                          hint: kPhMobileHint,
-                          icon: Icons.phone_outlined,
-                          prefixText: kPhMobilePrefix,
-                          onGlowPlate: true,
-                        ),
-                      ),
-                    ),
-                    if (_mobileError != null) ...[
                       const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 14,
-                            color: AppColors.tone(Colors.red, 700),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              _mobileError!,
-                              style: TextStyle(
-                                color: AppColors.tone(Colors.red, 700),
-                                fontSize: 11,
+                      Center(child: RegisteringAsBadge(isFarmer: _isFarmer)),
+                      const SizedBox(height: AppTheme.formSectionGap),
+
+                      RegistrationRoleDetails(
+                        isFarmer: _isFarmer,
+                        value: _accountType,
+                        showRequired: _triedSubmit,
+                        onChanged: (value) =>
+                            setState(() => _accountType = value),
+                      ),
+                      const SizedBox(height: AppTheme.formFieldGap),
+
+                      _nameField(
+                        label: tr(context).firstName,
+                        controller: _firstNameController,
+                        hint: 'Juan',
+                        error: _firstNameError,
+                      ),
+                      const SizedBox(height: AppTheme.formFieldGap),
+                      _nameField(
+                        label: tr(context).lastName,
+                        controller: _lastNameController,
+                        hint: 'Santos',
+                        error: _lastNameError,
+                      ),
+                      const SizedBox(height: AppTheme.formFieldGap),
+
+                      // ---- RSBSA No. (farmers only) ----
+                      // In the same place as on RegisterScreen.
+                      if (_isFarmer) ...[
+                        Text(kRsbaLabel, style: AppTheme.label()),
+                        const SizedBox(height: AppTheme.formLabelGap),
+                        Focus(
+                          canRequestFocus: false,
+                          skipTraversal: true,
+                          onFocusChange: (hasFocus) {
+                            if (!hasFocus &&
+                                _rsbaController.text.isNotEmpty &&
+                                !_rsbaTouched) {
+                              setState(() => _rsbaTouched = true);
+                            }
+                          },
+                          child: FormFieldGlow(
+                            child: TextField(
+                              controller: _rsbaController,
+                              style: const TextStyle(fontSize: 14),
+                              // Plain keyboard with letters and numbers, no
+                              // autocorrect.
+                              keyboardType: TextInputType.visiblePassword,
+                              inputFormatters: kRsbaInputFormatters,
+                              onChanged: (_) => setState(() {}),
+                              decoration: AppTheme.inputBox(
+                                hint: kRsbaHint,
+                                icon: Icons.badge_outlined,
+                                onGlowPlate: true,
                               ),
                             ),
                           ),
-                        ],
+                        ),
+                        // Under the field, so the glow goes round the field alone.
+                        if (_rsbaError != null) _fieldError(tl(_rsbaError!)),
+                        const SizedBox(height: AppTheme.formFieldGap),
+                      ],
+
+                      // ---- Email ----
+                      // The Google account's own address: shown so they know
+                      // which account this is, but not editable.
+                      Text(tr(context).emailAddress, style: AppTheme.label()),
+                      const SizedBox(height: AppTheme.formLabelGap),
+                      TextField(
+                        controller: _emailController,
+                        readOnly: true,
+                        // Nothing to type in: it never takes focus.
+                        canRequestFocus: false,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        decoration: AppTheme.inputBox(
+                          hint: '',
+                          icon: Icons.email_outlined,
+                          suffix: Icon(
+                            Icons.lock_outline,
+                            size: 18,
+                            color: AppColors.grey(),
+                          ),
+                        ),
                       ),
-                    ] else if (_isFarmer) ...[
                       const SizedBox(height: 6),
                       Text(
-                        tl(
-                          'For order, delivery, and pick-up coordination only.',
-                        ),
+                        tl('From your Google account.'),
                         style: TextStyle(
                           color: AppColors.grey(600),
                           fontSize: 11.5,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: AppTheme.formFieldGap),
+                      const SizedBox(height: AppTheme.formFieldGap),
 
-                    if (_isFarmer) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: AppColors.tone(Colors.amber, 300),
+                      // ---- Mobile Number ----
+                      // Required for both roles (order/delivery/pick-up
+                      // coordination). Fixed +63 prefix — no country
+                      // dropdown, PH-only scope.
+                      Text('Mobile Number', style: AppTheme.label()),
+                      const SizedBox(height: AppTheme.formLabelGap),
+                      FormFieldGlow(
+                        child: TextField(
+                          controller: _mobileController,
+                          style: const TextStyle(fontSize: 14),
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: kPhMobileInputFormatters,
+                          decoration: AppTheme.inputBox(
+                            hint: kPhMobileHint,
+                            icon: Icons.phone_outlined,
+                            prefixText: kPhMobilePrefix,
+                            onGlowPlate: true,
                           ),
                         ),
-                        child: Row(
+                      ),
+                      if (_mobileError != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
-                              Icons.warning_amber_rounded,
-                              color: AppColors.tone(Colors.amber, 800),
-                              size: 20,
+                              Icons.error_outline,
+                              size: 14,
+                              color: AppColors.tone(Colors.red, 700),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                tl(
-                                  'Only verified farmers from Laurel, Batangas will be approved.',
-                                ),
+                                _mobileError!,
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.tone(Colors.amber, 900),
-                                  height: 1.4,
+                                  color: AppColors.tone(Colors.red, 700),
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
+                      ] else if (_isFarmer) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          tl(
+                            'For order, delivery, and pick-up coordination only.',
+                          ),
+                          style: TextStyle(
+                            color: AppColors.grey(600),
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppTheme.formFieldGap),
+
+                      if (_isFarmer) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(
+                              color: AppColors.tone(Colors.amber, 300),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: AppColors.tone(Colors.amber, 800),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  tl(
+                                    'Only verified farmers from Laurel, Batangas will be approved.',
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.tone(Colors.amber, 900),
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.formFieldGap),
+                      ],
+                      if (_isFarmer) _supportedProductsSection(),
+                      if (_isFarmer)
+                        BarangayLocationField(
+                          value: _selectedBarangay,
+                          errorText: _triedSubmit && _selectedBarangay == null
+                              ? tl('Please select a barangay in Laurel.')
+                              : null,
+                          onChanged: (value) =>
+                              setState(() => _selectedBarangay = value),
+                        ),
+                      if (_isFarmer) _publicLocationPreview(),
+                      _consentCheckbox(),
+                      _formEnd(),
                     ],
-                    if (_isFarmer) _supportedProductsSection(),
-                    if (_isFarmer)
-                      BarangayLocationField(
-                        value: _selectedBarangay,
-                        errorText: _triedSubmit && _selectedBarangay == null
-                            ? tl('Please select a barangay in Laurel.')
-                            : null,
-                        onChanged: (value) =>
-                            setState(() => _selectedBarangay = value),
-                      ),
-                    if (_isFarmer) _publicLocationPreview(),
-                    _consentCheckbox(),
-                    _formEnd(),
-                  ],
+                  ),
                 ),
-              ),
-              ListenableBuilder(
-                listenable: _scrollController,
-                builder: (context, child) {
-                  _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);
-                  return Positioned(
-                    left: AppTheme.formPageMargin,
-                    right: AppTheme.formPageMargin,
-                    bottom: _drawnRegisterBottom,
-                    child: child!,
-                  );
-                },
-                child: _registerButton(),
-              ),
-            ],
+                ListenableBuilder(
+                  listenable: _scrollController,
+                  builder: (context, child) {
+                    _drawnRegisterBottom = _registerButtonBottom(keyboardOpen);
+                    return Positioned(
+                      left: AppTheme.formPageMargin,
+                      right: AppTheme.formPageMargin,
+                      bottom: _drawnRegisterBottom,
+                      child: child!,
+                    );
+                  },
+                  child: _registerButton(),
+                ),
+              ],
+            ),
           ),
         ),
       ),

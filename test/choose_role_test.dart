@@ -247,26 +247,50 @@ void main() {
     expect(find.text('RSBSA No.'), findsNothing);
   });
 
-  testWidgets(
-    '"Log in" on the form goes past this screen, to the log-in page',
-    (tester) async {
-      await open(tester);
-      await choose(tester, 'I\'m a Buyer');
+  Finder logInLink() =>
+      find.textContaining('Already have an account?', findRichText: true);
 
-      final link = find.textContaining('Log in', findRichText: true);
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(0, -5000),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(link);
-      await tester.pumpAndSettle();
+  testWidgets('"Log in" under the cards goes back to the log-in page', (
+    tester,
+  ) async {
+    await open(tester);
 
-      expect(find.byType(RegisterScreen), findsNothing);
-      expect(find.byType(ChooseRoleScreen), findsNothing);
-      expect(find.text('Log-in page'), findsOneWidget);
-    },
-  );
+    await tester.tap(logInLink());
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChooseRoleScreen), findsNothing);
+    expect(find.text('Log-in page'), findsOneWidget);
+  });
+
+  testWidgets('the forms after it have no "Log in" link, only Back', (
+    tester,
+  ) async {
+    await open(tester);
+    await choose(tester, 'I\'m a Buyer');
+
+    expect(find.byType(RegisterScreen), findsOneWidget);
+    expect(logInLink(), findsNothing);
+  });
+
+  testWidgets('with a form started, "Log in" asks before throwing it away', (
+    tester,
+  ) async {
+    await open(tester);
+    await choose(tester, 'I\'m a Buyer');
+    await tester.enterText(find.byType(TextField).first, 'Juan');
+    await tester.pump();
+    // Back to the cards; the form waits there as a draft.
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.maybePop();
+    await tester.pumpAndSettle();
+    expect(find.byType(ChooseRoleScreen), findsOneWidget);
+
+    await tester.tap(logInLink());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Leave registration?'), findsOneWidget);
+    expect(find.byType(ChooseRoleScreen), findsOneWidget);
+  });
 
   group('after Continue with Google, for a new Google account', () {
     const google = GoogleSignInResult.needsProfile(
@@ -314,6 +338,11 @@ void main() {
       expect(find.text('How will you use AgriTrade+?'), findsOneWidget);
       expect(find.text('Logged in as juan.santos@gmail.com'), findsOneWidget);
       expect(find.byType(GoogleCompleteProfileScreen), findsNothing);
+    });
+
+    testWidgets('a new Google account has no "Log in" link', (tester) async {
+      await openForGoogle(tester);
+      expect(logInLink(), findsNothing);
     });
 
     testWidgets('the farmer card opens the short farmer profile form', (
@@ -385,25 +414,26 @@ void main() {
       expect(signOuts, 1);
     });
 
-    testWidgets('Cancel on the form goes back to the role choice, still signed in', (
-      tester,
-    ) async {
-      await openForGoogle(tester);
-      await choose(tester, 'I\'m a Buyer');
+    testWidgets(
+      'Cancel on the form goes back to the role choice, still signed in',
+      (tester) async {
+        await openForGoogle(tester);
+        await choose(tester, 'I\'m a Buyer');
 
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(0, -5000),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+        await tester.drag(
+          find.byType(SingleChildScrollView),
+          const Offset(0, -5000),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(GoogleCompleteProfileScreen), findsNothing);
-      expect(find.text('How will you use AgriTrade+?'), findsOneWidget);
-      expect(find.text('Log-in page'), findsNothing);
-      expect(signOuts, 0);
-    });
+        expect(find.byType(GoogleCompleteProfileScreen), findsNothing);
+        expect(find.text('How will you use AgriTrade+?'), findsOneWidget);
+        expect(find.text('Log-in page'), findsNothing);
+        expect(signOuts, 0);
+      },
+    );
   });
 
   testWidgets('a password sign-up leaving here signs no one out', (
