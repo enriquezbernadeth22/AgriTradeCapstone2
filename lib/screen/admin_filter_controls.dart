@@ -117,10 +117,22 @@ const double kAdminControlWidth = 200;
 /// …and this tall, so they line up wherever they sit side by side.
 const double kAdminControlHeight = 40;
 
-/// How round every text field, search, dropdown and date picker in the
-/// portal is: a rounded rectangle like the Admin login's fields (the
-/// cards' corners too, AdminRadii.card), not a pill.
+/// How round the portal's dropdowns, date pickers and toggles are: a
+/// rounded rectangle. Text fields and searches are pills
+/// ([kAdminInputRadius]); buttons are rounded rectangles (AdminRadii).
 const double kAdminFieldRadius = AppTheme.adminFieldRadius;
+
+/// Text fields and searches are pills, like the mobile app's (the user's
+/// design, 2026-11-07); several lines tall, their corners are 16.
+const double kAdminInputRadius = AppTheme.pillRadius;
+
+/// The outline of a dropdown that sits in a form among text fields: a
+/// rounded rectangle, where the fields around it are pills.
+OutlineInputBorder adminDropdownBorder(Color color, [double width = 1]) =>
+    OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kAdminFieldRadius),
+      borderSide: BorderSide(color: color, width: width),
+    );
 
 /// The inside of a text input (a search box), for inside [AdminInputGlow]:
 /// no fill and no outline of its own — the plate around it is the field.
@@ -291,6 +303,7 @@ class AdminPillSearch extends StatelessWidget {
       width: width,
       height: kAdminControlHeight,
       child: AdminInputGlow(
+        borderRadius: BorderRadius.circular(kAdminInputRadius),
         // The field in the middle of the plate, level with the dropdowns'.
         child: Center(
           child: TextField(
@@ -672,10 +685,24 @@ BoxDecoration adminTableCard(AdminPalette c, {bool tabbed = false}) =>
             )
           : BorderRadius.circular(kAdminTableRadius),
       border: Border.all(color: c.border),
+      // The outline stays, for the tabs that join it; the shadow is every
+      // card's.
+      boxShadow: c.isDark ? null : AppTheme.cardShadow,
     );
 
-/// How round a table card's corners are.
-const double kAdminTableRadius = 10;
+/// A card in the portal: white, corners of [AdminRadii.card], a soft shadow
+/// and no outline (the user's design, 2026-11-07). On the dark theme,
+/// where a shadow does not show, a thin border marks its edge instead.
+BoxDecoration adminCard(AdminPalette c, {BorderRadius? borderRadius}) =>
+    BoxDecoration(
+      color: c.surface,
+      borderRadius: borderRadius ?? BorderRadius.circular(AdminRadii.card),
+      border: c.isDark ? Border.all(color: c.border) : null,
+      boxShadow: c.isDark ? null : AppTheme.cardShadow,
+    );
+
+/// How round a table card's corners are: the same as every card.
+const double kAdminTableRadius = AdminRadii.card;
 
 /// Rows on one page of a table.
 const int kAdminRowsPerPage = 10;

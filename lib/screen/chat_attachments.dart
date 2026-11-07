@@ -370,7 +370,7 @@ class CertificateRequestRow extends StatelessWidget {
                 minimumSize: const Size(0, 30),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: const StadiumBorder(),
+                shape: AppTheme.compactButtonShape,
               ),
               child: Text(
                 tl('Attach'),
@@ -460,6 +460,10 @@ class ChatComposerBar extends StatelessWidget {
   /// Called with the + button's context, to anchor the attachment menu.
   final ValueChanged<BuildContext> onAttach;
 
+  /// The + button and the message box, for the first-time tour.
+  final GlobalKey? plusKey;
+  final GlobalKey? fieldKey;
+
   const ChatComposerBar({
     super.key,
     required this.controller,
@@ -467,6 +471,8 @@ class ChatComposerBar extends StatelessWidget {
     required this.sending,
     required this.onSend,
     required this.onAttach,
+    this.plusKey,
+    this.fieldKey,
   });
 
   @override
@@ -526,6 +532,7 @@ class ChatComposerBar extends StatelessWidget {
                     children: [
                       Builder(
                         builder: (buttonContext) => IconButton(
+                          key: plusKey,
                           tooltip: tl('Attach'),
                           onPressed: sending
                               ? null
@@ -552,6 +559,7 @@ class ChatComposerBar extends StatelessWidget {
         // while typing no outline but the soft green glow.
         Expanded(
           child: FormFieldGlow(
+            key: fieldKey,
             child: TextField(
               controller: controller,
               style: const TextStyle(fontSize: 14),

@@ -188,7 +188,7 @@ Future<DateTime?> showMonthYearPicker(
                   Text(
                     tl('Selectable month'),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -198,7 +198,7 @@ Future<DateTime?> showMonthYearPicker(
                   Text(
                     tl('Not available'),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -225,7 +225,7 @@ Future<DateTime?> showMonthYearPicker(
                       child: Text(
                         note,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           height: 1.35,
                           color: AppColors.adapt(const Color(0xFF52614F)),
                         ),
@@ -245,7 +245,7 @@ Future<DateTime?> showMonthYearPicker(
                         side: BorderSide(
                           color: AppColors.adapt(const Color(0xFFDDE5DB)),
                         ),
-                        shape: const StadiumBorder(),
+                        shape: AppTheme.buttonShape,
                         padding: const EdgeInsets.symmetric(vertical: 11),
                       ),
                       child: Text(tl('Cancel')),
@@ -259,7 +259,7 @@ Future<DateTime?> showMonthYearPicker(
                         backgroundColor: AppColors.brandFill,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: const StadiumBorder(),
+                        shape: AppTheme.buttonShape,
                         padding: const EdgeInsets.symmetric(vertical: 11),
                       ),
                       child: Text(tl('Apply')),

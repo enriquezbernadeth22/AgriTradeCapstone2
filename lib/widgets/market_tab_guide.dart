@@ -68,6 +68,10 @@ class MarketTabHints {
       try {
         final prefs = await SharedPreferences.getInstance();
         next = prefs.getInt(_storageKey(uid)) ?? 0;
+        // Skip on any tip turned them all off.
+        if (prefs.getBool(TutorialTips.offKey) ?? false) {
+          next = kMarketGuideItems.length;
+        }
       } catch (_) {}
     }
     _next = next;

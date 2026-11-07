@@ -13,6 +13,7 @@ import '../widgets/agri_dialog.dart';
 import '../widgets/retry_message.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// Low Stock: 20% or less of the stock the farmer last set (when posting,
 /// restocking or editing the quantity — saved as the product's
@@ -227,11 +228,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.grey(200)),
-          ),
+          decoration: AppTheme.card(),
           child: Row(
             children: [
               _stat(
@@ -373,11 +370,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.grey(200)),
-      ),
+      decoration: AppTheme.card(),
       child: Row(
         children: [
           ClipRRect(
@@ -439,7 +432,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   child: Text(
                     statusLabel,
                     style: GoogleFonts.montserrat(
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.4,
                       color: statusColor,
@@ -463,7 +456,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               minimumSize: const Size(0, 32),
               padding: const EdgeInsets.symmetric(horizontal: 10),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: const StadiumBorder(),
+              shape: AppTheme.compactButtonShape,
               textStyle: GoogleFonts.montserrat(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,

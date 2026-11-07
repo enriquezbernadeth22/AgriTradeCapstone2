@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import '../services/conversation_prefs_service.dart';
 import '../services/message_search_history_service.dart';
 import '../services/message_service.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/explore_search_pill.dart';
 import '../widgets/profile_avatar.dart';
 import 'chat_navigation.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// The dedicated Messages search experience — opened by tapping the (non-
 /// editable) search bar on the Messages tab. Same screen for Farmer and
@@ -126,7 +127,8 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
       appBar: AgriAppBar(
         titleWidget: Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: AppSearchBar(
+          // Explore's own search bar, as the field (2026-11-08).
+          child: ExploreSearchPill(
             hint: tl('Search conversations...'),
             controller: _controller,
             autofocus: true,
@@ -309,18 +311,7 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
             },
             child: Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.card(),
               child: Row(
                 children: [
                   ProfileAvatar(photoUrl: photoUrl, name: name, radius: 22),

@@ -193,11 +193,7 @@ class _NotificationPreferencesScreenState
   }
 
   Widget _card(List<Widget> children) => Container(
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-    ),
+    decoration: AppTheme.card(),
     child: Column(children: children),
   );
 

@@ -22,9 +22,70 @@ class CoachMarkStep {
   });
 }
 
+/// The app's first-time tips as a whole: the tours on each screen
+/// ([showCoachMarksOnce]) and the Market tab's section hints. Skip on any
+/// hint turns them all off; Help & Support's "Show tips again" turns them
+/// back on and forgets which have been seen.
+class TutorialTips {
+  TutorialTips._();
+
+  /// Set once Skip is tapped: no tour shows any more.
+  static const offKey = 'tips_off';
+
+  /// Each screen's tour remembers it was seen under a key starting so.
+  static const tourKeyPrefix = 'tour_seen_';
+
+  // Older names of the home screens' tours, and the Market tab's place.
+  static const _otherSeenPrefixes = [
+    'walkthrough_seen_',
+    'market_tab_hints_',
+    'orders_swipe_tutorial_seen_',
+  ];
+
+  static Future<bool> isOff() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(offKey) ?? false;
+    } catch (_) {
+      return true; // Can't tell: safer to stay quiet than to nag.
+    }
+  }
+
+  /// Skip: no more tips anywhere.
+  static Future<void> skipAll() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(offKey, true);
+    } catch (_) {}
+  }
+
+  /// Every tip shows again, each the next time its screen opens.
+  static Future<void> showAgain() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in prefs.getKeys().toList()) {
+        if (key == offKey ||
+            key.startsWith(tourKeyPrefix) ||
+            _otherSeenPrefixes.any(key.startsWith)) {
+          await prefs.remove(key);
+        }
+      }
+    } catch (_) {}
+  }
+}
+
+// One tour at a time: a screen's tour that comes up while another is
+// showing (a tab opened during the home tour) waits for it to end.
+Completer<void>? _activeTour;
+
 /// A first-time tour, once ever per device per [prefsKey]: it dims the page,
-/// highlights each button, and shows a light hint card. The user's taps move
-/// it along; while a popup or another screen is in front, the hints wait.
+/// highlights each button, and shows a light hint card with Skip. The
+/// user's taps move it along; while a popup or another screen is in front,
+/// the hints wait.
+///
+/// Only the steps whose button is on screen when it starts are shown; with
+/// none, nothing shows and it is tried again the next time. Nothing shows
+/// once the tips are off ([TutorialTips]).
 ///
 /// Call it after the screen's first frame (e.g. from a post-frame callback
 /// in initState).
@@ -33,11 +94,30 @@ Future<void> showCoachMarksOnce({
   required String prefsKey,
   required List<CoachMarkStep> steps,
 }) async {
-  if (steps.isEmpty) return;
+  while (_activeTour != null && !_activeTour!.isCompleted) {
+    await _activeTour!.future;
+  }
+  if (!context.mounted) return;
+  final mine = Completer<void>();
+  _activeTour = mine;
   try {
-    final prefs = await SharedPreferences.getInstance();
+    await _runTour(context: context, prefsKey: prefsKey, steps: steps);
+  } finally {
+    if (!mine.isCompleted) mine.complete();
+  }
+}
+
+Future<void> _runTour({
+  required BuildContext context,
+  required String prefsKey,
+  required List<CoachMarkStep> steps,
+}) async {
+  if (steps.isEmpty) return;
+  late final SharedPreferences prefs;
+  try {
+    prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(prefsKey) ?? false) return;
-    await prefs.setBool(prefsKey, true);
+    if (prefs.getBool(TutorialTips.offKey) ?? false) return;
   } catch (_) {
     return; // Can't remember "seen" — safer to skip than nag every launch.
   }
@@ -45,15 +125,45 @@ Future<void> showCoachMarksOnce({
   // Give the frame a moment to settle (layout/animations) before measuring.
   await Future.delayed(const Duration(milliseconds: 500));
   if (!context.mounted) return;
+  // Not while another screen or a popup is in front of this one: it waits
+  // for this screen to be back in front (or gone).
+  while (context.mounted && !(ModalRoute.of(context)?.isCurrent ?? true)) {
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+  if (!context.mounted) return;
+
+  final screen = MediaQuery.sizeOf(context);
+  final shown = steps.where((step) {
+    final box = step.targetKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return false;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    // Wholly on screen: not below the fold, nor on a tab off to the side.
+    return rect.top >= 0 &&
+        rect.bottom <= screen.height &&
+        rect.left >= 0 &&
+        rect.right <= screen.width &&
+        rect.width > 0;
+  }).toList();
+  if (shown.isEmpty) return;
+  try {
+    await prefs.setBool(prefsKey, true);
+  } catch (_) {
+    return;
+  }
+  if (!context.mounted) return;
 
   final done = Completer<void>();
   late final OverlayEntry entry;
   entry = OverlayEntry(
     builder: (_) => _CoachHints(
       host: context,
-      steps: steps,
+      steps: shown,
       onDone: () {
         entry.remove();
+        if (!done.isCompleted) done.complete();
+      },
+      // Taken away with its screen (or the app): the next tour may start.
+      onGone: () {
         if (!done.isCompleted) done.complete();
       },
     ),
@@ -67,11 +177,13 @@ class _CoachHints extends StatefulWidget {
   final BuildContext host;
   final List<CoachMarkStep> steps;
   final VoidCallback onDone;
+  final VoidCallback onGone;
 
   const _CoachHints({
     required this.host,
     required this.steps,
     required this.onDone,
+    required this.onGone,
   });
 
   @override
@@ -100,6 +212,7 @@ class _CoachHintsState extends State<_CoachHints>
   void dispose() {
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointer);
     _bounce.dispose();
+    widget.onGone();
     super.dispose();
   }
 
@@ -127,11 +240,27 @@ class _CoachHintsState extends State<_CoachHints>
     if (event is! PointerUpEvent) return;
     final counts = _downWhileShowing.remove(event.pointer);
     if (!counts || _finished || !_hostShowing) return;
+    // Skip handles its own tap.
+    if (_onSkip(event.position)) return;
     if (_index < widget.steps.length - 1) {
       setState(() => _index++);
     } else {
       _finish();
     }
+  }
+
+  final _skipKey = GlobalKey();
+
+  // Skip: this tour ends, and no other tip shows any more.
+  void _skip() {
+    TutorialTips.skipAll();
+    _finish();
+  }
+
+  bool _onSkip(Offset position) {
+    final box = _skipKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached) return false;
+    return (box.localToGlobal(Offset.zero) & box.size).contains(position);
   }
 
   void _finish() {
@@ -148,21 +277,21 @@ class _CoachHintsState extends State<_CoachHints>
       _finish();
       return const SizedBox.shrink();
     }
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _bounce,
-        builder: (context, _) {
-          if (!_hostShowing) return const SizedBox.shrink();
-          final step = widget.steps[_index];
-          final box =
-              step.targetKey.currentContext?.findRenderObject() as RenderBox?;
-          if (box == null || !box.attached || !box.hasSize) {
-            return const SizedBox.shrink();
-          }
-          final target = box.localToGlobal(Offset.zero) & box.size;
-          return _hint(context, step, target);
-        },
-      ),
+    // Only the hint card takes taps (its Skip); the dimmed page lets them
+    // through to whatever is under them.
+    return AnimatedBuilder(
+      animation: _bounce,
+      builder: (context, _) {
+        if (!_hostShowing) return const SizedBox.shrink();
+        final step = widget.steps[_index];
+        final box =
+            step.targetKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box == null || !box.attached || !box.hasSize) {
+          return const SizedBox.shrink();
+        }
+        final target = box.localToGlobal(Offset.zero) & box.size;
+        return _hint(context, step, target);
+      },
     );
   }
 
@@ -194,23 +323,31 @@ class _CoachHintsState extends State<_CoachHints>
       footer: last
           ? tl('Tap anywhere to close')
           : tl('Tap anywhere to continue'),
+      skipKey: _skipKey,
+      onSkip: _skip,
     );
 
     return Stack(
       children: [
-        Positioned.fill(child: CustomPaint(painter: _TutorialScrim(target))),
-        // A soft ring around the button.
-        Positioned.fromRect(
-          rect: Rect.fromCircle(
-            center: target.center,
-            radius: target.shortestSide / 2 + 8 + lift * 0.4,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(painter: _TutorialScrim(target)),
           ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.9),
-                width: 2.5,
+        ),
+        // A soft ring around the button, in its own shape (round on an
+        // icon, a rounded box on a wide field).
+        Positioned.fromRect(
+          rect: target.inflate(8 + lift * 0.4),
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  math.min(18 + lift * 0.4, target.shortestSide / 2 + 8),
+                ),
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.9),
+                  width: 2.5,
+                ),
               ),
             ),
           ),
@@ -221,7 +358,7 @@ class _CoachHintsState extends State<_CoachHints>
           top: above
               ? target.top - gap - arrowSize - lift
               : target.bottom + gap + lift,
-          child: arrow,
+          child: IgnorePointer(child: arrow),
         ),
         Positioned(
           left: left,
@@ -245,11 +382,17 @@ class _HintBubble extends StatelessWidget {
   final String? progress;
   final String footer;
 
+  /// Skip, at the foot of the card: ends the tour and turns all tips off.
+  final VoidCallback? onSkip;
+  final Key? skipKey;
+
   const _HintBubble({
     required this.title,
     required this.message,
     required this.footer,
     this.progress,
+    this.onSkip,
+    this.skipKey,
   });
 
   @override
@@ -309,14 +452,39 @@ class _HintBubble extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              footer,
-              style: TextStyle(
-                fontFamily: 'Montserrat',
-                fontSize: 10.5,
-                fontStyle: FontStyle.italic,
-                color: AppColors.textSecondary,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    footer,
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 11.5,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                if (onSkip != null)
+                  // Its own tap target, so it never counts as "continue".
+                  GestureDetector(
+                    key: skipKey,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onSkip,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 2, 2),
+                      child: Text(
+                        tl('Skip'),
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.brand,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),

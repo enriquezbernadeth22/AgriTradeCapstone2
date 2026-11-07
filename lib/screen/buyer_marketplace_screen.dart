@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/filters_on_scroll.dart';
 import '../services/auth_service.dart';
 import '../services/product_share_service.dart';
 import '../services/notification_permission_prompt.dart';
@@ -52,6 +53,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
 
   final _notificationsKey = GlobalKey();
   final _ordersTabKey = GlobalKey();
+  final _locationKey = GlobalKey();
 
   @override
   void initState() {
@@ -68,14 +70,15 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
   }
 
   // Runs once this home screen is actually on screen — i.e. after login
-  // and email verification are behind the user. The notification rationale
-  // waits for the first-time walkthrough so the two never appear on top of
-  // each other.
+  // and email verification are behind the user. The notification question
+  // (and the phone's own Allow) comes first, then the first-time tour, so
+  // the two never appear on top of each other (the user's order,
+  // 2026-11-07).
   Future<void> _onEnteredApp() async {
     await ProfilePhotoPrompt.onEnteredApp(context);
-    await _showWalkthrough();
     if (!mounted) return;
     await NotificationPermissionPrompt.instance.onEnteredApp(context);
+    await _showWalkthrough();
   }
 
   void _onGlobalIndexChanged() {
@@ -90,8 +93,9 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
     super.dispose();
   }
 
-  // A one-time, subtle tour pointing at the two things a brand-new buyer
-  // most needs to find: where updates land, and where their orders show up.
+  // A one-time tour of what a brand-new buyer would not find by themselves:
+  // shopping by area, and where their orders are followed. (The bell needs
+  // no explaining.)
   Future<void> _showWalkthrough() async {
     if (!mounted) return;
     await showCoachMarksOnce(
@@ -99,10 +103,10 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
       prefsKey: 'walkthrough_seen_buyer',
       steps: [
         CoachMarkStep(
-          targetKey: _notificationsKey,
-          title: tl('Stay updated'),
+          targetKey: _locationKey,
+          title: tl('Shop by area'),
           message: tl(
-            'New messages from farmers and order updates show up here.',
+            'Pick a barangay to see only what is sold there. Listings that deliver to you come first.',
           ),
         ),
         CoachMarkStep(
@@ -137,10 +141,17 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // A new tab starts with the bottom bar showing.
+    if (_navShownFor != _navIndex) {
+      _navShownFor = _navIndex;
+      _navHidden = false;
+      _navOnScroll.reset();
+    }
     final pages = <Widget>[
       BuyerExploreScreen(
         key: _exploreKey,
         bellKey: _notificationsKey,
+        locationKey: _locationKey,
         onNotificationsPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -150,6 +161,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
       BuyerOrdersScreen(
         onBrowseMarketplace: () => setState(() => _navIndex = 0),
         showStatus: _ordersStatus,
+        active: _navIndex == 2,
       ),
       BuyerProfileScreen(
         onOpenCompletedOrders: () => _openOrders('completed'),
@@ -199,16 +211,46 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
               context,
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
-            child: SwipeableTabs(
-              index: _navIndex,
-              onIndexChanged: (i) => setState(() => _navIndex = i),
-              children: pages,
+            // The pages' scrolling hides and shows the bottom bar.
+            child: NotificationListener<ScrollUpdateNotification>(
+              onNotification: _onPageScroll,
+              child: SwipeableTabs(
+                index: _navIndex,
+                onIndexChanged: (i) => setState(() => _navIndex = i),
+                children: pages,
+              ),
             ),
           ),
         ),
-        bottomNavigationBar: _buildBottomNavBar(),
+        bottomNavigationBar: AnimatedSlide(
+          offset: _navHidden ? const Offset(0, 1.6) : Offset.zero,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          child: _buildBottomNavBar(),
+        ),
       ),
     );
+  }
+
+  // The bottom bar hides while the buyer scrolls down a page and comes back
+  // on a scroll up or at the top (the user's choice, 2026-11-07; the
+  // Farmer's stays). Another tab always shows it.
+  bool _navHidden = false;
+  int _navShownFor = -1;
+  final FiltersOnScroll _navOnScroll = FiltersOnScroll(showAfterUp: 24);
+
+  bool _onPageScroll(ScrollUpdateNotification notification) {
+    // Up and down only: not the tabs' own sideways swipe.
+    if (notification.metrics.axis != Axis.vertical) return false;
+    final hide = _navOnScroll.update(
+      delta: notification.scrollDelta ?? 0,
+      pixels: notification.metrics.pixels,
+      dragging: notification.dragDetails != null,
+    );
+    if (hide != null && hide != _navHidden) {
+      setState(() => _navHidden = hide);
+    }
+    return false;
   }
 
   void _goHome() {
@@ -221,7 +263,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
 
   Widget _buildBottomNavBar() {
     final t = tr(context);
-    // The small floating bar, always on screen.
+    // The floating dark green bar; it slides away while a page is scrolled down.
     return DockedNavBar(
       children: [
         _navItem(0, Icons.explore_outlined, Icons.explore, t.navExplore),

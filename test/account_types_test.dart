@@ -123,14 +123,16 @@ void main() {
     testWidgets('shows retail first to most people', (tester) async {
       await pumpCard(tester);
       expect(find.textContaining('50.00'), findsOneWidget);
-      expect(find.text('Wholesale available'), findsOneWidget);
+      expect(find.text('Wholesale'), findsOneWidget);
+      expect(find.text('Min 10 kg'), findsOneWidget);
     });
 
     testWidgets('shows wholesale first to a bulk buyer', (tester) async {
       BuyerTypeWatcher.instance.debugSet(true);
       await pumpCard(tester);
       expect(find.textContaining('40.00'), findsOneWidget);
-      expect(find.text('Wholesale · min 10 kg'), findsOneWidget);
+      expect(find.text('Wholesale'), findsOneWidget);
+      expect(find.text('Min 10 kg'), findsOneWidget);
     });
   });
 

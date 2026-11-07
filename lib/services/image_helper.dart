@@ -26,6 +26,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../theme/app_colors.dart';
+
 class ImageHelper {
   // ----------------------------------------------------------
   // TUNING KNOBS
@@ -193,12 +195,13 @@ class Base64Image extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F0E3),
+        // A pale green tile, charcoal in dark mode.
+        color: AppColors.adapt(const Color(0xFFE8F0E3)),
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Icon(
         icon,
-        color: const Color(0xFF558B2F),
+        color: AppColors.mid,
         size: (width != null && width! < 60) ? 20 : 30,
       ),
     );

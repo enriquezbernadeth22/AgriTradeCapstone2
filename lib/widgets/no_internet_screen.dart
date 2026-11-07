@@ -29,7 +29,7 @@ class NoInternetScreen extends StatelessWidget {
     // instead of telling them to check their Wi-Fi.
     final serverIssue = ConnectivityService.instance.lastKnownOnline == true;
     return Scaffold(
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.authPage,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -92,7 +92,7 @@ class NoInternetScreen extends StatelessWidget {
                       backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: const StadiumBorder(),
+                      shape: AppTheme.buttonShape,
                     ),
                   ),
                 ),

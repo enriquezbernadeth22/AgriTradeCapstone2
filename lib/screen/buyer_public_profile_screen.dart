@@ -12,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/chat_photo_viewer.dart';
 import '../widgets/profile_avatar.dart';
+import '../theme/app_theme.dart';
 import 'order_details_screen.dart';
 
 /// A buyer's profile as a farmer sees it, opened from the buyer's photo in
@@ -466,7 +467,7 @@ class _BuyerPublicProfileScreenState extends State<BuyerPublicProfileScreen> {
       child: Text(
         label,
         style: GoogleFonts.montserrat(
-          fontSize: 10.5,
+          fontSize: 11.5,
           fontWeight: FontWeight.w600,
           color: AppColors.text,
         ),
@@ -488,11 +489,7 @@ class _BuyerPublicProfileScreenState extends State<BuyerPublicProfileScreen> {
 
   Widget _card({required Widget child}) => Container(
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: AppColors.cardBorder,
-    ),
+    decoration: AppTheme.card(),
     child: child,
   );
 

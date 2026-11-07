@@ -269,9 +269,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // screen below; the request, cooldown and leave question are the same
   // code.
   // ================================================================
-  // The field and the buttons are rounded rectangles
-  // (AppTheme.adminFieldRadius), like the sign-in form's and the rest of
-  // the Admin Portal; the text is in the portal's font (Inter, with its
+  // The field is a pill and the buttons rounded rectangles
+  // (AppTheme.adminFieldRadius), like the sign-in form's; the text is in the portal's font (Inter, with its
   // real weights), so bold shows as bold in a browser.
   static const double _adminControlHeight = 46;
 
@@ -408,7 +407,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         controller: _emailController,
         compact: true,
         autofocus: true,
-        radius: AppTheme.adminFieldRadius,
+        radius: AppTheme.pillRadius,
         readOnly: _sending,
         hint: tl('Enter your admin email address'),
         icon: Icons.email_outlined,
@@ -594,7 +593,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       processing: _sending,
       confirm: _leaveConfirm,
       child: Scaffold(
-        backgroundColor: AppColors.page,
+        backgroundColor: AppColors.authPage,
         appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
         body: SafeArea(
           top: false,

@@ -5,6 +5,7 @@ import '../l10n/tr.dart';
 import 'agri_app_bar.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// The shared frame of the Farmer Dashboard's market cards (Best-Selling
 /// Products, Top Buyer Locations, Current Market Average):
@@ -42,20 +43,7 @@ class MarketCardShell extends StatelessWidget {
           : const EdgeInsets.fromLTRB(16, 16, 16, 14),
       decoration: embedded
           ? null
-          : BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.adapt(const Color(0xFFE9F0E4)),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+          : AppTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -136,7 +124,7 @@ class MarketCardTag extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.montserrat(
-          fontSize: 10.5,
+          fontSize: 11.5,
           fontWeight: FontWeight.w600,
           color: AppColors.brand,
         ),
@@ -279,7 +267,8 @@ void openMarketCardScreen(
   );
 }
 
-/// "View all (N)" under a market card's first rows; opens its full list.
+/// "View all (N)" under a market card's first rows, in the middle; opens
+/// its full list.
 class MarketCardViewAll extends StatelessWidget {
   final int count;
   final VoidCallback onPressed;

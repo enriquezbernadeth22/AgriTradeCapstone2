@@ -51,7 +51,7 @@ class BrandedLoadingScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.authPage,
       body: Stack(
         children: [
           Positioned.fill(

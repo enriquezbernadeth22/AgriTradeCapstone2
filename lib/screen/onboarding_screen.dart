@@ -9,6 +9,7 @@ import '../widgets/agritrade_text.dart';
 import '../widgets/onboarding_art.dart';
 import '../widgets/onboarding_previews.dart';
 import '../widgets/onboarding_reveal.dart';
+import '../theme/app_theme.dart';
 
 /// First-run intro carousel — shown once on a fresh install, before the app
 /// routes to role selection or login. Each page shows what the app does, on a
@@ -237,7 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         elevation: 0,
         minimumSize: const Size(0, 46),
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: const StadiumBorder(),
+        shape: AppTheme.buttonShape,
       ),
       child: _loading
           ? const SizedBox(

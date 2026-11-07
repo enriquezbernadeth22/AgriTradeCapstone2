@@ -10,6 +10,7 @@ import '../data/laurel_barangays.dart';
 import '../services/location_permission_prompt.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// Lets a farmer drop a pin at their real farm location — the map stays
 /// still and the pin stays centered while the farmer drags the map
@@ -143,18 +144,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
             right: 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.card(),
               child: Text(
                 tl(
                   'Drag the map so the pin sits over your farm, or use your current location.',
@@ -189,7 +179,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                       side: BorderSide(color: AppColors.brand),
                       backgroundColor: AppColors.surface,
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: const StadiumBorder(),
+                      shape: AppTheme.buttonShape,
                     ),
                   ),
                 ),
@@ -202,7 +192,7 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
                       backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: const StadiumBorder(),
+                      shape: AppTheme.buttonShape,
                       elevation: 0,
                     ),
                     child: _saving

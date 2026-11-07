@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return PopScope(
       canPop: !widget.disableBackNavigation,
       child: Scaffold(
-        backgroundColor: AppColors.page,
+        backgroundColor: AppColors.authPage,
         body: Stack(
           children: [
             // ---- Hero: farm landscape photo + the AgriTrade+ lockup ----

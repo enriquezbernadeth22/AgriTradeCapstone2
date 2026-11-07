@@ -423,7 +423,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         if (!didPop) _onBack();
       },
       child: Scaffold(
-        backgroundColor: AppColors.page,
+        backgroundColor: AppColors.authPage,
         // No coloured header: this screen has no title bar, only a Back
         // button floating at the top left, as on Forgot Password.
         body: SafeArea(
@@ -544,9 +544,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 11),
                               side: BorderSide(color: AppColors.mid),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
+                              shape: AppTheme.buttonShape,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,

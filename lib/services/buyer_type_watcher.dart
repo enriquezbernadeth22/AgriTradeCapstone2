@@ -1,15 +1,15 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/account_types.dart';
+import 'firebase_refs.dart';
 
 /// Whether the signed-in account is a buyer who usually orders in bulk, for
 /// the product cards and pages: those show the wholesale price first. One
-/// subscription for the whole app, started by the first card that asks, like
-/// MarketDemandIndex. Anyone else, and an older account never asked what
+/// subscription for the whole app, started by the first card that asks.
+/// Anyone else, and an older account never asked what
 /// describes it, sees the retail price first as before.
 class BuyerTypeWatcher extends ChangeNotifier {
   BuyerTypeWatcher._();
@@ -27,7 +27,7 @@ class BuyerTypeWatcher extends ChangeNotifier {
   void _listen() {
     String? uid;
     try {
-      uid = FirebaseAuth.instance.currentUser?.uid;
+      uid = FirebaseRefs.auth.currentUser?.uid;
     } catch (_) {
       return; // Firebase not set up (e.g. in tests).
     }
@@ -37,7 +37,7 @@ class BuyerTypeWatcher extends ChangeNotifier {
     _sub = null;
     _wholesaleFirst = false;
     if (uid == null) return;
-    _sub = FirebaseFirestore.instance
+    _sub = FirebaseRefs.firestore
         .collection('users')
         .doc(uid)
         .snapshots()

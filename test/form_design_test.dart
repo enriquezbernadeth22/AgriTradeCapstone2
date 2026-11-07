@@ -239,9 +239,28 @@ void main() {
       {WidgetState.disabled},
     ]) {
       final outline = side.resolve(states)!;
-      expect(outline.color, AppColors.grey(400));
+      expect(outline.color, AppColors.grey(600));
       expect(outline.width, greaterThanOrEqualTo(1.2));
     }
+  });
+
+  test('buttons are rounded rectangles, not pills; cards are white with a '
+      'soft shadow', () {
+    for (final style in [
+      AppTheme.primaryButton(),
+      AppTheme.secondaryButton(),
+    ]) {
+      final shape = style.shape!.resolve({})! as RoundedRectangleBorder;
+      expect(shape.borderRadius, BorderRadius.circular(AppTheme.buttonRadius));
+    }
+    expect(AppTheme.buttonRadius, 12);
+    expect(AppTheme.compactButtonRadius, lessThan(AppTheme.buttonRadius));
+
+    final card = AppTheme.card();
+    expect(card.color, AppColors.surface);
+    expect(card.borderRadius, BorderRadius.circular(AppTheme.cardRadius));
+    expect(card.border, isNull);
+    expect(card.boxShadow, isNotEmpty);
   });
 
   test('the type follows the hierarchy: title, then labels and fields', () {

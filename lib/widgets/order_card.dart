@@ -6,6 +6,7 @@ import '../services/order_format.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 enum OrderActionKind { primary, secondary, destructive, text }
 
@@ -39,19 +40,24 @@ class OrderStatusTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = orderStatusColor(status);
+    // Pending: pale gold with golden-brown text (the user's design,
+    // 2026-11-08); the others their own colour on a light tint of it.
+    final pending = status == 'pending' && !AppColors.isDark;
+    final color = pending ? const Color(0xFFB77908) : orderStatusColor(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
+        color: pending
+            ? const Color(0xFFFFF3D6)
+            : color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         status.toUpperCase(),
         style: GoogleFonts.montserrat(
           color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
         ),
       ),
@@ -68,18 +74,19 @@ class OrderPricingTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      // A small pale green badge, dark green text (the user's design).
       decoration: BoxDecoration(
-        color: order.isWholesale ? AppColors.tint : AppColors.grey(100),
-        borderRadius: BorderRadius.circular(4),
+        color: AppColors.isDark ? AppColors.tint : const Color(0xFFEAF2E4),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         order.pricingLabel,
         style: GoogleFonts.montserrat(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w700,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
-          color: order.isWholesale ? AppColors.brand : AppColors.grey(700),
+          color: AppColors.brand,
         ),
       ),
     );
@@ -91,7 +98,7 @@ class OrderThumbnail extends StatelessWidget {
   final OrderInfo order;
   final double size;
 
-  const OrderThumbnail(this.order, {super.key, this.size = 60});
+  const OrderThumbnail(this.order, {super.key, this.size = 56});
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +116,7 @@ class OrderThumbnail extends StatelessWidget {
       ),
     );
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(11),
       child: SizedBox(
         width: size,
         height: size,
@@ -183,7 +190,7 @@ class OrderActionButton extends StatelessWidget {
         ),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: VisualDensity.compact,
-        shape: const StadiumBorder(),
+        shape: height > 36 ? AppTheme.buttonShape : AppTheme.compactButtonShape,
         textStyle: GoogleFonts.montserrat(
           fontSize: large ? 13 : 11.5,
           fontWeight: FontWeight.w600,
@@ -217,8 +224,8 @@ class OrderCard extends StatelessWidget {
     this.isNew = false,
   });
 
-  TextStyle _muted([double size = 11.5]) =>
-      GoogleFonts.montserrat(fontSize: size, color: AppColors.grey(600));
+  TextStyle _muted([double size = 11]) =>
+      GoogleFonts.montserrat(fontSize: size, color: const Color(0xFF757575));
 
   String get _dateLine {
     if (order.isCompleted && order.completedAt != null) {
@@ -238,15 +245,11 @@ class OrderCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.grey(200)),
-      ),
+      decoration: AppTheme.card(),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
           onTap: onDetails,
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -273,12 +276,13 @@ class OrderCard extends StatelessWidget {
                                     Flexible(
                                       child: Text(
                                         order.productName,
-                                        maxLines: 1,
+                                        maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.montserrat(
                                           fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.text,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.brand,
                                         ),
                                       ),
                                     ),
@@ -314,7 +318,7 @@ class OrderCard extends StatelessWidget {
                               Text(
                                 order.quantityLabel,
                                 style: GoogleFonts.montserrat(
-                                  fontSize: 12,
+                                  fontSize: 11.5,
                                   fontWeight: FontWeight.w500,
                                   color: AppColors.text,
                                 ),
@@ -337,7 +341,7 @@ class OrderCard extends StatelessWidget {
                             Text(
                               order.shippedProgressLabel,
                               style: GoogleFonts.montserrat(
-                                fontSize: 10.5,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
                                 color: orderStatusColor('shipped'),
                               ),
@@ -353,7 +357,7 @@ class OrderCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
-                                fontSize: 10.5,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.tone(Colors.orange, 800),
                               ),
@@ -372,7 +376,7 @@ class OrderCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
-                                fontSize: 10.5,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.brand,
                               ),
@@ -390,7 +394,7 @@ class OrderCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
-                                fontSize: 10.5,
+                                fontSize: 11.5,
                                 color: AppColors.tone(Colors.orange, 800),
                               ),
                             ),
@@ -399,28 +403,38 @@ class OrderCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Divider(height: 1, color: AppColors.grey(200)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 9),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.isDark
+                      ? AppColors.hairline
+                      : const Color(0xFFE8E9E3),
+                ),
+                const SizedBox(height: 9),
                 // The total, and Details: everything else about the order —
                 // messaging, Report Delay, Accept and the rest — is in it.
                 Row(
                   children: [
                     Expanded(child: _total(total)),
+                    // White with a thin dark green outline, 36 high.
                     TextButton.icon(
                       onPressed: onDetails,
-                      icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                      icon: const Icon(Icons.receipt_long_outlined, size: 16),
                       label: Text(tr(context).details),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.brand,
-                        side: BorderSide(color: AppColors.grey(400)),
-                        fixedSize: const Size.fromHeight(34),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        backgroundColor: AppColors.surface,
+                        side: BorderSide(color: AppColors.brand, width: 1),
+                        fixedSize: const Size.fromHeight(36),
+                        padding: const EdgeInsets.symmetric(horizontal: 13),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: const StadiumBorder(),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(11),
+                        ),
                         textStyle: GoogleFonts.montserrat(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -439,12 +453,12 @@ class OrderCard extends StatelessWidget {
     children: [
       Text(
         total == null ? 'Subtotal + delivery' : tl('Total'),
-        style: _muted(10),
+        style: _muted(10.5),
       ),
       Text(
         formatPeso(total ?? order.subtotal),
         style: GoogleFonts.montserrat(
-          fontSize: 14.5,
+          fontSize: 15,
           fontWeight: FontWeight.w700,
           color: AppColors.brand,
         ),

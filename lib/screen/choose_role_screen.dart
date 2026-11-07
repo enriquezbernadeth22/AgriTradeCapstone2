@@ -224,7 +224,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen>
 
   Widget _page(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.authPage,
       appBar: AgriAppBar(
         titleWidget: const AgriTradeHeaderBrand(),
         onBack: _handleExit,

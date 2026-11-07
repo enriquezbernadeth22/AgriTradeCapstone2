@@ -8,6 +8,7 @@ import '../services/market_diagnostics_service.dart';
 import '../services/price_trend_service.dart';
 import 'admin_analytics_widgets.dart'
     show AdminCommoditySearchField, matchCommodities;
+import 'admin_filter_controls.dart' show adminCard;
 import 'admin_dashboard_screen.dart'
     show
         AdminThemeScope,
@@ -72,11 +73,7 @@ class _AdminMarketTrendsCardState extends State<AdminMarketTrendsCard> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       // Rebuilt when the commodity list, the orders or the listings change.
       child: ListenableBuilder(
         listenable: Listenable.merge([

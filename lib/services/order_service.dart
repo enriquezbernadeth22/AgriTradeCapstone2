@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_refs.dart';
 
 import 'connectivity_service.dart';
 import 'delivery_coverage.dart';
@@ -17,17 +17,17 @@ bool orderTookStock(Map<String, dynamic> order) =>
     order['stockOnConfirm'] != true || order['stockDeductedAt'] != null;
 
 class OrderService {
-  final _orders = FirebaseFirestore.instance.collection('orders');
+  final _orders = FirebaseRefs.firestore.collection('orders');
 
   // All orders where the logged-in farmer is the seller.
   Stream<QuerySnapshot<Map<String, dynamic>>> farmerOrdersStream() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     return _orders.where('sellerId', isEqualTo: uid).snapshots();
   }
 
   // All orders created by the logged-in buyer.
   Stream<QuerySnapshot<Map<String, dynamic>>> buyerOrdersStream() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     return _orders.where('buyerId', isEqualTo: uid).snapshots();
   }
 
@@ -56,7 +56,7 @@ class OrderService {
     if (offlineError != null) return offlineError;
 
     try {
-      final buyerId = FirebaseAuth.instance.currentUser?.uid;
+      final buyerId = FirebaseRefs.auth.currentUser?.uid;
       if (buyerId == null || buyerId.isEmpty) {
         return 'Please log in again before placing an order.';
       }
@@ -66,8 +66,8 @@ class OrderService {
       // the order once it has been placed (see below).
       final orderRef = _orders.doc();
 
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final productRef = FirebaseFirestore.instance
+      await FirebaseRefs.firestore.runTransaction((transaction) async {
+        final productRef = FirebaseRefs.firestore
             .collection('products')
             .doc(productId);
         final productSnapshot = await transaction.get(productRef);
@@ -254,10 +254,10 @@ class OrderService {
   Future<String?> confirmReceived(String id) async {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null) return 'Please log in again.';
     try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
+      await FirebaseRefs.firestore.runTransaction((transaction) async {
         final orderRef = _orders.doc(id);
         final snapshot = await transaction.get(orderRef);
         final data = snapshot.data();
@@ -299,7 +299,7 @@ class OrderService {
     };
 
     try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
+      await FirebaseRefs.firestore.runTransaction((transaction) async {
         final orderRef = _orders.doc(id);
         final snapshot = await transaction.get(orderRef);
         if (!snapshot.exists) {
@@ -329,7 +329,7 @@ class OrderService {
           if (productId.isEmpty) {
             throw StateError('This order has no product to confirm.');
           }
-          final productRef = FirebaseFirestore.instance
+          final productRef = FirebaseRefs.firestore
               .collection('products')
               .doc(productId);
           final product = await transaction.get(productRef);
@@ -384,7 +384,7 @@ class OrderService {
     if (offlineError != null) return offlineError;
 
     try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
+      await FirebaseRefs.firestore.runTransaction((transaction) async {
         final orderRef = _orders.doc(id);
         final orderSnapshot = await transaction.get(orderRef);
         if (!orderSnapshot.exists) {
@@ -400,7 +400,7 @@ class OrderService {
         if (orderTookStock(orderData) &&
             productId != null &&
             productId.isNotEmpty) {
-          final productRef = FirebaseFirestore.instance
+          final productRef = FirebaseRefs.firestore
               .collection('products')
               .doc(productId);
           final productSnapshot = await transaction.get(productRef);
@@ -471,7 +471,7 @@ class OrderService {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
     try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
+      await FirebaseRefs.firestore.runTransaction((transaction) async {
         final ref = _orders.doc(id);
         final data = (await transaction.get(ref)).data();
         final delay = data?['delay'];

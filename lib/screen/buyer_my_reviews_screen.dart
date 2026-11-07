@@ -12,6 +12,7 @@ import 'product_detail_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// The reviews this buyer has written. Every review belongs to one of
 /// their own completed orders — a review's document id is that order's id,
@@ -127,18 +128,7 @@ class _BuyerMyReviewsScreenState extends State<BuyerMyReviewsScreen> {
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: AppColors.cardBorder,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+      decoration: AppTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

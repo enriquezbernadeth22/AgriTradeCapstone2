@@ -1,14 +1,19 @@
 import '../widgets/agri_app_bar.dart';
+import '../widgets/reviewer_avatar.dart';
+import '../widgets/review_like_button.dart';
+import '../widgets/farm_buyer_map.dart';
+import '../widgets/docked_nav_bar.dart';
+import '../widgets/section_tabs.dart';
+import '../widgets/explore_product_card.dart';
+import '../services/firebase_refs.dart';
 import '../theme/app_theme.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -19,7 +24,6 @@ import '../services/public_farm_location.dart';
 import '../services/harvest_info.dart';
 import '../services/market_price_helpers.dart';
 import '../widgets/agri_refresh_indicator.dart';
-import '../widgets/app_back_button.dart';
 import '../widgets/save_product_button.dart';
 import '../data/commodity_master_list.dart';
 import 'chat_screen.dart';
@@ -32,6 +36,8 @@ import '../widgets/profile_avatar.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
 import '../services/buyer_type_watcher.dart';
+import '../widgets/coach_mark.dart';
+import '../services/road_route_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -64,18 +70,193 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     })
   >
   _farmerLocation;
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews =
-      FirebaseFirestore.instance
-          .collection('productReviews')
-          .where('productId', isEqualTo: widget.productId)
-          .snapshots();
+  // The road from the buyer's saved location to the farm area, once the
+  // map preview has it: the distance then reads by road.
+  RoadRoute? _previewRoad;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviews = FirebaseRefs
+      .firestore
+      .collection('productReviews')
+      .where('productId', isEqualTo: widget.productId)
+      .snapshots();
   final ValueNotifier<int> _galleryPage = ValueNotifier(0);
   bool _productUnavailable = false;
   bool _productLoadError = false;
 
+  // What the first-time tour points at.
+  final _messageKey = GlobalKey();
+  final _mapKey = GlobalKey();
+
+  // ---- Section tabs (the user's design, 2026-11-08) ----
+  // Overview, Description, Reviews and Recommended, in one row under the
+  // farmer that scrolls with the page (never pinned at the top). A tap
+  // only chooses what shows under it — Overview everything, the others
+  // their one section — and never moves the page (the user's choice,
+  // 2026-11-08).
+  final _scroll = ScrollController();
+  int _activeTab = 0;
+
+  void _chooseTab(int i) {
+    if (i == _activeTab) return;
+    setState(() => _activeTab = i);
+  }
+
+  // Whether section [tab] shows under the tabs (Overview shows them all).
+  bool _shows(int tab) => _activeTab == 0 || _activeTab == tab;
+
+  // ---- Recommended Products ----
+  // Other listings of the same product (by its name), from other farmers:
+  // not archived or suspended, and with stock. Read once per screen.
+  late final Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  _recommended = _loadRecommended();
+
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  _loadRecommended() async {
+    final name = _currentData['name']?.toString() ?? '';
+    if (name.isEmpty) return const [];
+    try {
+      final snapshot = await FirebaseRefs.firestore
+          .collection('products')
+          .where('name', isEqualTo: name)
+          .limit(20)
+          .get();
+      return [
+        for (final doc in snapshot.docs)
+          if (doc.id != widget.productId &&
+              doc.data()['isArchived'] != true &&
+              doc.data()['isSuspended'] != true &&
+              ((doc.data()['quantity'] as num?) ?? 0) > 0)
+            doc,
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Widget _recommendedSection(String name) {
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.shopping_bag_outlined,
+                size: 19,
+                color: DockedNavBar.selectedColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _sectionTitle(tl('Recommended Products'))),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 27, top: 2),
+            child: Text(
+              tl('Other listings of {0}', [name]),
+              style: TextStyle(fontSize: 11.5, color: _muted),
+            ),
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+            future: _recommended,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const SizedBox(
+                  height: 120,
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final docs = snapshot.data!;
+              if (docs.isEmpty) {
+                return _PaleNote(
+                  child: Text(
+                    tl('No other listings of {0} right now.', [name]),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.grey(800),
+                    ),
+                  ),
+                );
+              }
+              const width = 160.0;
+              final height = ExploreProductCard.extentFor(
+                width,
+                MediaQuery.textScalerOf(context),
+              );
+              return SizedBox(
+                key: const Key('recommendedProducts'),
+                height: height,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
+                  itemCount: docs.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, i) {
+                    final doc = docs[i];
+                    final data = doc.data();
+                    return SizedBox(
+                      width: width,
+                      child: ExploreProductCard(
+                        data: data,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProductDetailScreen(
+                              productId: doc.id,
+                              data: data,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // The first product a buyer opens: the farm map (when it is in view) and
+  // asking the farmer first. Order Now needs no explaining.
+  void _showTour() {
+    if (!mounted) return;
+    // Not on the farmer's own listing: there is nobody to ask.
+    try {
+      final uid = FirebaseRefs.auth.currentUser?.uid;
+      if (uid != null && uid == _currentData['farmerId']?.toString()) return;
+    } catch (_) {}
+    showCoachMarksOnce(
+      context: context,
+      prefsKey: '${TutorialTips.tourKeyPrefix}product',
+      steps: [
+        CoachMarkStep(
+          targetKey: _mapKey,
+          title: tl('Where the farm is'),
+          message: tl(
+            'Tap the map for the distance from you and directions to the farm.',
+          ),
+        ),
+        CoachMarkStep(
+          targetKey: _messageKey,
+          title: tl('Ask before you order'),
+          message: tl(
+            'Message the farmer about the harvest, the price or delivery. The chat stays in Messages.',
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showTour());
     _currentData = Map<String, dynamic>.from(widget.data);
     _watchProduct();
     ProductService().logProductView(widget.productId);
@@ -109,7 +290,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _watchProduct() {
     _productSub?.cancel();
-    _productSub = FirebaseFirestore.instance
+    _productSub = FirebaseRefs.firestore
         .collection('products')
         .doc(widget.productId)
         .snapshots()
@@ -141,6 +322,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   void dispose() {
+    _scroll.dispose();
     _productSub?.cancel();
     _galleryPage.dispose();
     super.dispose();
@@ -185,7 +367,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ) async {
     if (farmerId == null || farmerId.isEmpty) return null;
     try {
-      return await FirebaseFirestore.instance
+      return await FirebaseRefs.firestore
           .collection('publicProfiles')
           .doc(farmerId)
           .get();
@@ -213,7 +395,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         centerLng: null,
       );
     }
-    final buyerId = FirebaseAuth.instance.currentUser?.uid;
+    final buyerId = FirebaseRefs.auth.currentUser?.uid;
     // The farmer's public, barangay-level location only (see
     // public_farm_location.dart) — the same source the Farm Location map
     // uses, so both show the same stable area and neither can reveal a
@@ -223,7 +405,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     Future<Map<String, dynamic>?> buyerPosition() async {
       if (buyerId == null || buyerId.isEmpty) return null;
       try {
-        return (await FirebaseFirestore.instance
+        return (await FirebaseRefs.firestore
                 .collection('users')
                 .doc(buyerId)
                 .collection('private')
@@ -307,28 +489,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              tl('Farm area: {0}', [location.area]),
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-              ),
+              location.area,
+              style: TextStyle(color: AppColors.text, fontSize: 12.5),
             ),
-            const SizedBox(height: 2),
-            Text(
-              distanceKm == null
-                  ? tl(
-                      'Distance unavailable. Add a saved location to see an estimate.',
-                    )
-                  : tl('Approx. {0} km away', [distanceKm.toStringAsFixed(1)]),
-              style: TextStyle(color: AppColors.grey(700), fontSize: 12.5),
+            const SizedBox(height: 3),
+            Row(
+              children: [
+                Icon(Icons.route_outlined, size: 15, color: _muted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    distanceKm == null
+                        ? tl(
+                            'Distance unavailable. Add a saved location to see an estimate.',
+                          )
+                        : _previewRoad != null
+                        ? tl('Approx. {0} km by road', [
+                            _previewRoad!.km.toStringAsFixed(1),
+                          ])
+                        : tl('Approx. {0} km away', [
+                            distanceKm.toStringAsFixed(1),
+                          ]),
+                    style: TextStyle(color: _muted, fontSize: 11.5),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             // A still preview: it does not move under a finger, so the page
             // scrolls past it. Tapping it opens Farm Location (the same as
             // Open Map above), with the distance and a refresh.
             SizedBox(
-              height: 190,
+              key: _mapKey,
+              height: 175,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Stack(
@@ -350,13 +543,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              tl(
-                'The marker shows the general barangay area, not the exact farm.',
-              ),
-              style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
-            ),
+            // That the farm point is only the general area is said on the
+            // map itself (FarmBuyerMap's note).
           ],
         );
       },
@@ -364,45 +552,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   // The farm's approximate area (and the buyer's saved location, if any)
-  // on a map. As a [preview] nothing moves it; full screen it pans and
-  // zooms.
+  // on a map, the two as their photos with the line between them
+  // (FarmBuyerMap). As a [preview] nothing moves it.
   Widget _farmAreaMap(LatLng center, LatLng? buyer, {bool preview = false}) {
-    return GoogleMap(
-      initialCameraPosition: CameraPosition(target: center, zoom: 12),
-      zoomControlsEnabled: !preview,
-      myLocationButtonEnabled: false,
-      mapToolbarEnabled: !preview,
-      scrollGesturesEnabled: !preview,
-      zoomGesturesEnabled: !preview,
-      rotateGesturesEnabled: !preview,
-      tiltGesturesEnabled: !preview,
-      // On Android the preview is a still picture of the map (lite mode),
-      // which also keeps the page light.
-      liteModeEnabled:
-          preview && defaultTargetPlatform == TargetPlatform.android,
-      markers: {
-        Marker(
-          markerId: const MarkerId('farmer_area'),
-          position: center,
-          infoWindow: InfoWindow(title: tl('Approximate farm area')),
-        ),
-        if (buyer != null)
-          Marker(
-            markerId: const MarkerId('buyer'),
-            position: buyer,
-            infoWindow: InfoWindow(title: tl('Your saved location')),
-          ),
-      },
-      circles: {
-        Circle(
-          circleId: const CircleId('approximate_farmer_area'),
-          center: center,
-          radius: 700,
-          fillColor: AppColors.brandFill.withValues(alpha: 0.12),
-          strokeColor: AppColors.brand.withValues(alpha: 0.6),
-          strokeWidth: 1,
-        ),
-      },
+    return FarmBuyerMap(
+      farm: center,
+      buyer: buyer,
+      farmerId: _currentData['farmerId']?.toString() ?? '',
+      farmerName: _currentData['farmerName']?.toString() ?? tl('Farmer'),
+      preview: preview,
+      zoom: 12,
+      onRoute: preview
+          ? (route) {
+              if (mounted) setState(() => _previewRoad = route);
+            }
+          : null,
     );
   }
 
@@ -543,8 +707,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
-                    // Back is not in this row: it floats above the whole
-                    // page (see build) so it stays put while this scrolls.
+                    // Back again over the photo (the user's picture,
+                    // 2026-11-08); the bar at the top has its own.
+                    circleButton(
+                      Icons.arrow_back_rounded,
+                      () => Navigator.maybePop(context),
+                      key: const Key('productBack'),
+                      tooltip: tl('Back'),
+                    ),
                     const Spacer(),
                     // The heart — buyers only (it draws nothing otherwise).
                     SaveProductButton(productId: widget.productId),
@@ -569,30 +739,72 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // The thin rule between sections of the content panel.
-  Widget _divider({double top = 18, double bottom = 18}) => Padding(
+  // The thin rule inside the white panel.
+  Widget _divider({double top = 14, double bottom = 4}) => Padding(
     padding: EdgeInsets.only(top: top, bottom: bottom),
-    child: Divider(height: 1, thickness: 1, color: AppColors.grey(200)),
+    child: Divider(height: 1, thickness: 1, color: _line),
   );
 
-  // One line of the product summary: icon, text, optional trailing note.
+  // One fact of the summary: a dark green icon and the text, with an
+  // optional note after it.
   Widget _infoRow(IconData icon, String text, {Widget? trailing}) => Row(
     children: [
-      Icon(icon, size: 16, color: AppColors.grey(600)),
-      const SizedBox(width: 8),
-      Expanded(
+      Icon(icon, size: 16, color: AppColors.brand),
+      const SizedBox(width: 9),
+      Flexible(
         child: Text(
           text,
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 13.5, color: AppColors.grey(800)),
+          style: TextStyle(
+            fontSize: 12.5,
+            height: 1.3,
+            color: AppColors.grey(800),
+          ),
         ),
       ),
-      ?trailing,
+      if (trailing != null) ...[const SizedBox(width: 6), trailing],
     ],
   );
 
-  Widget _sectionTitle(String text) => Text(text, style: AppTheme.heading(17));
+  Widget _sectionTitle(String text) => Text(
+    text,
+    style: TextStyle(
+      fontFamily: 'Montserrat',
+      fontSize: 15.5,
+      fontWeight: FontWeight.w700,
+      color: AppColors.brand,
+    ),
+  );
+
+  // The muted grey and the hairline of the design.
+  Color get _muted =>
+      AppColors.isDark ? AppColors.textSecondary : const Color(0xFF757575);
+  Color get _line =>
+      AppColors.isDark ? AppColors.hairline : const Color(0xFFE8E9E3);
+
+  // "View All (1) >" / "Open Map >": dark green text with a chevron.
+  Widget _textAction(String label, VoidCallback onTap, {Key? key}) =>
+      TextButton(
+        key: key,
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.brand,
+          padding: const EdgeInsets.only(left: 8),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size(0, 32),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const Icon(Icons.chevron_right_rounded, size: 20),
+          ],
+        ),
+      );
 
   // Compact farmer row — opens that farmer's public profile. Photo and
   // Verified status come from the public profile, never assumed.
@@ -622,13 +834,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
                   ProfileAvatar(
                     photoUrl: farmer?['photoUrl']?.toString(),
                     name: displayName,
-                    radius: 23,
+                    radius: 21,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -640,43 +852,60 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontFamily: 'Montserrat',
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w700,
                             color: AppColors.text,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
+                        // A pale green badge, only when the Admin has
+                        // verified this farmer.
                         if (verified)
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.verified_rounded,
-                                size: 14,
-                                color: AppColors.brand,
+                          Container(
+                            padding: const EdgeInsets.fromLTRB(6, 3, 10, 3),
+                            decoration: BoxDecoration(
+                              color: _paleGreen,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.pillRadius,
                               ),
-                              SizedBox(width: 4),
-                              Text(
-                                tl('Verified Farmer'),
-                                style: TextStyle(
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.verified_rounded,
+                                  size: 15,
                                   color: AppColors.brand,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 5),
+                                Text(
+                                  tl('Verified Farmer'),
+                                  style: TextStyle(
+                                    color: AppColors.brand,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           )
                         else
                           Text(
                             tl('Farmer'),
                             style: TextStyle(
                               color: AppColors.grey(700),
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: AppColors.grey(600)),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.brand,
+                    size: 26,
+                  ),
                 ],
               ),
             ),
@@ -732,7 +961,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               const SizedBox(height: 8),
               Text(
                 tl('Could not load reviews.'),
-                style: TextStyle(color: AppColors.grey(700), fontSize: 13.5),
+                style: TextStyle(color: AppColors.grey(700), fontSize: 12.5),
               ),
             ],
           );
@@ -750,7 +979,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               Text(
                 tl('No reviews yet'),
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
@@ -762,7 +991,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 style: TextStyle(
                   color: AppColors.grey(700),
-                  fontSize: 13,
+                  fontSize: 12,
                   height: 1.4,
                 ),
               ),
@@ -789,15 +1018,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         children: [
                           const Icon(
                             Icons.star_rounded,
-                            size: 20,
-                            color: Colors.amber,
+                            size: 19,
+                            color: DockedNavBar.selectedColor,
                           ),
-                          const SizedBox(width: 3),
+                          const SizedBox(width: 4),
                           Text(
                             average.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 15,
+                            style: TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
+                              color: AppColors.text,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -805,18 +1036,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             docs.length == 1
                                 ? '(1 review)'
                                 : tl('({0} reviews)', [docs.length]),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.grey(700),
-                            ),
+                            style: TextStyle(fontSize: 11.5, color: _muted),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.push(
+                _textAction(
+                  tl('View All ({0})', [docs.length]),
+                  () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => ProductReviewsScreen(
@@ -826,75 +1055,68 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.brand,
-                    padding: const EdgeInsets.only(left: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        tl('View All ({0})', [docs.length]),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right, size: 18),
-                    ],
-                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            // Bleeds to both screen edges so cards slide under the page
-            // padding instead of being cut off at it.
-            SizedBox(
-              height: 148,
-              child: OverflowBox(
-                maxWidth: MediaQuery.sizeOf(context).width,
+            const SizedBox(height: 10),
+            // One review fills the card's width; more slide sideways.
+            if (shown.length == 1)
+              _reviewPreviewCard(shown.first.id, shown.first.data())
+            else
+              SizedBox(
+                height: 112,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  clipBehavior: Clip.none,
                   itemCount: shown.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) =>
-                      _reviewPreviewCard(shown[index].data()),
+                  itemBuilder: (context, index) => SizedBox(
+                    width: 260,
+                    child: _reviewPreviewCard(
+                      shown[index].id,
+                      shown[index].data(),
+                    ),
+                  ),
                 ),
               ),
-            ),
           ],
         );
       },
     );
   }
 
-  // Compact on purpose: name, stars, date and a few lines of the text. No
-  // photos here — those are on the full reviews screen.
-  Widget _reviewPreviewCard(Map<String, dynamic> review) {
+  // Compact on purpose: name, stars, date and a few lines of the text, on
+  // a light cream card. No photos here — those are on the full reviews
+  // screen.
+  Widget _reviewPreviewCard(String reviewId, Map<String, dynamic> review) {
     final reviewer = review['buyerName']?.toString() ?? 'Buyer';
     final text = review['comment']?.toString() ?? '';
     final rating = (review['rating'] as num?)?.toDouble() ?? 0;
     final created = (review['createdAt'] as Timestamp?)?.toDate();
 
     return Container(
-      width: 250,
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: AppColors.isDark
+            ? AppColors.surfaceAlt
+            : const Color(0xFFF6F4EC),
         border: AppColors.cardBorder,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              // Initials only — a review shows the buyer's name, not their
-              // profile.
-              ProfileAvatar(photoUrl: null, name: reviewer, radius: 16),
-              const SizedBox(width: 8),
+              // The reviewer's photo (initials without one).
+              ReviewerAvatar(
+                buyerId: review['buyerId']?.toString(),
+                name: reviewer,
+                radius: 17,
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,26 +1125,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       reviewer,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
+                        color: AppColors.text,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        ReviewStars(rating: rating, size: 13),
+                        ReviewStars(rating: rating, size: 14),
                         if (created != null) ...[
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 5),
                           Expanded(
                             child: Text(
-                              DateFormat('MMM d, y').format(created),
+                              '· ${DateFormat('MMM d, y').format(created)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.grey(700),
-                              ),
+                              style: TextStyle(fontSize: 11, color: _muted),
                             ),
                           ),
                         ],
@@ -931,19 +1152,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ),
               ),
+              ReviewLikeButton(reviewId: reviewId, review: review),
             ],
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Text(
-              text.isEmpty ? tl('No written review.') : text,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.4,
-                color: text.isEmpty ? AppColors.grey(600) : AppColors.text,
-              ),
+          const SizedBox(height: 6),
+          Text(
+            text.isEmpty ? tl('No written review.') : text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.4,
+              color: text.isEmpty ? _muted : AppColors.text,
             ),
           ),
         ],
@@ -984,25 +1204,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.page,
-      body: Stack(
-        children: [
-          Positioned.fill(child: _content(context, data)),
-          // Stays at the upper-left however far the page is scrolled.
-          const Positioned(
-            top: 0,
-            left: 12,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: EdgeInsets.only(top: 8),
-                // Over the product photo, so the circle stays on.
-                child: AppBackButton(overImage: true),
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: SectionTabs.background,
+      // The page, and only the Order Now / Message bar fixed below it: no
+      // bar of tabs at the top (the user's choice, 2026-11-08).
+      body: _content(context, data),
       bottomNavigationBar: _bottomBar(data),
     );
   }
@@ -1039,344 +1244,450 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final updatedOn = _formatDate(data['updatedAt']);
     final harvested = harvestDateOf(data);
 
+    // The summary's two halves: name, price and rating on the left; the
+    // facts on the right (stacked on a narrow phone).
+    final headline = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (category.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.fromLTRB(8, 4, 12, 4),
+            decoration: BoxDecoration(
+              color: _paleGreen,
+              borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.eco_rounded, size: 13, color: AppColors.mid),
+                const SizedBox(width: 5),
+                Text(
+                  category,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.brand,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        Text(
+          withSellingOption(name, data),
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontSize: 20,
+            height: 1.15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.brand,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: 6,
+          runSpacing: 2,
+          children: [
+            Text(
+              formatPeso(wholesaleFirst ? wholesalePrice : price),
+              style: TextStyle(
+                fontFamily: 'Montserrat',
+                fontSize: 23,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
+                color: AppColors.brand,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                '/ $unit',
+                style: TextStyle(fontSize: 13, color: _muted),
+              ),
+            ),
+          ],
+        ),
+        // Only once the product actually has reviews.
+        if (rating != null && reviewCount > 0) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                size: 16,
+                color: DockedNavBar.selectedColor,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                rating.toStringAsFixed(1),
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  reviewCount == 1
+                      ? '(1 review)'
+                      : tl('({0} reviews)', [reviewCount]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _muted, fontSize: 11.5),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+    final facts = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _infoRow(
+          Icons.inventory_2_outlined,
+          available > 0
+              ? tl('{0} available', [formatStock(available, unit)])
+              : tl('Out of stock'),
+        ),
+        if (available <= 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 28, top: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.tone(Colors.red, 50),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.tone(Colors.red, 200)),
+              ),
+              child: Text(
+                tl('OUT OF STOCK'),
+                style: TextStyle(
+                  color: AppColors.tone(Colors.red, 700),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ),
+        _farmerAreaLine(),
+        const SizedBox(height: 10),
+        _infoRow(
+          Icons.sell_outlined,
+          hasWholesale ? tl('Retail and wholesale') : tl('Retail only'),
+        ),
+        // Fulfillment, as one plain line with the rest of the summary.
+        if (delivery || pickup) ...[
+          const SizedBox(height: 10),
+          _infoRow(
+            Icons.local_shipping_outlined,
+            delivery && pickup
+                ? tl('Delivery and pick-up')
+                : delivery
+                ? 'Delivery'
+                : 'Pick-up',
+          ),
+        ],
+        if (harvested != null) ...[
+          const SizedBox(height: 10),
+          _infoRow(Icons.eco_outlined, harvestLabel(harvested)),
+        ],
+      ],
+    );
+
     return AgriRefreshIndicator(
       color: AppColors.brand,
       onRefresh: _refreshData,
       child: SingleChildScrollView(
+        controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 24),
+        // Clear of the sticky Order Now / Message bar.
+        padding: const EdgeInsets.only(bottom: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _gallery(data),
 
-            // One continuous white panel under the image: sections are
-            // set apart by spacing and thin dividers, not separate cards.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+            // The white panel the photo curves into (its top edge is drawn
+            // over the photo, see _gallery), with rounded lower corners on
+            // the cream page: the product, wholesale and the farmer.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(22),
+                ),
+                boxShadow: AppColors.isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ---- Name, price, stock, location, selling terms ----
-                  if (category.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.tint,
-                        border: AppColors.cardBorder,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.brand,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  Text(
-                    withSellingOption(name, data),
-                    style: AppTheme.heading(26).copyWith(height: 1.15),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.end,
-                    spacing: 6,
-                    runSpacing: 2,
-                    children: [
-                      Text(
-                        formatPeso(wholesaleFirst ? wholesalePrice : price),
-                        style: AppTheme.heading(
-                          32,
-                        ).copyWith(color: AppColors.brand, height: 1.1),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          '/ $unit',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.grey(700),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Only once the product actually has reviews.
-                  if (rating != null && reviewCount > 0) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 17,
-                          color: Colors.amber,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          reviewCount == 1
-                              ? '(1 review)'
-                              : tl('({0} reviews)', [reviewCount]),
-                          style: TextStyle(
-                            color: AppColors.grey(600),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  _infoRow(
-                    Icons.inventory_2_outlined,
-                    available > 0
-                        ? tl('{0} available', [formatStock(available, unit)])
-                        : tl('Out of stock'),
-                    trailing: available > 0
-                        ? null
-                        : Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (constraints.maxWidth < 330) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            headline,
+                            const SizedBox(height: 14),
+                            facts,
+                          ],
+                        );
+                      }
+                      return IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 9, child: headline),
+                            Container(
+                              width: 1,
+                              margin: const EdgeInsets.fromLTRB(8, 16, 12, 4),
+                              color: _line,
                             ),
-                            decoration: BoxDecoration(
-                              color: AppColors.tone(Colors.red, 50),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.tone(Colors.red, 200),
+                            Expanded(
+                              flex: 11,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: facts,
                               ),
                             ),
-                            child: Text(
-                              tl('OUT OF STOCK'),
-                              style: TextStyle(
-                                color: AppColors.tone(Colors.red, 700),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                  _farmerAreaLine(),
-                  const SizedBox(height: 8),
-                  _infoRow(
-                    Icons.sell_outlined,
-                    hasWholesale
-                        ? tl('Retail and wholesale')
-                        : tl('Retail only'),
-                  ),
-                  // Fulfillment, as one plain line with the rest of the
-                  // summary rather than standalone chips.
-                  if (delivery || pickup) ...[
-                    const SizedBox(height: 8),
-                    _infoRow(
-                      Icons.local_shipping_outlined,
-                      delivery && pickup
-                          ? tl('Delivery and pick-up')
-                          : delivery
-                          ? 'Delivery'
-                          : 'Pick-up',
-                    ),
-                  ],
                   if (harvested != null) ...[
-                    const SizedBox(height: 8),
-                    _infoRow(
-                      Icons.eco_outlined,
-                      harvestLabel(harvested),
-                      trailing: isRecentlyHarvested(harvested)
-                          ? Text(
-                              tl('Recently Harvested'),
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.brand,
-                              ),
-                            )
-                          : null,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 24, top: 2),
-                      child: Text(
-                        [
-                          if (data['updatedAt'] is Timestamp)
-                            tl('Last updated {0}.', [
-                              DateFormat('MMM d, y').format(
-                                (data['updatedAt'] as Timestamp).toDate(),
-                              ),
-                            ]),
-                          tl(
-                            'Harvest information is provided and updated by the farmer.',
-                          ),
-                        ].join(' '),
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.4,
-                          color: AppColors.grey(500),
+                    const SizedBox(height: 10),
+                    Text(
+                      [
+                        if (isRecentlyHarvested(harvested))
+                          '${tl('Recently Harvested')}.',
+                        if (data['updatedAt'] is Timestamp)
+                          tl('Last updated {0}.', [
+                            DateFormat(
+                              'MMM d, y',
+                            ).format((data['updatedAt'] as Timestamp).toDate()),
+                          ]),
+                        tl(
+                          'Harvest information is provided and updated by the farmer.',
                         ),
+                      ].join(' '),
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.4,
+                        color: _muted,
                       ),
                     ),
                   ],
 
-                  // ---- Wholesale: one quiet light-green note ----
+                  // ---- Wholesale: a pale green banner ----
                   if (hasWholesale) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.tint,
-                        border: AppColors.cardBorder,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 14),
+                    _PaleNote(
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                      child: Row(
                         children: [
-                          Text(
-                            tl('Wholesale available'),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.brand,
+                          Icon(
+                            Icons.widgets_outlined,
+                            size: 24,
+                            color: AppColors.brand,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 30,
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            color: AppColors.brand.withValues(alpha: 0.3),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tl('Wholesale available'),
+                                  style: TextStyle(
+                                    fontFamily: 'Montserrat',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.brand,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  wholesaleFirst
+                                      ? tl(
+                                          'Wholesale price for orders of {0} or more. Retail price: {1}',
+                                          [
+                                            formatStock(wholesaleMinimum, unit),
+                                            formatPriceWithUnit(price, unit),
+                                          ],
+                                        )
+                                      : tl('{0} for orders of {1} or more', [
+                                          formatPriceWithUnit(
+                                            wholesalePrice,
+                                            unit,
+                                          ),
+                                          formatStock(wholesaleMinimum, unit),
+                                        ]),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    height: 1.35,
+                                    color: AppColors.grey(800),
+                                  ),
+                                ),
+                                if (available < wholesaleMinimum) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    tl(
+                                      'Wholesale is temporarily unavailable because current stock is below the minimum.',
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.tone(Colors.orange, 800),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            wholesaleFirst
-                                ? tl(
-                                    'Wholesale price for orders of {0} or more. Retail price: {1}',
-                                    [
-                                      formatStock(wholesaleMinimum, unit),
-                                      formatPriceWithUnit(price, unit),
-                                    ],
-                                  )
-                                : tl('{0} for orders of {1} or more', [
-                                    formatPriceWithUnit(wholesalePrice, unit),
-                                    formatStock(wholesaleMinimum, unit),
-                                  ]),
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: AppColors.grey(800),
-                            ),
-                          ),
-                          if (available < wholesaleMinimum) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              tl(
-                                'Wholesale is temporarily unavailable because current stock is below the minimum.',
-                              ),
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.tone(Colors.orange, 800),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
                   ],
 
                   // ---- Farmer ----
-                  _divider(top: 18, bottom: 4),
+                  _divider(),
                   _farmerRow(farmerId, farmerName),
-                  _divider(top: 4),
-
-                  // ---- Description ----
-                  _sectionTitle(tl('Description')),
-                  const SizedBox(height: 8),
-                  Text(
-                    description.isEmpty
-                        ? tl('No description provided.')
-                        : description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.55,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  if (postedOn != null || updatedOn != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      [
-                        if (postedOn != null) tl('Posted on {0}', [postedOn]),
-                        if (updatedOn != null)
-                          tl('Updated on {0}', [updatedOn]),
-                      ].join('\n'),
-                      style: TextStyle(
-                        color: AppColors.grey(600),
-                        fontSize: 11.5,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-
-                  // ---- Reviews for this product ----
-                  _divider(),
-                  _reviewsSection(name, farmerId),
-
-                  // ---- Approximate farm area (never the exact pin) ----
-                  _divider(),
-                  Row(
-                    children: [
-                      Expanded(child: _sectionTitle(tl('Farm Location'))),
-                      // The approximate-area map, full screen.
-                      if (farmerId != null && farmerId.isNotEmpty)
-                        TextButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BuyerMapView(
-                                farmerId: farmerId,
-                                farmerName: farmerName,
-                              ),
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.brand,
-                            padding: const EdgeInsets.only(left: 8),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                tl('Open Map'),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Icon(Icons.chevron_right, size: 18),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _approximateFarmerMap(farmerId),
                 ],
               ),
             ),
+
+            // ---- The row of tabs: chooses what shows below ----
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+              child: SectionTabs(
+                labels: _tabLabels,
+                active: _activeTab,
+                onTap: _chooseTab,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ---- Description ----
+            if (_shows(1)) ...[
+              _SectionCard(
+                key: const Key('descriptionSection'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionTitle(tl('Description')),
+                    const SizedBox(height: 8),
+                    Text(
+                      description.isEmpty
+                          ? tl('No description provided.')
+                          : description,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.55,
+                        color: description.isEmpty ? _muted : AppColors.text,
+                      ),
+                    ),
+                    if (postedOn != null || updatedOn != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        [
+                          if (postedOn != null) tl('Posted on {0}', [postedOn]),
+                          if (updatedOn != null)
+                            tl('Updated on {0}', [updatedOn]),
+                        ].join('\n'),
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 11,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ---- Reviews for this product ----
+            if (_shows(2)) ...[
+              _SectionCard(
+                key: const Key('reviewsSection'),
+                child: _reviewsSection(name, farmerId),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ---- Approximate farm area (never the exact pin): part of the
+            // Overview ----
+            if (_activeTab == 0) ...[
+              _SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 19,
+                          color: AppColors.brand,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(child: _sectionTitle(tl('Farm Location'))),
+                        // The approximate-area map, full screen.
+                        if (farmerId != null && farmerId.isNotEmpty)
+                          _textAction(tl('Open Map'), _openFarmLocation),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    _approximateFarmerMap(farmerId),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ---- Other listings of the same product ----
+            if (_shows(3))
+              KeyedSubtree(
+                key: const Key('recommendedSection'),
+                child: _recommendedSection(name),
+              ),
           ],
         ),
       ),
     );
   }
+
+  // The four tabs.
+  List<String> get _tabLabels => [
+    tl('Overview'),
+    tl('Description'),
+    tl('Reviews'),
+    tl('Recommended'),
+  ];
+
+  // The pale green of the design's badges and banners.
+  Color get _paleGreen =>
+      AppColors.isDark ? AppColors.tint : const Color(0xFFEAF2E4);
 
   // ---- Order Now (outlined) | Message (filled, on the right) ----
   // Two buttons of the same size filling the bar's width; Message,
@@ -1395,25 +1706,46 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final canContact = farmerId != null && farmerId.isNotEmpty;
     final canOrder = available > 0 && canContact;
 
+    // Compact, fixed under the page (the user's sizes, 2026-11-08): both
+    // 46 high, 13 labels, 18 icons, 7 between them.
+    // The icon in the brand's gold (2026-11-08); grey while the button is
+    // off.
+    Widget label(IconData icon, String text, {required bool on}) => Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: on ? const Color(0xFFF5BB24) : AppColors.grey(500),
+        ),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: 'Montserrat',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(13),
+    );
+
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: AppColors.cardBorder,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
+        color: SectionTabs.background,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _actionSlot(
-              OutlinedButton.icon(
+              OutlinedButton(
                 key: const Key('orderNow'),
                 onPressed: !canOrder
                     ? null
@@ -1433,61 +1765,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ),
                       ),
-                icon: Icon(
-                  available > 0 ? Icons.shopping_bag_outlined : Icons.block,
-                  size: 17,
-                ),
-                label: Text(
-                  available > 0 ? tl('Order Now') : tl('Out of Stock'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.brand,
                   backgroundColor: AppColors.surface,
                   disabledForegroundColor: AppColors.grey(500),
                   side: BorderSide(
                     color: canOrder ? AppColors.brand : AppColors.grey(300),
-                    width: 1.4,
+                    width: 1.2,
                   ),
                   minimumSize: const Size.fromHeight(_actionHeight),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: shape,
+                ),
+                child: label(
+                  available > 0 ? Icons.shopping_bag_outlined : Icons.block,
+                  available > 0 ? tl('Order Now') : tl('Out of Stock'),
+                  on: canOrder,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             _actionSlot(
-              ElevatedButton.icon(
+              ElevatedButton(
                 key: const Key('messageFarmer'),
                 onPressed: canOrder
                     ? () => _messageFarmer(farmerId, farmerName, name)
                     : null,
-                icon: const Icon(Icons.chat_bubble_outline, size: 17),
-                label: Text(
-                  tl('Message'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandFill,
+                  backgroundColor: AppColors.isDark
+                      ? AppColors.brandFill
+                      : const Color(0xFF0B4225),
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: AppColors.grey(300),
                   disabledForegroundColor: AppColors.grey(600),
                   elevation: 0,
                   minimumSize: const Size.fromHeight(_actionHeight),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: shape,
+                ),
+                child: label(
+                  Icons.chat_bubble_outline_rounded,
+                  tl('Message'),
+                  on: canOrder,
                 ),
               ),
+              key: _messageKey,
             ),
           ],
         ),
@@ -1495,13 +1817,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // One height for every action on this screen; the buttons are pills of it.
-  static const double _actionHeight = 44;
+  // One height for every action on this screen; the buttons are rounded
+  // rectangles of it.
+  static const double _actionHeight = 46;
 
   // A bottom-bar button: the two share the bar's whole width equally, so
   // there is no empty space beside them.
-  Widget _actionSlot(Widget button) =>
-      Expanded(child: SizedBox(width: double.infinity, child: button));
+  Widget _actionSlot(Widget button, {Key? key}) => Expanded(
+    key: key,
+    child: SizedBox(width: double.infinity, child: button),
+  );
 
   Future<void> _messageFarmer(
     String farmerId,
@@ -1510,7 +1835,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ) async {
     if (!mounted) return;
 
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final currentUserId = FirebaseRefs.auth.currentUser?.uid ?? '';
 
     if (currentUserId.isEmpty || farmerId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1580,19 +1905,159 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget circleButton(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(30),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          shape: BoxShape.circle,
+  // A white round button over the photo, on a soft shadow.
+  Widget circleButton(
+    IconData icon,
+    VoidCallback onTap, {
+    Key? key,
+    String? tooltip,
+  }) {
+    final button = Material(
+      key: key,
+      color: AppColors.surface,
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: Icon(icon, color: AppColors.brand, size: 22),
         ),
-        child: Icon(icon, color: AppColors.brand),
+      ),
+    );
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
+}
+
+/// A white rounded card on the cream page, 16 in from the sides (the
+/// user's picture of Product Details, 2026-11-08).
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+
+  const _SectionCard({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: AppColors.cardBorder,
+        boxShadow: AppColors.isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A pale green rounded note (the wholesale banner, the empty
+/// recommendations), with a small sprout and field drawn faintly at its
+/// right.
+class _PaleNote extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final AlignmentGeometry alignment;
+
+  const _PaleNote({
+    required this.child,
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    this.alignment = Alignment.center,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        color: AppColors.isDark ? AppColors.tint : const Color(0xFFEEF4E8),
+        child: Stack(
+          children: [
+            Positioned(
+              right: 0,
+              bottom: 0,
+              width: 96,
+              height: 44,
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: AppColors.isDark ? 0.35 : 0.9,
+                  child: const CustomPaint(painter: SproutFieldPainter()),
+                ),
+              ),
+            ),
+            Padding(
+              padding: padding.copyWith(right: padding.right + 30),
+              child: Align(alignment: alignment, child: child),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// A small sprout over curved field rows, for the corner of a pale note.
+class SproutFieldPainter extends CustomPainter {
+  const SproutFieldPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    // Field rows, curving up to the right.
+    final row = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 4; i++) {
+      final y = h * (0.55 + i * 0.16);
+      row
+        ..color = Color(i.isEven ? 0xFF9CCB6E : 0xFFC4E09F)
+        ..strokeWidth = 4;
+      canvas.drawPath(
+        Path()
+          ..moveTo(w * 0.05, h + 2)
+          ..quadraticBezierTo(w * 0.5, y + h * 0.1, w + 2, y - h * 0.2),
+        row,
+      );
+    }
+    // The sprout.
+    final stem = Paint()
+      ..color = const Color(0xFF5E9E33)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final sx = w * 0.62;
+    canvas.drawLine(Offset(sx, h * 0.62), Offset(sx, h * 0.28), stem);
+    final leaf = Paint()..color = const Color(0xFF6FB043);
+    canvas.drawPath(
+      Path()
+        ..moveTo(sx, h * 0.34)
+        ..quadraticBezierTo(sx - w * 0.16, h * 0.04, sx - w * 0.22, h * 0.22)
+        ..quadraticBezierTo(sx - w * 0.10, h * 0.40, sx, h * 0.34),
+      leaf,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(sx, h * 0.30)
+        ..quadraticBezierTo(sx + w * 0.14, h * -0.02, sx + w * 0.22, h * 0.12)
+        ..quadraticBezierTo(sx + w * 0.12, h * 0.34, sx, h * 0.30),
+      leaf,
+    );
+  }
+
+  @override
+  bool shouldRepaint(SproutFieldPainter oldDelegate) => false;
 }

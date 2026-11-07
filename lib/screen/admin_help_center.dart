@@ -1009,7 +1009,13 @@ class _FaqEditorDialogState extends State<_FaqEditorDialog> {
                 child: DropdownButtonFormField<AdminFaqCategory>(
                   initialValue: _category,
                   borderRadius: BorderRadius.circular(kAdminPopupRadius),
-                  decoration: const InputDecoration(labelText: 'Category'),
+                  // A dropdown: a rounded rectangle, not a text field's pill.
+                  decoration: InputDecoration(
+                    labelText: 'Category',
+                    border: adminDropdownBorder(c.border),
+                    enabledBorder: adminDropdownBorder(c.border),
+                    focusedBorder: adminDropdownBorder(c.textSecondary, 1.2),
+                  ),
                   items: [
                     for (final cat in AdminFaqCategory.values)
                       DropdownMenuItem(value: cat, child: Text(cat.label)),

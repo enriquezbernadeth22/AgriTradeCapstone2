@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'market_price_helpers.dart';
 import 'connectivity_service.dart';
+import 'firebase_refs.dart';
 
 /// Handles chat conversations and messages between farmers and buyers.
 /// FCM token registration/cleanup lives in PushNotificationService (see
@@ -19,8 +20,8 @@ import 'connectivity_service.dart';
 ///     conversations/{conversationId}/messages/{messageId}
 ///       senderId, text, createdAt
 class MessageService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseRefs.firestore;
+  final FirebaseAuth _auth = FirebaseRefs.auth;
 
   CollectionReference<Map<String, dynamic>> get _conversations =>
       _firestore.collection('conversations');
@@ -59,9 +60,9 @@ class MessageService {
     bool pickupOnly = false,
   }) async {
     await _requireOnline();
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    final userSnapshot = await FirebaseFirestore.instance
+    final currentUserId = FirebaseRefs.auth.currentUser!.uid;
+    final currentUser = FirebaseRefs.auth.currentUser!;
+    final userSnapshot = await FirebaseRefs.firestore
         .collection('users')
         .doc(currentUserId)
         .get();
@@ -78,7 +79,7 @@ class MessageService {
     // Use your existing helper method to ensure consistency
     final conversationId = conversationIdFor(currentUserId, otherUserId);
 
-    final chatDocRef = FirebaseFirestore.instance
+    final chatDocRef = FirebaseRefs.firestore
         .collection('conversations')
         .doc(conversationId);
 
@@ -444,8 +445,8 @@ class MessageService {
 
   /// Real-time stream of conversations for the current user.
   Stream<QuerySnapshot<Map<String, dynamic>>> myConversationsStream() {
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    return FirebaseFirestore.instance
+    final currentUserId = FirebaseRefs.auth.currentUser!.uid;
+    return FirebaseRefs.firestore
         .collection('conversations')
         .where('participants', arrayContains: currentUserId)
         .snapshots();
@@ -489,7 +490,7 @@ class MessageService {
     await _ensureConversation(conversationId);
     final batch = _firestore.batch();
     final messageData = {
-      'senderId': FirebaseAuth.instance.currentUser!.uid,
+      'senderId': FirebaseRefs.auth.currentUser!.uid,
       'createdAt': FieldValue.serverTimestamp(),
     };
     if (trimmed.isNotEmpty) {

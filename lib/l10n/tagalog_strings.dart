@@ -92,6 +92,33 @@ const Map<String, String> kTagalogStrings = {
   'Application under review': 'Sinusuri ang aplikasyon',
   'Apply': 'Ilapat',
   'Approx. {0} km away': 'Tinatayang {0} km ang layo',
+  'Approx. {0} km by road': 'Tinatayang {0} km sa daan',
+  'Discover quality crops, livestock, and farm products from local farmers.':
+      'Tuklasin ang de-kalidad na pananim, hayop, at produkto mula sa mga lokal na magsasaka.',
+  'Show filters': 'Ipakita ang mga filter',
+  'Hide filters': 'Itago ang mga filter',
+  'Min {0}': 'Min {0}',
+  '{0} left': '{0} na lang',
+  'Like review': 'I-like ang review',
+  'Unlike review': 'Alisin ang like sa review',
+  'Could not update your like. Try again.':
+      'Hindi na-update ang like mo. Subukan muli.',
+  'Estimated by road from your saved location.':
+      'Tinantya sa daan mula sa iyong naka-save na lokasyon.',
+  'Estimated from your saved location.':
+      'Tinantya mula sa iyong naka-save na lokasyon.',
+  'Estimated by road from where you are.':
+      'Tinantya sa daan mula sa kinaroroonan mo.',
+  'Estimated in a straight line from where you are.':
+      'Tinantya nang tuwid na linya mula sa kinaroroonan mo.',
+  'The farmer’s photo marks their general area, not the exact farm.':
+      'Ang larawan ng magsasaka ay nasa pangkalahatang lugar niya, hindi sa mismong sakahan.',
+  'Zoom in on the farm': 'Mag-zoom sa sakahan',
+  'Zoom out': 'Mag-zoom out',
+  'The line ends at the farmer’s general area, not the exact farm.':
+      'Ang linya ay hanggang sa pangkalahatang lugar ng magsasaka, hindi sa mismong sakahan.',
+  'The farmer’s photo marks the general barangay area, not the exact farm.':
+      'Ang larawan ng magsasaka ay nasa pangkalahatang lugar ng barangay, hindi sa mismong sakahan.',
   'Approximate farm area': 'Tinatayang lugar ng sakahan',
   'Approximate farm area is unavailable.':
       'Hindi available ang tinatayang lugar ng sakahan.',
@@ -984,8 +1011,10 @@ const Map<String, String> kTagalogStrings = {
   'To be arranged': 'Pag-uusapan pa',
   'Too Many Login Attempts': 'Masyadong Maraming Pagsubok sa Login',
   'Top Buyer Locations': 'Nangungunang Lokasyon ng Mamimili',
-  'Most ordered by buyers here in {0}': 'Pinakamaraming order ng mga mamimili rito noong {0}',
-  'Show what buyers here ordered': 'Ipakita ang mga in-order ng mga mamimili rito',
+  'Most ordered by buyers here in {0}':
+      'Pinakamaraming order ng mga mamimili rito noong {0}',
+  'Show what buyers here ordered':
+      'Ipakita ang mga in-order ng mga mamimili rito',
   '1 order': '1 order',
   '{0} orders': '{0} order',
   'Total': 'Kabuuan',
@@ -1765,7 +1794,67 @@ const Map<String, String> kTagalogStrings = {
   'Your Information': 'Iyong Impormasyon',
   'Account Setup': 'Pag-set Up ng Account',
   'Step {0} of {1}: {2}': 'Hakbang {0} sa {1}: {2}',
-  'Tell us a little about yourself.': 'Magkuwento nang kaunti tungkol sa iyong sarili.',
+  'Tell us a little about yourself.':
+      'Magkuwento nang kaunti tungkol sa iyong sarili.',
   'Add your contact details and a password.':
       'Ilagay ang iyong contact details at password.',
+  'Shop by area': 'Mamili ayon sa lugar',
+  'Pick a barangay to see only what is sold there. Listings that deliver to you come first.':
+      'Pumili ng barangay para makita lang ang ibinebenta roon. Nauuna ang mga listing na nagde-deliver sa iyo.',
+  'Your stock': 'Ang iyong stock',
+  'See how much of each product is left, and update it.':
+      'Tingnan kung gaano karami pa ang natitira sa bawat produkto, at i-update ito.',
+  'Find older orders': 'Hanapin ang mga lumang order',
+  "Show only today's orders, the last 7 or 30 days, a few months, or dates you pick.":
+      'Ipakita lang ang mga order ngayong araw, nitong nakaraang 7 o 30 araw, ilang buwan, o mga petsang pipiliin mo.',
+  'Where the farm is': 'Nasaan ang bukid',
+  'Tap the map for the distance from you and directions to the farm.':
+      'I-tap ang mapa para sa layo mula sa iyo at direksyon papunta sa bukid.',
+  'Ask before you order': 'Magtanong muna bago umorder',
+  'Message the farmer about the harvest, the price or delivery. The chat stays in Messages.':
+      'Mag-message sa magsasaka tungkol sa ani, presyo o delivery. Mananatili ang chat sa Messages.',
+  'Share more than words': 'Higit pa sa salita',
+  'Send photos, a short video, or your location from here.':
+      'Magpadala ng litrato, maikling video, o ng iyong lokasyon mula rito.',
+  'React and reply': 'Mag-react at mag-reply',
+  'Hold any message to react, reply, copy or pin it. Slide a message sideways to reply.':
+      'Pindutin nang matagal ang isang mensahe para mag-react, mag-reply, kopyahin o i-pin ito. I-slide ito pagilid para mag-reply.',
+  'Tips': 'Mga Tip',
+  'Show tips again': 'Ipakita muli ang mga tip',
+  'The short guides on each screen, from the start':
+      'Ang maiikling gabay sa bawat screen, mula sa simula',
+  'Tips will show again as you open each screen.':
+      'Lalabas muli ang mga tip habang binubuksan mo ang bawat screen.',
+  'Account & Security': 'Account at Seguridad',
+  'Privacy & Security': 'Privacy at Seguridad',
+  'Preferences': 'Mga Kagustuhan',
+  'Support & Information': 'Tulong at Impormasyon',
+  'Help & Support': 'Tulong at Suporta',
+  'About AgriTrade+': 'Tungkol sa AgriTrade+',
+  'Developer': 'Gumawa',
+  'The AgriTrade+ team': 'Ang AgriTrade+ team',
+  'Download page': 'Pahina ng download',
+  'Policies': 'Mga Patakaran',
+  'Effective {0}': 'Epektibo mula {0}',
+  'AgriTrade+ connects the farmers and buyers of Laurel, Batangas. Farmers post their harvest and livestock; buyers order straight from them, chat, and arrange pick-up or delivery.':
+      'Pinag-uugnay ng AgriTrade+ ang mga magsasaka at mamimili ng Laurel, Batangas. Ipinapaskil ng mga magsasaka ang kanilang ani at hayop; direktang umoorder ang mga mamimili, nakikipag-chat, at nag-aayos ng pick-up o delivery.',
+  'Market Average': 'Karaniwang Presyo',
+  'Best Sellers': 'Pinakamabenta',
+  'Buyer Areas': 'Lugar ng Mamimili',
+  'Across the whole marketplace': 'Mula sa buong marketplace',
+  'Collapse': 'Itago',
+  'Expand': 'Ipakita',
+  'Overview': 'Pangkalahatan',
+  'Reviews': 'Mga Review',
+  'Recommended': 'Inirerekomenda',
+  'Other listings of {0}': 'Iba pang listing ng {0}',
+  'No other listings of {0} right now.':
+      'Wala pang ibang listing ng {0} sa ngayon.',
+  'UNAVAILABLE': 'HINDI AVAILABLE',
+  'HIDDEN': 'NAKATAGO',
+  'Not on the marketplace: {0} is no longer sold on AgriTrade+.':
+      'Wala sa marketplace: hindi na ibinebenta ang {0} sa AgriTrade+.',
+  'Hidden from the marketplace by the AgriTrade+ team.':
+      'Itinago ng AgriTrade+ team mula sa marketplace.',
+  'Reason: {0}': 'Dahilan: {0}',
 };

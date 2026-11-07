@@ -10,6 +10,7 @@ import '../widgets/agri_app_bar.dart';
 import '../widgets/agri_dialog.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// One device the account has signed in on, as shown in the list.
 class SignInDevice {
@@ -221,7 +222,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
       padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         border: Border.all(
           color: highlighted
               ? AppColors.tone(Colors.orange, 400)

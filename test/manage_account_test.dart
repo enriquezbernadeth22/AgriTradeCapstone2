@@ -40,4 +40,41 @@ void main() {
     expect(find.textContaining('Language'), findsNothing);
     expect(find.byType(SwitchListTile), findsNothing);
   });
+
+  // The Farmer's Settings has Manage Account and Privacy & Security as
+  // rows of their own: each opens its own part, so nothing is shown twice.
+  testWidgets('the Farmer\x27s Manage Account is the account part only', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManageAccountScreen(
+          part: ManageAccountPart.account,
+          recoveryEmailVerified: Stream.value(true),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Manage Account'), findsOneWidget);
+    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Recovery Email'), findsOneWidget);
+    expect(find.text('Change Password'), findsNothing);
+    expect(find.text('Devices & Login Activity'), findsNothing);
+    expect(find.text('Privacy Policy'), findsNothing);
+  });
+
+  testWidgets('Privacy & Security is the security part only', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ManageAccountScreen(part: ManageAccountPart.security),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Privacy & Security'), findsOneWidget);
+    expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Devices & Login Activity'), findsOneWidget);
+    expect(find.text('Personal Information'), findsNothing);
+    expect(find.text('Recovery Email'), findsNothing);
+    expect(find.text('Privacy Policy'), findsNothing);
+  });
 }

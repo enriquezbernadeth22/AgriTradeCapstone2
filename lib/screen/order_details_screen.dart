@@ -13,6 +13,7 @@ import '../widgets/profile_avatar.dart';
 import 'order_actions.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// The complete summary of one order, for either side: status, product,
 /// the other party, fulfillment, payment and timeline. Stays live — a
@@ -74,7 +75,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Order Details')),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _orderStream,
@@ -144,11 +145,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     width: double.infinity,
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.grey(200)),
-    ),
+    decoration: AppTheme.card(),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -156,10 +153,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           Text(
             title.toUpperCase(),
             style: GoogleFonts.montserrat(
-              fontSize: 10.5,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
-              color: AppColors.grey(600),
+              color: AppColors.brand,
             ),
           ),
           const SizedBox(height: 10),
@@ -184,7 +181,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           child: Text(
             label,
             style: GoogleFonts.montserrat(
-              fontSize: 12,
+              fontSize: 11.5,
               color: AppColors.grey(600),
             ),
           ),
@@ -194,7 +191,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             value,
             textAlign: TextAlign.right,
             style: GoogleFonts.montserrat(
-              fontSize: strong ? 14.5 : 12.5,
+              fontSize: strong ? 14 : 12,
               fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
               color: color ?? AppColors.text,
             ),
@@ -207,7 +204,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget _note(String text) => Text(
     text,
     style: GoogleFonts.montserrat(
-      fontSize: 11.5,
+      fontSize: 11,
       color: AppColors.grey(600),
       height: 1.4,
     ),
@@ -256,7 +253,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 child: Text(
                   waiting ? tl('Delayed') : tl('Rescheduled'),
                   style: GoogleFonts.montserrat(
-                    fontSize: 14.5,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: waiting ? warning : AppColors.brand,
                   ),
@@ -323,7 +320,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -333,7 +330,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 Text(
                   label,
                   style: GoogleFonts.montserrat(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: color,
                   ),
@@ -342,7 +339,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 Text(
                   'Order #${order.displayId}',
                   style: GoogleFonts.montserrat(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.text,
                   ),
@@ -353,7 +350,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       formatOrderDateTimeLong(order.createdAt!),
                     ]),
                     style: GoogleFonts.montserrat(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       color: AppColors.grey(600),
                     ),
                   ),
@@ -372,7 +369,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            OrderThumbnail(order, size: 64),
+            OrderThumbnail(order, size: 56),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -381,8 +378,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   Text(
                     order.productName,
                     style: GoogleFonts.montserrat(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brand,
                     ),
                   ),
                   const SizedBox(height: 5),
@@ -428,8 +426,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.montserrat(
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
+                        color: AppColors.brand,
                       ),
                     ),
                     if (area.isNotEmpty) _note(area),
@@ -835,9 +834,16 @@ class OrderActionBar extends StatelessWidget {
         if (!quiet.contains(a)) a,
     ];
     return Container(
+      // On the page's cream, a hairline above (2026-11-08).
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.grey(200))),
+        color: AppColors.page,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.isDark
+                ? AppColors.hairline
+                : const Color(0xFFE8E9E3),
+          ),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -863,7 +869,7 @@ class OrderActionBar extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.tone(Colors.red, 700),
                       textStyle: const TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

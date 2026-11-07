@@ -12,10 +12,14 @@ class BuyerOrdersScreen extends StatelessWidget {
   /// A status tab to open on request (see OrderStatusPager.showStatus).
   final ValueListenable<String?>? showStatus;
 
+  /// Whether this tab is the one on screen (see OrdersView.active).
+  final bool active;
+
   const BuyerOrdersScreen({
     super.key,
     this.onBrowseMarketplace,
     this.showStatus,
+    this.active = true,
   });
 
   @override
@@ -23,5 +27,6 @@ class BuyerOrdersScreen extends StatelessWidget {
     role: OrderRole.buyer,
     onBrowseMarketplace: onBrowseMarketplace,
     showStatus: showStatus,
+    active: active,
   );
 }

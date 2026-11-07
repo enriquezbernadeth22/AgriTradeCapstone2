@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../widgets/farm_buyer_map.dart';
+import '../services/firebase_refs.dart';
 import '../services/location_permission_prompt.dart';
+import '../services/road_route_service.dart';
 import '../services/public_farm_location.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
@@ -14,14 +17,16 @@ import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
 
 /// "Approx. 4.8 km away" — never presented as exact: one decimal below
-/// 10 km, whole kilometres beyond that. Null (no buyer location, or no
+/// 10 km, whole kilometres beyond that. [byRoad] (measured along the
+/// roads) reads "Approx. 4.8 km by road". Null (no buyer location, or no
 /// farm area to measure to) reads "Distance unavailable".
-String approxDistanceLabel(double? km) {
+String approxDistanceLabel(double? km, {bool byRoad = false}) {
   if (km == null) return 'Distance unavailable';
-  if (km < 0.1) return 'Approx. less than 0.1 km away';
+  final tail = byRoad ? 'by road' : 'away';
+  if (km < 0.1) return 'Approx. less than 0.1 km $tail';
   return km < 10
-      ? 'Approx. ${km.toStringAsFixed(1)} km away'
-      : 'Approx. ${km.round()} km away';
+      ? 'Approx. ${km.toStringAsFixed(1)} km $tail'
+      : 'Approx. ${km.round()} km $tail';
 }
 
 /// Whether the buyer is close enough to the farm area for one map view to
@@ -69,6 +74,11 @@ class _BuyerMapViewState extends State<BuyerMapView> {
   PublicFarmLocation? _farm;
 
   Position? _myPosition;
+  // The buyer's saved position (Delivery & Pick-up), used when the phone
+  // cannot give its own.
+  LatLng? _savedPoint;
+  // The road from the buyer to the farm area, once known.
+  RoadRoute? _road;
   // Why there is no distance, when the buyer could do something about it.
   String? _locationNotice;
   bool _fittedBoth = false;
@@ -79,6 +89,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
   void initState() {
     super.initState();
     _loadFarm();
+    _loadSavedPoint();
     // Asked for here — when the buyer opens a location feature — and not
     // at login, registration or app start.
     _determinePosition();
@@ -120,6 +131,38 @@ class _BuyerMapViewState extends State<BuyerMapView> {
       _loadingFarm = false;
     });
   }
+
+  Future<void> _loadSavedPoint() async {
+    final uid = FirebaseRefs.auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+    try {
+      final geo =
+          (await FirebaseRefs.firestore
+                  .collection('users')
+                  .doc(uid)
+                  .collection('private')
+                  .doc('geo')
+                  .get())
+              .data();
+      final lat = (geo?['latitude'] as num?)?.toDouble();
+      final lng = (geo?['longitude'] as num?)?.toDouble();
+      // Outside the Philippines (an emulator's default) is not used.
+      if (!mounted || !isValidPublicCoordinate(lat, lng)) return;
+      setState(() => _savedPoint = LatLng(lat!, lng!));
+      _fitBuyerOnce();
+    } catch (_) {
+      // Only the fallback is lost.
+    }
+  }
+
+  /// Where the distance and the line start: the phone's position, else the
+  /// buyer's saved one.
+  LatLng? get _origin {
+    final me = _myPosition;
+    return me == null ? _savedPoint : LatLng(me.latitude, me.longitude);
+  }
+
+  bool get _fromSavedPoint => _myPosition == null && _savedPoint != null;
 
   Future<void> _determinePosition() async {
     try {
@@ -223,11 +266,14 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     await Future.wait([_loadFarm(), _determinePosition()]);
   }
 
-  /// Buyer's current position -> the farmer's public barangay point.
+  /// The buyer -> the farmer's public barangay point: along the roads once
+  /// the route is known, else in a straight line.
   double? get _distanceKm {
-    final me = _myPosition;
+    final me = _origin;
     final farm = _farmPoint;
     if (me == null || farm == null) return null;
+    final road = _road;
+    if (road != null) return road.km;
     return Geolocator.distanceBetween(
           me.latitude,
           me.longitude,
@@ -244,7 +290,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
   void _fitBuyerOnce() {
     final map = _map;
     final farm = _farmPoint;
-    final me = _myPosition;
+    final me = _origin;
     if (_fittedBoth || map == null || farm == null || me == null) return;
     _fittedBoth = true;
 
@@ -304,9 +350,21 @@ class _BuyerMapViewState extends State<BuyerMapView> {
   // the map is already on the farmer's barangay — there is no default
   // position for it to open on.
   Widget _mapFor(LatLng farm) {
-    final me = _myPosition;
-    return GoogleMap(
-      initialCameraPosition: CameraPosition(target: farm, zoom: _farmZoom),
+    // The farmer and the buyer as their photos, with a line along the roads
+    // drawing itself from the buyer to the farm area (FarmBuyerMap).
+    return FarmBuyerMap(
+      farm: farm,
+      buyer: _origin,
+      onRoute: (route) {
+        if (mounted) setState(() => _road = route);
+      },
+      farmerId: widget.farmerId,
+      farmerName: _farm?.farmerName ?? widget.farmerName,
+      farmerPhotoUrl: _farm?.photoUrl,
+      farmArea: _farm?.area,
+      zoom: _farmZoom,
+      // Keeps the zoom buttons and the Google logo clear of the card.
+      padding: const EdgeInsets.only(bottom: 150),
       onMapCreated: (controller) {
         _map = controller;
         if (kDebugMode) {
@@ -316,37 +374,6 @@ class _BuyerMapViewState extends State<BuyerMapView> {
           );
         }
         _fitBuyerOnce();
-      },
-      // Keeps the zoom buttons and the Google logo clear of the card.
-      padding: const EdgeInsets.only(bottom: 176),
-      // The buyer's own position: the standard blue dot.
-      myLocationEnabled: me != null,
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: true,
-      mapToolbarEnabled: false,
-      markers: {
-        Marker(
-          markerId: const MarkerId('approximate_farm'),
-          position: farm,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueGreen,
-          ),
-          infoWindow: InfoWindow(
-            title: tl('Approximate Farm Location'),
-            snippet: _farm?.area,
-          ),
-        ),
-      },
-      // A wide circle: this is a barangay, not an address.
-      circles: {
-        Circle(
-          circleId: const CircleId('approximate_farm_area'),
-          center: farm,
-          radius: 700,
-          fillColor: AppColors.brandFill.withValues(alpha: 0.12),
-          strokeColor: AppColors.brand.withValues(alpha: 0.55),
-          strokeWidth: 1,
-        ),
       },
     );
   }
@@ -366,6 +393,21 @@ class _BuyerMapViewState extends State<BuyerMapView> {
     );
   }
 
+  // How the distance was measured: by road or straight, from the phone or
+  // from the saved location. That it ends at the general area is said once,
+  // on the map (FarmBuyerMap's note), not again here.
+  String _distanceNote() {
+    final road = _road != null;
+    if (_fromSavedPoint) {
+      return road
+          ? tl('Estimated by road from your saved location.')
+          : tl('Estimated from your saved location.');
+    }
+    return road
+        ? tl('Estimated by road from where you are.')
+        : tl('Estimated in a straight line from where you are.');
+  }
+
   // Compact floating card — not a sheet: the map stays in view above it.
   Widget _infoCard() {
     final farm = _farm;
@@ -382,9 +424,9 @@ class _BuyerMapViewState extends State<BuyerMapView> {
       top: false,
       child: Material(
         color: AppColors.surface,
-        elevation: 6,
+        elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           child: Column(
@@ -396,7 +438,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                   ProfileAvatar(
                     photoUrl: farm?.photoUrl,
                     name: name,
-                    radius: 21,
+                    radius: 20,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -408,7 +450,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w700,
                             color: AppColors.text,
                           ),
@@ -423,7 +465,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 11.5,
                             height: 1.3,
                             color: AppColors.grey(800),
                           ),
@@ -440,7 +482,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                     hasDistance
                         ? Icons.near_me_outlined
                         : Icons.location_disabled_outlined,
-                    size: 17,
+                    size: 16,
                     color: hasDistance ? AppColors.brand : AppColors.grey(700),
                   ),
                   const SizedBox(width: 6),
@@ -448,11 +490,14 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                     child: Text(
                       !hasDistance && _locating
                           ? tl('Finding your location…')
-                          : approxDistanceLabel(distanceKm),
+                          : approxDistanceLabel(
+                              distanceKm,
+                              byRoad: _road != null && hasDistance,
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: hasDistance
                             ? AppColors.brand
@@ -498,7 +543,7 @@ class _BuyerMapViewState extends State<BuyerMapView> {
                       child: Text(
                         tl('Try Again'),
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -508,38 +553,14 @@ class _BuyerMapViewState extends State<BuyerMapView> {
               const SizedBox(height: 2),
               Text(
                 hasDistance
-                    ? tl(
-                        'Distance is estimated using the farmer’s general barangay location.',
-                      )
+                    ? _distanceNote()
                     : (canRetry
                           ? notice
                           : tl('Farm area could not be mapped.')),
-                style: TextStyle(fontSize: 11.5, color: AppColors.grey(700)),
+                style: TextStyle(fontSize: 11, color: AppColors.grey(700)),
               ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 14,
-                    color: AppColors.grey(700),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      tl(
-                        'The map shows only the farmer’s general barangay area. Exact farm location is private.',
-                      ),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.35,
-                        color: AppColors.grey(700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              // That the farm point is only the general area is said once,
+              // at the top of the map (the user's choice, 2026-11-07).
             ],
           ),
         ),

@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 /// The one popup design for the whole AgriTrade+ mobile app (Farmer and
@@ -365,9 +366,7 @@ class AgriDialogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(30),
-    );
+    final shape = compact ? AppTheme.compactButtonShape : AppTheme.buttonShape;
     final textStyle = _textStyle;
     final padding = _padding;
     final minimumSize = compact ? const Size(0, 32) : const Size(0, 40);
@@ -697,7 +696,7 @@ Future<T?> showAgriPopupMenu<T>({
     pageBuilder: (dialogContext, _, _) {
       final screen = MediaQuery.sizeOf(dialogContext);
       final card = AgriFrostedCard(
-        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        borderRadius: const BorderRadius.all(Radius.circular(14)),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(
@@ -830,17 +829,18 @@ class _AgriMenuRow<T> extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        // Compact (the user's sizes, 2026-11-08): 18 icons, 12.5 labels.
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Icon(item.icon, size: 20, color: color),
-            const SizedBox(width: 12),
+            Icon(item.icon, size: 18, color: color),
+            const SizedBox(width: 11),
             Expanded(
               child: Text(
                 item.label,
                 style: GoogleFonts.montserrat(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
                   color: item.destructive
                       ? color
                       : labelColor ?? AppColors.text,

@@ -10,6 +10,7 @@ import '../services/review_stats.dart';
 import '../widgets/profile_avatar.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// Five stars for [rating], with half stars.
 class RatingStars extends StatelessWidget {
@@ -153,11 +154,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
   Widget _summaryCard(String title, RatingSummary summary) => Container(
     width: double.infinity,
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.grey(200)),
-    ),
+    decoration: AppTheme.card(),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -231,11 +228,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.grey(200)),
-      ),
+      decoration: AppTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

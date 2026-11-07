@@ -1,6 +1,6 @@
 // What a farmer is told when the Agricultural Office archives a commodity
-// they sell (stops its selling for a reason — a livestock disease, say) or
-// restores it — kept free of Firebase so it can be tested on its own
+// they sell (stops its selling for a reason — a livestock disease, say),
+// removes it from the list altogether, or restores (or adds back) it — kept free of Firebase so it can be tested on its own
 // (see test/commodity_notice.test.js). onCommodityArchiveChanged in
 // index.js sends it, only to the farmers with a listing of that commodity.
 
@@ -37,6 +37,14 @@ function commodityNotice({ change, name, reason, listings }) {
       body:
         `The Agricultural Office has stopped the selling of ${name} for now.${because} ` +
         `${theirs} hidden from the marketplace until it is restored.`,
+    };
+  }
+  if (change === "removed") {
+    return {
+      title: `${name} is no longer sold on AgriTrade+`,
+      body:
+        `The Agricultural Office removed ${name} from the products sold on AgriTrade+. ` +
+        `${theirs} no longer on the marketplace.`,
     };
   }
   return {

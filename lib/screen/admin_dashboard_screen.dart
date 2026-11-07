@@ -190,7 +190,9 @@ class AdminPalette {
 /// search, dropdowns, date pickers), and [pill] for the small things only.
 class AdminRadii {
   AdminRadii._();
-  static const double card = 10;
+  // Cards and tables: 16, white with a soft shadow (adminCard), like the
+  // mobile app's cards (the user's design, 2026-11-07).
+  static const double card = 16;
   static const double control = 10;
 
   /// Status badges, small filter chips, counters and compact options to
@@ -1155,11 +1157,7 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
         return Container(
           height: wide ? 118 : null,
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: BorderRadius.circular(AdminRadii.card),
-            border: Border.all(color: c.border),
-          ),
+          decoration: adminCard(c),
           child: wide
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1735,11 +1733,7 @@ class AdminStatCard extends StatelessWidget {
     // every loaded card showed as an empty white box.
     return Container(
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       child: Stack(
         children: [
           Positioned(
@@ -4718,9 +4712,14 @@ class _PriceManagementViewState extends State<_PriceManagementView>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Remove admin reference price?'),
+        title: Text('Remove $name?'),
+        // What it really does: the commodity leaves the list of products
+        // sold, so its listings come off the marketplace (onCommodityRemoved).
         content: Text(
-          'This removes the official admin reference price for "$name". This cannot be undone.',
+          'This removes the admin reference price for "$name" and takes '
+          "$name off the products sold on AgriTrade+. Farmers' listings of it "
+          'come off the marketplace, and those farmers are notified. Adding '
+          'it back later brings their listings back.',
         ),
         actions: [
           TextButton(
@@ -6179,19 +6178,14 @@ ThemeData adminThemeData(BuildContext context, AdminPalette palette) {
       fillColor: palette.surface,
       // The 16px inset matches the other fields.
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-      // White, a light grey border, rounded corners (kAdminFieldRadius)
-      // — the same as the search fields and dropdowns; darker grey when
-      // typed in.
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(kAdminFieldRadius),
+      // White, a light grey border, a pill like the searches (rounded
+      // corners when several lines tall, see PillInputBorder); darker
+      // grey when typed in. A dropdown sets its own rounded rectangle.
+      border: PillInputBorder(borderSide: BorderSide(color: palette.border)),
+      enabledBorder: PillInputBorder(
         borderSide: BorderSide(color: palette.border),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(kAdminFieldRadius),
-        borderSide: BorderSide(color: palette.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(kAdminFieldRadius),
+      focusedBorder: PillInputBorder(
         borderSide: BorderSide(color: palette.textSecondary, width: 1.2),
       ),
     ),

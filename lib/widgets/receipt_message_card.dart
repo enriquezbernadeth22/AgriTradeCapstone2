@@ -9,6 +9,7 @@ import '../services/order_format.dart';
 import 'order_card.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// The receipt of a completed order, as it appears in the farmer–buyer
 /// conversation (a message of type 'receipt'). Both sides get View Receipt;
@@ -46,11 +47,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.grey(300)),
-        ),
+        decoration: AppTheme.card(),
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: _orderStream,
           builder: (context, snapshot) {
@@ -102,7 +99,7 @@ class _ReceiptMessageCardState extends State<ReceiptMessageCard> {
               child: Text(
                 'PDF',
                 style: GoogleFonts.montserrat(
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.tone(Colors.red, 700),
                 ),

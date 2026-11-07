@@ -14,6 +14,7 @@ import '../widgets/agri_dialog.dart';
 import 'add_product_screen.dart';
 import 'place_order_screen.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 // Product context for a Farmer–Buyer conversation that's tied to a product,
@@ -395,7 +396,7 @@ class _OptionTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         border: Border.all(color: AppColors.accent),
       ),
       child: Row(
@@ -707,7 +708,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         border: Border.all(color: AppColors.accent.withValues(alpha: 0.7)),
         boxShadow: [
           BoxShadow(
@@ -801,9 +802,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
+            shape: AppTheme.compactButtonShape,
           )
         : OutlinedButton.styleFrom(
             foregroundColor: AppColors.brand,
@@ -811,9 +810,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
+            shape: AppTheme.compactButtonShape,
           );
     final text = Text(
       label,

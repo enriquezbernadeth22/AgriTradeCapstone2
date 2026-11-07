@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'delivery_coverage.dart';
+import 'firebase_refs.dart';
 
 /// The signed-in buyer's saved area (barangay, municipality, province on
 /// users/{uid}, set at sign-up or in Delivery & Pickup), for the product
@@ -28,7 +28,7 @@ class BuyerAreaWatcher extends ChangeNotifier {
   void _listen() {
     String? uid;
     try {
-      uid = FirebaseAuth.instance.currentUser?.uid;
+      uid = FirebaseRefs.auth.currentUser?.uid;
     } catch (_) {
       return; // Firebase not set up (e.g. in tests).
     }
@@ -38,7 +38,7 @@ class BuyerAreaWatcher extends ChangeNotifier {
     _sub = null;
     _area = const BuyerArea();
     if (uid == null) return;
-    _sub = FirebaseFirestore.instance
+    _sub = FirebaseRefs.firestore
         .collection('users')
         .doc(uid)
         .snapshots()

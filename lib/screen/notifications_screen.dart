@@ -1,8 +1,9 @@
 import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import '../services/firebase_refs.dart';
+import '../widgets/explore_search_pill.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import '../services/connectivity_service.dart';
 import '../services/notification_navigation_service.dart';
@@ -41,9 +42,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid != null) {
-      _itemsRef = FirebaseFirestore.instance
+      _itemsRef = FirebaseRefs.firestore
           .collection('notifications')
           .doc(uid)
           .collection('items');
@@ -51,7 +52,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .orderBy('createdAt', descending: true)
           .limit(50)
           .snapshots();
-      FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
+      FirebaseRefs.firestore.collection('users').doc(uid).get().then((doc) {
         if (mounted && doc.data()?['role'] == 'farmer') {
           setState(() => _isFarmer = true);
         }
@@ -110,7 +111,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     // Each item lives under notifications/{currentUid}/items, so this batch
     // can only ever touch the signed-in user's own notifications.
-    final batch = FirebaseFirestore.instance.batch();
+    final batch = FirebaseRefs.firestore.batch();
     for (final doc in unread) {
       batch.update(doc.reference, {'read': true});
     }
@@ -151,21 +152,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final hasUnread = docs.any((d) => d.data()['read'] != true);
 
         return Scaffold(
-          backgroundColor: AppColors.surfaceAlt,
+          backgroundColor: AppColors.page,
           appBar: AgriAppBar(
             title: tl('Notifications'),
             actions: [
+              // Compact: a small icon and 11.5 text (2026-11-08).
               if (hasUnread)
-                TextButton(
-                  onPressed: () => _markAllRead(docs),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AgriAppBar.foreground,
-                  ),
-                  child: Text(
-                    tl('Mark All as Read'),
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: TextButton.icon(
+                    onPressed: () => _markAllRead(docs),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.brand,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.done_all_rounded, size: 16),
+                    label: Text(
+                      tl('Mark All as Read'),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -222,45 +231,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // ---- All / Messages / Orders / Updates (+ Reports for farmers) ----
   Widget _filterRow() {
     final filters = notificationFiltersFor(isFarmer: _isFarmer);
+    // Explore's own pills (2026-11-08).
     return SizedBox(
-      height: 48,
+      height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         itemCount: filters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 7),
         itemBuilder: (context, index) {
           final filter = filters[index];
-          final selected = filter == _filter;
           return Center(
-            child: Material(
-              color: selected ? AppColors.brandFill : AppColors.surface,
-              shape: StadiumBorder(
-                side: BorderSide(
-                  color: selected
-                      ? AppColors.brand
-                      : AppColors.brand.withValues(alpha: 0.25),
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => setState(() => _filter = filter),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 7,
-                  ),
-                  child: Text(
-                    filter.label,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.2,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : AppColors.brand,
-                    ),
-                  ),
-                ),
-              ),
+            child: FilterPill(
+              label: filter.label,
+              selected: filter == _filter,
+              onTap: () => setState(() => _filter = filter),
             ),
           );
         },
@@ -280,28 +265,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         currentGroup = group;
         rows.add(
           Padding(
-            padding: EdgeInsets.fromLTRB(16, rows.isEmpty ? 4 : 18, 16, 6),
+            padding: EdgeInsets.fromLTRB(18, rows.isEmpty ? 4 : 16, 16, 8),
             child: Text(
               group,
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.adapt(const Color(0xFF1B1B1B)),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.brand,
               ),
             ),
           ),
         );
       } else {
-        // Flat rows, a hairline between them — not floating cards.
-        rows.add(
-          Divider(
-            height: 1,
-            thickness: 1,
-            indent: 16,
-            endIndent: 16,
-            color: AppColors.grey(200),
-          ),
-        );
+        // Compact white cards, 8 apart (2026-11-08).
+        rows.add(const SizedBox(height: 8));
       }
       final data = doc.data();
       rows.add(

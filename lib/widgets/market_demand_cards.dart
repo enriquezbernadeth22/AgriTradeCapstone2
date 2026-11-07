@@ -41,6 +41,13 @@ class MarketDemandCards extends StatefulWidget {
   final bool showAll;
   final bool embedded;
 
+  /// Each list's month, when the screen holds them (the Market tab shows
+  /// the month at the top of AgriTrade+ Insights); [onMonthChanged] then
+  /// moves one, and [monthTags] false leaves the cards without their own.
+  final Map<MarketDemandList, DateTime>? months;
+  final void Function(MarketDemandList list, DateTime month)? onMonthChanged;
+  final bool monthTags;
+
   /// The `market_sales` records, without Firestore.
   @visibleForTesting
   final Stream<List<Map<String, dynamic>>>? salesStream;
@@ -57,6 +64,9 @@ class MarketDemandCards extends StatefulWidget {
     this.only,
     this.showAll = false,
     this.embedded = false,
+    this.months,
+    this.onMonthChanged,
+    this.monthTags = true,
     this.salesStream,
     this.now,
   });
@@ -66,6 +76,26 @@ class MarketDemandCards extends StatefulWidget {
 }
 
 enum MarketDemandList { bestSellers, locations }
+
+/// The calendar of months for a demand list: from the first month with a
+/// completed sale on record ([months], newest first) to this month.
+Future<DateTime?> pickDemandMonth(
+  BuildContext context, {
+  required DateTime selected,
+  required List<DateTime> months,
+}) {
+  final firstMonth = months.last;
+  return showMonthYearPicker(
+    context,
+    selectedMonth: selected,
+    firstMonth: firstMonth,
+    currentMonth: months.first,
+    note: tl(
+      'Available from {0}, based on the completed orders on record. Future months cannot be selected.',
+      [DateFormat('MMMM yyyy').format(firstMonth)],
+    ),
+  );
+}
 
 class _MarketDemandCardsState extends State<MarketDemandCards> {
   // Created once — not on every dashboard rebuild.
@@ -97,6 +127,18 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     }
   }
 
+  DateTime _monthFor(MarketDemandList list) =>
+      widget.months?[list] ?? _months[list]!;
+
+  void _setMonth(MarketDemandList list, DateTime month) {
+    final changed = widget.onMonthChanged;
+    if (changed != null) {
+      changed(list, month);
+    } else {
+      setState(() => _months[list] = month);
+    }
+  }
+
   bool _shows(MarketDemandList list) =>
       widget.only == null || widget.only == list;
 
@@ -104,7 +146,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     context,
     title: title,
     child: MarketDemandCards(
-      month: _months[list]!,
+      month: _monthFor(list),
       only: list,
       showAll: true,
       salesStream: widget.salesStream,
@@ -115,18 +157,12 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
   // The month on a card's corner. It opens the same calendar of months as
   // Sales Performance, from the first sale on record to this month.
   Future<void> _pickMonth(MarketDemandList list, List<DateTime> months) async {
-    final firstMonth = months.last;
-    final picked = await showMonthYearPicker(
+    final picked = await pickDemandMonth(
       context,
-      selectedMonth: _months[list]!,
-      firstMonth: firstMonth,
-      currentMonth: months.first,
-      note: tl(
-        'Available from {0}, based on the completed orders on record. Future months cannot be selected.',
-        [DateFormat('MMMM yyyy').format(firstMonth)],
-      ),
+      selected: _monthFor(list),
+      months: months,
     );
-    if (picked != null && mounted) setState(() => _months[list] = picked);
+    if (picked != null && mounted) _setMonth(list, picked);
   }
 
   @override
@@ -150,8 +186,8 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
         return ListenableBuilder(
           listenable: CommodityRegistry.instance,
           builder: (context, _) {
-            final bestSellersMonth = _months[MarketDemandList.bestSellers]!;
-            final locationsMonth = _months[MarketDemandList.locations]!;
+            final bestSellersMonth = _monthFor(MarketDemandList.bestSellers);
+            final locationsMonth = _monthFor(MarketDemandList.locations);
             final bestSellers = MarketDemandService.bestSellers(
               sales: sales,
               month: bestSellersMonth,
@@ -163,8 +199,9 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
             );
             // Each card's month pill, and its "View previous month" when it
             // is empty, move that card only.
-            Widget monthTag(MarketDemandList list) {
-              final month = _months[list]!;
+            Widget? monthTag(MarketDemandList list) {
+              if (!widget.monthTags) return null;
+              final month = _monthFor(list);
               return MonthPickerPill(
                 month: month,
                 onTap: () => _pickMonth(
@@ -180,7 +217,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
 
             // Offered only when there is an earlier month to go to.
             VoidCallback? onPreviousMonth(MarketDemandList list) {
-              final month = _months[list]!;
+              final month = _monthFor(list);
               final previous = DateTime(month.year, month.month - 1);
               final months = MarketDemandService.monthsOnRecord(
                 sales: sales,
@@ -188,7 +225,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
                 now: widget.now,
               );
               return months.contains(previous)
-                  ? () => setState(() => _months[list] = previous)
+                  ? () => _setMonth(list, previous)
                   : null;
             }
 
@@ -269,7 +306,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
   Widget _card({
     required String? title,
     String? subtitle,
-    required Widget tag,
+    required Widget? tag,
     required bool loading,
     required IconData emptyIcon,
     required String emptyText,
@@ -344,7 +381,7 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
         Text(
           label,
           style: GoogleFonts.montserrat(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w700,
             color: color,
           ),
@@ -371,14 +408,10 @@ class _MarketDemandCardsState extends State<MarketDemandCards> {
     ),
   );
 
-  // Rank, product, its trend arrow and the quantity sold — on one line.
+  // Rank, product and the quantity sold — on one line. No trend icon (the
+  // user's choice, 2026-11-07): its meaning showed only on a long press.
   Widget _bestSellerRow(int rank, BestSeller item) {
-    final (trend, icon, color) = demandTrendStyle(item.trend);
     return _line(rank, item.commodity, [
-      Tooltip(
-        message: trend,
-        child: Icon(icon, size: 18, color: color),
-      ),
       _pill(formatStock(item.quantity, item.unit), AppColors.brand),
     ]);
   }

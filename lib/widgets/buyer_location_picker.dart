@@ -9,6 +9,7 @@ import '../services/geocoding_service.dart';
 import '../services/location_permission_prompt.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// What the buyer location popup hands back — always a readable region/
 /// province/city/barangay; latitude/longitude are best-effort (see
@@ -671,7 +672,7 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                         foregroundColor: AppColors.brand,
                         side: BorderSide(color: AppColors.brand),
                         padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: const StadiumBorder(),
+                        shape: AppTheme.buttonShape,
                       ),
                     ),
                   ),

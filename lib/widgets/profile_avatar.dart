@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
@@ -40,21 +41,31 @@ class ProfileAvatar extends StatelessWidget {
       ),
     );
 
+    // The photo from the disk cache when it has been seen before (shown at
+    // once, no initials first); a plain pale circle while a new one loads,
+    // fading in; the initials only with no photo or a broken one. Decoded
+    // at the size it is shown (2026-11-08).
+    final size = radius * 2;
+    final decode = (size * MediaQuery.devicePixelRatioOf(context)).round();
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.accent,
       child: url.isEmpty
           ? initials
           : ClipOval(
-              child: Image.network(
-                url,
+              child: CachedNetworkImage(
+                imageUrl: url,
                 // Keyed by URL so an updated photo replaces the old one
                 // instead of reusing its image state.
                 key: ValueKey(url),
-                width: radius * 2,
-                height: radius * 2,
+                width: size,
+                height: size,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => initials,
+                memCacheWidth: decode,
+                fadeInDuration: const Duration(milliseconds: 150),
+                fadeOutDuration: Duration.zero,
+                placeholder: (_, _) => SizedBox(width: size, height: size),
+                errorWidget: (_, _, _) => Center(child: initials),
               ),
             ),
     );

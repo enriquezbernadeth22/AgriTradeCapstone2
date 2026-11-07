@@ -17,6 +17,7 @@ import 'farmer_storefront_screen.dart';
 import 'product_detail_screen.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 /// Conversation Info, a full-screen page opened from the (i) in a chat's
 /// header — same for Farmer and Buyer. Shows who the other person is
@@ -388,9 +389,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.brand,
               side: BorderSide(color: AppColors.brand),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
+              shape: AppTheme.buttonShape,
             ),
           ),
         ],
@@ -515,18 +514,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
 
   Widget _section({required List<Widget> children}) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: AppColors.cardBorder,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: AppTheme.card(),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
     );

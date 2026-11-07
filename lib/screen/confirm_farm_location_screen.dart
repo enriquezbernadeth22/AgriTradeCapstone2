@@ -284,7 +284,7 @@ class _ConfirmFarmLocationScreenState extends State<ConfirmFarmLocationScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface.withValues(alpha: 0.94),
               border: AppColors.cardBorder,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             ),
             child: Text(
               tl('Move the map so the pin sits on your farm.'),

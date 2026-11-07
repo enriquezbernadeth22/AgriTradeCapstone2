@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firebase_refs.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// The notification bell icon plus a small unread-count badge in its corner,
+/// The notification bell icon plus a small gold dot in its corner while
+/// anything is unread (the user's design, 2026-11-08, in place of a red
+/// count),
 /// reused by Farmer Home and Buyer Marketplace so the badge logic lives in
 /// exactly one place. Reads notifications/{uid}/items where read == false;
 /// never a hardcoded count.
@@ -15,13 +17,13 @@ class NotificationBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null) {
       return NotificationBellButton(onPressed: onPressed, color: color);
     }
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: FirebaseRefs.firestore
           .collection('notifications')
           .doc(uid)
           .collection('items')
@@ -36,12 +38,16 @@ class NotificationBell extends StatelessWidget {
   }
 }
 
-/// What [NotificationBell] draws: the bell, with [unread] in a badge on its
-/// top right corner when there is any.
+/// What [NotificationBell] draws: the bell, with a gold dot on its top right
+/// corner while [unread] is above zero.
 class NotificationBellButton extends StatelessWidget {
   final VoidCallback onPressed;
   final Color? color;
   final int unread;
+
+  /// The unread dot's gold, ringed in the header's dark green.
+  static const Color dotColor = Color(0xFFF2B630);
+  static const Color dotRing = Color(0xFF1F4B2C);
 
   const NotificationBellButton({
     super.key,
@@ -60,30 +66,26 @@ class NotificationBellButton extends StatelessWidget {
           icon: Icon(
             Icons.notifications_none_rounded,
             color: color ?? AppColors.brand,
-            size: 22,
+            size: 24,
           ),
         ),
         if (unread > 0)
           Positioned(
-            right: 6,
-            top: 6,
+            right: 10,
+            top: 10,
             child: IgnorePointer(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: Colors.white, width: 1.2),
-                ),
-                child: Text(
-                  unread > 99 ? '99+' : '$unread',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
+              child: Semantics(
+                label: unread == 1
+                    ? '1 unread notification'
+                    : '$unread unread notifications',
+                child: Container(
+                  key: const Key('notificationDot'),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: dotRing, width: 1.5),
                   ),
                 ),
               ),

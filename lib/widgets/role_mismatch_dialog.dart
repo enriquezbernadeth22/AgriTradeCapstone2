@@ -4,6 +4,7 @@ import '../screen/role_selection_screen.dart';
 import 'agri_dialog.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 // ============================================================
 // Role Mismatch dialog
@@ -121,9 +122,7 @@ Future<void> showRoleMismatchDialog(
                       backgroundColor: AppColors.brandFill,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      shape: AppTheme.buttonShape,
                       elevation: 0,
                     ),
                     child: Text(

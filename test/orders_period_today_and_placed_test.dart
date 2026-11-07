@@ -40,20 +40,25 @@ void main() {
       expect(shows(OrderDateFilter.last7Days, DateTime(2026, 10, 29)), isFalse);
     });
 
-    test('months and the year', () {
-      expect(shows(OrderDateFilter.last3Months, DateTime(2026, 8, 5)), isTrue);
-      expect(shows(OrderDateFilter.last3Months, DateTime(2026, 8, 4)), isFalse);
-      expect(shows(OrderDateFilter.last6Months, DateTime(2026, 5, 5)), isTrue);
-      expect(shows(OrderDateFilter.thisYear, DateTime(2026, 1, 1)), isTrue);
-      expect(shows(OrderDateFilter.thisYear, DateTime(2025, 12, 31)), isFalse);
+    test('Last 30 days counts today as the thirtieth', () {
+      expect(shows(OrderDateFilter.last30Days, DateTime(2026, 10, 7)), isTrue);
+      expect(shows(OrderDateFilter.last30Days, DateTime(2026, 10, 6)), isFalse);
     });
 
-    test('a custom range includes both ends', () {
-      final range = DateTimeRange(
+    test('a short list: All time, Today, Last 7 days, Last 30 days', () {
+      expect(OrderDateFilter.values.map((p) => p.label), [
+        'All time',
+        'Today',
+        'Last 7 days',
+        'Last 30 days',
+      ]);
+    });
+
+    test('a range includes both ends', () {
+      final r = DateTimeRange(
         start: DateTime(2026, 10, 1),
         end: DateTime(2026, 10, 10),
       );
-      final r = OrderDateFilter.custom.rangeOn(now, customRange: range);
       expect(placedIn(DateTime(2026, 10, 10, 22), r, now: now), isTrue);
       expect(placedIn(DateTime(2026, 10, 11), r, now: now), isFalse);
     });

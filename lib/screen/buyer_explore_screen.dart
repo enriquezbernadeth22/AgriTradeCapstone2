@@ -3,7 +3,6 @@ import '../widgets/docked_nav_bar.dart';
 import '../widgets/notification_bell.dart';
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,6 +12,7 @@ import '../services/bought_first.dart';
 import '../services/buyer_area_watcher.dart';
 import '../services/delivery_coverage.dart';
 import '../services/filters_on_scroll.dart';
+import '../services/firebase_refs.dart';
 import '../services/order_service.dart';
 import '../services/product_service.dart';
 import '../services/product_recommendation_service.dart';
@@ -21,7 +21,9 @@ import '../services/saved_products_service.dart';
 import '../widgets/page_header.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_refresh_indicator.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/card_zoom_route.dart';
+import '../widgets/explore_hero.dart';
+import '../widgets/explore_search_pill.dart';
 import 'buyer_search_screen.dart';
 import 'product_detail_screen.dart';
 import '../widgets/explore_product_card.dart';
@@ -67,10 +69,15 @@ class BuyerExploreScreen extends StatefulWidget {
   final VoidCallback? onNotificationsPressed;
   final Key? bellKey;
 
+  /// The area filter (barangay) under the categories, for the first-time
+  /// tour to point at; a key of its own otherwise.
+  final GlobalKey? locationKey;
+
   const BuyerExploreScreen({
     super.key,
     this.onNotificationsPressed,
     this.bellKey,
+    this.locationKey,
   });
 
   @override
@@ -167,7 +174,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     // the area arrives or changes.
     BuyerAreaWatcher.instance.addListener(_onAreaChanged);
     _watchMyOrders();
-    _usersSub = FirebaseFirestore.instance
+    _usersSub = FirebaseRefs.firestore
         .collection('publicProfiles')
         .snapshots()
         .listen((snap) {
@@ -199,7 +206,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   StreamSubscription? _ordersSub;
 
   void _watchMyOrders() {
-    if (FirebaseAuth.instance.currentUser == null) return;
+    if (FirebaseRefs.auth.currentUser == null) return;
     _ordersSub = OrderService().buyerOrdersStream().listen((snap) {
       if (!mounted) return;
       final counts = boughtCounts([for (final d in snap.docs) d.data()]);
@@ -261,39 +268,62 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Same title row as Messages, Orders and Profile.
-        PageHeader(
-          title: tr(context).navExplore,
-          trailing: widget.onNotificationsPressed == null
-              ? null
-              : NotificationBell(
-                  key: widget.bellKey,
-                  onPressed: widget.onNotificationsPressed!,
-                  color: PageHeader.onBandColor,
-                ),
-        ),
-        _buildSearchBar(),
-        // Tucked away while scrolling down the products (see
-        // _filtersHidden).
-        ClipRect(
-          child: AnimatedSize(
+    // The cream page of the user's design (2026-11-08), behind the
+    // header's curve too.
+    return ColoredBox(
+      color: exploreBackground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The dark green band; the title is in the hero under it (the
+          // user's design, 2026-11-08).
+          PageHeader(
+            title: tr(context).navExplore,
+            includeTitle: false,
+            trailing: widget.onNotificationsPressed == null
+                ? null
+                : NotificationBell(
+                    key: widget.bellKey,
+                    onPressed: widget.onNotificationsPressed!,
+                    color: PageHeader.onBandColor,
+                  ),
+          ),
+          // The hero goes away with the filters while scrolling down. Not
+          // clipped: its farm scene runs on behind the search bar.
+          AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
             child: _filtersHidden
                 ? const SizedBox(width: double.infinity)
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [_buildCategoryChips(), _buildLocationFilter()],
+                : ExploreHero(
+                    title: tr(context).navExplore,
+                    subtitle: tl(
+                      'Discover quality crops, livestock, and farm products from local farmers.',
+                    ),
                   ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Expanded(child: _buildProductGrid()),
-      ],
+          _buildSearchBar(),
+          // Tucked away while scrolling down the products (see
+          // _filtersHidden).
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _filtersHidden
+                  ? const SizedBox(width: double.infinity)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [_buildCategoryChips(), _buildLocationFilter()],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 0),
+          Expanded(child: _buildProductGrid()),
+        ],
+      ),
     );
   }
 
@@ -302,13 +332,45 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   // (suggested/trending/recent searches, category browsing, recommended
   // products, and result matching) — Explore itself no longer performs
   // text search inline.
+  // A white pill on a soft shadow holding the search field (its own thin
+  // pill) and, at its end, a pale green filter button that shows or tucks
+  // away the category and location filters (the user's design,
+  // 2026-11-08).
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: AppSearchBar(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: ExploreSearchPill(
+        fieldKey: const Key('exploreSearch'),
+        hint: tl('Search crops, livestock, or farmers...'),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const BuyerSearchScreen()),
+        ),
+        trailing: Tooltip(
+          message: _filtersHidden ? tl('Show filters') : tl('Hide filters'),
+          child: InkWell(
+            key: const Key('exploreFilterToggle'),
+            customBorder: const CircleBorder(),
+            onTap: () => setState(() {
+              _filtersHidden = !_filtersHidden;
+              _filtersOnScroll.reset();
+            }),
+            child: Container(
+              width: 33,
+              height: 33,
+              decoration: BoxDecoration(
+                color: AppColors.isDark
+                    ? AppColors.tint
+                    : const Color(0xFFE8F1DA),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.filter_alt_outlined,
+                size: 16,
+                color: AppColors.brand,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -324,16 +386,16 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   Widget _buildCategoryChips() {
     final categories = _categories;
     return SizedBox(
-      height: 46,
+      height: 33.5,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        padding: const EdgeInsets.fromLTRB(16.5, 9, 16, 0),
         itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 7),
         itemBuilder: (context, index) {
           final category = categories[index];
           return Center(
-            child: _FilterPill(
+            child: FilterPill(
               // Shown as just "All" — the stored value stays 'All Postings',
               // which the filtering compares against.
               label: category == 'All Postings' ? tl('All') : tl(category),
@@ -349,7 +411,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   // ---- Row 2: location ----
   // One compact pill showing the current choice; tapping it drops a small
   // menu straight below it (never a bottom sheet or a full-screen picker).
-  final GlobalKey _locationPillKey = GlobalKey();
+  late final GlobalKey _locationPillKey = widget.locationKey ?? GlobalKey();
 
   Widget _buildLocationFilter() {
     final barangays = _barangayByFarmerUid.values.toSet().toList()..sort();
@@ -357,13 +419,15 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
 
     final active = _selectedBarangay != 'All Locations';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16.5, 7, 16, 0),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: _FilterPill(
+        child: FilterPill(
           key: _locationPillKey,
           label: tl(_selectedBarangay),
           selected: active,
+          tinted: true,
+          icon: Icons.location_on,
           trailing: Icons.keyboard_arrow_down_rounded,
           onTap: () => _pickLocation(['All Locations', ...barangays]),
         ),
@@ -649,9 +713,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                             horizontal: 20,
                             vertical: 12,
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
+                          shape: AppTheme.buttonShape,
                         ),
                       ),
               ),
@@ -665,8 +727,10 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             onRefresh: _refreshProducts,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const padding = 12.0;
-                const spacing = 12.0;
+                // From the user's picture: 16 at the sides, 12.5 between
+                // the columns, 11.5 between the rows.
+                const padding = 16.0;
+                const spacing = 12.5;
                 // Card height follows the column width and the system text
                 // size (see ExploreProductCard.extentFor) rather than a fixed
                 // aspect ratio, which is what used to overflow on narrow
@@ -681,7 +745,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(
                           padding,
-                          4,
+                          11.5,
                           padding,
                           DockedNavBar.listEndPadding(context),
                         ),
@@ -691,7 +755,7 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                               SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
                                 crossAxisSpacing: spacing,
-                                mainAxisSpacing: spacing,
+                                mainAxisSpacing: 11.5,
                                 mainAxisExtent: ExploreProductCard.extentFor(
                                   cardWidth,
                                   MediaQuery.textScalerOf(context),
@@ -700,16 +764,18 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                           itemBuilder: (context, index) {
                             final doc = docs[index];
                             final data = doc.data();
-                            return ExploreProductCard(
-                              data: data,
-                              saved: LikedProducts.instance.contains(doc.id),
-                              onToggleSave: LikedProducts.instance.canLike
-                                  ? () => toggleLikedProduct(context, doc.id)
-                                  : null,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ProductDetailScreen(
+                            // Opens by growing out of this very card
+                            // (openFromCard), not by sliding in.
+                            return Builder(
+                              builder: (cardContext) => ExploreProductCard(
+                                data: data,
+                                saved: LikedProducts.instance.contains(doc.id),
+                                onToggleSave: LikedProducts.instance.canLike
+                                    ? () => toggleLikedProduct(context, doc.id)
+                                    : null,
+                                onTap: () => openFromCard(
+                                  cardContext,
+                                  ProductDetailScreen(
                                     productId: doc.id,
                                     data: data,
                                   ),
@@ -727,77 +793,6 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-// The pill used by both filter rows: dark green with white text when
-// selected, white with a subtle border otherwise.
-class _FilterPill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final IconData? trailing;
-  final VoidCallback onTap;
-
-  const _FilterPill({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = selected ? Colors.white : AppColors.brand;
-    return Material(
-      color: selected ? AppColors.brandFill : AppColors.surface,
-      // With a [trailing] arrow it opens a list, so it takes a dropdown's
-      // corners; the category filters stay pills.
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          trailing == null
-              ? AppTheme.pillRadius
-              : AppTheme.compactDropdownRadius,
-        ),
-        side: BorderSide(
-          color: selected
-              ? AppColors.brand
-              : AppColors.brand.withValues(alpha: 0.25),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // A very long name is cut with an ellipsis rather than
-              // making one pill as wide as the screen.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 200),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: foreground,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 2),
-                Icon(trailing, size: 16, color: foreground),
-              ],
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

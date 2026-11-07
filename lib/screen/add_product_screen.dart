@@ -1954,7 +1954,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             border: Border.all(
               color: selected
                   ? AppColors.brand
@@ -2152,7 +2152,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         border: Border.all(color: AppColors.accent, width: 1.2),
       ),
       child: Row(
@@ -2323,7 +2323,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               tl('You can still set your own selling price below.'),
               style: GoogleFonts.montserrat(
                 color: AppColors.textMuted,
-                fontSize: 10.5,
+                fontSize: 11.5,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -2353,7 +2353,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ]),
           style: GoogleFonts.montserrat(
             color: AppColors.textMuted,
-            fontSize: 10.5,
+            fontSize: 11.5,
           ),
         ),
         const SizedBox(height: 8),
@@ -2423,7 +2423,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         ),
         style: GoogleFonts.montserrat(
           color: AppColors.textMuted,
-          fontSize: 10.5,
+          fontSize: 11.5,
           fontStyle: FontStyle.italic,
         ),
       ),
@@ -2539,7 +2539,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ),
                         style: GoogleFonts.montserrat(
                           color: AppColors.textMuted,
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           height: 1.35,
                         ),
                       ),
@@ -2555,7 +2555,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       tl('WHOLESALE SUGGESTED PRICE'),
                       style: GoogleFonts.montserrat(
                         color: AppColors.textSecondary,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
@@ -2580,7 +2580,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             ),
                       style: GoogleFonts.montserrat(
                         color: AppColors.textMuted,
-                        fontSize: 10.5,
+                        fontSize: 11.5,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2626,7 +2626,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: const StadiumBorder(),
+                shape: AppTheme.buttonShape,
               ),
               child: Text(
                 tl('Use Suggested Price'),
@@ -2695,7 +2695,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     style: GoogleFonts.montserrat(
                       color: AppColors.textMuted,
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -2742,7 +2742,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         border: Border.all(
           color: AppColors.brand.withValues(alpha: 0.35),
           width: 1.2,
@@ -3014,7 +3014,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                         subtitle: Text(
                                           categoryOfCommodity(option) ?? '',
                                           style: GoogleFonts.montserrat(
-                                            fontSize: 10.5,
+                                            fontSize: 11.5,
                                             color: AppColors.grey(600),
                                           ),
                                         ),
@@ -3395,7 +3395,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         disabledBackgroundColor: AppColors.grey(400),
         foregroundColor: Colors.white,
         padding: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        shape: AppTheme.buttonShape,
         elevation: 0,
       ),
       child: _loading
@@ -3465,9 +3465,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           backgroundColor: AppColors.brandFill,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 11),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
+          shape: AppTheme.buttonShape,
           elevation: 0,
         ),
       ),

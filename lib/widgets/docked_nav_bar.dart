@@ -1,30 +1,55 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
 /// The bottom navigation bar of the Farmer and Buyer home screens: a small,
-/// solid white pill floating a little above the bottom edge, inset from
-/// the sides, on a soft shadow. Like the floating Register button it has no
+/// solid dark green pill floating a little above the bottom edge, inset
+/// from the sides, on a plain dark shadow, with a thin lighter green rim;
+/// the selected tab sits on a gold pill in dark green, the others are white
+/// (the user's picture, 2026-11-08; no gold glow). Like the floating Register button it has no
 /// band behind it: the home screens set `extendBody`, so the page scrolls
 /// on behind the pill (see [listEndPadding]). It sits above the phone's own
-/// navigation (gesture bar or buttons), never under it, and it stays on
-/// screen — it does not hide while a page is scrolled.
+/// navigation (gesture bar or buttons), never under it. On the Farmer's
+/// screens it always stays; on the Buyer's it slides away while a page is
+/// scrolled down and comes back on a scroll up (BuyerMarketplaceScreen).
 class DockedNavBar extends StatelessWidget {
   /// The bar's items, laid out in a [Row]; each is usually a [NavBarItem].
   final List<Widget> children;
 
-  /// Height of the pill itself.
+  /// Height of the pill itself, as in the user's picture (2026-11-08; it
+  /// was 48, made small twice by the user before then).
   static const double height = 54;
 
-  /// The bar's look — pure white, these corners, this shadow — which the
-  /// tabs' header band (PageHeader) shares.
-  static Color get color => AppColors.surface;
-  static const double cornerRadius = 27;
+  /// The bar's dark green, in both modes (it reads on charcoal too), and
+  /// the slightly lighter green at its top (a soft gradient).
+  static const Color color = Color(0xFF063B1C);
+  static const Color topColor = Color(0xFF0B4626);
+
+  /// The gold of the selected tab's pill (and the farmer's +).
+  static const Color selectedColor = Color(0xFFFDBE1D);
+
+  /// The thin rim around the pill.
+  static const Color rimColor = Color(0xFF15502C);
+
+  /// The other tabs' icons and labels.
+  static const Color unselectedColor = Colors.white;
+
+  /// Fully round ends.
+  static const double cornerRadius = height / 2;
+
+  /// The headers' soft shadow (PageHeader, AgriAppBar).
   static final List<BoxShadow> shadow = [
     BoxShadow(
       color: Colors.black.withValues(alpha: 0.10),
       blurRadius: 16,
       offset: const Offset(0, 4),
+    ),
+  ];
+
+  // The pill's own shadow (a plain dark one, no gold).
+  static final List<BoxShadow> _barShadow = [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.25),
+      blurRadius: 18,
+      offset: const Offset(0, 7),
     ),
   ];
 
@@ -45,15 +70,19 @@ class DockedNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.only(bottom: 10),
+      minimum: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        padding: const EdgeInsets.fromLTRB(21, 4, 21, 0),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: color,
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [topColor, color],
+            ),
             borderRadius: _radius,
-            border: AppColors.cardBorder,
-            boxShadow: shadow,
+            border: Border.all(color: rimColor, width: 1.2),
+            boxShadow: _barShadow,
           ),
           // For the items' ripples. Not clipped: the farmer's + button
           // rises above the pill.
@@ -63,7 +92,10 @@ class DockedNavBar extends StatelessWidget {
             clipBehavior: Clip.none,
             child: SizedBox(
               height: height,
-              child: Row(children: children),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(children: children),
+              ),
             ),
           ),
         ),
@@ -100,36 +132,51 @@ class NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
-        ? AppColors.brand
-        : (AppColors.isDark
-              ? AppColors.grey(500)
-              : AppColors.adapt(const Color(0xFFAAB4AC)));
+    // Dark green on the gold pill; white on the bar.
+    final color = selected ? DockedNavBar.color : DockedNavBar.unselectedColor;
     const iconSize = 19.0;
     final iconWidget = selected && activeIconBuilder != null
         ? activeIconBuilder!(color, iconSize)
         : Icon(selected ? activeIcon : icon, color: color, size: iconSize);
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            decorateIcon?.call(iconWidget) ?? iconWidget,
-            const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 9,
-                color: color,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
+      child: Padding(
+        // The gold pill: about 79 x 41 in the bar, as in the picture.
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6.5),
+        child: AnimatedContainer(
+          key: selected ? const Key('navSelectedPill') : null,
+          // The full height of the bar, less its inset.
+          height: double.infinity,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: selected
+                ? DockedNavBar.selectedColor
+                : DockedNavBar.selectedColor.withValues(alpha: 0),
+            borderRadius: BorderRadius.circular(DockedNavBar.cornerRadius),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const StadiumBorder(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                decorateIcon?.call(iconWidget) ?? iconWidget,
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 9.5,
+                    color: color,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -151,7 +198,8 @@ class FilledStorefrontIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => CustomPaint(
     size: Size.square(size),
-    painter: _FilledStorefrontPainter(color, DockedNavBar.color),
+    // Shown only on the selected tab: the lines are cut in its gold pill.
+    painter: _FilledStorefrontPainter(color, DockedNavBar.selectedColor),
   );
 }
 

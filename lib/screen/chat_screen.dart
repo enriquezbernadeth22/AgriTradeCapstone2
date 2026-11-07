@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show Clipboard, ClipboardData, HapticFeedback;
 import '../widgets/agri_dialog.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/message_actions.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import '../widgets/chat_photo_viewer.dart';
@@ -160,9 +161,40 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() {});
   }
 
+  // What the first-time tour points at.
+  final _plusKey = GlobalKey();
+  final _fieldKey = GlobalKey();
+
+  // The first chat: what the + holds, and the hold and slide on a message,
+  // which nothing on screen shows. Typing and Send need no explaining.
+  void _showTour() {
+    if (!mounted) return;
+    showCoachMarksOnce(
+      context: context,
+      prefsKey: '${TutorialTips.tourKeyPrefix}chat',
+      steps: [
+        CoachMarkStep(
+          targetKey: _plusKey,
+          title: tl('Share more than words'),
+          message: tl(
+            'Send photos, a short video, or your location from here.',
+          ),
+        ),
+        CoachMarkStep(
+          targetKey: _fieldKey,
+          title: tl('React and reply'),
+          message: tl(
+            'Hold any message to react, reply, copy or pin it. Slide a message sideways to reply.',
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showTour());
     // The pinned message, kept current for both people.
     _pinnedSub = FirebaseFirestore.instance
         .collection('conversations')
@@ -625,7 +657,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (isPending) {
       return Text(
         tl('Sending…'),
-        style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
+        style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
       );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -646,7 +678,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               seen ? tl('Seen') : tl('Sent'),
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 color: seen ? Colors.blue : AppColors.grey(500),
               ),
             ),
@@ -674,7 +706,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ? _lastMessageStatus(time, isPending)
               : Text(
                   isPending ? tl('Sending…') : tl('Sent'),
-                  style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
+                  style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
                 ),
         ),
       ],
@@ -1506,7 +1538,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 : _replySenderLabel(replyTo),
                             style: TextStyle(
                               color: isMe ? Colors.white : AppColors.brand,
-                              fontSize: 10,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1584,7 +1616,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 _formatBubbleTime(time),
-                style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
+                style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
               ),
             ),
           if (!overlay && likes.isNotEmpty)
@@ -1600,7 +1632,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   : Text(
                       isPending ? tl('Sending…') : tl('Sent'),
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         color: AppColors.grey(500),
                       ),
                     ),
@@ -1794,7 +1826,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 _formatBubbleTime(ts.toDate()),
-                style: TextStyle(fontSize: 10, color: AppColors.grey(500)),
+                style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
               ),
             ),
         ],
@@ -1886,6 +1918,8 @@ class _ChatScreenState extends State<ChatScreen> {
             sending: _sending,
             onSend: _send,
             onAttach: _attach,
+            plusKey: _plusKey,
+            fieldKey: _fieldKey,
           ),
         ],
       ),

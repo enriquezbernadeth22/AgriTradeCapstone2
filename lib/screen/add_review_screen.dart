@@ -345,18 +345,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.card(),
               child: Row(
                 children: [
                   ClipRRect(

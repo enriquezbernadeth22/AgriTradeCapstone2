@@ -34,21 +34,23 @@ class AgriEmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
-              color: AppColors.tint,
+              color: AppColors.isDark
+                  ? AppColors.tint
+                  : const Color(0xFFEAF2E4),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 30, color: AppColors.brand),
+            child: Icon(icon, size: 24, color: AppColors.brand),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 11),
           Text(
             title,
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
-              fontSize: 14.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: AppColors.text,
+              color: AppColors.brand,
             ),
           ),
           if (subtitle != null) ...[
@@ -57,7 +59,7 @@ class AgriEmptyState extends StatelessWidget {
               subtitle!,
               textAlign: TextAlign.center,
               style: GoogleFonts.montserrat(
-                fontSize: 12.5,
+                fontSize: 11.5,
                 color: AppColors.grey(600),
                 height: 1.4,
               ),

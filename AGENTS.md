@@ -1,14 +1,14 @@
-# AgriTrade+ — guide for coding agents
+# AgriTrade+ â guide for coding agents
 
 AgriTrade+ is a capstone project: an agricultural marketplace for **Laurel,
 Batangas (Philippines)** that connects **farmers** (sellers) and **buyers**,
 overseen by an **Admin**. One Flutter codebase, two products:
 
-- **Mobile app (Android/iOS)** — farmers and buyers. Entry: `AppRouter`.
+- **Mobile app (Android/iOS)** â farmers and buyers. Entry: `AppRouter`.
 - **Web = the Admin Portal only.** `lib/screen/app_bootstrap.dart` sends web
   to `AdminSessionGate`, mobile to `AppRouter` (`kIsWeb`).
 
-Backend: **Firebase** project `agritrade-bef87` — Auth, Cloud Firestore,
+Backend: **Firebase** project `agritrade-bef87` â Auth, Cloud Firestore,
 Cloud Functions (Node 22, `functions/`, region `asia-southeast1`), Hosting
 (`build/web`). Images go to Cloudinary (`cloudinary_service.dart`).
 
@@ -83,16 +83,16 @@ submitted there.
 ```
 lib/
   main.dart, firebase_options.dart
-  data/       commodity_master_list.dart (CommodityRegistry — the Admin-managed
+  data/       commodity_master_list.dart (CommodityRegistry â the Admin-managed
               commodity list everything matches against), Laurel barangays,
               legal policies, FAQs
   l10n/       app_en.arb / app_tl.arb, plus app_language.dart (the language
-              choice and tl()) and tagalog_strings.dart (English → Tagalog)
+              choice and tl()) and tagalog_strings.dart (English â Tagalog)
   screen/     every screen; admin_* files are the Admin Portal
-  services/   Firestore/data logic (orders, products, analytics, reports…)
+  services/   Firestore/data logic (orders, products, analytics, reportsâ¦)
   theme/      app_theme.dart, app_colors.dart (mobile; has its own dark mode
               via theme_controller.dart)
-  widgets/    shared widgets (splash, sidebar, cards…)
+  widgets/    shared widgets (splash, sidebar, cardsâ¦)
 functions/    Cloud Functions (*_logic.js holds testable pure logic)
 firestore.rules, firestore.indexes.json
 test/         widget + unit tests (one file per feature)
@@ -109,7 +109,7 @@ test/         widget + unit tests (one file per feature)
   `assets/images/farmer&buyer.png`, by `buyerCrop` / `farmerCrop` in its
   pixels: re-check those if the picture is replaced), and the form
   has no role toggle. A new "Continue with Google" account goes the same way:
-  `ChooseRoleScreen(google: …)` → `GoogleCompleteProfileScreen` (name
+  `ChooseRoleScreen(google: â¦)` â `GoogleCompleteProfileScreen` (name
   prefilled, email read-only, no password); leaving before finishing signs
   the Google account out. Existing Google accounts go straight in;
   older accounts show "Not specified" and can answer in Edit
@@ -119,7 +119,7 @@ test/         widget + unit tests (one file per feature)
 - **Orders** (`orders/{id}`): one order = **one product** (`productId`,
   `productName`, frozen `commodity`, `category`, `quantity`, `unit`,
   `pricePerUnit`, `total`, buyer area fields). Status flow:
-  `pending → confirmed → shipped → completed` (plus `rejected`,
+  `pending â confirmed â shipped â completed` (plus `rejected`,
   `cancelled`). A buyer can cancel while pending; a farmer can cancel a
   confirmed order with a reason; a pending order unanswered for 3 days is
   cancelled by `expirePendingOrders`. **Stock comes off the listing when the
@@ -137,23 +137,34 @@ test/         widget + unit tests (one file per feature)
   to `updatedAt`, then `createdAt` (`DashboardAnalyticsService._completionDate`).
 - **All analytics use completed orders only** (`DashboardDataService.orders`
   is already filtered to `status == 'completed'`; `allOrders` has every
-  status). Demand = number of completed orders (never kilos — units differ).
+  status). Demand = number of completed orders (never kilos â units differ).
   The one exception is **Top-Selling Products** (Admin) and **Best-Selling
   Products** (Farmer's Market tab): they rank product/unit groups by quantity
   sold ("Eggplant (kg)", "Cattle (head)"; units never added together).
-  Decided by the user, 2026-11-01. The Buyer's demand badge stays order-based
-  (`MarketDemandService.demandLeaders`, top 10).
+  Decided by the user, 2026-11-01. The Buyer's product cards have no
+  "High / Moderate demand" badge (removed by the user, 2026-11-07); the
+  Market tab's Buyer Areas still show each area's demand. AgriTrade+
+  Insights collapses to its heading (`CollapsibleSection`).
 - Farmer's Market tab (decided by the user, 2026-11-05): under Sales
-  Performance, "AgriTrade+ Insights" is a dropdown ("View AgriTrade+
-  insights": Current Market Average, Best-Selling Products, Top Buyer
-  Locations) showing only the one chosen (`MarketInsight`); its first-time
+  Performance, "AgriTrade+ Insights" is a segmented picker
+  (`MarketInsightPicker`: Best Sellers | Market Average | Buyer Areas, the
+  market average in the middle, for Best-Selling Products, Current Market
+  Average, Top Buyer Locations; the chosen one dark green, all three one
+  font size; the user's design 2026-11-07, in place of a dropdown; the
+  month sits at the top beside the title, as on Sales Performance, and
+  Best Sellers and Buyer Areas each keep their own; Best
+  Sellers rows show rank, product and quantity, no trend icon, removed by
+  the user) showing only the one chosen (`MarketInsight`); its first-time
   hints are two (Sales Performance, the insights picker). Orders Today
   counts the orders confirmed today and still Confirmed
   (`confirmedTodayCount`) and opens Orders on the Confirmed tab. Orders
-  (buyer and farmer) has a period filter under the status tabs (`OrderStatusPager.belowTabs`;
-  Today, Last 7 / 30 days, Last 3 / 6 months, This year, All time, Custom
-  range; `OrderDateFilter`, by the day placed), whose menu drops down from
-  the button itself (`showAgriPopupMenu`), not a bottom sheet. Placing an order ends with an
+  (buyer and farmer) has a period filter: the Buyer's opposite the Orders
+  title, the Farmer's under the status tabs on the right (`OrderStatusPager.belowTabs`;
+  his title row has Inventory); only All time, Today, Last 7 days and Last 30 days, the
+  user's choice 2026-11-07; `OrderDateFilter`, by the day placed), whose menu drops down from
+  the button itself (`showAgriPopupMenu`), not a bottom sheet. The button is dark
+  green whatever the period, with no × beside it (the user's choice,
+  2026-11-07): All time is picked from the menu. Placing an order ends with an
   "Order Placed!" summary (`showOrderPlacedDialog`).
 - Market tab cards (`market_demand_cards.dart`): Best-Selling Products lists
   the top 5 (`bestSellerLimit`); each card has its **own month** (picking one
@@ -168,7 +179,7 @@ test/         widget + unit tests (one file per feature)
   `Info.plist`); decided by the user, 2026-11-03. Screens need not handle
   landscape. In a chat, the photo and name in the header open Conversation
   Info, like the (i).
-- Conversation Info: the photo and name open the other person's page — a
+- Conversation Info: the photo and name open the other person's page â a
   farmer's storefront, or a buyer's `BuyerPublicProfileScreen` (photo, name,
   buyer type, area, member since from publicProfiles, plus only this
   farmer's orders with that buyer). publicProfiles fields come from
@@ -181,10 +192,10 @@ test/         widget + unit tests (one file per feature)
   `firestore.rules` allows exactly these keys.
 - Held messages (decided by the user, 2026-11-05; `message_actions.dart`):
   the rest of the chat blurs, the message stays sharp with the reactions
-  above it and a menu under it — Reply, Copy (text), Pin / Unpin, Unsend
+  above it and a menu under it â Reply, Copy (text), Pin / Unpin, Unsend
   (your own: content cleared, `unsent: true`, "You unsent a message") and
   Report (theirs: a `reports` doc, `targetType: 'message'`). One pinned
-  message per conversation (`pinnedMessage`), shown as a banner with an ×.
+  message per conversation (`pinnedMessage`), shown as a banner with an Ã.
   Messages slide under the finger to reply (`SwipeToReply`): received
   ones to the right, your own to the left.
 - Tapping outside a text field takes its focus and the keyboard away, in
@@ -192,7 +203,7 @@ test/         widget + unit tests (one file per feature)
   Google", the profile form's Cancel goes back to choosing Buyer/Farmer
   (still signed in), not out to Log In. A login with an unregistered email
   says "This email is not registered" (and a Google-only one says to use
-  Google): `reportLoginFailure` looks the email up — the user accepted that
+  Google): `reportLoginFailure` looks the email up â the user accepted that
   this reveals whether an email is registered.
 - Chat videos: Record Video / Choose Video in the + menu, at most 100 MB
   (`kChatVideoMaxBytes`, the most Cloudinary takes in one upload; 20 MB
@@ -203,10 +214,10 @@ test/         widget + unit tests (one file per feature)
   shows Cloudinary's first frame (`CloudinaryService.videoThumbnail`) and
   plays in `ChatVideoPlayerScreen` (`video_player`). The message box uses
   `AppTheme.plainFieldDecoration` in a `FormFieldGlow`, like Log In.
-- Chat photos (in the chat and in Conversation Info → Shared Photos) open in
+- Chat photos (in the chat and in Conversation Info â Shared Photos) open in
   `ChatPhotoViewer`: pinch to zoom; Save (`SaveToGalleryButton`, also on
   the video player) copies the photo or video (`gallery_saver.dart`) to the
-  phone's gallery in an "AgriTrade+" album (`gal`; Android ≤ 10 needs the
+  phone's gallery in an "AgriTrade+" album (`gal`; Android â¤ 10 needs the
   WRITE_EXTERNAL_STORAGE line in the manifest, iPhone
   NSPhotoLibraryAddUsageDescription).
 - Chat + menu: Take Photo, Choose Photo, Record Video, Choose Video, then
@@ -222,9 +233,82 @@ test/         widget + unit tests (one file per feature)
   over it; attachments are not counted.
 - Popup icons (`AgriDialog`) are black on a grey circle for every tone, like
   the Notifications screen's; the tone shows on the buttons instead.
-- Buyer Profile counts sit on pale green tiles. A banner on Explore and a
-  produce picture on empty pages were tried on 2026-11-04 and removed by
-  the user: empty pages keep the icon (`AgriEmptyState`).
+- Buyer Profile counts sit on pale green tiles. A produce picture on empty
+  pages was tried on 2026-11-04 and removed by the user: empty pages keep
+  the icon (`AgriEmptyState`). Explore (the user's design, 2026-11-08,
+  copied from their picture): a cream page (`exploreBackground`); under
+  the dark green band, `ExploreHero` (a big title — its leaf removed by the user
+  2026-11-08 — one line, a gold underline, a drawn farm scene, `FarmScenePainter`; it tucks
+  away with the filters on a scroll down); a white search pill on a soft
+  shadow holding the search field (its own thin pill) and a pale green
+  round filter button that shows or hides the filters; category pills with
+  no icons (selected dark green, others white with a grey outline); a pale
+  green location pill with a green outline and a filled pin. Product cards
+  (`ExploreProductCard`, white on a soft shadow): a wide photo with the
+  category on a pale gold badge (no icon, the user's choice) and
+  "Delivers to you" at its top left, the name in dark green (one line) with
+  a gold star rating at the right, the price, "Wholesale | Min …" in one
+  pale green pill, and the stock with a box icon. Bold text there names
+  `fontFamily: 'Montserrat'` (the bundled family with its real weights):
+  the theme's Google Fonts family alone drew "Explore" without its bold. Every size there (fonts, heights,
+  paddings, the farm scene running on behind the search bar) was measured
+  from the user's picture for a 390-wide screen (2026-11-08): the user asked
+  for it to match exactly, so change them only from a new picture.
+  Search (`BuyerSearchScreen`, the user's picture of 2026-11-08): no header;
+  a cream page starting with a plain dark green Back and the search field
+  (`ExploreSearchPill` with a controller: Explore's very own bar as the
+  field, the same 41 high, outline and text; the user, 2026-11-08);
+  section titles 17 in dark green with a small icon (gold flame Trending,
+  clock Recent, gold star Recommended); Trending terms on pale green pills,
+  Recent ones on white pills with a clock; the products in rows of two, a
+  row with no wholesale at all leaving out the "Wholesale | Min" strip
+  (`ExploreProductCard.reserveWholesaleRow`, `extentFor(withWholesaleRow:)`).
+  Category badges have no icon anywhere (the user, 2026-11-08).
+  A farmer's public profile (`FarmerStorefrontScreen`, what a buyer sees;
+  the user's design, 2026-11-08): no app bar — Back over a drawn landscape
+  (`ProfileLandscapePainter`: faint gold sun, hills, curved rows, leaves),
+  the photo 92 in a white ring with a gold arc and, only when verified, a
+  dark green shield; the name 19.5, the place 12.5, the Verified Farmer
+  pill, a white card of Rating | Reviews | Products (real numbers, "–" with
+  no rating; the reviews and products are each read once for the card and
+  the lists), then Reviews (an outlined See all pill; the latest two on
+  white cards) and Products (Explore's cards). Reviews everywhere show the
+  reviewer's photo from publicProfiles (`ReviewerAvatar`, once per buyer;
+  initials without one), the user's choice 2026-11-08.
+  Place Order (the user's design, 2026-11-08; UI only): the cream page
+  under a plain Back + title; the product card (photo 60, name 14, price
+  16); section titles 15.5 with a small dark green icon (Buyer Details,
+  Contact Information, Order, Fulfillment, Order Summary); labels 12.5,
+  notes 10.5; the form's own fields (`GlowField`, the app's 48); the check
+  dark green; the price note a pale green banner with a tag; the chosen
+  fulfillment pale green with a dark green outline; the summary rows
+  11.5/12, the total 14 and 17; Submit Order dark green, 46 high, a gold
+  send icon, fixed on the cream.
+  Search opens without jumping: until Trending, Recent and the last
+  "Clear" (on the phone) have all answered — with data, nothing or an
+  error — Trending and Recent show placeholder pills in their places and
+  Recommended Products waits (`_historyReady`); what was last seen is kept
+  for the next visit (static `_lastTrending` / `_lastRecentRaw`, per
+  account). `test/search_screen_loading_test.dart` checks the order.
+  Messages (`ChatListScreen` inbox, both roles; the user's design,
+  2026-11-08): on Explore's cream, under the dark green band, "Messages" as
+  big as Explore's title (no icon) with the menu opposite; Explore's own
+  search bar and pills (shared: `ExploreSearchPill`, `FilterPill` in
+  explore_search_pill.dart); flat rows with a hairline (#E9EAE5): avatar 46,
+  the name in dark green, a pin and the place, the last message, the time at
+  the top right and a pale green unread count (#DCEFCB) under it. The list
+  keeps the last conversations it received (`_lastConversations`, the
+  StreamBuilder's initialData): built anew on a stream already listened to,
+  it would otherwise spin until a new message.
+  Orders (`OrdersView`, both roles; the user's design, 2026-11-08): on the
+  cream, under the band, "Orders" as big as Explore's title with the period
+  (buyer; a pale green pill, calendar and chevron, 12) or Inventory (farmer)
+  opposite; status tabs 12 (dark green over a thin line, the rest grey);
+  white cards (`OrderCard`): photo 56, the name 14 in dark green, a pale
+  green RETAIL/WHOLESALE badge, details 11, PENDING pale gold with golden
+  brown text, the total 15, Details 36 high with a thin dark green outline.
+  Search's section titles are 14 and its term pills 11 (about Explore's
+  size), its field Explore's bar with the text in the middle.
 - **No internet** (decided by the user, 2026-11-05): opened offline, the
   phone stays on the splash with a note and Try Again, and carries on by
   itself once online (`AppBootstrap._waitForInternet`; the Admin website
@@ -240,7 +324,7 @@ test/         widget + unit tests (one file per feature)
   `boughtFirst` / `boughtCounts`) ahead of the rest, inside the area tiers
   below, and each pull-to-refresh deals a fresh mix (`_feedMix`). Search's
   Recommended Products puts listings of a product they bought first, and
-  shows no "based on…" line. A confirmed pick-up order shows the buyer the
+  shows no "based onâ¦" line. A confirmed pick-up order shows the buyer the
   pick-up address, a map of the farm pin and Get Directions
   (`PickupPlaceCard`; the farmer shares them on confirming, in
   orders/{id}/private/farmer, `pickupAddress`/`pickupLat`/`pickupLng`).
@@ -251,16 +335,60 @@ test/         widget + unit tests (one file per feature)
   reaches the buyer's saved area (`BuyerAreaWatcher`, users/{uid}
   barangay/municipality/province) come first via `deliveringFirst`, each
   group keeping the feed's own ranking; nothing is hidden. Their card shows
-  "Delivers to you". No location saved → order unchanged.
+  "Delivers to you". No location saved â order unchanged.
 - **Photos and listings** (decided by the user, 2026-11-05): a listing has
   up to 5 photos (`AddProductScreen.maxPhotos`: the main photo plus a "More
   photos" row); Product Details swipes through them, and every photo that
   can be tapped (product, storefront, review) opens `openPhotoGallery`
   (`chat_photo_viewer.dart`: swipe, "2 / 5", zoom, Save). The farm map on
   Product Details is a still preview (no gestures; lite mode on Android);
-  tapping it or Open map opens the movable map. The storefront shows the
+  tapping it or Open map opens the movable map. On both maps the farmer and the
+  buyer are round photos (initials without one; `FarmBuyerMap`,
+  `MapAvatarMarker`: farmer ringed green, buyer blue) in place of pins, and
+  a dashed line along the roads draws itself from the buyer to the farm
+  area (`RoadRouteService`: OSRM's public server on OpenStreetMap, no key,
+  since the app's Google key is limited to the web and Directions refuses
+  it; no route = a straight line), with a note at the top of the map that it ends at
+  the farmer's general area (without a line, that the photo marks the
+  general area): said only there, not again in the card under it.
+  Farm Location has its own + and − (`_ZoomButtons`): + zooms one step in
+  with the farmer in the middle. The photo rings are thin (2, then a 1.5
+  white gap). Decided by the user 2026-11-07. The distance
+  then reads "by road". Farm Location starts from the phone's position,
+  else the buyer's saved one (users/{uid}/private/geo), and says which. Under Farm Location, Recommended
+  Products: other listings of the same product name with stock (not this
+  one, not archived or suspended), in a sideways row of cards. Decided by the user 2026-11-07 (the tabs:
+  see below).
+  Product Details look (the user's picture, 2026-11-08; UI only): a cream
+  page; the photo with round white Back, heart and share; the white panel
+  it curves into (rounded below, on a soft shadow) holds a pale green
+  category pill (11), the name 20 and price 23 (dark green, bold) with the
+  rating on the left and the facts (dark green icons) on the right (stacked
+  under 330 wide), a pale green wholesale banner with a faint sprout
+  (`SproutFieldPainter`), and the farmer with a pale green Verified badge;
+  then the row of tabs (`SectionTabs`, 11.5: the chosen one a dark green
+  pill with a short gold line). It scrolls with the page: no bar at the top,
+  and a tap never moves the page; it only chooses what shows under it
+  (Overview every section, the others their one; the user's choice,
+  2026-11-08, replacing the scroll-to-section bar of 11-07). Description,
+  Buyer Reviews (one review full width on cream, more slide
+  sideways), Farm Location (the map's own note says it is the general area,
+  no caption under it) and Recommended Products each a white rounded card
+  (`_SectionCard`; headings 15.5, body 12.5); Order Now (outlined 1.2) and
+  Message (filled #0B4225), 46 high, radius 13, 13 labels, 18 icons in gold
+  (#F5BB24; grey while off), fixed on the cream with no band. From an
+  Explore card, Product Details grows out of that card and shrinks back into
+  it on Back (`openFromCard` / `CardZoomRoute`, card_zoom_route.dart: 360 ms,
+  easeInOutCubic, the page scaled to the growing box from its top so its
+  photo stands where the card's was; the same widgets throughout, so the
+  page keeps its state). Other lists still slide. The storefront shows the
   farmer's reviews (rating, latest two, See all = `ProductReviewsScreen`
-  with no productId). The buyer's product grids (Explore, Search, Liked)
+  with no productId). Review cards (storefront, Product Details, all
+  reviews) have a thumbs-up at the right (`ReviewLikeButton`): another
+  buyer likes the review (`likes.{uid}` = true, again to take it back;
+  firestore.rules allows only their own key, never on their own review);
+  the reviewer, farmers and the Admin see the count only. Decided by the
+  user 2026-11-07. The buyer's product grids (Explore, Search, Liked)
   have no farmer line (`ExploreProductCard.showFarmer` is off by default).
   Tapping the "Welcome to AgriTrade+!" notification shows
   `showWelcomeDialog` (greets by first name), then Help & Support.
@@ -268,7 +396,7 @@ test/         widget + unit tests (one file per feature)
   Selling Option in Add Product, no slaughtered price in Price Management;
   a livestock listing saves `sellingOption: 'live'` and shows no suffix.
   Records saved as `slaughtered` before then still read so
-  (`isSlaughtered`, "… (Slaughtered)") and stay out of live prices and
+  (`isSlaughtered`, "â¦ (Slaughtered)") and stay out of live prices and
   price suggestions.
 $1- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
   Vegetables, Spices, Fruits, Livestock (`kBuiltInCategories`, listed in
@@ -277,6 +405,17 @@ $1- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
   Vegetables then counts under its commodity's category again
   (`listingCategory`), and so do the built-in root crops and spices
   that Price Management saved as Vegetables then (`applyAdminRecords`).
+- **A commodity the Admin takes off** (decided by the user, 2026-11-07):
+  archiving it (onCommodityArchiveChanged) or removing it in Price
+  Management (deleting its market_prices record, onCommodityRemoved) hides
+  its listings (`isSuspended`, `moderationStatus: commodity_archived`;
+  found by `commodity` or, for older listings, by `name`) and notifies only
+  the farmers who sell it (`commodityNotice`); restoring it, or adding it
+  back (onCommodityAdded), brings them back. On the Farmer's Profile such a
+  listing is with the archived ones, marked UNAVAILABLE (HIDDEN if
+  moderated), with View Details only. Listings of commodities removed
+  before this: `node functions/backfill_removed_commodities.js` (lists;
+  `--apply` hides them and leaves each farmer the in-app notice).
 - Other collections: `products`, `market_prices` (+ `history` subcollection:
   Admin reference prices), `historical_demand` (Admin imports), `reports`,
   `violations`, `audit_logs`, `announcements`, `adminSessions`,
@@ -285,7 +424,7 @@ $1- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
 
 ## Admin Portal design system (web)
 
-All admin colours, shapes and sizes come from a few shared places — change
+All admin colours, shapes and sizes come from a few shared places â change
 those, not individual screens:
 
 - `AdminPalette` (`admin_dashboard_screen.dart`): `light` and `dark`
@@ -303,11 +442,14 @@ those, not individual screens:
   Forgot Password forms are in Inter too (`AdminAuthShell._forms`): outside
   the portal theme the web default is Google Fonts Montserrat in its regular
   file only, where bold cannot be drawn.
-- `AdminRadii`: `card` 10 (cards, tables; `kAdminTableRadius` 10), `control`
-  10 (buttons, form inputs, search, dropdowns, date/year pickers: all
-  `kAdminFieldRadius`), `pill` (chips, badges only). The Admin login and
-  Forgot Password fields and buttons are the same rounded rectangles
-  (`GlowField(radius: AppTheme.adminFieldRadius)`). Header buttons (Announce, Dark Mode, bell): white
+- `AdminRadii`: `card` 16 (cards and tables, `kAdminTableRadius`; white
+  with a soft shadow, `adminCard()`; tables keep their outline for the
+  tabs), `control` 10 (buttons, dropdowns, date/year pickers, toggles:
+  `kAdminFieldRadius`), `pill` (chips, badges). Text fields and searches
+  are pills (`kAdminInputRadius`; 16 when several lines tall; a dropdown in
+  a form uses `adminDropdownBorder`). The Admin login and Forgot Password
+  fields are pills too (`GlowField(radius: AppTheme.pillRadius)`), their
+  buttons rounded rectangles. Header buttons (Announce, Dark Mode, bell): white
   rounded squares with a grey border (`adminHeaderButtonDecoration`).
 - `admin_filter_controls.dart`: `kAdminControlHeight` = 40,
   `AdminInputGlow` (the white rounded plate behind every search/dropdown/
@@ -340,10 +482,10 @@ those, not individual screens:
 Mobile forms (Log In, Forgot Password, Choose Role, registration, the Google
 profile form, Edit Profile, Change Password, and any new form) share one
 system in `AppTheme`'s FORMS section; use it, not new sizes:
-`pageTitle` 24 → `pageDescription` 13.5 muted → `label()` 14 semibold →
-fields 14 (`formTextSize`, `formHint`) → `primaryButton()` (dark green,
-white 14 semibold, `formButtonHeight` 50) → `secondaryButton()` (white,
-grey outline) → `formLink` (dark green, quieter). Fields are 48 tall
+`pageTitle` 24 â `pageDescription` 13.5 muted â `label()` 14 semibold â
+fields 14 (`formTextSize`, `formHint`) â `primaryButton()` (dark green,
+white 14 semibold, `formButtonHeight` 50) â `secondaryButton()` (white,
+grey outline) â `formLink` (dark green, quieter). Fields are 48 tall
 (`formFieldHeight`): `GlowField` / `AgriFormField`, or
 `formFieldDecoration` for a TextField that needs InputDecoration (same look:
 icon, thin line, text, grey outline), `formDropdownDecoration` for dropdowns.
@@ -358,7 +500,7 @@ Spacing: `formPageMargin` 24, `formLabelGap` 8, `formFieldGap` 16,
 `formSectionGap` 24. Account screens have the compact header
 (`AgriAppBar(titleWidget: AgriTradeHeaderBrand())`, no big logo in the body);
 registration shows `RegisteringAsBadge` instead of a role toggle.
-Registration is three steps (Choose Role → Your Information → Account
+Registration is three steps (Choose Role â Your Information â Account
 Setup): under the header, `RegistrationStepIndicator` (numbered circles
 joined by lines, each step's name under it at 11, the active one bold
 green; done steps a tick; not tappable), then the page title, a one-line
@@ -375,7 +517,34 @@ plus `StepContentEntrance` on the content; inside RegisterScreen,
 `test/registration_transition_test.dart` checks it.
 `test/form_design_test.dart` checks the heights and alignment.
 
-Mobile dark mode (Settings → Dark Mode) comes from `AppColors`' dark values
+**One design for the whole mobile app, buyer and farmer (the user, 2026-11-08):**
+the page is Explore's cream (`AppColors.page`, #FEF7EE, through the
+theme's scaffold colour); cards, fields, sheets and dialogs stay white
+(`AppColors.surface`). The sign-in screens and the splash keep their white
+(`AppColors.authPage`: Log In, registration, Choose Role, Forgot Password,
+the Google profile form, email verification, waiting for approval, role
+selection, the loading and no-internet screens). `AgriAppBar` takes the
+colour of its Scaffold, so inner screens' bars are cream and the sign-in
+ones white. Tab titles (`PageTitle` and the tabs' own) are 23.5 extra
+bold dark green; secondary titles stay `AgriAppBar's`. Shared look: search
+bars and filter pills from explore_search_pill.dart (also Notifications'
+filters and Messages search), `AgriEmptyState` (24 icon on a pale green
+circle, 13.5 title, 11.5 line), `showAgriPopupMenu` (14 corners, 18 icons,
+12.5 labels), stars gold (#F5BB24, `ReviewStars`), `LogOutButton` 13 with
+an 18 icon. Notifications: compact white cards 8 apart under Today /
+Yesterday / the date (12.5), the icon dark green on a pale green circle
+(34), title 13.5, text 11.5, time 10.5, a 16 chevron only when it opens
+something, unread a 6 gold dot and a stronger title; Mark All as Read a
+small icon and 11.5 text. Buyer Reviews: a summary
+card and a white card per review. Order Details (every status, one set of
+sections): cream page, section titles dark green 11, lines 11.5/12, photo
+56. Buyer Profile: the options in three white cards (`ProfileMenuGroup`).
+Photos: `ProfileAvatar` and the product cards use `cached_network_image`
+(disk cache, decoded at the size shown, a plain pale circle or block while
+loading, initials only with no photo); a widget test that shows a photo
+URL needs path_provider mocked.
+
+Mobile dark mode (Settings â Dark Mode) comes from `AppColors`' dark values
 (2026-11-04 polish): page charcoal `#101214`, cards/panels/fields
 `#1B1E20`, borders `#303437`, text `#F2F3F2`, secondary `#A7ADAA`; the
 brand stays green (`brand` soft green `#8CCB96` for text/icons, `brandFill`
@@ -384,6 +553,17 @@ brand stays green (`brand` soft green `#8CCB96` for text/icons, `brandFill`
 Messages use muted red/amber/green in dark. Use the tokens, never fixed
 colours, so both modes stay right.
 
+**Buttons and cards (the user's design, 2026-11-07, for the app, the Admin
+Portal and the download page):** buttons are rounded rectangles, never
+pills (`AppTheme.buttonShape`, 12; `compactButtonShape`, 8, for 36 high or
+less; the Admin's 40-high buttons 10; the page's `--btn-radius` 12); the
+secondary button is white with a grey outline (`grey(600)`). Cards are
+white, 16, a soft shadow and no outline (`AppTheme.card()`, `adminCard()`,
+the page's `--radius`; a thin border in dark mode). Text fields, search
+bars, chips, badges, filters and toggles stay pills. Two exceptions: "Continue with
+Google" on Log In (the user's choice, 2026-11-07) and the small See all on
+a farmer's public profile (2026-11-08) are pills.
+
 Mobile app: text fields are pills (`PillInputBorder`), but anything that opens
 a dropdown list is a **rounded rectangle** (`AppTheme.dropdownRadius`,
 `compactDropdownRadius`, `dropdownDecoration`). An open dropdown list is
@@ -391,11 +571,39 @@ only as wide as its longest option, not the whole field (decided by the
 user 2026-11-06): use `FittedDropdownField` for a form dropdown, or
 `menuWidth: fittedMenuWidth(...)` on a `DropdownButton`
 (`fitted_menu_width.dart`; `DropdownButtonFormField` cannot set it). Headers are rectangular bars
-(`PageHeader` on the tabs, `AgriAppBar` on inner screens). Settings: the
-**farmer** has the bottom sheet (`showSettingsSheet`) from the gear beside the
-bell; the **buyer** has no gear (2026-11-04) — the same options are rows on
+(`PageHeader` on the tabs, `AgriAppBar` on inner screens). The tabs' band
+is the bottom bar's dark green for both roles (the user's design,
+2026-11-08), its lower edge wavy (down near the left, up at a third, down at three
+quarters, up at the right) over a gold stripe under the right-hand wave
+(`HeaderWavePainter`, points measured from the user's picture; the row 40,
+the bell keeping its 48 tap area, the wave 18 more; green #043C1E): the
+logo straight on the green, "AgriTrade" white with a gold "+"
+(`AgriTradeText(plusColor:)`), white icons, the status bar strip the same
+green with light icons, and the bell's unread mark a gold dot with no count
+(`NotificationBellButton`). The inner screens' `AgriAppBar` stays white. (A
+green gradient was tried on 2026-11-07 and reverted.) Settings: the
+**farmer** opens a full page (`FarmerSettingsScreen`, 2026-11-07) from a
+small gear beside the Profile title; no tab header has a gear any more.
+Its groups: ACCOUNT & SECURITY (Manage Account = `ManageAccountScreen(part:
+account)`, Privacy & Security = `part: security`), PREFERENCES (Notification
+Settings, Dark Mode switch), SUPPORT & INFORMATION (Send Feedback, Help &
+Support, About AgriTrade+ = `AboutScreen`: purpose, installed version, the
+AgriTrade+ team and support email, download page, policies), Share
+AgriTrade+, then `LogOutButton` (white with a grey outline, not red, the
+user's choice 2026-11-08; the confirmation's Log Out stays red); a chevron
+only on rows that open a screen.
+The bottom bar is a floating dark green pill (`DockedNavBar.color`, fully
+round ends, a plain dark shadow; floating again after a day as a full-width
+bar, 2026-11-08) with a thin lighter green rim (`rimColor`); the selected
+tab sits on a gold pill in dark green (no gold glow under it), the others
+white (the user's picture)
+(`selectedColor`, also the farmer's +); the user's design, 2026-11-08. It is 54 high, 21 in from the sides, as in the user's picture of
+2026-11-08 (it had been 48; the farmer's + 40), the gold pill about 79 x 41,
+icons 19, labels 9.5. The buyer's slides away on a scroll down
+and back on a scroll up (`FiltersOnScroll(showAfterUp: 24)`); the
+farmer's always stays. The **buyer** has no gear (2026-11-04) â the same options are rows on
 the Buyer Profile: My Activity (My Reviews, Liked Products, Purchase History
-= Orders → Completed), Preferences & Account (Delivery & Pick-up, Manage
+= Orders â Completed), Preferences & Account (Delivery & Pick-up, Manage
 Account, Notification Settings, Appearance = Dark Mode), Support & More
 (Share, Feedback, Help), then `LogOutButton`. Both reuse the same screens
 (`shareAgriTrade`, `showFeedbackSheet`, `AppearanceScreen`). Registration
@@ -411,9 +619,9 @@ set with the user on 2026-11-05.
 User preferences for the admin UI (keep them): neutral black/white/grey,
 **dark green only for buttons/active/selected** (plus the pale green icon boxes of the 2026-11-04 mock-up), no other pale-green
 surfaces,
-rounded-rectangle text fields, search, dropdowns and date pickers (10px,
-`kAdminFieldRadius`, like the Admin login's fields: icon, thin line, text;
-changed from pills by the user on 2026-11-04), square checkboxes (4px radius),
+pill text fields and searches (icon, thin line, text; back to pills on
+2026-11-07, from the user's design), rounded-rectangle dropdowns, date
+pickers and buttons (10px, `kAdminFieldRadius`), square checkboxes (4px radius),
 standalone info icons (no box), every control in a toolbar the same height.
 
 ## Analytics Dashboard specifics
@@ -424,13 +632,13 @@ standalone info icons (no box), every control in a toolbar the same height.
   "No data to display" states, error + Retry (`DashboardDataService.ordersError`).
 - **Years start at the first completed order** (no fixed 2025): used by
   Market Demand and Price Trend (`PriceTrendService.yearsOnRecord`). One year
-  on record → one bar/line per month; comparison appears with two years.
+  on record â one bar/line per month; comparison appears with two years.
 - **Market Change Analysis** (`admin_market_trends_card.dart`): Price Trend
   (listings, completed sales, Admin reference prices, imports) + Last 30 Days
   (demand, local supply, market price, possible factors). The **Import
   Historical Data button is hidden** (`_importEnabled = false`); imports older
   than the first completed order are ignored.
-- **Export Report** (`export_options_dialog.dart` → `ReportExportService` →
+- **Export Report** (`export_options_dialog.dart` â `ReportExportService` â
   `PdfReportService`/Excel): paper size A4 / Short / Long
   (`ReportPaper`). Choices on the left (sections in two columns; a short
   window scrolls them, nothing is shrunk), and from 900px wide a live
@@ -458,11 +666,28 @@ The welcome picture shows the two half body (the hill at their waists,
 decoded during the splash (`precacheArt`): add a new one there, or its page's
 entrance plays before it appears on a first open.
 
+**First-time tips** (decided by the user, 2026-11-07; `coach_mark.dart`):
+on entering the app the notification question (and the phone's Allow)
+comes first, then the home tour. Each screen has its own short tour the
+first time it opens, only for what a newcomer would not find alone (no
+bell, profile, search or Order Now): buyer home = area filter + Orders
+tab; farmer home = + and Orders tab; Orders (`OrdersView.active`, both
+roles) = Inventory (farmer) + period filter; Product Details = farm map
+(if in view) + Message (not on the farmer's own listing); Chat = + and
+hold/slide on a message. Market keeps its scroll hints, Orders its swipe
+tutorial. `showCoachMarksOnce` shows one tour at a time, only the steps
+whose button is wholly on screen (none: tried again next time), and
+waits while a popup is in front. Every hint card has **Skip**, which turns
+all tips off (`TutorialTips.skipAll`, `tips_off`); Help & Support â Tips â
+"Show tips again" (`TutorialTips.showAgain`) brings them all back. A tour
+remembers it was seen as `tour_seen_<screen>` (home: `walkthrough_seen_`,
+which logging in to an existing account sets, so only new accounts get it).
+
 ## Loading & splash
 
 - Splash (web, mobile, admin): `BrandedLoadingScreen` + `SproutLoadingBar`
-  — logo, name, a pale green bar filling dark green with a small sprout at
-  the end of the fill, and "Loading AgriTrade+…" (no percentage). 3 seconds;
+  â logo, name, a pale green bar filling dark green with a small sprout at
+  the end of the fill, and "Loading AgriTrade+â¦" (no percentage). 3 seconds;
   the app waits for it (`SproutLoadingBar.untilFilled`). On the web,
   `web/index.html` shows an HTML/CSS copy of it while Flutter downloads
   (same sizes, colours and sprout, matched to the pixel). That bar never
@@ -479,14 +704,24 @@ entrance plays before it appears on a first open.
   surrounding density. Doc comments (`///`) on public widgets/functions.
 - Never show fabricated or sample data in the product; empty states say so.
 - System messages (SnackBars, mobile and Admin Portal) are coloured by what
-  they say: `showAppMessage(context, text, kind: …)` or
-  `appSnackBar(text, kind: …)` (`app_scaffold_messenger.dart`), never a plain
+  they say: `showAppMessage(context, text, kind: â¦)` or
+  `appSnackBar(text, kind: â¦)` (`app_scaffold_messenger.dart`), never a plain
   `SnackBar`. `MessageKind.error` red (failed, refused, a field to fix),
   `success` dark green (done, saved, sent), `warning` amber (out of stock, no
   longer available, turn on location), `info` blue-grey (a heads-up). An
   `err ?? 'Done.'` result picks its kind from `err`.
 - Add or update a test with each behaviour change (see `test/` for style:
-  named after what the user sees).
+  named after what the user sees). Screens that read Firestore or Auth can be
+  tested whole: services reach Firebase through `FirebaseRefs`
+  (`lib/services/firebase_refs.dart`), and a test puts in
+  `FakeFirebaseFirestore` and `MockFirebaseAuth` with
+  `FirebaseRefs.useForTests` (see `orders_view_test.dart`,
+  `login_form_test.dart`). Use `FirebaseRefs.firestore` / `.auth` in new
+  service code, not `FirebaseFirestore.instance`.
+- `test/design_consistency_test.dart` reads the whole mobile source: no
+  pill buttons (only "Continue with Google"), no text under 9.5 (body text
+  11 and up; badges 10–10.5; the bottom bar's labels 10.5), white cards
+  at `AppTheme.cardRadius`. Change it together with a rule.
 - For visual checks, a throwaway golden test with real fonts works:
   load `assets/fonts/Montserrat-*.ttf` with `FontLoader`, set
   `GoogleFonts.config.allowRuntimeFetching = false`, render with

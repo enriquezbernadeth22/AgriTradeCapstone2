@@ -12,6 +12,8 @@ import 'farmer_edit_profile_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'sign_in_activity_screen.dart';
 import 'terms_and_conditions_screen.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/app_language.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 
@@ -22,13 +24,25 @@ import '../theme/app_colors.dart';
 ///
 /// Notification Settings, Help & Support and Log Out are not here: they
 /// are in the Settings sheet already.
+/// Which part of the screen to show: all of it (the Buyer's Manage
+/// Account), or one part of it, for the Farmer's Settings page, where
+/// Manage Account and Privacy & Security are rows of their own and the
+/// legal pages are under About AgriTrade+.
+enum ManageAccountPart { all, account, security }
+
 class ManageAccountScreen extends StatelessWidget {
+  final ManageAccountPart part;
+
   /// Whether the recovery email is verified (null: none added — the login
   /// email does not count as one). Defaults to
   /// the signed-in account's own profile; tests pass their own.
   final Stream<bool?>? recoveryEmailVerified;
 
-  const ManageAccountScreen({super.key, this.recoveryEmailVerified});
+  const ManageAccountScreen({
+    super.key,
+    this.recoveryEmailVerified,
+    this.part = ManageAccountPart.all,
+  });
 
   static Stream<bool?> _recoveryStatus() {
     final user = FirebaseAuth.instance.currentUser;
@@ -61,82 +75,100 @@ class ManageAccountScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.page,
-      appBar: AgriAppBar(title: t.manageAccount),
+      appBar: AgriAppBar(
+        title: part == ManageAccountPart.security
+            ? tl('Privacy & Security')
+            : t.manageAccount,
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.only(bottom: 16),
           children: [
-            _SectionLabel(t.sectionAccount),
-            _SettingsRow(
-              icon: Icons.person_outline,
-              title: t.personalInformation,
-              subtitle: t.personalInformationHint,
-              onTap: () => open(const EditProfileScreen()),
-            ),
-            const _SectionDivider(),
-            _SectionLabel(t.sectionSecurity),
-            _SettingsRow(
-              icon: Icons.lock_outline,
-              title: t.changePassword,
-              subtitle: t.changePasswordHint,
-              onTap: () => showChangePasswordDialog(context),
-            ),
-            StreamBuilder<bool?>(
-              stream: recoveryEmailVerified ?? _recoveryStatus(),
-              builder: (context, snapshot) => _SettingsRow(
-                icon: Icons.alternate_email_rounded,
-                title: t.recoveryEmail,
-                subtitle: t.recoveryEmailHint,
-                // Verified / Not verified, beside the title.
-                badge: snapshot.data == null
-                    ? null
-                    : RecoveryEmailStatusChip(verified: snapshot.data!),
+            if (part != ManageAccountPart.security) ...[
+              _SectionLabel(t.sectionAccount),
+              _SettingsRow(
+                icon: Icons.person_outline,
+                title: t.personalInformation,
+                subtitle: t.personalInformationHint,
                 onTap: () => open(const EditProfileScreen()),
               ),
-            ),
-            _SettingsRow(
-              icon: Icons.devices_other_outlined,
-              title: t.devicesActivity,
-              subtitle: t.devicesActivityHint,
-              onTap: () => open(const SignInActivityScreen()),
-            ),
-            const _SectionDivider(),
-            _SectionLabel(t.sectionAbout),
-            _SettingsRow(
-              icon: Icons.privacy_tip_outlined,
-              title: t.privacyPolicy,
-              subtitle: t.privacyPolicyHint,
-              onTap: () => open(const PrivacyPolicyScreen()),
-            ),
-            _SettingsRow(
-              icon: Icons.description_outlined,
-              title: t.termsConditions,
-              subtitle: t.termsConditionsHint,
-              onTap: () => open(const TermsAndConditionsScreen()),
-            ),
-            const SizedBox(height: 24),
-            // The real version from the installed build; nothing is shown
-            // until (or unless) it can be read.
-            FutureBuilder<PackageInfo>(
-              future: _packageInfo,
-              builder: (context, snapshot) {
-                final version = snapshot.data?.version ?? '';
-                if (version.isEmpty) return const SizedBox(height: 15);
-                return Text(
-                  t.appVersion(version),
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 11.5,
-                    color: AppColors.grey(500),
-                  ),
-                );
-              },
-            ),
+              // The recovery email is part of the profile (Edit Profile); on
+              // the Farmer's Manage Account it stays with the account.
+              if (part == ManageAccountPart.account) _recoveryEmailRow(t, open),
+            ],
+            if (part == ManageAccountPart.all) const _SectionDivider(),
+            if (part != ManageAccountPart.account) ...[
+              _SectionLabel(t.sectionSecurity),
+              _SettingsRow(
+                icon: Icons.lock_outline,
+                title: t.changePassword,
+                subtitle: t.changePasswordHint,
+                onTap: () => showChangePasswordDialog(context),
+              ),
+              if (part == ManageAccountPart.all) _recoveryEmailRow(t, open),
+              _SettingsRow(
+                icon: Icons.devices_other_outlined,
+                title: t.devicesActivity,
+                subtitle: t.devicesActivityHint,
+                onTap: () => open(const SignInActivityScreen()),
+              ),
+            ],
+            if (part == ManageAccountPart.all) ...[
+              const _SectionDivider(),
+              _SectionLabel(t.sectionAbout),
+              _SettingsRow(
+                icon: Icons.privacy_tip_outlined,
+                title: t.privacyPolicy,
+                subtitle: t.privacyPolicyHint,
+                onTap: () => open(const PrivacyPolicyScreen()),
+              ),
+              _SettingsRow(
+                icon: Icons.description_outlined,
+                title: t.termsConditions,
+                subtitle: t.termsConditionsHint,
+                onTap: () => open(const TermsAndConditionsScreen()),
+              ),
+              const SizedBox(height: 24),
+              _version(t),
+            ],
           ],
         ),
       ),
     );
   }
+
+  Widget _recoveryEmailRow(AppLocalizations t, void Function(Widget) open) =>
+      StreamBuilder<bool?>(
+        stream: recoveryEmailVerified ?? _recoveryStatus(),
+        builder: (context, snapshot) => _SettingsRow(
+          icon: Icons.alternate_email_rounded,
+          title: t.recoveryEmail,
+          subtitle: t.recoveryEmailHint,
+          // Verified / Not verified, beside the title.
+          badge: snapshot.data == null
+              ? null
+              : RecoveryEmailStatusChip(verified: snapshot.data!),
+          onTap: () => open(const EditProfileScreen()),
+        ),
+      );
+
+  // The real version from the installed build; nothing is shown until (or
+  // unless) it can be read.
+  Widget _version(AppLocalizations t) => FutureBuilder<PackageInfo>(
+    future: _packageInfo,
+    builder: (context, snapshot) {
+      final version = snapshot.data?.version ?? '';
+      if (version.isEmpty) return const SizedBox(height: 15);
+      return Text(
+        t.appVersion(version),
+        textAlign: TextAlign.center,
+        style: GoogleFonts.montserrat(
+          fontSize: 11.5,
+          color: AppColors.grey(500),
+        ),
+      );
+    },
+  );
 }
 
 /// A small grey heading over a group of rows.

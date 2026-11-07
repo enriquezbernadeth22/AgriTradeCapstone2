@@ -1025,7 +1025,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         _handleBack();
       },
       child: Scaffold(
-        backgroundColor: AppColors.page,
+        backgroundColor: AppColors.authPage,
         // The compact header: Back, and the small logo and name Ã¢â‚¬â€ the only
         // logo on the page, quieter than its title.
         appBar: AgriAppBar(

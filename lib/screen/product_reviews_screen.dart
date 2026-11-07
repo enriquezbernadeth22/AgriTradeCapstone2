@@ -2,12 +2,13 @@ import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/reviewer_avatar.dart';
+import '../widgets/review_like_button.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/agri_dialog.dart';
-import '../widgets/profile_avatar.dart';
 import '../widgets/agri_empty_state.dart';
 import '../widgets/chat_photo_viewer.dart' show openPhotoGallery;
 import '../theme/app_colors.dart';
@@ -60,7 +61,10 @@ class ReviewStars extends StatelessWidget {
               ? Icons.star_half_rounded
               : Icons.star_border_rounded,
           size: size,
-          color: rating >= index + 0.5 ? Colors.amber : AppColors.grey(400),
+          // The app's gold (2026-11-08).
+          color: rating >= index + 0.5
+              ? const Color(0xFFF5BB24)
+              : AppColors.grey(400),
         ),
       ),
     );
@@ -246,9 +250,8 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Initials only — a review shows the buyer's name, not their
-            // profile.
-            ProfileAvatar(photoUrl: null, name: reviewer, radius: 19),
+            // The reviewer's photo (initials without one).
+            ReviewerAvatar(buyerId: reviewerId, name: reviewer, radius: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -258,9 +261,10 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                     reviewer,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: TextStyle(
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
+                      color: AppColors.brand,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -268,12 +272,12 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 8,
                     children: [
-                      ReviewStars(rating: rating, size: 15),
+                      ReviewStars(rating: rating, size: 13),
                       if (created != null)
                         Text(
                           DateFormat('MMM d, y').format(created),
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: AppColors.grey(700),
                           ),
                         ),
@@ -282,6 +286,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                 ],
               ),
             ),
+            ReviewLikeButton(reviewId: doc.id, review: review),
             if (canReport)
               IconButton(
                 tooltip: tl('Report review'),
@@ -304,7 +309,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: AppColors.grey(700),
             ),
@@ -316,12 +321,12 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.verified_outlined, size: 14, color: AppColors.brand),
+              Icon(Icons.verified_outlined, size: 13, color: AppColors.brand),
               SizedBox(width: 4),
               Text(
                 tl('Verified Purchase'),
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppColors.brand,
                 ),
@@ -333,7 +338,11 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           const SizedBox(height: 8),
           Text(
             text,
-            style: TextStyle(color: AppColors.text, fontSize: 14, height: 1.5),
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 12.5,
+              height: 1.5,
+            ),
           ),
         ],
         if (photos.isNotEmpty) ...[const SizedBox(height: 10), _photos(photos)],
@@ -341,9 +350,11 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              color: AppColors.tint,
+              color: AppColors.isDark
+                  ? AppColors.tint
+                  : const Color(0xFFEAF2E4),
               border: AppColors.cardBorder,
               borderRadius: BorderRadius.circular(12),
             ),
@@ -353,7 +364,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                 Text(
                   tl('Reply from the farmer'),
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: AppColors.brand,
                   ),
@@ -362,7 +373,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                 Text(
                   reply,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 12.5,
                     height: 1.45,
                     color: AppColors.text,
                   ),
@@ -413,55 +424,68 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           }
           final average = averageReviewRating(docs);
 
+          // A summary card, then each review on a white card of its own on
+          // the cream (the user's design, 2026-11-08).
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             itemCount: docs.length + 1,
-            separatorBuilder: (_, _) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Divider(
-                height: 1,
-                thickness: 1,
-                color: AppColors.grey(200),
-              ),
-            ),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              if (index > 0) return _review(docs[index - 1]);
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.productName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      color: AppColors.grey(700),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        average.toStringAsFixed(1),
-                        style: AppTheme.heading(30).copyWith(height: 1),
+              if (index > 0) {
+                return Container(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 8, 14),
+                  decoration: AppTheme.card(),
+                  child: _review(docs[index - 1]),
+                );
+              }
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: AppTheme.card(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.productName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brand,
                       ),
-                      const SizedBox(width: 10),
-                      ReviewStars(rating: average, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          docs.length == 1
-                              ? '(1 review)'
-                              : tl('({0} reviews)', [docs.length]),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          average.toStringAsFixed(1),
                           style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.grey(700),
+                            fontFamily: 'Montserrat',
+                            fontSize: 22,
+                            height: 1,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.brand,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 8),
+                        ReviewStars(rating: average, size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            docs.length == 1
+                                ? '(1 review)'
+                                : tl('({0} reviews)', [docs.length]),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.grey(700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               );
             },
           );

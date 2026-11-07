@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'connectivity_service.dart';
+import 'firebase_refs.dart';
 
 class ProductService {
   static const String archiveBlockedByOrdersMessage =
@@ -11,7 +11,7 @@ class ProductService {
   static const String archivedReadOnlyMessage =
       'Restore this product before making changes.';
 
-  final _products = FirebaseFirestore.instance.collection('products');
+  final _products = FirebaseRefs.firestore.collection('products');
 
   // Archived products are read-only: returns [archivedReadOnlyMessage] if
   // [id] is archived, or null if it can be changed. A failed read is left
@@ -68,7 +68,7 @@ class ProductService {
     if (offlineError != null) return offlineError;
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseRefs.auth.currentUser;
       if (user == null) return 'You are not logged in.';
       await _products.add({
         'farmerId': user.uid,
@@ -226,12 +226,12 @@ class ProductService {
     if (offlineError != null) return offlineError;
 
     try {
-      final farmerId = FirebaseAuth.instance.currentUser?.uid;
+      final farmerId = FirebaseRefs.auth.currentUser?.uid;
       if (farmerId == null || farmerId.isEmpty) {
         return 'Please log in again before archiving this product.';
       }
 
-      final orders = await FirebaseFirestore.instance
+      final orders = await FirebaseRefs.firestore
           .collection('orders')
           .where('sellerId', isEqualTo: farmerId)
           .get(const GetOptions(source: Source.server));
@@ -292,7 +292,7 @@ class ProductService {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> myProductsStream() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
     return _products.where('farmerId', isEqualTo: user?.uid).snapshots();
   }
 

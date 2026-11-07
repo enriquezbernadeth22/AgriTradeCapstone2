@@ -812,6 +812,16 @@ service cloud.firestore {
         request.resource.data.sellerReply is string &&
         request.resource.data.sellerReply.size() > 0 &&
         request.resource.data.sellerReply.size() <= 500;
+      // Another buyer likes the review, or takes the like back: only their
+      // own key in likes, set to true or removed; never on their own review.
+      allow update: if isBuyer() &&
+        resource.data.buyerId != request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
+        request.resource.data.likes is map &&
+        request.resource.data.likes.diff(resource.data.get('likes', {}))
+          .affectedKeys().hasOnly([request.auth.uid]) &&
+        (!(request.auth.uid in request.resource.data.likes) ||
+          request.resource.data.likes[request.auth.uid] == true);
       allow update: if isAdmin() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'moderationStatus', 'moderatedBy', 'moderatedAt'

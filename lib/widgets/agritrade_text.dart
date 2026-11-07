@@ -11,13 +11,34 @@ import '../theme/app_theme.dart';
 class AgriTradeText extends StatelessWidget {
   final double fontSize;
   final bool light;
-  const AgriTradeText({super.key, this.fontSize = 28, this.light = false});
+
+  /// A colour of its own for the "+" (the gold on the tabs' dark green
+  /// header); otherwise it is the name's colour.
+  final Color? plusColor;
+
+  const AgriTradeText({
+    super.key,
+    this.fontSize = 28,
+    this.light = false,
+    this.plusColor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      'AgriTrade+',
-      style: AppTheme.brandText(fontSize: fontSize, light: light),
+    final style = AppTheme.brandText(fontSize: fontSize, light: light);
+    if (plusColor == null) return Text('AgriTrade+', style: style);
+    return Text.rich(
+      TextSpan(
+        text: 'AgriTrade',
+        children: [
+          TextSpan(
+            text: '+',
+            style: TextStyle(color: plusColor),
+          ),
+        ],
+      ),
+      style: style,
+      semanticsLabel: 'AgriTrade+',
     );
   }
 }

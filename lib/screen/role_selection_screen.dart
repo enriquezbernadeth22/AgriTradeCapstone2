@@ -28,7 +28,7 @@ class RoleSelectionScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.authPage,
       body: Stack(
         children: [
           // ---- Hero: same branded header as LoginScreen — this is the ----

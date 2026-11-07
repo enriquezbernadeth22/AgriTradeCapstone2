@@ -12,6 +12,8 @@ import '../services/product_service.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/market_average_card.dart';
 import '../widgets/market_card_shell.dart';
+import '../services/market_demand_service.dart';
+import '../widgets/collapsible_section.dart';
 import '../widgets/market_demand_cards.dart';
 import '../widgets/market_tab_guide.dart';
 import '../widgets/month_year_picker.dart';
@@ -23,7 +25,6 @@ import 'add_product_screen.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
-import '../widgets/fitted_menu_width.dart';
 import '../l10n/app_language.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
@@ -88,18 +89,25 @@ int confirmedTodayCount(
   }).length;
 }
 
-/// What the Market tab's "View AgriTrade+ insights" dropdown can show.
+/// What the Market tab's AgriTrade+ Insights can show: [label] is the
+/// card's full name, [segment] the short name on the picker. In the
+/// picker's order, Market Average in the middle (the user's choice).
 enum MarketInsight {
-  marketAverage('Current Market Average'),
-  bestSellers('Best-Selling Products'),
-  buyerLocations('Top Buyer Locations');
+  bestSellers('Best-Selling Products', 'Best Sellers'),
+  marketAverage('Current Market Average', 'Market Average'),
+  buyerLocations('Top Buyer Locations', 'Buyer Areas');
 
   final String label;
-  const MarketInsight(this.label);
+  final String segment;
+  const MarketInsight(this.label, this.segment);
 }
 
-/// The Market insight selector, with a menu sized to its longest option.
-class MarketInsightPicker extends StatefulWidget {
+/// The Market insight picker: the three side by side in one rounded track,
+/// the chosen one filled dark green (the user's design, 2026-11-07, in place
+/// of a dropdown). Each is as wide as its name, and all three are always
+/// the same size: 12 when they fit, a little smaller together on a narrow
+/// phone. The font is the app's own Montserrat, like the rest of the tab.
+class MarketInsightPicker extends StatelessWidget {
   final MarketInsight value;
   final ValueChanged<MarketInsight> onChanged;
 
@@ -109,89 +117,132 @@ class MarketInsightPicker extends StatefulWidget {
     required this.onChanged,
   });
 
-  @override
-  State<MarketInsightPicker> createState() => _MarketInsightPickerState();
-}
+  static const double height = 42;
+  static const double fontSize = 12;
+  static const double _minFontSize = 10;
+  // Inside the track (4 each side, and its 1px border) and inside each part.
+  static const double _trackInset = 10;
+  static const double _segmentPadding = 14;
 
-class _MarketInsightPickerState extends State<MarketInsightPicker> {
-  late final FocusNode _focusNode = FocusNode()..addListener(_focusChanged);
-
-  void _focusChanged() {
-    if (mounted) setState(() {});
-  }
-
-  // As wide as the longest insight, not the whole row (fittedMenuWidth).
-  double _menuWidth(BuildContext context) => fittedMenuWidth(context, [
-    for (final insight in MarketInsight.values) tl(insight.label),
-  ], style: _style);
-
-  TextStyle get _style => TextStyle(
-    fontFamily: 'Montserrat',
-    fontSize: 14,
+  static TextStyle textStyle({
+    required bool selected,
+    double size = fontSize,
+  }) => GoogleFonts.montserrat(
+    fontSize: size,
     fontWeight: FontWeight.w600,
-    color: AppColors.text,
+    // Measured and drawn the same: no spacing added by the theme.
+    letterSpacing: 0,
+    color: selected ? Colors.white : AppColors.text,
   );
 
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_focusChanged)
-      ..dispose();
-    super.dispose();
+  static double _widthOf(BuildContext context, String text) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: textStyle(selected: false)),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<MarketInsight>(
+    final labels = [
+      for (final insight in MarketInsight.values) tl(insight.segment),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final widths = [for (final label in labels) _widthOf(context, label)];
+        final text = widths.fold<double>(0, (total, w) => total + w);
+        final room =
+            constraints.maxWidth -
+            _trackInset -
+            _segmentPadding * labels.length;
+        // One size for all three.
+        final size = text <= room
+            ? fontSize
+            : (fontSize * room / text).clamp(_minFontSize, fontSize);
+        return Container(
           key: const Key('marketInsightPicker'),
-          value: widget.value,
-          focusNode: _focusNode,
-          isExpanded: true,
-          menuWidth: _menuWidth(context),
-          dropdownColor: AppColors.surface,
-          focusColor: AppColors.grey(200),
-          borderRadius: BorderRadius.circular(AppTheme.dropdownRadius),
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.grey(600),
-            size: 22,
+          height: height,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.adapt(const Color(0xFFF3F5F2)),
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            border: Border.all(color: AppColors.hairline),
           ),
-          selectedItemBuilder: (context) => [
-            for (final insight in MarketInsight.values)
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tl(insight.label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Montserrat',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
-                      ),
-                    ),
+          child: Row(
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                Expanded(
+                  // Its name at the shared size, plus its padding.
+                  flex: ((widths[i] * size / fontSize + _segmentPadding) * 10)
+                      .round()
+                      .clamp(1, 1 << 20),
+                  child: _Segment(
+                    label: labels[i],
+                    size: size,
+                    selected: MarketInsight.values[i] == value,
+                    onTap: () {
+                      final insight = MarketInsight.values[i];
+                      if (insight != value) onChanged(insight);
+                    },
                   ),
-                ],
-              ),
-          ],
-          style: TextStyle(
-            fontFamily: 'Montserrat',
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
+                ),
+            ],
           ),
-          items: [
-            for (final insight in MarketInsight.values)
-              DropdownMenuItem(value: insight, child: Text(tl(insight.label))),
-          ],
-          onChanged: (value) {
-            if (value != null) widget.onChanged(value);
-          },
+        );
+      },
+    );
+  }
+}
+
+class _Segment extends StatelessWidget {
+  final String label;
+  final double size;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Segment({
+    required this.label,
+    required this.size,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: Colors.transparent,
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: ShapeDecoration(
+              shape: const StadiumBorder(),
+              color: selected ? AppColors.brandFill : Colors.transparent,
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              style: MarketInsightPicker.textStyle(
+                selected: selected,
+                size: size,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -378,20 +429,7 @@ class _MarketTabState extends State<MarketTab> {
 
             return Container(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.adapt(const Color(0xFFE7EFE4)),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.card(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -447,7 +485,7 @@ class _MarketTabState extends State<MarketTab> {
                     Text(
                       periodLabel,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         color: AppColors.grey(600),
                       ),
                     ),
@@ -483,7 +521,7 @@ class _MarketTabState extends State<MarketTab> {
                                 getTitlesWidget: (value, meta) => Text(
                                   '₱${value >= 1000 ? '${(value / 1000).toStringAsFixed(0)}k' : value.toStringAsFixed(0)}',
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 10,
                                     color: AppColors.grey(600),
                                   ),
                                 ),
@@ -504,7 +542,7 @@ class _MarketTabState extends State<MarketTab> {
                                     child: Text(
                                       '${days[index].date.day}',
                                       style: TextStyle(
-                                        fontSize: 9,
+                                        fontSize: 10,
                                         color: AppColors.grey(600),
                                       ),
                                     ),
@@ -634,9 +672,7 @@ class _MarketTabState extends State<MarketTab> {
                   horizontal: 20,
                   vertical: 10,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
+                shape: AppTheme.buttonShape,
                 textStyle: GoogleFonts.montserrat(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -652,11 +688,7 @@ class _MarketTabState extends State<MarketTab> {
   Widget _salesCardMessage(String message) => Container(
     width: double.infinity,
     padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.adapt(const Color(0xFFE7EFE4))),
-    ),
+    decoration: AppTheme.card(),
     child: Text(
       tl(message),
       style: TextStyle(color: AppColors.grey(700), fontSize: 12),
@@ -666,18 +698,7 @@ class _MarketTabState extends State<MarketTab> {
   Widget _salesLoadingCard() => Container(
     width: double.infinity,
     padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.adapt(const Color(0xFFE7EFE4))),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 14,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
+    decoration: AppTheme.card(),
     child: const Row(
       children: [
         Expanded(child: _SalesHeading()),
@@ -833,46 +854,102 @@ class _MarketTabState extends State<MarketTab> {
   // Which AgriTrade+ insight is showing.
   MarketInsight _insight = MarketInsight.marketAverage;
 
-  // "AgriTrade+ Insights": a dropdown to choose what to see about the whole
-  // marketplace — the current market average, the best-selling products or
-  // the top buyer locations — and under it only the one chosen. The demand
-  // cards open on the Sales Performance month, with their own month picker.
+  // Best Sellers' and Buyer Areas' months, each chosen apart (picking one
+  // never moves the other); both follow the Sales Performance month when
+  // that changes.
+  DateTime? _insightMonthsFrom;
+  final Map<MarketDemandList, DateTime> _insightMonthsStore = {};
+  Map<MarketDemandList, DateTime> get _insightMonths {
+    final base = _analyticsMonth;
+    if (_insightMonthsFrom != base) {
+      _insightMonthsFrom = base;
+      for (final list in MarketDemandList.values) {
+        _insightMonthsStore[list] = base;
+      }
+    }
+    return _insightMonthsStore;
+  }
+
+  static MarketDemandList? _demandListOf(MarketInsight insight) =>
+      switch (insight) {
+        MarketInsight.bestSellers => MarketDemandList.bestSellers,
+        MarketInsight.buyerLocations => MarketDemandList.locations,
+        MarketInsight.marketAverage => null,
+      };
+
+  // The month at the top of AgriTrade+ Insights: the calendar goes from the
+  // first month with a completed sale on record to this month.
+  Future<void> _pickInsightMonth(MarketDemandList list) async {
+    final month = _insightMonths[list]!;
+    var sales = const <Map<String, dynamic>>[];
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('market_sales')
+          .get();
+      sales = [for (final doc in snapshot.docs) doc.data()];
+    } catch (_) {
+      // Offline: the calendar still opens, on this month.
+    }
+    if (!mounted) return;
+    final picked = await pickDemandMonth(
+      context,
+      selected: month,
+      months: MarketDemandService.monthsOnRecord(sales: sales, month: month),
+    );
+    if (picked != null && mounted) {
+      setState(() => _insightMonths[list] = picked);
+    }
+  }
+
+  // "AgriTrade+ Insights": its title with the month on the right (like
+  // Sales Performance; none for the market average, which is today's) and a
+  // chevron to collapse it to that heading (the user's choice, 2026-11-07);
+  // open, the picker under it, and under that only the one chosen.
   Widget _insightsSection() {
+    final list = _demandListOf(_insight);
     return KeyedSubtree(
       key: _hints.keys[1],
       child: MarketCardShell(
-        header: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(tl('AgriTrade+ Insights'), style: AppTheme.heading(17)),
-            const SizedBox(height: 8),
-            MarketInsightPicker(
-              value: _insight,
-              onChanged: (value) => setState(() => _insight = value),
-            ),
-          ],
-        ),
-        headerDivider: true,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          child: KeyedSubtree(
-            key: ValueKey(_insight),
-            child: switch (_insight) {
-              // What supported products are selling for right now.
-              MarketInsight.marketAverage => const MarketAverageCard(
-                embedded: true,
+        child: CollapsibleSection(
+          heading: _SectionHeading(
+            title: tl('AgriTrade+ Insights'),
+            subtitle: tl('Across the whole marketplace'),
+          ),
+          trailing: list == null
+              ? null
+              : MonthPickerPill(
+                  key: const Key('insightMonth'),
+                  month: _insightMonths[list]!,
+                  onTap: () => _pickInsightMonth(list),
+                ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              MarketInsightPicker(
+                value: _insight,
+                onChanged: (value) => setState(() => _insight = value),
               ),
-              MarketInsight.bestSellers => MarketDemandCards(
-                month: _analyticsMonth,
-                only: MarketDemandList.bestSellers,
-                embedded: true,
+              Divider(height: 16, thickness: 1, color: AppColors.grey(200)),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: KeyedSubtree(
+                  key: ValueKey(_insight),
+                  child: list == null
+                      // What supported products are selling for right now.
+                      ? const MarketAverageCard(embedded: true)
+                      : MarketDemandCards(
+                          month: _analyticsMonth,
+                          only: list,
+                          embedded: true,
+                          months: _insightMonths,
+                          onMonthChanged: (list, month) =>
+                              setState(() => _insightMonths[list] = month),
+                          monthTags: false,
+                        ),
+                ),
               ),
-              MarketInsight.buyerLocations => MarketDemandCards(
-                month: _analyticsMonth,
-                only: MarketDemandList.locations,
-                embedded: true,
-              ),
-            },
+            ],
           ),
         ),
       ),
@@ -1033,24 +1110,13 @@ class _MarketTabState extends State<MarketTab> {
   Widget _statCard(String label, String value, {VoidCallback? onTap}) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: AppColors.cardBorder,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
+          decoration: AppTheme.card(),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -1093,18 +1159,33 @@ class _SalesHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = tr(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionTitle(t.salesPerformance),
-        const SizedBox(height: 3),
-        Text(
-          t.completedOrderRevenue,
-          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-        ),
-      ],
+    return _SectionHeading(
+      title: t.salesPerformance,
+      subtitle: t.completedOrderRevenue,
     );
   }
+}
+
+/// A Market tab section's title with its one-line subtitle under it: the
+/// same for Sales Performance and AgriTrade+ Insights.
+class _SectionHeading extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionHeading({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _SectionTitle(title),
+      const SizedBox(height: 3),
+      Text(
+        subtitle,
+        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+      ),
+    ],
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

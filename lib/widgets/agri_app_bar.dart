@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'app_back_button.dart';
 import 'docked_nav_bar.dart';
-import 'page_header.dart';
 import '../theme/app_colors.dart';
 
 /// The header of every inner screen (anything opened on top of the main
@@ -64,7 +63,9 @@ class AgriAppBar extends StatefulWidget implements PreferredSizeWidget {
 
   /// The band's colour — the bottom bar's pure white, as on the tabs'
   /// header.
-  static Color get background => PageHeader.background;
+  // The page's cream (2026-11-08): the inner screens' bar runs on into the
+  // page, set off by its soft shadow; the tabs' band is dark green.
+  static Color get background => AppColors.page;
 
   /// Title and icons on the band.
   static Color get foreground => AppColors.brand;
@@ -137,6 +138,11 @@ class _AgriAppBarState extends State<AgriAppBar> {
 
   @override
   Widget build(BuildContext context) {
+    // The page's own colour: cream on the app's screens, white on the
+    // sign-in ones (AppColors.authPage), so the bar always runs on into it.
+    final background =
+        context.findAncestorWidgetOfExactType<Scaffold>()?.backgroundColor ??
+        AgriAppBar.background;
     final hasBack =
         widget.showBack ??
         (widget.onBack != null ||
@@ -195,7 +201,7 @@ class _AgriAppBarState extends State<AgriAppBar> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ColoredBox(
-            color: AgriAppBar.background,
+            color: background,
             child: SizedBox(height: MediaQuery.paddingOf(context).top),
           ),
           // Slides up behind the status bar strip when hidden; the page
@@ -214,7 +220,7 @@ class _AgriAppBarState extends State<AgriAppBar> {
               // edge only.
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AgriAppBar.background,
+                  color: background,
                   border: AppColors.cardBorder == null
                       ? null
                       : Border(bottom: AppColors.outlineSide),

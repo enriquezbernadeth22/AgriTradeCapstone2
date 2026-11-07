@@ -1,7 +1,6 @@
-import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firebase_refs.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
 import '../widgets/profile_avatar.dart';
@@ -50,11 +49,11 @@ class BuyerProfileScreen extends StatefulWidget {
 }
 
 class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
-  final String? _uid = FirebaseAuth.instance.currentUser?.uid;
+  final String? _uid = FirebaseRefs.auth.currentUser?.uid;
 
   // Created once, not in build(), so a rebuild doesn't resubscribe.
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _profile =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('users')
           .doc(_uid ?? 'unknown')
           .snapshots();
@@ -77,18 +76,18 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          ProfileAvatar(photoUrl: photoUrl, name: name, radius: 46),
+          ProfileAvatar(photoUrl: photoUrl, name: name, radius: 38),
           Positioned(
             bottom: -2,
             right: -2,
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: AppColors.brandFill,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const Icon(Icons.edit, color: Colors.white, size: 14),
+              child: const Icon(Icons.edit, color: Colors.white, size: 12),
             ),
           ),
         ],
@@ -99,166 +98,208 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final t = tr(context);
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
 
-    // The header stays put; pull-to-refresh starts under it.
-    return Column(
-      children: [
-        // The band stays put; the title scrolls with the page below.
-        PageHeader(title: tr(context).navProfile, includeTitle: false),
-        Expanded(
-          child: AgriRefreshIndicator(
-            color: AppColors.brand,
-            onRefresh: _refreshData,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.only(
-                bottom: DockedNavBar.listEndPadding(context),
-              ),
-              child: Column(
-                children: [
-                  PageTitle(title: tr(context).navProfile),
-                  const SizedBox(height: 4),
+    // The header stays put; pull-to-refresh starts under it. On the cream
+    // of Explore (2026-11-08).
+    return ColoredBox(
+      color: AppColors.page,
+      child: Column(
+        children: [
+          // The band stays put; the title scrolls with the page below.
+          PageHeader(title: tr(context).navProfile, includeTitle: false),
+          Expanded(
+            child: AgriRefreshIndicator(
+              color: AppColors.brand,
+              onRefresh: _refreshData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(
+                  bottom: DockedNavBar.listEndPadding(context),
+                ),
+                child: Column(
+                  children: [
+                    // As big as Explore's, Messages' and Orders' titles.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(21, 8, 16, 10),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          tr(context).navProfile,
+                          style: TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 23.5,
+                            height: 1.15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.brand,
+                          ),
+                        ),
+                      ),
+                    ),
 
-                  // ---- Photo, name, general location ----
-                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: _profile,
-                    builder: (context, snapshot) {
-                      final data = snapshot.data?.data();
-                      final name =
-                          [data?['name'], data?['fullName'], user?.displayName]
-                              .map((v) => (v ?? '').toString().trim())
-                              .firstWhere(
-                                (v) => v.isNotEmpty,
-                                orElse: () => tl('Buyer'),
-                              );
-                      final photoUrl =
-                          data?['photoUrl']?.toString() ?? user?.photoURL;
-                      // General area only — barangay and city, never a street
-                      // address or a pin.
-                      final location =
-                          [data?['barangay'], data?['municipality']]
-                              .map((v) => (v ?? '').toString().trim())
-                              .where((v) => v.isNotEmpty)
-                              .join(', ');
+                    // ---- Photo, name, general location ----
+                    StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: _profile,
+                      builder: (context, snapshot) {
+                        final data = snapshot.data?.data();
+                        final name =
+                            [
+                                  data?['name'],
+                                  data?['fullName'],
+                                  user?.displayName,
+                                ]
+                                .map((v) => (v ?? '').toString().trim())
+                                .firstWhere(
+                                  (v) => v.isNotEmpty,
+                                  orElse: () => tl('Buyer'),
+                                );
+                        final photoUrl =
+                            data?['photoUrl']?.toString() ?? user?.photoURL;
+                        // General area only — barangay and city, never a street
+                        // address or a pin.
+                        final location =
+                            [data?['barangay'], data?['municipality']]
+                                .map((v) => (v ?? '').toString().trim())
+                                .where((v) => v.isNotEmpty)
+                                .join(', ');
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          children: [
-                            _avatarWithEditBadge(name, photoUrl),
-                            const SizedBox(height: 12),
-                            Text(
-                              name,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTheme.heading(22),
-                            ),
-                            if (location.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.place_outlined,
-                                    size: 15,
-                                    color: AppColors.grey(600),
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Flexible(
-                                    child: Text(
-                                      location,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.grey(700),
-                                        fontWeight: FontWeight.w500,
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            children: [
+                              _avatarWithEditBadge(name, photoUrl),
+                              const SizedBox(height: 10),
+                              Text(
+                                name,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 17.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.brand,
+                                ),
+                              ),
+                              if (location.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.place_outlined,
+                                      size: 14,
+                                      color: AppColors.grey(600),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Flexible(
+                                      child: Text(
+                                        location,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.grey(700),
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ---- The buyer's own options, as plain rows in labelled
-                  // groups (no cards). ----
-                  // The buyer has no Settings gear: what the farmer finds
-                  // in the Settings sheet is here, in these groups.
-                  ProfileSectionLabel(tl('My Activity')),
-                  ProfileLinkTile(
-                    icon: Icons.rate_review_outlined,
-                    label: t.myReviews,
-                    onTap: () => _open(const BuyerMyReviewsScreen()),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.favorite_border_rounded,
-                    label: t.likedProducts,
-                    onTap: () => _open(const BuyerSavedProductsScreen()),
-                  ),
-                  // The completed orders, each with its receipt.
-                  if (widget.onOpenCompletedOrders != null)
-                    ProfileLinkTile(
-                      icon: Icons.receipt_long_outlined,
-                      label: tl('Purchase History'),
-                      onTap: widget.onOpenCompletedOrders!,
+                          ),
+                        );
+                      },
                     ),
-                  ProfileSectionLabel(tl('Preferences & Account')),
-                  ProfileLinkTile(
-                    icon: Icons.local_shipping_outlined,
-                    label: t.deliveryPickupPreferences,
-                    onTap: () =>
-                        _open(const BuyerFulfillmentPreferencesScreen()),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.manage_accounts_outlined,
-                    label: t.manageAccount,
-                    onTap: () => _open(const ManageAccountScreen()),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.notifications_none_rounded,
-                    label: t.notificationSettings,
-                    onTap: () => _open(const NotificationPreferencesScreen()),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.dark_mode_outlined,
-                    label: tl('Appearance'),
-                    onTap: () => _open(const AppearanceScreen()),
-                  ),
-                  ProfileSectionLabel(tl('Support & More')),
-                  ProfileLinkTile(
-                    icon: Icons.share_outlined,
-                    label: tl('Share AgriTrade+'),
-                    onTap: () => shareAgriTrade(context),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.rate_review_outlined,
-                    label: t.sendFeedback,
-                    onTap: () => showFeedbackSheet(context),
-                  ),
-                  ProfileLinkTile(
-                    icon: Icons.help_outline,
-                    label: t.helpSupport,
-                    onTap: () => _open(const HelpSupportScreen(farmer: false)),
-                  ),
-                  if (widget.onLogout != null) ...[
-                    const SizedBox(height: 16),
-                    LogOutButton(label: t.logOut, onTap: widget.onLogout!),
+
+                    const SizedBox(height: 4),
+
+                    // ---- The buyer's own options, each group on one white
+                    // card (the user's design, 2026-11-08). ----
+                    // The buyer has no Settings gear: what the farmer finds
+                    // in the Settings sheet is here, in these groups.
+                    ProfileMenuGroup(
+                      title: tl('My Activity'),
+                      children: [
+                        ProfileLinkTile(
+                          icon: Icons.rate_review_outlined,
+                          label: t.myReviews,
+                          onTap: () => _open(const BuyerMyReviewsScreen()),
+                        ),
+                        ProfileLinkTile(
+                          icon: Icons.favorite_border_rounded,
+                          label: t.likedProducts,
+                          onTap: () => _open(const BuyerSavedProductsScreen()),
+                        ),
+                        // The completed orders, each with its receipt.
+                        if (widget.onOpenCompletedOrders != null)
+                          ProfileLinkTile(
+                            icon: Icons.receipt_long_outlined,
+                            label: tl('Purchase History'),
+                            onTap: widget.onOpenCompletedOrders!,
+                          ),
+                      ],
+                    ),
+                    ProfileMenuGroup(
+                      title: tl('Preferences & Account'),
+                      children: [
+                        ProfileLinkTile(
+                          icon: Icons.local_shipping_outlined,
+                          label: t.deliveryPickupPreferences,
+                          onTap: () =>
+                              _open(const BuyerFulfillmentPreferencesScreen()),
+                        ),
+                        ProfileLinkTile(
+                          icon: Icons.manage_accounts_outlined,
+                          label: t.manageAccount,
+                          onTap: () => _open(const ManageAccountScreen()),
+                        ),
+                        ProfileLinkTile(
+                          icon: Icons.notifications_none_rounded,
+                          label: t.notificationSettings,
+                          onTap: () =>
+                              _open(const NotificationPreferencesScreen()),
+                        ),
+                        ProfileLinkTile(
+                          icon: Icons.dark_mode_outlined,
+                          label: tl('Appearance'),
+                          onTap: () => _open(const AppearanceScreen()),
+                        ),
+                      ],
+                    ),
+                    ProfileMenuGroup(
+                      title: tl('Support & More'),
+                      children: [
+                        ProfileLinkTile(
+                          icon: Icons.share_outlined,
+                          label: tl('Share AgriTrade+'),
+                          onTap: () => shareAgriTrade(context),
+                        ),
+                        ProfileLinkTile(
+                          icon: Icons.rate_review_outlined,
+                          label: t.sendFeedback,
+                          onTap: () => showFeedbackSheet(context),
+                        ),
+                        ProfileLinkTile(
+                          icon: Icons.help_outline,
+                          label: t.helpSupport,
+                          onTap: () =>
+                              _open(const HelpSupportScreen(farmer: false)),
+                        ),
+                      ],
+                    ),
+                    if (widget.onLogout != null) ...[
+                      const SizedBox(height: 14),
+                      LogOutButton(label: t.logOut, onTap: widget.onLogout!),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

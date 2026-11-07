@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/mobile_faqs.dart';
 import '../widgets/agri_app_bar.dart';
+import '../widgets/coach_mark.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
@@ -43,6 +44,9 @@ class HelpSupportScreen extends StatelessWidget {
             const SizedBox(height: 10),
             _label(tr(context).contactUs),
             const _ContactEmail(),
+            const SizedBox(height: 10),
+            _label(tl('Tips')),
+            const _ShowTipsAgain(),
           ],
         ),
       ),
@@ -101,6 +105,28 @@ class _FaqTile extends StatelessWidget {
 }
 
 /// The support email, with Copy and a button that opens the mail app.
+/// Turns the first-time tips back on (after Skip, or to see them again):
+/// each shows the next time its screen opens.
+class _ShowTipsAgain extends StatelessWidget {
+  const _ShowTipsAgain();
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Icon(Icons.lightbulb_outline_rounded, color: AppColors.brand),
+    title: Text(tl('Show tips again')),
+    subtitle: Text(tl('The short guides on each screen, from the start')),
+    onTap: () async {
+      await TutorialTips.showAgain();
+      if (!context.mounted) return;
+      showAppMessage(
+        context,
+        tl('Tips will show again as you open each screen.'),
+        kind: MessageKind.success,
+      );
+    },
+  );
+}
+
 class _ContactEmail extends StatelessWidget {
   const _ContactEmail();
 

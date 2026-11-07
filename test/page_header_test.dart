@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('the band is rectangular, with no rounded corners', (
+  testWidgets('the band is dark green with a curved, gold-striped edge', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -21,19 +21,12 @@ void main() {
       ),
     );
 
-    final band = tester.widget<Container>(
-      find
-          .descendant(
-            of: find.byType(PageHeader),
-            matching: find.byWidgetPredicate(
-              (widget) => widget is Container && widget.decoration != null,
-            ),
-          )
-          .first,
+    final band = tester.widget<CustomPaint>(
+      find.byKey(const Key('pageHeaderBand')),
     );
-    final look = band.decoration! as BoxDecoration;
-    expect(look.borderRadius, isNull);
-    expect(look.boxShadow, isNotEmpty);
+    final painter = band.painter! as HeaderWavePainter;
+    expect(painter.green, PageHeader.background);
+    expect(painter.gold, PageHeader.accent);
   });
 
   // The real bell, without the unread count it reads from Firebase.
@@ -81,13 +74,13 @@ void main() {
     expect(tester.getTopLeft(bell).dx, lessThan(tester.getTopLeft(gear).dx));
   });
 
-  testWidgets('bell and gear are 26px apart, 21px from the screen edge', (
+  testWidgets('bell and gear are 24px apart, 21px from the screen edge', (
     tester,
   ) async {
     phoneScreen(tester);
     await tester.pumpWidget(shell(onSettings: () {}));
 
-    expect(tester.getTopLeft(gear).dx - tester.getTopRight(bell).dx, 26);
+    expect(tester.getTopLeft(gear).dx - tester.getTopRight(bell).dx, 24);
     expect(360 - tester.getTopRight(gear).dx, 21);
   });
 
@@ -99,14 +92,20 @@ void main() {
     expect(tester.getCenter(bell).dy, tester.getCenter(gear).dy);
   });
 
-  testWidgets('the header stays 56 tall, with a full tap area on each', (
+  testWidgets('the band row stays 40 tall, with a full tap area on each', (
     tester,
   ) async {
     phoneScreen(tester);
     await tester.pumpWidget(shell(onSettings: () {}));
 
-    final band = find.ancestor(of: bell, matching: find.byType(Container));
-    expect(tester.getSize(band.first).height, 56);
+    // 40 for the row (as in the user's picture), then the wave and its
+    // gold stripe under it.
+    final band = find.byKey(const Key('pageHeaderBand'));
+    expect(
+      tester.getSize(band).height,
+      PageHeader.bandHeight + PageHeader.waveDepth,
+    );
+    expect(PageHeader.bandHeight, 40);
     for (final button in tester.widgetList<IconButton>(
       find.byType(IconButton),
     )) {
@@ -120,9 +119,7 @@ void main() {
     phoneScreen(tester);
     await tester.pumpWidget(shell(onSettings: () {}, unread: 3));
 
-    final badge = tester.getRect(
-      find.ancestor(of: find.text('3'), matching: find.byType(Container)).first,
-    );
+    final badge = tester.getRect(find.byKey(const Key('notificationDot')));
     final icon = tester.getRect(bell);
     expect(badge.overlaps(icon), isTrue);
     expect(badge.top, lessThan(icon.top));
@@ -130,15 +127,31 @@ void main() {
     expect(badge.right, lessThan(tester.getRect(gear).left));
   });
 
-  testWidgets('a large unread count stops at 99+, and none hides the badge', (
+  testWidgets('unread shows a gold dot (no count); none hides it', (
     tester,
   ) async {
     await tester.pumpWidget(shell(unread: 120));
-    expect(find.text('99+'), findsOneWidget);
+    final dot = tester.widget<Container>(
+      find.byKey(const Key('notificationDot')),
+    );
+    expect(
+      (dot.decoration! as BoxDecoration).color,
+      NotificationBellButton.dotColor,
+    );
+    expect(find.text('120'), findsNothing);
 
     await tester.pumpWidget(shell());
-    expect(find.text('99+'), findsNothing);
-    expect(find.text('0'), findsNothing);
+    expect(find.byKey(const Key('notificationDot')), findsNothing);
+  });
+
+  testWidgets('the band is dark green, the name white with a gold +', (
+    tester,
+  ) async {
+    await tester.pumpWidget(shell());
+    expect(PageHeader.onBandColor, Colors.white);
+    final name = tester.widget<AgriTradeText>(find.byType(AgriTradeText));
+    expect(name.light, isTrue);
+    expect(name.plusColor, PageHeader.accent);
   });
 
   testWidgets('the bell and the gear each do their own job', (tester) async {

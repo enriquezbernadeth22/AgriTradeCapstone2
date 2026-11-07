@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../services/firebase_refs.dart';
 import '../services/conversation_prefs_service.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
@@ -11,6 +12,7 @@ import 'chat_list_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 // The message-management sections opened from the Messages menu (the ☰ in
 // the Messages header): Muted, Reported and Blocked Users. Archived lives in
@@ -106,9 +108,9 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             itemCount: docs.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 6),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, i) => _reportTile(docs[i].data()),
           );
         },
@@ -142,15 +144,15 @@ class _ReportedUsersScreenState extends State<ReportedUsersScreen> {
       subtitle: [reason, date].where((s) => s.isNotEmpty).join(' · '),
       detail: description,
       trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: statusColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
+          color: statusColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           statusText,
           style: GoogleFonts.montserrat(
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
             color: statusColor,
           ),
@@ -229,14 +231,12 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                       foregroundColor: AppColors.brand,
                       side: BorderSide(color: AppColors.brand),
                       visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      shape: AppTheme.compactButtonShape,
                     ),
                     child: Text(
                       tl('Unblock'),
                       style: GoogleFonts.montserrat(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -274,7 +274,7 @@ class _UserCard extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: userId.isEmpty
           ? null
-          : FirebaseFirestore.instance
+          : FirebaseRefs.firestore
                 .collection('publicProfiles')
                 .doc(userId)
                 .snapshots(),
@@ -286,27 +286,16 @@ class _UserCard extends StatelessWidget {
             : fallbackName;
         return Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: AppColors.cardBorder,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: AppTheme.card(),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ProfileAvatar(
                 photoUrl: profile?['photoUrl']?.toString(),
                 name: name,
-                radius: 22,
+                radius: 21,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,16 +305,16 @@ class _UserCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.montserrat(
-                        fontSize: 14.5,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.text,
+                        color: AppColors.brand,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: GoogleFonts.montserrat(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         color: AppColors.grey(600),
                       ),
                     ),
@@ -336,7 +325,7 @@ class _UserCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.montserrat(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           color: AppColors.textSecondary,
                           height: 1.35,
                         ),

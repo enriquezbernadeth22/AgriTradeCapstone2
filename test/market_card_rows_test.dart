@@ -40,6 +40,18 @@ void main() {
     await _show(tester, 8);
     expect(find.text('Row 5'), findsOneWidget);
     expect(find.text('Row 6'), findsNothing);
+    // In the middle, under the rows.
+    final viewAll = tester.getRect(find.text('View All (8)'));
+    final row = tester.getRect(find.text('Row 5'));
+    final page = tester.getRect(find.byType(Scaffold).first);
+    final button = tester.getRect(
+      find.ancestor(
+        of: find.text('View All (8)'),
+        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+      ),
+    );
+    expect(button.center.dx, closeTo(page.center.dx, 2));
+    expect(viewAll.top, greaterThan(row.bottom));
 
     await tester.tap(find.text('View All (8)'));
     await tester.pumpAndSettle();

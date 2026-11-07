@@ -6,13 +6,14 @@ import '../services/market_price_helpers.dart';
 import '../data/commodity_master_list.dart';
 import 'admin_filter_controls.dart'
     show
+        adminCard,
         AdminInputGlow,
         adminFieldDecoration,
         kAdminControlHeight,
         kAdminControlWidth,
         kAdminFontFamily;
 import 'admin_dashboard_screen.dart'
-    show AdminThemeScope, AdminPalette, AdminEmptyState, AdminRadii;
+    show AdminThemeScope, AdminPalette, AdminEmptyState;
 import 'admin_overview_widgets.dart'
     show AdminChartCard, AdminChartEmpty, adminGreenAt;
 
@@ -736,11 +737,7 @@ class AdminDemandByBarangayCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -867,11 +864,7 @@ class AdminRegistrationsCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1006,11 +999,7 @@ class AdminVerificationStatusCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

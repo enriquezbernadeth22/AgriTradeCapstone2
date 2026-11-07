@@ -39,3 +39,11 @@ test("a restore says it is back", () => {
   assert.strictEqual(farmer.title, "Swine is available again");
   assert.ok(farmer.body.includes("Your 1 listing of Swine is back on the marketplace."));
 });
+
+test("a removed commodity: its farmers are told it is no longer sold", () => {
+  const notice = commodityNotice({ change: "removed", name: "Ube", listings: 2 });
+  assert.strictEqual(notice.title, "Ube is no longer sold on AgriTrade+");
+  assert.ok(notice.body.includes("removed Ube from the products sold"));
+  assert.ok(notice.body.includes("Your 2 listings of Ube are no longer on the marketplace."));
+  assert.ok(!notice.body.includes("Reason"));
+});

@@ -13,9 +13,15 @@ class OrdersTab extends StatelessWidget {
   /// Confirmed).
   final ValueListenable<String?>? showStatus;
 
-  const OrdersTab({super.key, this.showStatus});
+  /// Whether this tab is the one on screen (see OrdersView.active).
+  final bool active;
+
+  const OrdersTab({super.key, this.showStatus, this.active = true});
 
   @override
-  Widget build(BuildContext context) =>
-      OrdersView(role: OrderRole.farmer, showStatus: showStatus);
+  Widget build(BuildContext context) => OrdersView(
+    role: OrderRole.farmer,
+    showStatus: showStatus,
+    active: active,
+  );
 }

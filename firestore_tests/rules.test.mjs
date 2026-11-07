@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, Timestamp,
+  collection, deleteField, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, Timestamp,
 } from 'firebase/firestore';
 
 const env = await initializeTestEnvironment({
@@ -235,6 +235,41 @@ await check('buyer accepts the new date', async () => {
 await check('buyer cancels after a delay', async () => {
   await withOrder('d2', { status: 'confirmed', delay: proposedDelay() });
   await assertSucceeds(cancel(buyer(), 'd2', 'delay'));
+});
+
+// Review likes: another buyer sets or clears only their own like.
+const seedReview = () => env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'productReviews/done1'), {
+  buyerId: 'buyer', orderId: 'done1', productId: 'corn', sellerId: 'farmer', rating: 4, comment: 'okay',
+}));
+const review = (db) => doc(db, 'productReviews/done1');
+await check('another buyer likes a review', async () => {
+  await seedReview();
+  await assertSucceeds(updateDoc(review(as('buyer2')), { 'likes.buyer2': true }));
+});
+await check('another buyer takes the like back', async () => {
+  await seedReview();
+  await assertSucceeds(updateDoc(review(as('buyer2')), { 'likes.buyer2': true }));
+  await assertSucceeds(updateDoc(review(as('buyer2')), { 'likes.buyer2': deleteField() }));
+});
+await check('a buyer cannot like their own review', async () => {
+  await seedReview();
+  await assertFails(updateDoc(review(buyer()), { 'likes.buyer': true }));
+});
+await check('a buyer cannot like for someone else', async () => {
+  await seedReview();
+  await assertFails(updateDoc(review(as('buyer2')), { 'likes.buyer3': true }));
+});
+await check('a like is only true', async () => {
+  await seedReview();
+  await assertFails(updateDoc(review(as('buyer2')), { 'likes.buyer2': 5 }));
+});
+await check('a like cannot change the rating too', async () => {
+  await seedReview();
+  await assertFails(updateDoc(review(as('buyer2')), { 'likes.buyer2': true, rating: 1 }));
+});
+await check('a farmer cannot like a review', async () => {
+  await seedReview();
+  await assertFails(updateDoc(review(as('farmer2')), { 'likes.farmer2': true }));
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

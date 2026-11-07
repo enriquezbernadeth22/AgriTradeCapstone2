@@ -274,7 +274,7 @@ class RecoveryEmailStatusChip extends StatelessWidget {
           Text(
             verified ? 'Verified' : tl('Not verified'),
             style: AppTheme.label().copyWith(
-              fontSize: 10.5,
+              fontSize: 11.5,
               fontWeight: FontWeight.w700,
               color: color,
             ),

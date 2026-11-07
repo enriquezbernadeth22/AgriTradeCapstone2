@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import '../services/dashboard_analytics_service.dart';
 import '../services/market_price_helpers.dart';
 import '../widgets/shimmer.dart';
+import '../theme/app_theme.dart';
 import 'admin_dashboard_screen.dart'
     show AdminThemeScope, AdminPalette, AdminRadii;
-import 'admin_filter_controls.dart' show AdminPillDropdown, adminActionColor;
+import 'admin_filter_controls.dart'
+    show AdminPillDropdown, adminActionColor, adminCard;
 
 // ============================================================
 // The top of the Admin Analytics Dashboard: the Overview summary strip,
@@ -113,40 +115,47 @@ class AdminOverviewStrip extends StatelessWidget {
     final radius = BorderRadius.circular(AdminRadii.card);
     // Material + InkWell, so a clickable card shows the pointer, a hover
     // tint and a ripple inside its own rounded shape.
-    // White with a light grey border, as every card; the icon box and a
-    // soft wave in the bottom right corner carry the colour (amber for a
-    // figure waiting on the Admin, green otherwise).
+    // White with a soft shadow, as every card (adminCard), outlined only
+    // when chosen; the icon box and a soft wave in the bottom right corner
+    // carry the colour (amber for a figure waiting on the Admin, green
+    // otherwise).
     final tone = item.attention ? c.amber : c.green;
-    return Material(
-      color: c.surface,
-      shape: RoundedRectangleBorder(
+    return DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: radius,
-        side: item.selected
-            ? BorderSide(
-                color: item.attention ? c.amber : adminActionColor(c),
-                width: 1.5,
-              )
-            : BorderSide(color: c.border),
+        boxShadow: c.isDark ? null : AppTheme.cardShadow,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: item.onTap,
-        hoverColor: c.surfaceAlt,
-        splashColor: c.border,
-        child: Stack(
-          children: [
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                child: CustomPaint(
-                  size: const Size(96, 34),
-                  painter: _CornerWavePainter(tone),
+      child: Material(
+        color: c.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: item.selected
+              ? BorderSide(
+                  color: item.attention ? c.amber : adminActionColor(c),
+                  width: 1.5,
+                )
+              : (c.isDark ? BorderSide(color: c.border) : BorderSide.none),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: item.onTap,
+          hoverColor: c.surfaceAlt,
+          splashColor: c.border,
+          child: Stack(
+            children: [
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    size: const Size(96, 34),
+                    painter: _CornerWavePainter(tone),
+                  ),
                 ),
               ),
-            ),
-            _OverviewSegment(item: item),
-          ],
+              _OverviewSegment(item: item),
+            ],
+          ),
         ),
       ),
     );
@@ -348,11 +357,7 @@ class AdminChartCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -730,11 +735,7 @@ class AdminChartCardSkeleton extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AdminChartCard.padding),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AdminRadii.card),
-        border: Border.all(color: c.border),
-      ),
+      decoration: adminCard(c),
       // The shimmer only covers the bars, not the card around them.
       child: Shimmer(
         baseColor: c.surfaceAlt,

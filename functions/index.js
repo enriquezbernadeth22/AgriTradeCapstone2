@@ -10,7 +10,12 @@
  * Requires the Firebase project to be on the Blaze (pay-as-you-go) plan.
  */
 
-const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const {
+  onDocumentCreated,
+  onDocumentDeleted,
+  onDocumentUpdated,
+  onDocumentWritten,
+} = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -1403,24 +1408,28 @@ exports.sendAnnouncement = onDocumentCreated("announcements/{announcementId}", a
 // The notice is an "announcement" to the app: tapping it shows its title
 // and message, as any announcement from the office does.
 // ---------------------------------------------------------------
-exports.onCommodityArchiveChanged = onDocumentUpdated("market_prices/{commodityId}", async (event) => {
-  const before = event.data.before.data() || {};
-  const after = event.data.after.data() || {};
-  const change = archiveChange(before, after);
-  if (!change) return;
+// What happens to a commodity's listings when the Admin archives it,
+// restores it, removes it (deletes its price record) or adds it back: they
+// are hidden from the marketplace (isSuspended, with COMMODITY_ARCHIVED) or
+// brought back, and only the farmers who sell it are told.
+//   change  "archived" | "removed" (hide) or "restored" (bring back)
+async function applyCommodityChange({ commodityId, name, reason, change, eventId }) {
+  const hide = change !== "restored";
+  // Its listings: by the commodity each was posted under, or (older
+  // listings saved without one) by the product's name.
+  const [byCommodity, byName] = await Promise.all([
+    db.collection("products").where("commodity", "==", name).get(),
+    db.collection("products").where("name", "==", name).get(),
+  ]);
+  const listings = new Map();
+  for (const doc of [...byCommodity.docs, ...byName.docs]) listings.set(doc.id, doc);
 
-  const { commodityId } = event.params;
-  const name = String(after.name || commodityId).trim();
-  const reason = String(after.archiveReason || "").trim();
-
-  // The commodity's listings, by the commodity each one was posted under.
-  const listings = await db.collection("products").where("commodity", "==", name).get();
   const affectedByFarmer = new Map();
   let batch = db.batch();
   let writes = 0;
-  for (const doc of listings.docs) {
+  for (const doc of listings.values()) {
     const product = doc.data();
-    if (change === "archived") {
+    if (hide) {
       // Already hidden or removed by an Admin: left exactly as it is.
       if (product.isSuspended === true) continue;
       batch.update(doc.ref, {
@@ -1461,17 +1470,64 @@ exports.onCommodityArchiveChanged = onDocumentUpdated("market_prices/{commodityI
         type: "announcement",
         relatedId: commodityId,
         data: { kind: "commodity", commodityId, change, title: notice.title, body: notice.body },
-        dedupeId: `commodity_${commodityId}_${event.id}`,
+        dedupeId: `commodity_${commodityId}_${eventId}`,
       });
       delivered++;
     } catch (err) {
-      console.error(`onCommodityArchiveChanged(${commodityId}): ${farmerId} failed —`, err.message);
+      console.error(`commodity ${change} (${commodityId}): ${farmerId} failed —`, err.message);
     }
   }
   console.log(
-    `onCommodityArchiveChanged(${commodityId}): ${name} ${change}; ${writes} listing(s) updated, ` +
+    `commodity ${change} (${commodityId}): ${name}; ${writes} listing(s) updated, ` +
       `${delivered} farmer(s) notified.`
   );
+}
+
+exports.onCommodityArchiveChanged = onDocumentUpdated("market_prices/{commodityId}", async (event) => {
+  const before = event.data.before.data() || {};
+  const after = event.data.after.data() || {};
+  const change = archiveChange(before, after);
+  if (!change) return;
+  const { commodityId } = event.params;
+  await applyCommodityChange({
+    commodityId,
+    name: String(after.name || commodityId).trim(),
+    reason: String(after.archiveReason || "").trim(),
+    change,
+    eventId: event.id,
+  });
+});
+
+// The Admin removed a commodity from Price Management (deleted its record):
+// its listings come off the marketplace and its farmers are told, as when it
+// is archived. (Before 2026-11-07 they stayed on.)
+exports.onCommodityRemoved = onDocumentDeleted("market_prices/{commodityId}", async (event) => {
+  const before = (event.data && event.data.data()) || {};
+  // Archived already: its listings are hidden and its farmers were told.
+  if (before.isActive === false) return;
+  const { commodityId } = event.params;
+  await applyCommodityChange({
+    commodityId,
+    name: String(before.name || commodityId).trim(),
+    reason: "",
+    change: "removed",
+    eventId: event.id,
+  });
+});
+
+// The Admin added a commodity (back): listings hidden when it was removed
+// come back. A commodity that is new has none, so nothing happens.
+exports.onCommodityAdded = onDocumentCreated("market_prices/{commodityId}", async (event) => {
+  const after = (event.data && event.data.data()) || {};
+  if (after.isActive === false) return;
+  const { commodityId } = event.params;
+  await applyCommodityChange({
+    commodityId,
+    name: String(after.name || commodityId).trim(),
+    reason: "",
+    change: "restored",
+    eventId: event.id,
+  });
 });
 
 // ---------------------------------------------------------------

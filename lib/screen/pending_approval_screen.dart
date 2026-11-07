@@ -252,25 +252,14 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
     if (rejected && _rejectionReason.isEmpty) _loadRejectionReason();
 
     return Scaffold(
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.authPage,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Container(
               padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.card(),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

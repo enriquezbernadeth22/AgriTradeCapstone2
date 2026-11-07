@@ -10,6 +10,7 @@ import '../data/legal_policies.dart' show kPrivacyPolicy, kTermsOfService;
 import 'presence_service.dart';
 import 'push_notification_service.dart';
 import '../data/account_types.dart';
+import 'firebase_refs.dart';
 
 /// Everything collected on the registration form that still needs to be
 /// written to Firestore once email verification actually succeeds — see
@@ -170,12 +171,12 @@ String? cleanFunctionMessage(String? message) {
 
 class AuthService {
   static const String adminEmailWithoutVerification = 'admin@agritrade.com';
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseRefs.auth;
   // Region of the account-email Cloud Functions (functions/account_emails.js).
   static final FirebaseFunctions _accountEmails = FirebaseFunctions.instanceFor(
     region: 'asia-southeast1',
   );
-  final _users = FirebaseFirestore.instance.collection('users');
+  final _users = FirebaseRefs.firestore.collection('users');
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _googleSignInReady = false;
 
@@ -314,7 +315,7 @@ class AuthService {
       // What the farmer submitted for the admin to review: a certificate
       // image (older registrations, Google sign-up) or an RSBSA number.
       if (isFarmer && (certificateUrl != null || rsba.isNotEmpty)) {
-        await FirebaseFirestore.instance
+        await FirebaseRefs.firestore
             .collection('verificationDocs')
             .doc(uid)
             .set({
@@ -383,8 +384,8 @@ class AuthService {
     String? barangay,
   }) async {
     try {
-      final batch = FirebaseFirestore.instance.batch();
-      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final batch = FirebaseRefs.firestore.batch();
+      final userRef = FirebaseRefs.firestore.collection('users').doc(uid);
 
       if (latitude != null && longitude != null) {
         batch.set(userRef.collection('private').doc('geo'), {
@@ -422,7 +423,7 @@ class AuthService {
   // ----------------------------------------------------------
   Future<String?> getVerificationDocument(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance
+      final doc = await FirebaseRefs.firestore
           .collection('verificationDocs')
           .doc(uid)
           .get();
@@ -873,10 +874,10 @@ class AuthService {
   // ----------------------------------------------------------
   Future<String> getFarmerApprovalStatus() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseRefs.auth.currentUser;
       if (user == null) return 'pending';
 
-      final doc = await FirebaseFirestore.instance
+      final doc = await FirebaseRefs.firestore
           .collection('users')
           .doc(user.uid)
           .get();
@@ -925,7 +926,7 @@ class AuthService {
     // Same reason: the "active now" dot must go off while this device can
     // still write the account's presence doc.
     await PresenceService.instance.goOffline();
-    await FirebaseAuth.instance.signOut();
+    await FirebaseRefs.auth.signOut();
     // Also drop the cached Google session, if any, so a later "Continue
     // with Google" doesn't silently re-use it. Harmless no-op if this
     // device never signed in with Google.
@@ -1171,7 +1172,7 @@ class AuthService {
   //
   // And right after creating the account, send the email:
   //
-  //     await FirebaseAuth.instance.currentUser
+  //     await FirebaseRefs.auth.currentUser
   //         ?.sendEmailVerification();
   // ============================================================
 
@@ -1220,7 +1221,7 @@ class AuthService {
   // pending" convention already used by AuthRoutingService/
   // PendingApprovalScreen/getFarmerApprovalStatus.
   Stream<QuerySnapshot<Map<String, dynamic>>> getPendingFarmers() {
-    return FirebaseFirestore.instance
+    return FirebaseRefs.firestore
         .collection('users')
         .where('role', isEqualTo: 'farmer')
         .snapshots();

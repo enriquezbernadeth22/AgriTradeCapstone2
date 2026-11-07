@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 
 /// The filters above the notification list. Buyers and farmers get the
 /// same ones, plus Reports for farmers (listing/account moderation notices,
@@ -110,106 +111,115 @@ class NotificationCard extends StatelessWidget {
     this.onTap,
   });
 
+  /// The unread mark: a small gold dot beside the title.
+  static const Color unreadDot = Color(0xFFF5BB24);
+
   @override
   Widget build(BuildContext context) {
-    // A flat, full-width row (the list puts a divider between rows); an
-    // unread one is tinted green.
-    return Material(
-      color: isRead ? AppColors.surface : AppColors.grey(100),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: isRead
-                    ? AppColors.surfaceAlt
-                    : AppColors.grey(200),
-                child: Icon(
-                  notificationIcon(type),
-                  size: 19,
-                  color: AppColors.textStrong,
+    final muted = AppColors.isDark
+        ? AppColors.textSecondary
+        : const Color(0xFF757575);
+    // A compact white card on the page's cream, on a very soft shadow (the
+    // user's design, 2026-11-08); unread ones have a gold dot and a
+    // stronger title.
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: AppTheme.card(),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 11, 8, 11),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // A dark green icon on a pale green circle.
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: AppColors.isDark
+                      ? AppColors.tint
+                      : const Color(0xFFEAF2E4),
+                  child: Icon(
+                    notificationIcon(type),
+                    size: 17,
+                    color: AppColors.brand,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              height: 1.25,
-                              fontWeight: isRead
-                                  ? FontWeight.w600
-                                  : FontWeight.w700,
-                              color: AppColors.textStrong,
-                            ),
-                          ),
-                        ),
-                        if (!isRead) ...[
-                          const SizedBox(width: 8),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 5),
-                            child: Container(
-                              width: 9,
-                              height: 9,
-                              decoration: BoxDecoration(
-                                color: AppColors.grey(500),
-                                shape: BoxShape.circle,
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                height: 1.25,
+                                fontWeight: isRead
+                                    ? FontWeight.w600
+                                    : FontWeight.w700,
+                                color: AppColors.textStrong,
                               ),
                             ),
                           ),
+                          if (!isRead) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: unreadDot,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
                         ],
+                      ),
+                      if (body.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          body,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.35,
+                            color: muted,
+                          ),
+                        ),
                       ],
-                    ),
-                    if (body.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        body,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
-                          color: AppColors.textSecondary,
+                      if (createdAt != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('h:mm a').format(createdAt!),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: muted,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                    if (createdAt != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        DateFormat('h:mm a').format(createdAt!),
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.grey(600),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (notificationOpensScreen(type))
-                Padding(
-                  padding: EdgeInsets.only(left: 2, top: 8),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: AppColors.grey(600),
                   ),
                 ),
-            ],
+                if (notificationOpensScreen(type))
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: AppColors.brand,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

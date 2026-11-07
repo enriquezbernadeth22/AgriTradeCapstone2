@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/firebase_refs.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/product_service.dart';
 import '../services/product_share_service.dart';
@@ -26,7 +26,10 @@ import '../l10n/app_language.dart';
 
 // Body-only widget — renders inside FarmerHomeScreen's Scaffold.
 class ProfileTab extends StatefulWidget {
-  const ProfileTab({super.key});
+  /// Opens the Farmer's Settings page, from the gear beside the title.
+  final VoidCallback? onOpenSettings;
+
+  const ProfileTab({super.key, this.onOpenSettings});
 
   @override
   State<ProfileTab> createState() => _ProfileTabState();
@@ -42,9 +45,9 @@ class _ProfileTabState extends State<ProfileTab> {
   // edit shows at once: this tab stays alive under the others and is not
   // rebuilt when Edit Profile saves.
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _profile =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('users')
-          .doc(FirebaseAuth.instance.currentUser?.uid ?? 'unknown')
+          .doc(FirebaseRefs.auth.currentUser?.uid ?? 'unknown')
           .snapshots();
   // 'active' | 'archived' — which of the farmer's own listings to show.
   String _productFilter = 'active';
@@ -52,9 +55,9 @@ class _ProfileTabState extends State<ProfileTab> {
   _ProductSort _sort = _ProductSort.newest;
   // The farmer's own listings, created once — re-sorting never reloads.
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _myProducts =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('products')
-          .where('farmerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+          .where('farmerId', isEqualTo: FirebaseRefs.auth.currentUser?.uid)
           .snapshots();
 
   Future<void> _refreshData() async {
@@ -66,9 +69,9 @@ class _ProfileTabState extends State<ProfileTab> {
   // screen, where the photo-change UI (camera icon + "Change Photo")
   // actually lives.
   Widget _avatarWithEditBadge(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: FirebaseRefs.firestore
           .collection('users')
           .doc(user?.uid ?? '')
           .snapshots(),
@@ -172,78 +175,78 @@ class _ProfileTabState extends State<ProfileTab> {
           Divider(height: 1, color: AppColors.grey(200)),
           const SizedBox(height: 10),
           Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: AppColors.cardBorder,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _myProducts,
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Shimmer(
-                    child: Column(
-                      children: [
-                        ProductRowSkeleton(),
-                        Divider(height: 1, indent: 16, endIndent: 16),
-                        ProductRowSkeleton(),
-                      ],
-                    ),
-                  );
-                }
-                if (snap.hasError) {
-                  return RetryMessage(
-                    message: tl(
-                      'Could not load your listings. Check your connection and retry.',
-                    ),
-                    onRetry: () => setState(() {}),
-                  );
-                }
-
-                final showArchived = _productFilter == 'archived';
-                final inTab = (snap.data?.docs ?? [])
-                    .where(
-                      (d) => (d.data()['isArchived'] == true) == showArchived,
-                    )
-                    .toList();
-                final docs = _sorted(inTab);
-                final Widget list = docs.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          showArchived
-                              ? tl('You don\'t have any archived products.')
-                              : tl(
-                                  'You haven\'t posted any active products yet.',
-                                ),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.grey(600),
-                          ),
-                        ),
-                      )
-                    : Column(
+            decoration: AppTheme.card(),
+            // The rows' tap ripple shows on the card (a ListTile draws it on
+            // the nearest Material, under the card's own colour otherwise).
+            child: Material(
+              type: MaterialType.transparency,
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _myProducts,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Shimmer(
+                      child: Column(
                         children: [
-                          for (var i = 0; i < docs.length; i++) ...[
-                            if (i > 0)
-                              const Divider(
-                                height: 1,
-                                indent: 16,
-                                endIndent: 16,
-                              ),
-                            _productTile(context, docs[i].id, docs[i].data()),
-                          ],
+                          ProductRowSkeleton(),
+                          Divider(height: 1, indent: 16, endIndent: 16),
+                          ProductRowSkeleton(),
                         ],
-                      );
-                return _swipeBetweenFilters(list);
-              },
+                      ),
+                    );
+                  }
+                  if (snap.hasError) {
+                    return RetryMessage(
+                      message: tl(
+                        'Could not load your listings. Check your connection and retry.',
+                      ),
+                      onRetry: () => setState(() {}),
+                    );
+                  }
+
+                  final showArchived = _productFilter == 'archived';
+                  // A listing the AgriTrade+ team took off the marketplace
+                  // (its product no longer sold, or moderated) is not
+                  // Active: it is with the archived ones, marked so.
+                  final inTab = (snap.data?.docs ?? [])
+                      .where(
+                        (d) =>
+                            (d.data()['isArchived'] == true ||
+                                d.data()['isSuspended'] == true) ==
+                            showArchived,
+                      )
+                      .toList();
+                  final docs = _sorted(inTab);
+                  final Widget list = docs.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            showArchived
+                                ? tl('You don\'t have any archived products.')
+                                : tl(
+                                    'You haven\'t posted any active products yet.',
+                                  ),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.grey(600),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            for (var i = 0; i < docs.length; i++) ...[
+                              if (i > 0)
+                                const Divider(
+                                  height: 1,
+                                  indent: 16,
+                                  endIndent: 16,
+                                ),
+                              _productTile(context, docs[i].id, docs[i].data()),
+                            ],
+                          ],
+                        );
+                  return _swipeBetweenFilters(list);
+                },
+              ),
             ),
           ),
         ],
@@ -449,9 +452,16 @@ class _ProfileTabState extends State<ProfileTab> {
     final quantity = data['quantity'];
     final unit = (data['unit'] as String?) ?? unitForProductName(name);
     final isArchived = data['isArchived'] == true;
+    // Taken off the marketplace by the AgriTrade+ team: its product is no
+    // longer sold (archived or removed in Price Management), or moderated.
+    final isSuspended = data['isSuspended'] == true;
+    final productRemoved = data['moderationStatus'] == 'commodity_archived';
     final saveCount = (data['saveCount'] as num?)?.toInt() ?? 0;
     final isOutOfStock =
-        !isArchived && ((quantity as num?)?.toDouble() ?? 0) <= 0;
+        !isArchived &&
+        !isSuspended &&
+        ((quantity as num?)?.toDouble() ?? 0) <= 0;
+    final reason = (data['moderationReason'] ?? '').toString().trim();
 
     final imageUrls =
         (data['imageUrls'] as List?)?.map((e) => e.toString()).toList() ?? [];
@@ -462,7 +472,17 @@ class _ProfileTabState extends State<ProfileTab> {
     final stockText = quantity is num
         ? 'Available Stock: ${formatStock(quantity, unit)}'
         : '';
-    final subtitle = price != null
+    final subtitle = isSuspended
+        ? [
+            productRemoved
+                ? tl(
+                    'Not on the marketplace: {0} is no longer sold on AgriTrade+.',
+                    [name],
+                  )
+                : tl('Hidden from the marketplace by the AgriTrade+ team.'),
+            if (reason.isNotEmpty) tl('Reason: {0}', [reason]),
+          ].join(' ')
+        : price != null
         ? '${formatPriceWithUnit(price, unit)}${stockText.isEmpty ? '' : ' · $stockText'}'
         : stockText;
 
@@ -515,7 +535,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   ),
                 ),
               ),
-              if (isArchived || isOutOfStock) ...[
+              if (isArchived || isSuspended || isOutOfStock) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -523,17 +543,25 @@ class _ProfileTabState extends State<ProfileTab> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: isArchived
+                    color: isSuspended
+                        ? AppColors.tone(Colors.red, 50)
+                        : isArchived
                         ? AppColors.grey(300)
                         : AppColors.tone(Colors.orange, 100),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isArchived ? tl('ARCHIVED') : tl('OUT OF STOCK'),
+                    isSuspended
+                        ? (productRemoved ? tl('UNAVAILABLE') : tl('HIDDEN'))
+                        : isArchived
+                        ? tl('ARCHIVED')
+                        : tl('OUT OF STOCK'),
                     style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.bold,
-                      color: isArchived
+                      color: isSuspended
+                          ? AppColors.tone(Colors.red, 700)
+                          : isArchived
                           ? AppColors.grey(700)
                           : AppColors.tone(Colors.orange, 800),
                     ),
@@ -600,6 +628,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 quantity: quantity,
                 unit: unit,
                 isArchived: isArchived,
+                isSuspended: isSuspended,
               ),
             ),
           ),
@@ -637,10 +666,20 @@ class _ProfileTabState extends State<ProfileTab> {
     required dynamic quantity,
     required String unit,
     required bool isArchived,
+    bool isSuspended = false,
   }) async {
     final action = await showAgriPopupMenu<String>(
       anchorContext: buttonContext,
-      items: isArchived
+      // Taken off by the AgriTrade+ team: the farmer can only look at it.
+      items: isSuspended
+          ? [
+              AgriMenuItem(
+                value: 'view',
+                icon: Icons.visibility_outlined,
+                label: tl('View Details'),
+              ),
+            ]
+          : isArchived
           ? [
               AgriMenuItem(
                 value: 'view',
@@ -838,7 +877,7 @@ class _ProfileTabState extends State<ProfileTab> {
   // The farmer's overall rating across all their products, weighted by
   // each product's number of reviews (see combineProductRatings).
   Widget _farmerRatingSummary() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null || uid.isEmpty) return const SizedBox.shrink();
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -854,11 +893,7 @@ class _ProfileTabState extends State<ProfileTab> {
         return Container(
           margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.grey(200)),
-          ),
+          decoration: AppTheme.card(),
           child: Row(
             children: [
               Expanded(
@@ -924,7 +959,7 @@ class _ProfileTabState extends State<ProfileTab> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
 
     // The header stays put; pull-to-refresh starts under it.
     return Column(
@@ -943,7 +978,23 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
               child: Column(
                 children: [
-                  PageTitle(title: tr(context).navProfile),
+                  // Settings: a small gear on the right of the title, not on
+                  // every tab's header.
+                  PageTitle(
+                    title: tr(context).navProfile,
+                    trailing: widget.onOpenSettings == null
+                        ? null
+                        : IconButton(
+                            key: const Key('profileSettings'),
+                            tooltip: tl('Settings'),
+                            onPressed: widget.onOpenSettings,
+                            icon: Icon(
+                              Icons.settings_outlined,
+                              size: 23,
+                              color: AppColors.text,
+                            ),
+                          ),
+                  ),
 
                   // ---- Avatar with edit badge ----
                   _avatarWithEditBadge(context),

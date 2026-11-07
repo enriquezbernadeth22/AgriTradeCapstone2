@@ -586,18 +586,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           key: const Key('profileSavingCard'),
           width: 240,
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: AppColors.cardBorder,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
+          decoration: AppTheme.card(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/firebase_refs.dart';
 import '../l10n/app_localizations.dart';
 import '../services/order_seen_service.dart';
 import 'agri_dialog.dart';
@@ -15,6 +15,8 @@ import 'docked_nav_bar.dart';
 import 'retry_message.dart';
 import 'agri_empty_state.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import 'coach_mark.dart';
 import '../l10n/app_language.dart';
 
 // The Orders body shared by the Farmer and Buyer sides (see OrdersView):
@@ -104,7 +106,7 @@ String orderStatusOf(OrderDoc doc) =>
 String ordersSwipeTutorialKey() {
   String uid;
   try {
-    uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+    uid = FirebaseRefs.auth.currentUser?.uid ?? 'unknown';
   } catch (_) {
     uid = 'unknown';
   }
@@ -116,7 +118,7 @@ String ordersSwipeTutorialKey() {
 /// app aren't shown them.
 bool isRecentlyRegisteredUser() {
   try {
-    final created = FirebaseAuth.instance.currentUser?.metadata.creationTime;
+    final created = FirebaseRefs.auth.currentUser?.metadata.creationTime;
     return created != null &&
         DateTime.now().difference(created) <= const Duration(days: 30);
   } catch (_) {
@@ -342,6 +344,8 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
     try {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getBool(key) ?? false) return;
+      // Skip on any tip turned them all off.
+      if (prefs.getBool(TutorialTips.offKey) ?? false) return;
     } catch (_) {
       return; // Can't remember "seen" — safer to skip than nag every time.
     }
@@ -455,19 +459,23 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
           padding: const EdgeInsets.symmetric(horizontal: 8),
           labelPadding: EdgeInsets.symmetric(horizontal: scrollable ? 16 : 4),
           indicatorSize: TabBarIndicatorSize.label,
+          // Compact, 12 (the user's design, 2026-11-08): the chosen one
+          // dark green over a thin dark green line, the others muted grey.
           indicator: UnderlineTabIndicator(
             borderSide: BorderSide(color: AppColors.brand, width: 2),
           ),
-          dividerColor: AppColors.grey(200),
+          dividerColor: AppColors.isDark
+              ? AppColors.hairline
+              : const Color(0xFFE8E9E3),
           dividerHeight: 1,
           labelColor: AppColors.brand,
-          unselectedLabelColor: AppColors.grey(700),
+          unselectedLabelColor: const Color(0xFF757575),
           labelStyle: GoogleFonts.montserrat(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
           unselectedLabelStyle: GoogleFonts.montserrat(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
           splashFactory: NoSplash.splashFactory,
@@ -475,7 +483,7 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
           tabs: [
             for (final tab in widget.tabs)
               Tab(
-                height: 42,
+                height: 38,
                 child: _TabLabel(
                   label: tab.labelIn(context),
                   unseen: unseen[tab.value] ?? 0,
@@ -568,7 +576,7 @@ class _TabLabel extends StatelessWidget {
                     unseen > 99 ? '99+' : '$unseen',
                     style: GoogleFonts.montserrat(
                       color: Colors.white,
-                      fontSize: 9.5,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                       height: 1.1,
                     ),
@@ -745,7 +753,11 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: widget.onDismiss,
+                    // Skip: this and every other first-time tip.
+                    onPressed: () {
+                      TutorialTips.skipAll();
+                      widget.onDismiss();
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
                     ),
@@ -761,9 +773,7 @@ class _SwipeTutorialCardState extends State<_SwipeTutorialCard>
                       foregroundColor: Colors.white,
                       backgroundColor: AppColors.brandFill,
                       padding: const EdgeInsets.symmetric(horizontal: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      shape: AppTheme.buttonShape,
                     ),
                     child: Text(
                       tl('Got it'),

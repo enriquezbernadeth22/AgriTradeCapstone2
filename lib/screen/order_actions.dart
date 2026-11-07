@@ -649,7 +649,7 @@ class _CancelOrderSheetState extends State<CancelOrderSheet> {
                 ? null
                 : () => Navigator.pop(context, _reason.text.trim()),
             style: AppTheme.primaryButton().copyWith(
-              shape: const WidgetStatePropertyAll(StadiumBorder()),
+              shape: const WidgetStatePropertyAll(AppTheme.buttonShape),
             ),
             child: Text(tl('Cancel Order'), style: AppTheme.buttonText()),
           ),
@@ -867,7 +867,7 @@ class _ReportDelaySheetState extends State<ReportDelaySheet> {
                   )
                 : null,
             style: AppTheme.primaryButton().copyWith(
-              shape: const WidgetStatePropertyAll(StadiumBorder()),
+              shape: const WidgetStatePropertyAll(AppTheme.buttonShape),
             ),
             child: Text(tl('Send to Buyer'), style: AppTheme.buttonText()),
           ),

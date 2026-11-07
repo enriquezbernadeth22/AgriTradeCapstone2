@@ -82,6 +82,11 @@ void main() {
     }
   }
 
+  testWidgets('no "High / Moderate demand" badge on the photo', (tester) async {
+    await _pump(tester, size: const Size(360, 640));
+    expect(find.textContaining('demand'), findsNothing);
+  });
+
   testWidgets('cards are the same height whatever their content', (
     tester,
   ) async {
@@ -156,12 +161,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a long name is cut at two lines', (tester) async {
+  testWidgets('a long name is cut at one line, beside the rating', (
+    tester,
+  ) async {
     await _pump(tester, size: const Size(320, 568));
     final name = tester.widget<Text>(
       find.text('Native Free-Range Chicken from the Highlands'),
     );
-    expect(name.maxLines, 2);
+    expect(name.maxLines, 1);
     expect(name.overflow, TextOverflow.ellipsis);
   });
 
@@ -169,12 +176,12 @@ void main() {
     tester,
   ) async {
     await _pump(tester, size: const Size(360, 640));
-    // Its slot is kept on every card (for equal heights) but only painted
-    // where wholesale applies.
+    // Its slot ("Wholesale" and its minimum) is kept on every card (for
+    // equal heights) but only painted where wholesale applies.
     final badges = tester
         .widgetList<Visibility>(
           find.ancestor(
-            of: find.text('Wholesale available'),
+            of: find.text('Wholesale'),
             matching: find.byType(Visibility),
           ),
         )

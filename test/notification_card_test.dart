@@ -127,7 +127,7 @@ void main() {
           w is Container &&
           w.decoration is BoxDecoration &&
           (w.decoration as BoxDecoration).shape == BoxShape.circle &&
-          w.constraints?.maxWidth == 9,
+          w.constraints?.maxWidth == 6,
     );
 
     await tester.pumpWidget(

@@ -1,11 +1,11 @@
 import 'dart:async';
 
+import '../services/firebase_refs.dart';
 import '../widgets/agri_app_bar.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/feedback_service.dart';
 import '../services/auth_service.dart';
@@ -125,10 +125,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   // order (saved via AuthService.saveBuyerLocation) so they don't have to
   // redo the Region/Province/City/Barangay picker every single order.
   Future<void> _prefillLocation() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null) return;
     try {
-      final userDoc = await FirebaseFirestore.instance
+      final userDoc = await FirebaseRefs.firestore
           .collection('users')
           .doc(uid)
           .get();
@@ -142,7 +142,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             [
                   data?['name'],
                   data?['fullName'],
-                  FirebaseAuth.instance.currentUser?.displayName,
+                  FirebaseRefs.auth.currentUser?.displayName,
                 ]
                 .map((v) => (v ?? '').toString().trim())
                 .firstWhere((v) => v.isNotEmpty, orElse: () => '');
@@ -174,7 +174,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       double? lat;
       double? lng;
       try {
-        final geoDoc = await FirebaseFirestore.instance
+        final geoDoc = await FirebaseRefs.firestore
             .collection('users')
             .doc(uid)
             .collection('private')
@@ -215,7 +215,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     });
     // Fire-and-forget: also keeps users/{uid} up to date, so the admin
     // Demand Heatmap and the next order's prefill both stay current.
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid != null) {
       _authService.saveBuyerLocation(
         uid: uid,
@@ -316,7 +316,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   }
 
   void _loadProduct() {
-    _productSub = FirebaseFirestore.instance
+    _productSub = FirebaseRefs.firestore
         .collection('products')
         .doc(widget.productId)
         .snapshots()
@@ -434,7 +434,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     // message (or a refreshed summary) instead of a surprise. The
     // transaction in OrderService still enforces stock and fulfillment.
     try {
-      final productSnap = await FirebaseFirestore.instance
+      final productSnap = await FirebaseRefs.firestore
           .collection('products')
           .doc(widget.productId)
           .get();
@@ -664,7 +664,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      // The cream page; a plain Back + title bar (no decoration).
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Place Order')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -674,7 +675,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             _productSummary(),
             const SizedBox(height: 22),
 
-            _sectionTitle(tl('Buyer Details')),
+            _sectionTitle(tl('Buyer Details'), Icons.person_outline_rounded),
             const SizedBox(height: 12),
             _field(
               label: tl('Name'),
@@ -700,7 +701,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             // Starts from the number on the buyer's profile (_prefill…);
             // what is typed here goes on this order only and never back
             // to the profile.
-            _sectionTitle(tl('Contact Information')),
+            _sectionTitle(tl('Contact Information'), Icons.phone_outlined),
             const SizedBox(height: 12),
             _field(
               label: 'Contact Number',
@@ -722,7 +723,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             _contactConfirmation(),
             const SizedBox(height: 6),
 
-            _sectionTitle('Order'),
+            _sectionTitle('Order', Icons.shopping_bag_outlined),
             const SizedBox(height: 12),
             _field(
               label: tl('Ordered Quantity ({0})', [_unit]),
@@ -761,27 +762,57 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           ],
         ),
       ),
+      // Fixed on the cream, a hairline above: dark green, 46 high, a small
+      // gold send icon (the user's design, 2026-11-08).
       bottomNavigationBar: SafeArea(
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: AppColors.cardBorder,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
+            color: AppColors.page,
+            border: Border(
+              top: BorderSide(
+                color: AppColors.isDark
+                    ? AppColors.hairline
+                    : const Color(0xFFE8E9E3),
               ),
-            ],
+            ),
           ),
           child: ElevatedButton(
             onPressed: !_submitting ? _submit : null,
-            // The app's standard pill button (dark green, white text).
-            style: AppTheme.primaryButton(),
-            child: Text(
-              _submitting ? tl('Submitting...') : tl('Submit Order'),
-              style: AppTheme.buttonText(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.isDark
+                  ? AppColors.brandFill
+                  : const Color(0xFF0B4225),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.grey(300),
+              disabledForegroundColor: AppColors.grey(600),
+              elevation: 0,
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(13),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!_submitting) ...[
+                  const Icon(
+                    Icons.send_rounded,
+                    size: 18,
+                    color: Color(0xFFF5BB24),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  _submitting ? tl('Submitting...') : tl('Submit Order'),
+                  style: const TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -804,7 +835,29 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     }
   }
 
-  Widget _sectionTitle(String text) => Text(text, style: AppTheme.heading(16));
+  // A section's title: a small dark green icon and the words, 15.5.
+  Widget _sectionTitle(String text, IconData icon) => Row(
+    children: [
+      Icon(icon, size: 18, color: AppColors.brand),
+      const SizedBox(width: 7),
+      Flexible(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontSize: 15.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.brand,
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Color get _muted =>
+      AppColors.isDark ? AppColors.textSecondary : const Color(0xFF757575);
+  Color get _paleGreen =>
+      AppColors.isDark ? AppColors.tint : const Color(0xFFEAF2E4);
 
   // "This number is correct and reachable" — required before ordering.
   Widget _contactConfirmation() {
@@ -821,6 +874,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               value: _contactConfirmed,
               onChanged: (v) => _setContactConfirmed(v ?? false),
               visualDensity: VisualDensity.compact,
+              // Dark green when ticked.
+              fillColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? AppColors.brandFill
+                    : Colors.transparent,
+              ),
             ),
             Expanded(
               child: Padding(
@@ -834,7 +893,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       ),
                       style: AppTheme.body(
                         color: AppColors.text,
-                        size: 12.5,
+                        size: 11.5,
                       ).copyWith(height: 1.4),
                     ),
                     if (showError)
@@ -878,8 +937,15 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTheme.label()),
-          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 7),
           child,
           if (errorText != null) ...[
             const SizedBox(height: 6),
@@ -908,7 +974,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             const SizedBox(height: 6),
             Text(
               caption,
-              style: TextStyle(fontSize: 11.5, color: AppColors.grey(700)),
+              style: TextStyle(fontSize: 10.5, height: 1.35, color: _muted),
             ),
           ],
         ],
@@ -916,18 +982,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     );
   }
 
-  BoxDecoration get _cardDecoration => BoxDecoration(
-    color: AppColors.surface,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: AppColors.grey(200)),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.05),
-        blurRadius: 10,
-        offset: const Offset(0, 3),
-      ),
-    ],
-  );
+  BoxDecoration get _cardDecoration => AppTheme.card();
 
   // ---- Product summary: image, name, the price that applies, seller ----
   Widget _productSummary() {
@@ -943,10 +998,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(11),
             child: SizedBox(
-              width: 68,
-              height: 68,
+              width: 60,
+              height: 60,
               child: widget.productImage.isNotEmpty
                   ? Image.network(
                       widget.productImage,
@@ -966,20 +1021,21 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.brand,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   _loadingProduct
                       ? widget.productPrice
                       : formatPriceWithUnit(quote.unitPrice, _unit),
                   style: TextStyle(
-                    fontSize: 15,
+                    fontFamily: 'Montserrat',
+                    fontSize: 16,
                     color: AppColors.brand,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -991,10 +1047,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       : tl('Retail price applied'),
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: quote.isWholesale
-                        ? AppColors.brand
-                        : AppColors.grey(700),
-                    fontWeight: FontWeight.w600,
+                    color: quote.isWholesale ? AppColors.brand : _muted,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -1002,7 +1056,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   tl('Seller: {0}', [widget.sellerName]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
+                  style: TextStyle(fontSize: 11.5, color: _muted),
                 ),
               ],
             ),
@@ -1015,51 +1069,61 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   // ---- Which price applies, and how far wholesale is ----
   Widget _pricingCard() {
     final quote = _currentQuote;
+    // A pale green banner with a small dark green tag (the user's design).
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
       decoration: BoxDecoration(
-        color: quote.isWholesale
-            ? AppColors.tone(Colors.green, 50)
-            : AppColors.accent.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: quote.isWholesale
-              ? AppColors.tone(Colors.green, 200)
-              : AppColors.grey(300),
-        ),
+        color: _paleGreen,
+        borderRadius: BorderRadius.circular(14),
+        border: quote.isWholesale
+            ? Border.all(color: AppColors.brand.withValues(alpha: 0.35))
+            : null,
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            quote.isWholesale
-                ? tl('Wholesale price applied')
-                : tl('Retail price applied'),
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.brand,
+          Icon(Icons.sell_outlined, size: 18, color: AppColors.brand),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  quote.isWholesale
+                      ? tl('Wholesale price applied')
+                      : tl('Retail price applied'),
+                  style: TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.brand,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${formatStock(quote.quantity, _unit)} × '
+                  '${formatPriceWithUnit(quote.unitPrice, _unit)} '
+                  '= ${formatPeso(quote.subtotal)}',
+                  style: TextStyle(fontSize: 12, color: AppColors.text),
+                ),
+                if (!quote.isWholesale &&
+                    quote.quantityToWholesale != null &&
+                    quote.quantityToWholesale! > 0) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    tl('Add {0} more to qualify for the wholesale price.', [
+                      formatStock(quote.quantityToWholesale!, _unit),
+                    ]),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.grey(800),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${formatStock(quote.quantity, _unit)} × '
-            '${formatPriceWithUnit(quote.unitPrice, _unit)} '
-            '= ${formatPeso(quote.subtotal)}',
-            style: TextStyle(fontSize: 13, color: AppColors.text),
-          ),
-          if (!quote.isWholesale &&
-              quote.quantityToWholesale != null &&
-              quote.quantityToWholesale! > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              tl('Add {0} more to qualify for the wholesale price.', [
-                formatStock(quote.quantityToWholesale!, _unit),
-              ]),
-              style: TextStyle(fontSize: 12, color: AppColors.grey(800)),
-            ),
-          ],
         ],
       ),
     );
@@ -1094,7 +1158,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(tl('Fulfillment')),
+        _sectionTitle(tl('Fulfillment'), Icons.local_shipping_outlined),
         const SizedBox(height: 10),
         if (_offersDelivery)
           _fulfillmentOption(
@@ -1132,14 +1196,18 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.place_outlined, size: 16, color: AppColors.brand),
+                Icon(Icons.info_outline_rounded, size: 14, color: _muted),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     tl(
                       'Once the farmer confirms, the pick-up address, a map and directions appear in the details of this order.',
                     ),
-                    style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.35,
+                      color: _muted,
+                    ),
                   ),
                 ),
               ],
@@ -1167,11 +1235,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: selected ? AppColors.tint : AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
+              color: selected ? _paleGreen : AppColors.surface,
+              borderRadius: BorderRadius.circular(13),
               border: Border.all(
-                color: selected ? AppColors.brand : AppColors.grey(300),
-                width: selected ? 1.5 : 1,
+                color: selected ? AppColors.brand : const Color(0xFFE8E9E3),
+                width: selected ? 1.2 : 1,
               ),
             ),
             child: Row(
@@ -1180,11 +1248,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
-                  size: 20,
+                  size: 18,
                   color: selected ? AppColors.brand : AppColors.grey(500),
                 ),
                 const SizedBox(width: 10),
-                Icon(icon, size: 20, color: AppColors.brand),
+                Icon(icon, size: 18, color: AppColors.brand),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -1192,15 +1260,16 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.grey(700),
-                        ),
+                        style: TextStyle(fontSize: 11.5, color: _muted),
                       ),
                     ],
                   ),
@@ -1223,7 +1292,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   Widget _outsideCoverageCard() {
     final warning = AppColors.tone(Colors.orange, 800);
     final pickedUp = _fulfillment == 'pickup';
-    const pillShape = StadiumBorder();
+    const actionShape = AppTheme.compactButtonShape;
     const compact = Size(0, 36);
     const buttonPadding = EdgeInsets.symmetric(horizontal: 12);
     const buttonText = TextStyle(
@@ -1283,7 +1352,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       padding: buttonPadding,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       textStyle: buttonText,
-                      shape: pillShape,
+                      shape: actionShape,
                     ),
                   ),
                 ),
@@ -1302,7 +1371,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         padding: buttonPadding,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         textStyle: buttonText,
-                        shape: pillShape,
+                        shape: actionShape,
                       ),
                     ),
                   ),
@@ -1409,15 +1478,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            tl('Order Summary'),
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _sectionTitle(tl('Order Summary'), Icons.receipt_long_outlined),
+          const SizedBox(height: 10),
           _summaryRow(tl('Product'), widget.productName),
           _summaryRow(
             tl('Order type'),
@@ -1436,13 +1498,18 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               emphasize: fee == null,
             ),
           _summaryRow(tl('Fulfillment'), fulfillmentLabel),
-          const Divider(height: 18),
+          Divider(
+            height: 18,
+            color: AppColors.isDark
+                ? AppColors.hairline
+                : const Color(0xFFE8E9E3),
+          ),
           if (total != null)
             _summaryRow(tl('Total'), total, bold: true)
           else
             Text(
               totalNote ?? '',
-              style: TextStyle(fontSize: 12, color: AppColors.grey(700)),
+              style: TextStyle(fontSize: 11.5, color: _muted),
             ),
         ],
       ),
@@ -1465,9 +1532,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
-                color: AppColors.grey(700),
-                fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+                fontSize: bold ? 14 : 11.5,
+                color: bold ? AppColors.brand : _muted,
+                fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ),
@@ -1477,7 +1544,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: bold ? 18 : 13,
+                fontSize: bold ? 17 : 12,
                 fontWeight: bold || emphasize
                     ? FontWeight.w700
                     : FontWeight.w500,

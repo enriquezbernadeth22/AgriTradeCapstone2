@@ -102,25 +102,24 @@ class AppTheme {
           backgroundColor: AppColors.brandFill,
           foregroundColor: Colors.white,
           padding: buttonPadding,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
+          shape: buttonShape,
           textStyle: buttonText(),
         ),
       ),
 
-      // Every button in the app is pill-shaped, for consistency.
+      // Every button in the app is a rounded rectangle ([buttonShape]);
+      // fields, search bars, chips and badges stay pills.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.brand,
-          shape: const StadiumBorder(),
+          shape: buttonShape,
           textStyle: GoogleFonts.montserrat(fontSize: 13.5),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.brand,
-          shape: const StadiumBorder(),
+          shape: buttonShape,
           padding: buttonPadding,
           textStyle: buttonText(),
         ),
@@ -128,7 +127,7 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.brandFill,
-          shape: const StadiumBorder(),
+          shape: buttonShape,
           padding: buttonPadding,
           textStyle: buttonText(),
         ),
@@ -291,7 +290,7 @@ class AppTheme {
     foregroundColor: AppColors.brand,
     backgroundColor: AppColors.surface,
     side: BorderSide(color: AppColors.brand, width: 1.2),
-    shape: const StadiumBorder(),
+    shape: buttonShape,
     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
     textStyle: GoogleFonts.montserrat(
       fontSize: 13.5,
@@ -301,7 +300,7 @@ class AppTheme {
   static ButtonStyle get _pickerConfirmButton => TextButton.styleFrom(
     foregroundColor: Colors.white,
     backgroundColor: AppColors.brandFill,
-    shape: const StadiumBorder(),
+    shape: buttonShape,
     padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 10),
     textStyle: GoogleFonts.montserrat(
       fontSize: 13.5,
@@ -692,12 +691,14 @@ class AppTheme {
   static ButtonStyle secondaryButton() => OutlinedButton.styleFrom(
     foregroundColor: AppColors.text,
     backgroundColor: AppColors.surface,
+    // Bold, like the primary button's label; the colour is foregroundColor.
+    textStyle: buttonText(),
     minimumSize: const Size(0, formButtonHeight),
     padding: const EdgeInsets.symmetric(horizontal: 20),
     // Dark enough to see the whole button on white, also while it is
     // waiting to be usable (Resend Reset Link's countdown).
-    side: BorderSide(color: AppColors.grey(400), width: 1.2),
-    shape: const StadiumBorder(),
+    side: BorderSide(color: AppColors.grey(600), width: 1.2),
+    shape: buttonShape,
   );
 
   static const EdgeInsets buttonPadding = EdgeInsets.symmetric(
@@ -732,7 +733,7 @@ class AppTheme {
     minimumSize: const Size(0, formButtonHeight),
     padding: const EdgeInsets.symmetric(horizontal: 20),
     elevation: 0,
-    shape: const StadiumBorder(),
+    shape: buttonShape,
   );
 
   // ---------- GLOW FIELD ----------
@@ -802,6 +803,36 @@ class AppTheme {
   /// The corner radius that turns a box of any height into a pill: Flutter
   /// shrinks a radius larger than half the box's height to fit it.
   static const double pillRadius = 999;
+
+  // ---------- BUTTONS AND CARDS (the user's design, 2026-11-07) ----------
+  // Buttons are rounded rectangles: 12 on a full-size button, 8 on a
+  // compact one (36 high or less), so the corner keeps one proportion.
+  // Text fields, search bars, chips and badges stay pills; anything that
+  // opens a dropdown list stays [dropdownRadius].
+  static const double buttonRadius = 12;
+  static const double compactButtonRadius = 8;
+  static const OutlinedBorder buttonShape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.all(Radius.circular(buttonRadius)),
+  );
+  static const OutlinedBorder compactButtonShape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.all(Radius.circular(compactButtonRadius)),
+  );
+
+  /// Cards and containers: white, corners of [cardRadius], no outline and
+  /// a soft shadow under them. In dark mode, where a shadow does not show,
+  /// a thin border marks the edge instead.
+  static const double cardRadius = 16;
+  static BoxDecoration card({double radius = cardRadius, Color? color}) =>
+      BoxDecoration(
+        color: color ?? AppColors.surface,
+        borderRadius: BorderRadius.circular(radius),
+        border: AppColors.isDark ? Border.all(color: AppColors.hairline) : null,
+        boxShadow: AppColors.isDark ? null : cardShadow,
+      );
+  static const List<BoxShadow> cardShadow = [
+    BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x0A000000), blurRadius: 2, offset: Offset(0, 1)),
+  ];
 
   /// How round the Admin Portal's fields, buttons and cards are (see
   /// kAdminFieldRadius): rounded rectangles, not pills.

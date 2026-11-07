@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/firebase_refs.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../services/conversation_prefs_service.dart';
 import '../services/message_service.dart';
@@ -11,7 +11,8 @@ import '../widgets/page_header.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/agri_refresh_indicator.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/explore_hero.dart';
+import '../widgets/explore_search_pill.dart';
 import '../widgets/online_dot.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/report_user_dialog.dart';
@@ -65,6 +66,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
       _messageService.myConversationsStream();
   Stream<DocumentSnapshot<Map<String, dynamic>>>? _ownUserStream;
 
+  // The last list received. If the list is ever built anew while its
+  // stream is already being listened to, Firestore sends a newcomer nothing
+  // until something changes: this shows at once instead of a spinner that
+  // never ends (seen after a hot reload, 2026-11-08).
+  QuerySnapshot<Map<String, dynamic>>? _lastConversations;
+
   // Each person's public profile (name, photo, location), kept here, one
   // subscription per person for as long as this list lives. Rows read it
   // from here rather than each subscribing for themselves: rows are
@@ -80,7 +87,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Map<String, dynamic>? _profileOf(String uid) {
     _profileSubs.putIfAbsent(
       uid,
-      () => FirebaseFirestore.instance
+      () => FirebaseRefs.firestore
           .collection('publicProfiles')
           .doc(uid)
           .snapshots()
@@ -107,7 +114,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void initState() {
     super.initState();
     _prefs.addListener(_onPrefsChanged);
-    _prefs.load(FirebaseAuth.instance.currentUser?.uid);
+    _prefs.load(FirebaseRefs.auth.currentUser?.uid);
     if (_inboxMode) _syncOwnProfilePhoto();
   }
 
@@ -143,11 +150,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
   // Firebase Auth profile (e.g. a Google photo) would never show up there,
   // so copy it across once.
   Future<void> _syncOwnProfilePhoto() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
     final authPhoto = user?.photoURL?.trim() ?? '';
     if (user == null || authPhoto.isEmpty) return;
     try {
-      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final ref = FirebaseRefs.firestore.collection('users').doc(user.uid);
       final doc = await ref.get();
       if (!doc.exists) return;
       final saved = doc.data()?['photoUrl']?.toString().trim() ?? '';
@@ -159,16 +166,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final myUid = FirebaseRefs.auth.currentUser?.uid;
 
-    return Column(
+    final page = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_inboxMode) ...[_header(), _searchBar(), _filterChips()],
         Expanded(
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _conversationsStream,
+            initialData: _lastConversations,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.hasData) _lastConversations = snapshot.data;
+              if (!snapshot.hasData &&
+                  snapshot.connectionState == ConnectionState.waiting) {
                 return Center(
                   child: CircularProgressIndicator(color: AppColors.brand),
                 );
@@ -283,7 +294,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 // floating cards.
                 child: ListView.separated(
                   padding: EdgeInsets.only(
-                    top: _inboxMode ? 4 : 8,
+                    top: _inboxMode ? 2 : 8,
                     bottom: _inboxMode
                         ? DockedNavBar.listEndPadding(context)
                         : 24,
@@ -294,7 +305,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     thickness: 1,
                     indent: 16,
                     endIndent: 16,
-                    color: AppColors.grey(200),
+                    color: AppColors.isDark
+                        ? AppColors.hairline
+                        : const Color(0xFFE9EAE5),
                   ),
                   itemBuilder: (context, i) {
                     final doc = docs[i];
@@ -308,6 +321,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ),
       ],
     );
+    // The inbox on the cream of Explore (the user's design, 2026-11-08).
+    return _inboxMode
+        ? ColoredBox(color: exploreBackground, child: page)
+        : page;
   }
 
   String _otherUid(Map<String, dynamic> data, String? myUid) {
@@ -317,30 +334,53 @@ class _ChatListScreenState extends State<ChatListScreen> {
         .toString();
   }
 
-  // "Messages" title (same style as the Orders tab heading) with the
-  // message-management menu on the right — same for Farmer and Buyer.
+  // The dark green band, then "Messages" as big as Explore's title (no
+  // icon beside it) with the message-management menu opposite it — the
+  // same for Farmer and Buyer (the user's design, 2026-11-08).
   Widget _header() {
-    // The menu sits on the title's own row, opposite it.
-    return PageHeader(
-      title: tr(context).navMessages,
-      titleTrailing: _menuButton(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PageHeader(title: tr(context).navMessages, includeTitle: false),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(21, 8, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  tr(context).navMessages,
+                  style: TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 23.5,
+                    height: 1.15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.brand,
+                  ),
+                ),
+              ),
+              _menuButton(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _searchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
       child: _searchField(),
     );
   }
 
   Widget _searchField() {
     // Not an editable field — tapping it opens the dedicated search
-    // screen (recent searches + results), same for Farmer and Buyer.
+    // screen (recent searches + results), same for Farmer and Buyer. The
+    // same bar as Explore's.
     return Semantics(
       button: true,
       label: tl('Search conversations'),
-      child: AppSearchBar(
+      child: ExploreSearchPill(
         hint: tl('Search conversations...'),
         onTap: () => Navigator.push(
           context,
@@ -352,7 +392,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Widget _filterChips() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16.5, 11, 16, 8),
       child: Row(
         children: [
           _filterChip(tr(context).filterAll, 'all'),
@@ -371,7 +411,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return Builder(
       builder: (buttonContext) => IconButton(
         tooltip: tl('Manage messages'),
-        icon: Icon(Icons.menu_rounded, size: 24, color: PageHeader.titleColor),
+        icon: Icon(Icons.menu_rounded, size: 22, color: AppColors.brand),
         onPressed: () => _openManageMenu(buttonContext),
       ),
     );
@@ -418,31 +458,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
+  // The same pills as Explore's categories.
   Widget _filterChip(String label, String value) {
-    final selected = _filter == value;
-    return InkWell(
+    return FilterPill(
+      label: label,
+      selected: _filter == value,
       onTap: () => setState(() => _filter = value),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brandFill : AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected
-                ? AppColors.brand
-                : AppColors.adapt(const Color(0xFFE3E9DF)),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : AppColors.textSecondary,
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
     );
   }
 
@@ -630,14 +651,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
           otherName: otherName,
           otherPhotoUrl: otherPhotoUrl,
         ),
+        // Avatar | name, place, last message | time, unread count (the
+        // user's design, 2026-11-08): a flat row on the cream, no card.
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  ProfileAvatar(photoUrl: otherPhotoUrl, name: otherName),
+                  ProfileAvatar(
+                    photoUrl: otherPhotoUrl,
+                    name: otherName,
+                    radius: 23,
+                  ),
                   Positioned(
                     right: -1,
                     bottom: -1,
@@ -651,95 +679,105 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            shownName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: unread > 0
-                                  ? FontWeight.bold
-                                  : FontWeight.w600,
-                              color: AppColors.text,
-                            ),
-                          ),
-                        ),
-                        if (timeLabel.isNotEmpty)
-                          Text(
-                            timeLabel,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: unread > 0
-                                  ? AppColors.brand
-                                  : AppColors.grey(500),
-                              fontWeight: unread > 0
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                      ],
+                    Text(
+                      shownName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 14,
+                        fontWeight: unread > 0
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: AppColors.brand,
+                      ),
                     ),
                     if (location.isNotEmpty) ...[
                       const SizedBox(height: 2),
-                      Text(
-                        location,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.grey(500),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            preview,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: unread > 0
-                                  ? AppColors.text
-                                  : AppColors.grey(600),
-                              fontWeight: unread > 0
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 12,
+                            color: AppColors.grey(600),
                           ),
-                        ),
-                        if (unread > 0) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.brandFill,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(minWidth: 20),
+                          const SizedBox(width: 3),
+                          Expanded(
                             child: Text(
-                              unread > 9 ? '9+' : '$unread',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                              location,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.grey(600),
                               ),
                             ),
                           ),
                         ],
-                      ],
+                      ),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: unread > 0
+                            ? AppColors.text
+                            : AppColors.grey(700),
+                        fontWeight: unread > 0
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (timeLabel.isNotEmpty)
+                    Text(
+                      timeLabel,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: AppColors.grey(600),
+                        fontWeight: unread > 0
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  if (unread > 0) ...[
+                    const SizedBox(height: 7),
+                    // Pale green, the count in dark green.
+                    Container(
+                      key: ValueKey('unread_$conversationId'),
+                      constraints: const BoxConstraints(
+                        minWidth: 21,
+                        minHeight: 21,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.isDark
+                            ? AppColors.tint
+                            : const Color(0xFFDCEFCB),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Text(
+                        unread > 9 ? '9+' : '$unread',
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          color: AppColors.brand,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -832,7 +870,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: myUid == null
           ? null
-          : _ownUserStream ??= FirebaseFirestore.instance
+          : _ownUserStream ??= FirebaseRefs.firestore
                 .collection('users')
                 .doc(myUid)
                 .snapshots(),

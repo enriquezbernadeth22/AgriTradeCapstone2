@@ -3,6 +3,7 @@ import 'app_scaffold_messenger.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_language.dart';
+import '../theme/app_theme.dart';
 
 // ============================================================
 // Shared launcher — the one place that actually opens Google Maps.
@@ -101,7 +102,7 @@ class OpenInMapsButton extends StatelessWidget {
           foregroundColor: AppColors.brand,
           side: BorderSide(color: AppColors.brand),
           padding: const EdgeInsets.symmetric(vertical: 13),
-          shape: const StadiumBorder(),
+          shape: AppTheme.buttonShape,
         ),
       ),
     );

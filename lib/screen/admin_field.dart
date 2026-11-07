@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'admin_dashboard_screen.dart' show AdminPalette, AdminThemeScope;
-import 'admin_filter_controls.dart' show kAdminFieldRadius;
+import 'admin_filter_controls.dart' show kAdminFieldRadius, kAdminInputRadius;
 
 /// The Admin Portal's text field, in the look of the mobile app's
 /// login fields: the field's name above it, then a white rounded rectangle
@@ -187,6 +187,7 @@ class AdminFieldPlate extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AdminFieldFrame(
+      pill: false,
       label: label,
       helper: helper,
       icon: icon,
@@ -226,6 +227,10 @@ class AdminFieldFrame extends StatelessWidget {
   final bool focused;
   final bool enabled;
   final bool multiline;
+
+  /// Typed in: a pill (a rounded rectangle when [multiline]). A value that
+  /// is chosen, not typed, is a rounded rectangle like a dropdown.
+  final bool pill;
   final VoidCallback? onTap;
   final Widget child;
 
@@ -238,6 +243,7 @@ class AdminFieldFrame extends StatelessWidget {
     this.focused = false,
     this.enabled = true,
     this.multiline = false,
+    this.pill = true,
     this.onTap,
     required this.child,
   });
@@ -252,7 +258,10 @@ class AdminFieldFrame extends StatelessWidget {
             .dependOnInheritedWidgetOfExactType<AdminThemeScope>()
             ?.palette ??
         AdminPalette.fallback(context);
-    final radius = BorderRadius.circular(kAdminFieldRadius);
+    // A pill on one line; several lines tall, rounded corners.
+    final radius = BorderRadius.circular(
+      !pill ? kAdminFieldRadius : (multiline ? 16 : kAdminInputRadius),
+    );
     final muted = scheme.onSurface.withValues(alpha: 0.6);
 
     Widget plate = AnimatedContainer(

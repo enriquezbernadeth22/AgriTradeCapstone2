@@ -642,7 +642,7 @@ class _GoogleCompleteProfileScreenState
         if (!didPop) _confirmLeave(result);
       },
       child: Scaffold(
-        backgroundColor: AppColors.page,
+        backgroundColor: AppColors.authPage,
         // The compact header, as on RegisterScreen: Back (to ChooseRoleScreen,
         // to pick the other role), and the small logo and name.
         appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),

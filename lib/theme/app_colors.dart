@@ -26,11 +26,20 @@ class AppColors {
 
   // ---- Backgrounds ----
 
-  /// The page behind everything (Scaffold).
+  /// The page behind everything (Scaffold): the warm cream of Explore, for
+  /// every buyer and farmer screen (the user's design, 2026-11-08); cards,
+  /// fields, sheets and dialogs stay white ([surface]).
   // Dark: a very dark charcoal rather than pure black (#101214), cards one
   // step lighter (#1B1E20) with a quiet border (#303437), so the layers
   // read without shadows.
-  static Color get page => _pick(Colors.white, const Color(0xFF101214));
+  static Color get page =>
+      _pick(const Color(0xFFFEF7EE), const Color(0xFF101214));
+
+  /// The white page of the sign-in screens (Log In, registration, Forgot
+  /// Password, the Google profile form, email verification, waiting for
+  /// approval) and the splash: their established look, kept white when
+  /// the rest of the app went cream.
+  static Color get authPage => _pick(Colors.white, const Color(0xFF101214));
 
   /// Cards, sheets, dialogs, headers, the nav bar, menus.
   static Color get surface => _pick(Colors.white, const Color(0xFF1B1E20));

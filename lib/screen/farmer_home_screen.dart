@@ -11,13 +11,12 @@ import '../widgets/unread_messages_dot.dart';
 import '../widgets/unseen_orders_dot.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
-import '../widgets/settings_sheet.dart';
+import 'farmer_settings_screen.dart';
 import 'add_product_screen.dart';
 import 'market_tab.dart';
 import 'chat_list_screen.dart';
 import 'farmer_orders_tab.dart';
 import 'farmer_profile_tab.dart';
-import 'help_support_screen.dart';
 import 'notifications_screen.dart';
 import 'role_selection_screen.dart';
 import '../l10n/tr.dart';
@@ -74,15 +73,16 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
 
   // Runs once this home screen is actually on screen — i.e. after login,
   // email verification and admin approval are all behind the user. The
-  // notification rationale waits for the first-time walkthrough so the two
-  // never appear on top of each other.
+  // notification question (and the phone's own Allow) comes first, then
+  // the first-time tour, so the two never appear on top of each other (the
+  // user's order, 2026-11-07).
   Future<void> _onEnteredApp() async {
     await PasswordChangePrompt.onEnteredApp(context);
     if (!mounted) return;
     await ProfilePhotoPrompt.onEnteredApp(context);
-    await _showWalkthrough();
     if (!mounted) return;
     await NotificationPermissionPrompt.instance.onEnteredApp(context);
+    await _showWalkthrough();
   }
 
   void _onGlobalTabIndexChanged() {
@@ -138,14 +138,14 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
-  // The gear in every tab's header.
-  void _openSettings() => showSettingsSheet(
+  // The gear beside the Profile title: Settings, a page of its own (the
+  // header no longer has a gear, the user's design of 2026-11-07).
+  void _openSettings() => Navigator.push(
     context,
-    onHelp: () => Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const HelpSupportScreen(farmer: true)),
+    MaterialPageRoute(
+      builder: (_) =>
+          FarmerSettingsScreen(onLogout: () => _handleLogout(context)),
     ),
-    onLogout: () => _handleLogout(context),
   );
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -195,7 +195,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         // The page runs on behind the floating bar, with no band around it.
         extendBody: true,
         // ---- Bottom navigation bar (Market · Messages · + · Orders · Profile) ----
-        // The small floating bar, always on screen.
+        // The floating dark green bar, always on screen.
         bottomNavigationBar: DockedNavBar(
           children: [
             _navItem(
@@ -243,11 +243,10 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           // Swipe left or right to move between the tabs, as well as
           // tapping them in the bar below.
           // The header's logo opens Market from any tab, and every tab's
-          // header has the notification bell and the Settings gear.
+          // header has the notification bell; Settings is on Profile.
           child: HomeLogoAction(
             onTap: () => setState(() => _selectedIndex = 0),
             onNotifications: _openNotifications,
-            onSettings: _openSettings,
             child: SwipeableTabs(
               index: _selectedIndex,
               onIndexChanged: (i) => setState(() => _selectedIndex = i),
@@ -258,8 +257,11 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                   onNotificationsPressed: _openNotifications,
                 ),
                 const ChatListScreen(),
-                OrdersTab(showStatus: _ordersStatus),
-                const ProfileTab(),
+                OrdersTab(
+                  showStatus: _ordersStatus,
+                  active: _selectedIndex == 2,
+                ),
+                ProfileTab(onOpenSettings: _openSettings),
               ],
             ),
           ),
@@ -297,31 +299,33 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   Widget _buildAddButton() {
     return Expanded(
       child: Center(
-        // Small, rising just above the floating bar.
+        // Small, rising just above the bar.
         child: Transform.translate(
-          offset: const Offset(0, -10),
+          offset: const Offset(0, -8),
           child: InkWell(
             onTap: _openAddProduct,
             customBorder: const CircleBorder(),
             child: Container(
               key: _addProductKey,
-              width: 46,
-              height: 46,
+              width: 40,
+              height: 40,
+              // Gold, the bar's selected colour: dark green would vanish
+              // into the dark green bar.
               decoration: BoxDecoration(
-                color: AppColors.brandFill,
+                color: DockedNavBar.selectedColor,
                 shape: BoxShape.circle,
                 // A soft lift; in dark mode a plain shadow, not a glow.
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.isDark
                         ? Colors.black.withValues(alpha: 0.35)
-                        : AppColors.brand.withValues(alpha: 0.28),
+                        : Colors.black.withValues(alpha: 0.22),
                     blurRadius: AppColors.isDark ? 6 : 10,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 24),
+              child: const Icon(Icons.add, color: DockedNavBar.color, size: 24),
             ),
           ),
         ),

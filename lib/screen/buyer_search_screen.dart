@@ -2,20 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/commodity_master_list.dart';
 import '../services/buyer_area_watcher.dart';
 import '../services/delivery_coverage.dart';
+import '../services/firebase_refs.dart';
 import '../services/product_service.dart';
 import '../services/product_recommendation_service.dart';
 import '../services/product_visibility_service.dart';
 import '../services/saved_products_service.dart';
 import '../services/search_suggestions.dart';
 import '../services/search_trends.dart';
-import '../widgets/app_back_button.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/explore_search_pill.dart';
 import '../widgets/explore_product_card.dart';
 import '../widgets/save_product_button.dart';
 import '../widgets/retry_message.dart';
@@ -25,6 +24,7 @@ import '../widgets/agri_empty_state.dart';
 import '../services/personal_recommendations.dart';
 import '../services/order_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 /// The dedicated Buyer Search experience — opened by tapping the (non-
@@ -75,6 +75,23 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   List<String> _trendingSearches = [];
   StreamSubscription? _trendingSub;
 
+  // ---- One ready moment for the browsing page (2026-11-08) ----
+  // Trending, Recent and the time of the last "Clear" arrive separately;
+  // shown as each came, Recommended Products sat right under the search
+  // bar and was then pushed down. Until all three have answered (data,
+  // nothing, or an error), Trending and Recent show placeholder pills in
+  // their places and Recommended waits, so it appears where it stays.
+  // What was last seen is kept for the next visit, so it opens ready.
+  bool _trendingLoaded = false;
+  bool _clearedLoaded = false;
+  bool get _historyReady =>
+      _trendingLoaded && _recentSearchesLoaded && _clearedLoaded;
+
+  static List<String>? _lastTrending;
+  static String? _lastUid;
+  static List<(String, int)>? _lastRecentRaw;
+  static int? _lastClearedAt;
+
   // This buyer's own searches as (term, when), newest first; what is shown
   // is the latest 8 distinct terms since they last tapped "Clear".
   List<(String, int)> _recentRaw = [];
@@ -111,7 +128,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   void _listenToProducts() {
     _productsSub?.cancel();
     if (_productsFailed && mounted) setState(() => _productsFailed = false);
-    FirebaseFirestore.instance
+    FirebaseRefs.firestore
         .collection('products')
         .get(const GetOptions(source: Source.cache))
         .then((snap) {
@@ -134,13 +151,13 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
 
   Future<void> _loadAreaSales(String uid) async {
     try {
-      final me = await FirebaseFirestore.instance
+      final me = await FirebaseRefs.firestore
           .collection('users')
           .doc(uid)
           .get();
       final town = (me.data()?['municipality'] ?? '').toString().trim();
       if (town.isEmpty) return;
-      final sales = await FirebaseFirestore.instance
+      final sales = await FirebaseRefs.firestore
           .collection('market_sales')
           .where('buyerArea', isEqualTo: town)
           .limit(300)
@@ -174,26 +191,62 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
     // from other buyers' raw searchEvents. Ranked over the last 7 days (see
     // topTrendingTerms); with too little activity the list is empty and
     // the section simply isn't shown.
-    _trendingSub = FirebaseFirestore.instance
+    _trendingSub = FirebaseRefs.firestore
         .collection('searchTrends')
         .orderBy('updatedAt', descending: true)
         .limit(150)
         .snapshots()
-        .listen((snap) {
-          if (!mounted) return;
-          setState(
-            () => _trendingSearches = topTrendingTerms(
-              snap.docs.map((d) => d.data()),
-              now: DateTime.now(),
-            ),
-          );
-        }, onError: (_) {});
+        .listen(
+          (snap) {
+            if (!mounted) return;
+            setState(() {
+              _trendingSearches = topTrendingTerms(
+                snap.docs.map((d) => d.data()),
+                now: DateTime.now(),
+              );
+              _lastTrending = _trendingSearches;
+              _trendingLoaded = true;
+            });
+          },
+          // A failure shows no trending terms, not a placeholder forever.
+          onError: (_) {
+            if (mounted) setState(() => _trendingLoaded = true);
+          },
+        );
 
     // RECENT SEARCHES = this logged-in buyer's own recent searches. No
     // orderBy paired with the equality filter (avoids needing a composite
     // Firestore index) — sorted and deduplicated client-side instead.
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     _listenToProducts();
+
+    // Opened before: what was last seen, at once (then kept current).
+    final trending = _lastTrending;
+    if (trending != null) {
+      _trendingSearches = trending;
+      _trendingLoaded = true;
+    }
+    final recentRaw = _lastRecentRaw;
+    final clearedAt = _lastClearedAt;
+    if (uid != null &&
+        uid == _lastUid &&
+        recentRaw != null &&
+        clearedAt != null) {
+      _recentRaw = recentRaw;
+      _recentClearedAt = clearedAt;
+      _recentSearches = _visibleRecent();
+      _recentSearchesLoaded = true;
+      _clearedLoaded = true;
+    } else if (uid != _lastUid) {
+      _lastRecentRaw = null;
+      _lastClearedAt = null;
+    }
+    _lastUid = uid;
+    // Signed out: no history to wait for.
+    if (uid == null) {
+      _recentSearchesLoaded = true;
+      _clearedLoaded = true;
+    }
 
     if (uid != null) {
       _loadRecentClearedAt(uid);
@@ -209,7 +262,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         ..start()
         ..addListener(_onLikesChanged);
 
-      _recentSub = FirebaseFirestore.instance
+      _recentSub = FirebaseRefs.firestore
           .collection('searchEvents')
           .where('userId', isEqualTo: uid)
           .limit(50)
@@ -235,6 +288,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                         DateTime.now().millisecondsSinceEpoch,
                   ),
               ];
+              _lastRecentRaw = _recentRaw;
               setState(() {
                 _recentSearches = _visibleRecent();
                 _recentSearchesLoaded = true;
@@ -254,7 +308,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
 
     // Visibility-ranking inputs for Recommended Products / results, same
     // signals Explore's own grid ranks by (ProductVisibilityService).
-    _usersSub = FirebaseFirestore.instance
+    _usersSub = FirebaseRefs.firestore
         .collection('publicProfiles')
         .snapshots()
         .listen((snap) {
@@ -313,13 +367,20 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
       final prefs = await SharedPreferences.getInstance();
       _recentClearedAt = prefs.getInt(_clearedKey(uid)) ?? 0;
     } catch (_) {}
-    if (mounted) setState(() => _recentSearches = _visibleRecent());
+    _lastClearedAt = _recentClearedAt;
+    if (mounted) {
+      setState(() {
+        _clearedLoaded = true;
+        _recentSearches = _visibleRecent();
+      });
+    }
   }
 
   Future<void> _clearRecentSearches() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null) return;
     _recentClearedAt = DateTime.now().millisecondsSinceEpoch;
+    _lastClearedAt = _recentClearedAt;
     setState(() => _recentSearches = _visibleRecent());
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -335,7 +396,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   // (submit, or picking a suggested/trending/recent term), never from
   // onChanged/every keystroke.
   Future<void> _logSearchEvent(String query) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null) return;
     final normalized = _normalize(query);
     if (normalized.isEmpty) return; // never log a blank search
@@ -351,7 +412,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
     _lastLoggedAt[normalized] = now;
 
     try {
-      await FirebaseFirestore.instance.collection('searchEvents').add({
+      await FirebaseRefs.firestore.collection('searchEvents').add({
         'userId': uid,
         'query': normalized,
         'createdAt': FieldValue.serverTimestamp(),
@@ -417,8 +478,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final showingResults = _activeQuery != null;
+    // The cream page of the user's picture (2026-11-08).
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       body: SafeArea(
         child: Column(
           children: [
@@ -434,16 +496,25 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(6, 10, 16, 8),
       child: Row(
         children: [
+          // A plain dark green arrow, no circle (the user's picture).
           IconButton(
-            icon: const AppBackIcon(),
+            tooltip: tl('Back'),
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: AppColors.brand,
+              size: 24,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
+          const SizedBox(width: 4),
+          // Explore's very own search bar, here as the field itself: the
+          // same height, outline, icon and text (2026-11-08).
           Expanded(
-            // The same bar as Marketplace's, here as a real field.
-            child: AppSearchBar(
+            child: ExploreSearchPill(
+              hint: tl('Search crops, livestock, or farmers...'),
               controller: _controller,
               focusNode: _focusNode,
               onClear: _clearSearch,
@@ -462,43 +533,77 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
     );
   }
 
-  Widget _sectionHeading(String text) {
-    return Text(
+  // A section's title in dark green, with its small icon before it
+  // (gold flame for Trending, a clock for Recent, a gold star for
+  // Recommended; the user's picture, 2026-11-08).
+  Widget _sectionHeading(String text, {IconData? icon, Color? iconColor}) {
+    final title = Text(
       text,
       style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.bold,
-        color: AppColors.text,
+        fontFamily: 'Montserrat',
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: AppColors.brand,
       ),
+    );
+    if (icon == null) return title;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: iconColor ?? AppColors.brand),
+        const SizedBox(width: 7),
+        Flexible(child: title),
+      ],
     );
   }
 
-  Widget _chipRow(List<String> terms, {required IconData icon}) {
+  static const Color _gold = Color(0xFFF5BB24);
+
+  // A wrap of search terms to tap: pale green pills with no outline for
+  // Trending ([tinted]), white pills with a thin grey outline otherwise.
+  Widget _chipRow(
+    List<String> terms, {
+    required IconData icon,
+    bool tinted = false,
+  }) {
+    final fill = tinted
+        ? (AppColors.isDark ? AppColors.tint : const Color(0xFFE3F0DA))
+        : AppColors.surface;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         for (final term in terms)
-          InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () => _commitSearch(term),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.grey(300)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 14, color: AppColors.grey(500)),
-                  const SizedBox(width: 6),
-                  Text(
-                    term,
-                    style: TextStyle(fontSize: 12.5, color: AppColors.text),
-                  ),
-                ],
+          Material(
+            color: fill,
+            shape: StadiumBorder(
+              side: tinted
+                  ? BorderSide.none
+                  : BorderSide(color: AppColors.grey(300)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _commitSearch(term),
+              child: Padding(
+                // About as tall as Explore's pills.
+                padding: const EdgeInsets.fromLTRB(10, 6, 13, 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 13,
+                      color: tinted ? AppColors.brand : AppColors.grey(600),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      term,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: tinted ? AppColors.brand : AppColors.text,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -512,7 +617,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
   // while the buyer is typing (it is the field's autocomplete).
   Widget _buildBrowsingState() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       children: [
         if (_suggestedSearches.isNotEmpty) ...[
           _sectionHeading(tl('Suggested Searches')),
@@ -539,7 +644,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                   child: Text(
                     tl('See all results ({0})', [_typedMatches.length]),
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -552,23 +657,35 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
               _allProducts == null
                   ? tl('Loading products…')
                   : tl('No products match “{0}” yet.', [_typed.trim()]),
-              style: TextStyle(color: AppColors.grey(600), fontSize: 13),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
             )
           else
             _productGrid(_typedMatches.take(4).toList()),
           const SizedBox(height: 22),
         ],
+        // Until Trending and Recent have answered: their places held by
+        // placeholder pills, Recommended not yet (see _historyReady).
+        if (!_historyReady) ..._historyPlaceholder(),
         // Hidden entirely until there is real, recent search activity.
-        if (_trendingSearches.isNotEmpty) ...[
-          _sectionHeading(tl('Trending Searches')),
-          const SizedBox(height: 10),
-          _chipRow(_trendingSearches, icon: Icons.trending_up),
-          const SizedBox(height: 22),
+        if (_historyReady && _trendingSearches.isNotEmpty) ...[
+          _sectionHeading(
+            tl('Trending Searches'),
+            icon: Icons.local_fire_department_rounded,
+            iconColor: _gold,
+          ),
+          const SizedBox(height: 9),
+          _chipRow(_trendingSearches, icon: Icons.trending_up, tinted: true),
+          const SizedBox(height: 18),
         ],
-        if (_recentSearches.isNotEmpty) ...[
+        if (_historyReady && _recentSearches.isNotEmpty) ...[
           Row(
             children: [
-              Expanded(child: _sectionHeading(tl('Recent Searches'))),
+              Expanded(
+                child: _sectionHeading(
+                  tl('Recent Searches'),
+                  icon: Icons.schedule_rounded,
+                ),
+              ),
               TextButton(
                 onPressed: _clearRecentSearches,
                 style: TextButton.styleFrom(
@@ -579,30 +696,74 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                 ),
                 child: Text(
                   tl('Clear'),
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          _chipRow(_recentSearches, icon: Icons.history),
-          const SizedBox(height: 22),
+          const SizedBox(height: 9),
+          _chipRow(_recentSearches, icon: Icons.schedule_rounded),
+          const SizedBox(height: 18),
         ],
-        if (_recentSearchesLoaded && _recentSearches.isEmpty) ...[
-          _sectionHeading(tl('Recent Searches')),
+        if (_historyReady && _recentSearches.isEmpty) ...[
+          _sectionHeading(tl('Recent Searches'), icon: Icons.schedule_rounded),
           const SizedBox(height: 6),
           Text(
             _recentSearchesError
                 ? tl('Could not load recent searches.')
                 : tl('No recent searches yet.'),
-            style: TextStyle(color: AppColors.grey(600), fontSize: 13),
+            style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
           ),
           const SizedBox(height: 22),
         ],
-        _sectionHeading(tl('Recommended Products')),
-        _buildRecommendedProducts(),
+        if (_historyReady) ...[
+          _sectionHeading(
+            tl('Recommended Products'),
+            icon: Icons.star_rounded,
+            iconColor: _gold,
+          ),
+          const SizedBox(height: 4),
+          _buildRecommendedProducts(),
+        ],
       ],
     );
+  }
+
+  // Trending and Recent while they load: their headings, and grey pills
+  // the size of the real ones.
+  List<Widget> _historyPlaceholder() {
+    Widget pills(List<double> widths) => Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final width in widths)
+          Container(
+            width: width,
+            height: 27,
+            decoration: BoxDecoration(
+              color: AppColors.grey(200),
+              borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            ),
+          ),
+      ],
+    );
+    return [
+      KeyedSubtree(
+        key: const Key('searchHistoryLoading'),
+        child: _sectionHeading(
+          tl('Trending Searches'),
+          icon: Icons.local_fire_department_rounded,
+          iconColor: _gold,
+        ),
+      ),
+      const SizedBox(height: 9),
+      pills(const [70, 82]),
+      const SizedBox(height: 18),
+      _sectionHeading(tl('Recent Searches'), icon: Icons.schedule_rounded),
+      const SizedBox(height: 9),
+      pills(const [78, 64, 104]),
+      const SizedBox(height: 18),
+    ];
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _rankedByVisibility(
@@ -669,38 +830,66 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
       builder: (context, constraints) {
         const spacing = 12.0;
         final cardWidth = (constraints.maxWidth - spacing) / 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: docs.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
-            mainAxisExtent: ExploreProductCard.extentFor(
-              cardWidth,
-              MediaQuery.textScalerOf(context),
-            ),
-          ),
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data();
-            return ExploreProductCard(
-              data: data,
-              saved: LikedProducts.instance.contains(doc.id),
-              onToggleSave: LikedProducts.instance.canLike
-                  ? () => toggleLikedProduct(context, doc.id)
-                  : null,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ProductDetailScreen(productId: doc.id, data: data),
-                ),
+        // Rows of two, each as tall as its cards need: a row where neither
+        // listing sells wholesale leaves out the "Wholesale | Min" strip
+        // (the user's picture, 2026-11-08).
+        bool wholesale(Map<String, dynamic> d) {
+          final price = (d['wholesalePrice'] as num?)?.toDouble();
+          return d['wholesaleEnabled'] == true ||
+              (d['wholesaleEnabled'] == null && price != null && price > 0);
+        }
+
+        Widget card(QueryDocumentSnapshot<Map<String, dynamic>> doc, bool row) {
+          final data = doc.data();
+          return ExploreProductCard(
+            reserveWholesaleRow: row,
+            data: data,
+            saved: LikedProducts.instance.contains(doc.id),
+            onToggleSave: LikedProducts.instance.canLike
+                ? () => toggleLikedProduct(context, doc.id)
+                : null,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    ProductDetailScreen(productId: doc.id, data: data),
               ),
-            );
-          },
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            for (var i = 0; i < docs.length; i += 2)
+              Builder(
+                builder: (context) {
+                  final pair = docs.skip(i).take(2).toList();
+                  final row = pair.any((d) => wholesale(d.data()));
+                  return Padding(
+                    padding: EdgeInsets.only(top: i == 0 ? 0 : spacing),
+                    child: SizedBox(
+                      height: ExploreProductCard.extentFor(
+                        cardWidth,
+                        MediaQuery.textScalerOf(context),
+                        withWholesaleRow: row,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: card(pair[0], row)),
+                          const SizedBox(width: spacing),
+                          Expanded(
+                            child: pair.length > 1
+                                ? card(pair[1], row)
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
         );
       },
     );
@@ -738,7 +927,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               tl('No products available yet.'),
-              style: TextStyle(color: AppColors.grey(600), fontSize: 13),
+              style: TextStyle(color: AppColors.grey(600), fontSize: 11.5),
             ),
           );
         }
@@ -796,7 +985,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         final normalizedQuery = query?.trim().toLowerCase() ?? '';
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
+          stream: FirebaseRefs.firestore
               .collection('publicProfiles')
               .snapshots(),
           builder: (context, profileSnapshot) {

@@ -92,20 +92,25 @@ class RegistrationStepIndicator extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        // 11 so the longest, "Your Information", stays on one line from a
-        // 360-wide phone up; a narrower one wraps it to two.
-        Text(
-          tl(labels[number - 1]),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          style:
-              AppTheme.body(
-                color: active ? AppColors.brand : AppColors.textSecondary,
-                size: 11,
-              ).copyWith(
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                height: 1.2,
-              ),
+        // Always one line, so the steps are the same height on every screen
+        // and never move between them: 11.5, which fits "Your Information"
+        // from a 360-wide phone up; on a narrower one it shrinks a little.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            tl(labels[number - 1]),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            softWrap: false,
+            style:
+                AppTheme.body(
+                  color: active ? AppColors.brand : AppColors.textSecondary,
+                  size: 11.5,
+                ).copyWith(
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  height: 1.2,
+                ),
+          ),
         ),
       ],
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/firebase_refs.dart';
 import '../services/presence_service.dart';
 
 /// The green "active" dot on an avatar — drawn only while [userId] is
@@ -17,7 +18,7 @@ class OnlineDot extends StatefulWidget {
 
 class _OnlineDotState extends State<OnlineDot> {
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _presence =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('presence')
           .doc(widget.userId)
           .snapshots();

@@ -400,9 +400,9 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
 
   // ---- Admin Portal (web) form ----
   // Same controllers and the same _login flow as the mobile form below,
-  // and the same fields (the shared GlowField), as rounded rectangles
-  // (AppTheme.adminFieldRadius) like the rest of the Admin Portal — only
-  // the copy, shape and sizing differ, for a desktop panel.
+  // and the same fields (the shared GlowField): pills, like every text
+  // field (the user's design, 2026-11-07), with rounded-rectangle buttons
+  // (AppTheme.adminFieldRadius) — only the copy and sizing differ.
   // Email and password only: the Admin door has no Google sign-in.
   // One height for both fields and the button, so the controls line up as
   // a single column of identical rounded rectangles.
@@ -445,7 +445,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               hint: 'admin@example.com',
               icon: Icons.email_outlined,
               compact: true,
-              radius: AppTheme.adminFieldRadius,
+              radius: AppTheme.pillRadius,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _loading ? null : _login(),
               autofillHints: const [
@@ -485,7 +485,7 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
               hint: tl('Enter your password'),
               icon: Icons.lock_outline,
               compact: true,
-              radius: AppTheme.adminFieldRadius,
+              radius: AppTheme.pillRadius,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _loading ? null : _login(),
               autofillHints: const [AutofillHints.password],
@@ -652,7 +652,11 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
                 onPressed: (_loading || _googleLoading)
                     ? null
                     : _continueWithGoogle,
-                style: AppTheme.secondaryButton(),
+                // A pill, unlike the other buttons (the user's choice,
+                // 2026-11-07): it stands apart as the sign-in by Google.
+                style: AppTheme.secondaryButton().copyWith(
+                  shape: const WidgetStatePropertyAll(StadiumBorder()),
+                ),
                 child: _googleLoading
                     ? SizedBox(
                         height: 20,

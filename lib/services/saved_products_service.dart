@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'firebase_refs.dart';
 
 /// A buyer's Liked Products: users/{uid}/savedProducts/{productId}, holding
 /// only the product id and when it was liked. ("saved" is the storage name;
@@ -15,9 +16,9 @@ import 'package:flutter/foundation.dart';
 /// twice can never create a second record. Only the account's own buyer
 /// can read or write this (see firestore.rules).
 class SavedProductsService {
-  final _db = FirebaseFirestore.instance;
+  final _db = FirebaseRefs.firestore;
 
-  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+  String? get _uid => FirebaseRefs.auth.currentUser?.uid;
 
   CollectionReference<Map<String, dynamic>>? get _saved {
     final uid = _uid;
@@ -134,7 +135,7 @@ class LikedProducts extends ChangeNotifier {
   /// Starts following the signed-in account. Safe to call from every
   /// screen that shows a heart; only the first call does anything.
   void start() {
-    _authSub ??= FirebaseAuth.instance.authStateChanges().listen(_onUser);
+    _authSub ??= FirebaseRefs.auth.authStateChanges().listen(_onUser);
   }
 
   Future<void> _onUser(User? user) async {
@@ -157,7 +158,7 @@ class LikedProducts extends ChangeNotifier {
 
     // No orderBy: every like must be in the result, including one whose
     // server timestamp hasn't been filled in yet. Sorted here instead.
-    _likesSub = FirebaseFirestore.instance
+    _likesSub = FirebaseRefs.firestore
         .collection('users')
         .doc(user.uid)
         .collection('savedProducts')
