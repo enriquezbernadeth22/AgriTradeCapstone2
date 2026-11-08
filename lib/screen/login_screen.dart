@@ -243,7 +243,7 @@ class _LoginHeader extends StatelessWidget {
       children: [
         Text(
           tr(context).loginButton,
-          style: AppTheme.pageTitle(color: AppColors.brand),
+          style: AppTheme.loginTitle(color: AppColors.brand),
         ),
         const SizedBox(height: 6),
         Text(

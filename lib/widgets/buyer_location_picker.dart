@@ -447,7 +447,9 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
       if (!serviceEnabled) {
         _log('gps', 'FAILED: location services are off');
         if (!mounted) return;
-        setState(() => _gpsError = tl('Turn on location services to use this.'));
+        setState(
+          () => _gpsError = tl('Turn on location services to use this.'),
+        );
         return;
       }
 
@@ -689,7 +691,8 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
                   ],
                   if (_gpsError != null) ...[
                     const SizedBox(height: 6),
-                    Text(tl(_gpsError!),
+                    Text(
+                      tl(_gpsError!),
                       style: const TextStyle(color: Colors.red, fontSize: 11.5),
                     ),
                   ],
@@ -833,9 +836,14 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_off, size: 36, color: AppColors.textMuted),
+              Icon(
+                Icons.wifi_off,
+                size: AppTheme.stateIconSize,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: 10),
-              Text(tl(_listError!),
+              Text(
+                tl(_listError!),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),

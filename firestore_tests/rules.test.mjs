@@ -272,6 +272,25 @@ await check('a farmer cannot like a review', async () => {
   await assertFails(updateDoc(review(as('farmer2')), { 'likes.farmer2': true }));
 });
 
+// An order placed from the chat: its card, from that order's buyer only.
+const orderCard = (db, sender, orderId, id = 'order_' + orderId) =>
+  setDoc(doc(db, `conversations/c1/messages/${id}`), {
+    senderId: sender, type: 'orderPlaced', orderId, productName: 'Corn', createdAt: serverTimestamp(),
+  });
+await check('the buyer posts the card of their order in the chat', () =>
+  assertSucceeds(orderCard(buyer(), 'buyer', 'pending1')));
+await check('the farmer cannot post an order card', () =>
+  assertFails(orderCard(farmer(), 'farmer', 'pending1')));
+await check("a buyer cannot post the card of another buyer's order", async () => {
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'conversations/c2'), { participants: ['buyer2', 'farmer'] }));
+  await assertFails(setDoc(doc(as('buyer2'), 'conversations/c2/messages/order_pending1'), {
+    senderId: 'buyer2', type: 'orderPlaced', orderId: 'pending1', createdAt: serverTimestamp(),
+  }));
+});
+await check('an order card only under its own id', () =>
+  assertFails(orderCard(buyer(), 'buyer', 'pending1', 'somethingElse')));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 await env.cleanup();
 process.exit(failed ? 1 : 0);

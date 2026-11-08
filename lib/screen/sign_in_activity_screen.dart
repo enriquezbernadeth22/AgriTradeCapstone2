@@ -299,7 +299,7 @@ class _SignInActivityScreenState extends State<SignInActivityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Devices & Login Activity')),
       body: FutureBuilder<String>(
         future: _currentDeviceId,

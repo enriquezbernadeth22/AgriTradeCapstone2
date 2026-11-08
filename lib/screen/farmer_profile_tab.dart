@@ -13,6 +13,7 @@ import 'farmer_edit_profile_screen.dart';
 import 'farmer_reviews_screen.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
+import '../widgets/profile_cover_header.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/update_stock_dialog.dart';
 import '../widgets/shimmer.dart';
@@ -62,70 +63,6 @@ class _ProfileTabState extends State<ProfileTab> {
 
   Future<void> _refreshData() async {
     await Future.delayed(const Duration(milliseconds: 700));
-  }
-
-  // ---- Avatar with an edit badge sitting on top of it ----
-  // Tapping the avatar (or the badge) opens the full Edit Profile
-  // screen, where the photo-change UI (camera icon + "Change Photo")
-  // actually lives.
-  Widget _avatarWithEditBadge(BuildContext context) {
-    final user = FirebaseRefs.auth.currentUser;
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseRefs.firestore
-          .collection('users')
-          .doc(user?.uid ?? '')
-          .snapshots(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data();
-        final photoUrl = data?['photoUrl']?.toString() ?? user?.photoURL;
-
-        final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
-
-        return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 46,
-                backgroundColor: AppColors.accent,
-                child: hasPhoto
-                    ? ClipOval(
-                        child: Image.network(
-                          photoUrl,
-                          width: 92,
-                          height: 92,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Icon(
-                            Icons.person,
-                            color: AppColors.brand,
-                            size: 52,
-                          ),
-                        ),
-                      )
-                    : Icon(Icons.person, color: AppColors.brand, size: 52),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandFill,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Icon(Icons.edit, color: Colors.white, size: 14),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   // ---- My Products ----
@@ -978,29 +915,9 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
               child: Column(
                 children: [
-                  // Settings: a small gear on the right of the title, not on
-                  // every tab's header.
-                  PageTitle(
-                    title: tr(context).navProfile,
-                    trailing: widget.onOpenSettings == null
-                        ? null
-                        : IconButton(
-                            key: const Key('profileSettings'),
-                            tooltip: tl('Settings'),
-                            onPressed: widget.onOpenSettings,
-                            icon: Icon(
-                              Icons.settings_outlined,
-                              size: 23,
-                              color: AppColors.text,
-                            ),
-                          ),
-                  ),
-
-                  // ---- Avatar with edit badge ----
-                  _avatarWithEditBadge(context),
-                  const SizedBox(height: 10),
-
-                  // ---- Name ----
+                  // ---- Title, cover, photo and name: the same header as
+                  // the Buyer Profile (the user, 2026-11-08); Settings is
+                  // a small gear opposite the title. ----
                   StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: _profile,
                     builder: (context, snap) {
@@ -1012,18 +929,53 @@ class _ProfileTabState extends State<ProfileTab> {
                                 (v) => v.isNotEmpty,
                                 orElse: () => tl('Farmer'),
                               );
-                      return Text(
-                        name,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                        ),
+                      final photoUrl =
+                          data?['photoUrl']?.toString() ?? user?.photoURL;
+                      return Column(
+                        children: [
+                          ProfileCoverHeader(
+                            title: tr(context).navProfile,
+                            name: name,
+                            photoUrl: photoUrl,
+                            onEdit: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const EditProfileScreen(),
+                              ),
+                            ),
+                            trailing: widget.onOpenSettings == null
+                                ? null
+                                : IconButton(
+                                    key: const Key('profileSettings'),
+                                    tooltip: tl('Settings'),
+                                    onPressed: widget.onOpenSettings,
+                                    icon: Icon(
+                                      Icons.settings_outlined,
+                                      size: AppTheme.barIconSize + 2,
+                                      color: AppColors.heading,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Text(
+                              name,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 19,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.heading,
+                              ),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
 
                   // ---- Location ----
                   StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -1042,14 +994,14 @@ class _ProfileTabState extends State<ProfileTab> {
                         children: [
                           Icon(
                             Icons.location_on_outlined,
-                            size: 15,
+                            size: 14,
                             color: AppColors.grey(600),
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 3),
                           Text(
                             location,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12.5,
                               color: AppColors.grey(600),
                             ),
                           ),

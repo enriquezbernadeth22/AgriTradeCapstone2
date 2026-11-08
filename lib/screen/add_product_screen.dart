@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firebase_refs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/feedback_service.dart';
 import '../services/product_service.dart';
@@ -160,10 +160,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String? _farmerType;
 
   Future<void> _loadFarmerType() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
     if (user == null) return;
     try {
-      final profile = await FirebaseFirestore.instance
+      final profile = await FirebaseRefs.firestore
           .collection('users')
           .doc(user.uid)
           .get();
@@ -177,11 +177,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // Live, so a profile photo/name change shows up in the header here too.
   late final Stream<DocumentSnapshot<Map<String, dynamic>>>? _profileStream =
-      FirebaseAuth.instance.currentUser == null
+      FirebaseRefs.auth.currentUser == null
       ? null
-      : FirebaseFirestore.instance
+      : FirebaseRefs.firestore
             .collection('users')
-            .doc(FirebaseAuth.instance.currentUser!.uid)
+            .doc(FirebaseRefs.auth.currentUser!.uid)
             .snapshots();
 
   // ==========================================================
@@ -201,19 +201,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
   StreamSubscription? _searchTrendsSub;
 
   void _listenToMarketData() {
-    _productsSub = FirebaseFirestore.instance
+    _productsSub = FirebaseRefs.firestore
         .collection('products')
         .snapshots()
         .listen((snap) {
           if (mounted) setState(() => _liveProducts = snap.docs);
         });
-    _ordersSub = FirebaseFirestore.instance
+    _ordersSub = FirebaseRefs.firestore
         .collection('market_sales')
         .snapshots()
         .listen((snap) {
           if (mounted) setState(() => _marketSales = snap.docs);
         }, onError: (_) {});
-    _marketPricesSub = FirebaseFirestore.instance
+    _marketPricesSub = FirebaseRefs.firestore
         .collection('market_prices')
         .snapshots()
         .listen((snap) {
@@ -221,7 +221,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         });
     // Aggregated only — see PriceRecommendation.searchCount's doc comment;
     // no individual buyer/search record is ever surfaced to the farmer.
-    _searchTrendsSub = FirebaseFirestore.instance
+    _searchTrendsSub = FirebaseRefs.firestore
         .collection('searchTrends')
         .snapshots()
         .listen((snap) {
@@ -523,10 +523,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // Same Barangay / Within Municipality are measured from the farm.
   Future<void> _loadFarmOrigin() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance
+      final snap = await FirebaseRefs.firestore
           .collection('users')
           .doc(uid)
           .get();
@@ -618,6 +618,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           AgriSheetAction(
+            icon: Icons.zoom_in_rounded,
+            label: tl('View photo'),
+            onTap: () => Navigator.pop(sheetContext, 'view'),
+          ),
+          AgriSheetAction(
             icon: Icons.crop_rotate,
             label: tl('Crop & rotate'),
             onTap: () => Navigator.pop(sheetContext, 'crop'),
@@ -632,7 +637,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
     );
     if (!mounted || action == null) return;
-    if (action == 'replace') {
+    if (action == 'view') {
+      await _openImagePreview();
+    } else if (action == 'replace') {
       await _pickImage();
     } else {
       await _cropAndRotate();
@@ -765,117 +772,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final bytes = await picked.readAsBytes();
     if (!mounted) return;
     setState(() => _extraPhotos.add(_ExtraPhoto(file: picked, bytes: bytes)));
-  }
-
-  // The row of photos after the main one: each with a × to take it out,
-  // and a tile to add another while there is room (five photos in all).
-  Widget _extraPhotosRow() {
-    final room = maxPhotos - 1 - _extraPhotos.length;
-    Widget thumb(_ExtraPhoto photo) => Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: 64,
-            height: 64,
-            child: photo.bytes != null
-                ? Image.memory(photo.bytes!, fit: BoxFit.cover)
-                : Image.network(
-                    photo.url!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      color: AppColors.accent,
-                      child: Icon(
-                        Icons.broken_image_outlined,
-                        color: AppColors.brand,
-                      ),
-                    ),
-                  ),
-          ),
-        ),
-        Positioned(
-          top: -6,
-          right: -6,
-          child: Tooltip(
-            message: tl('Remove photo'),
-            child: Material(
-              color: AppColors.surface,
-              shape: CircleBorder(
-                side: BorderSide(color: AppColors.grey(300)),
-              ),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: _loading
-                    ? null
-                    : () => setState(() => _extraPhotos.remove(photo)),
-                child: Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 13,
-                    color: AppColors.text,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tl('More photos (optional) · {0} of {1}', [
-              '${_extraPhotos.length}',
-              '${maxPhotos - 1}',
-            ]),
-            style: GoogleFonts.montserrat(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.grey(700),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 70,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(top: 6, right: 6),
-              children: [
-                for (final photo in _extraPhotos) ...[
-                  thumb(photo),
-                  const SizedBox(width: 12),
-                ],
-                if (room > 0)
-                  Material(
-                    color: AppColors.accent.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
-                      key: const Key('addMorePhotos'),
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: _loading ? null : _pickExtraPhoto,
-                      child: SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: Icon(
-                          Icons.add_a_photo_outlined,
-                          color: AppColors.brand,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<bool> _confirmRemoveImage() {
@@ -2008,7 +1904,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // ---- Profile header ----
   Widget _profileHeader() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _profileStream,
       builder: (context, snapshot) {
@@ -2057,194 +1953,184 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // ---- Single, compact photo slot ----
+  // ---- Photos: one row of five (the user's design, 2026-11-08) ----
+  // "Add Photos (up to 5)", then five equal squares: the photos (the first
+  // is the main one) with a dark green × at the corner, the dashed
+  // "+ Add Photo" while there is room, and dashed empty places for the
+  // rest. Tapping the main photo offers View, Crop & rotate and Replace.
   Widget _imageSlot() {
+    final photos =
+        <({Widget image, VoidCallback? onTap, VoidCallback onRemove})>[
+          if (_hasImage)
+            (
+              image: _productImage(),
+              onTap: _loading ? null : _editImage,
+              onRemove: () async {
+                if (await _confirmRemoveImage()) _removeImage();
+              },
+            ),
+          for (final photo in _extraPhotos)
+            (
+              image: photo.bytes != null
+                  ? Image.memory(photo.bytes!, fit: BoxFit.cover)
+                  : Image.network(
+                      photo.url!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        color: AppColors.accent,
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: AppColors.brand,
+                        ),
+                      ),
+                    ),
+              onTap: null,
+              onRemove: () => setState(() => _extraPhotos.remove(photo)),
+            ),
+        ];
+    final error = _hasIssue(_photoKey);
+    const gap = 8.0;
+    const radius = 12.0;
+
+    Widget photoTile(int i) {
+      final photo = photos[i];
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Material(
+              borderRadius: BorderRadius.circular(radius),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: i == 0 ? const Key('mainPhoto') : null,
+                onTap: photo.onTap,
+                child: photo.image,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Tooltip(
+              message: tl('Remove photo'),
+              child: Material(
+                color: AppColors.isDark
+                    ? AppColors.brandFill
+                    : const Color(0xFF0B4225),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  key: Key('removePhoto$i'),
+                  customBorder: const CircleBorder(),
+                  onTap: _loading ? null : photo.onRemove,
+                  child: const SizedBox.square(
+                    dimension: 20,
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // The dashed square: "+ Add Photo", or an empty place.
+    Widget dashed({required bool add}) {
+      final line = add && error
+          ? AppColors.tone(Colors.red, 700)
+          : AppColors.brand.withValues(alpha: add ? 0.45 : 0.25);
+      final box = CustomPaint(
+        painter: _DashedBorderPainter(color: line, radius: radius),
+        child: add
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_rounded, size: 22, color: AppColors.brand),
+                  const SizedBox(height: 2),
+                  Text(
+                    tl('Add Photo'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ],
+              )
+            : const SizedBox.expand(),
+      );
+      if (!add) return box;
+      return Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(radius),
+        child: InkWell(
+          key: const Key('addPhoto'),
+          borderRadius: BorderRadius.circular(radius),
+          onTap: _loading
+              ? null
+              : _hasImage
+              ? _pickExtraPhoto
+              : _pickImage,
+          child: box,
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          padding: const EdgeInsets.only(left: 2, bottom: 8),
           child: Row(
             children: [
+              Icon(Icons.image_outlined, size: 18, color: AppColors.brand),
+              const SizedBox(width: 7),
               Text(
-                tl('Product Photo'),
+                tl('Add Photos'),
                 style: GoogleFonts.montserrat(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
               ),
-              const SizedBox(width: 6),
-              Tooltip(
-                message: tl('High-quality photos sell faster'),
-                triggerMode: TooltipTriggerMode.tap,
-                child: Icon(
-                  Icons.info_outline,
-                  size: 16,
+              const SizedBox(width: 5),
+              Text(
+                tl('(up to {0})', [maxPhotos]),
+                style: GoogleFonts.montserrat(
+                  fontSize: 11.5,
                   color: AppColors.grey(600),
                 ),
               ),
             ],
           ),
         ),
-        SizedBox(
-          width: double.infinity,
-          child: _hasImage ? _imageSelected() : _imageEmpty(),
-        ),
-      ],
-    );
-  }
-
-  Widget _imageEmpty() {
-    return Material(
-      color: AppColors.accent.withValues(alpha: 0.25),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: _loading ? null : _pickImage,
-        child: CustomPaint(
-          painter: _DashedBorderPainter(
-            // Red outline while the "photo required" error is showing.
-            color: _hasIssue(_photoKey)
-                ? AppColors.tone(Colors.red, 700)
-                : AppColors.brand.withValues(alpha: 0.45),
-            radius: 14,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final side =
+                (constraints.maxWidth - gap * (maxPhotos - 1)) / maxPhotos;
+            return Row(
+              key: const Key('photoRow'),
               children: [
-                Icon(
-                  Icons.photo_camera_outlined,
-                  size: 28,
-                  color: AppColors.brand,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  tl('Add product photo'),
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.montserrat(
-                    color: AppColors.brand,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  tl('Tap to take a photo or choose from gallery'),
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.montserrat(
-                    color: AppColors.grey(600),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _imageSelected() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        border: Border.all(color: AppColors.accent, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: _openImagePreview,
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: SizedBox(
-                      width: 72,
-                      height: 72,
-                      child: _productImage(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tl('Product photo'),
-                          style: GoogleFonts.montserrat(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          tl('Tap to preview, change or remove'),
-                          style: GoogleFonts.montserrat(
-                            fontSize: 11,
-                            color: AppColors.grey(600),
-                          ),
-                        ),
-                      ],
-                    ),
+                for (var i = 0; i < maxPhotos; i++) ...[
+                  if (i > 0) const SizedBox(width: gap),
+                  SizedBox.square(
+                    dimension: side,
+                    child: i < photos.length
+                        ? photoTile(i)
+                        : dashed(add: i == photos.length),
                   ),
                 ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _imageAction(
-                icon: Icons.edit_outlined,
-                tooltip: tl('Edit photo'),
-                onPressed: _editImage,
-              ),
-              const SizedBox(height: 6),
-              _imageAction(
-                icon: Icons.delete_outline,
-                tooltip: tl('Remove photo'),
-                onPressed: () async {
-                  if (await _confirmRemoveImage()) _removeImage();
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _imageAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    // A plain 32px InkWell circle rather than an IconButton, whose minimum
-    // tap target would pad it back out to 48px.
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: AppColors.accent.withValues(alpha: 0.5),
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: _loading ? null : onPressed,
-          child: SizedBox(
-            width: 32,
-            height: 32,
-            child: Icon(icon, color: AppColors.brand, size: 17),
-          ),
+              ],
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 
@@ -2469,7 +2355,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   style: GoogleFonts.montserrat(
                     color: AppColors.brand,
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     height: 1.15,
                   ),
@@ -2565,7 +2451,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       '₱${wholesaleSuggested.toStringAsFixed(2)} / $_currentUnit',
                       style: GoogleFonts.montserrat(
                         color: AppColors.brand,
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -2940,10 +2826,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // ---- The main photo, then up to four more ----
+                        // ---- Up to five photos, the first the main one ----
                         KeyedSubtree(key: _photoKey, child: _imageSlot()),
                         _fieldError(_photoKey),
-                        if (_hasImage) _extraPhotosRow(),
                         const SizedBox(height: 14),
 
                         _label(tl('Product Name'), key: _nameKey),

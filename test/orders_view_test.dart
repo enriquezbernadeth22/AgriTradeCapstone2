@@ -134,4 +134,51 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Squash'), findsWidgets);
   });
+
+  testWidgets("the period menu has the Messages menu's compact look, the "
+      'chosen period checked', (tester) async {
+    await open(tester);
+    await tester.tap(find.byKey(const Key('ordersPeriod')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Today'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ordersPeriod')));
+    await tester.pumpAndSettle();
+
+    const labels = ['All time', 'Today', 'Last 7 days', 'Last 30 days'];
+    Finder row(String label) => find.text(label).last;
+    for (var i = 1; i < labels.length; i++) {
+      expect(
+        tester.getTopLeft(row(labels[i - 1])).dy,
+        lessThan(tester.getTopLeft(row(labels[i])).dy),
+      );
+    }
+    final gap =
+        tester.getTopLeft(row('Today')).dy -
+        tester.getTopLeft(row('All time')).dy;
+    expect(gap, inInclusiveRange(36, 41));
+    // Lines between the rows.
+    final menu = find
+        .ancestor(of: row('Last 7 days'), matching: find.byType(Column))
+        .first;
+    expect(
+      find.descendant(of: menu, matching: find.byType(Divider)),
+      findsNWidgets(3),
+    );
+    // The chosen one: a dark green check, its label semibold dark green.
+    final check = tester.widget<Icon>(find.byIcon(Icons.check_rounded));
+    expect(check.size, 16);
+    expect(check.color, const Color(0xFF0B4225));
+    final chosen = tester.widget<Text>(row('Today'));
+    expect(chosen.style!.fontSize, 12);
+    expect(chosen.style!.fontWeight, FontWeight.w600);
+    expect(chosen.style!.color, const Color(0xFF0B4225));
+    expect(find.byIcon(Icons.calendar_today_outlined), findsNWidgets(3));
+    final other = tester.widget<Text>(row('Last 7 days'));
+    expect(other.style!.fontWeight, FontWeight.w500);
+    // The menu stays on the screen.
+    final menuRect = tester.getRect(menu);
+    expect(menuRect.right, lessThanOrEqualTo(400));
+    expect(menuRect.left, greaterThanOrEqualTo(0));
+  });
 }

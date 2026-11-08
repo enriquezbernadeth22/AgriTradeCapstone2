@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// A home screen's bottom-navigation tabs as pages that can also be
-/// swiped left and right. [index] is the tab shown — set it to go to a tab
-/// (a neighbouring one slides in; a farther one is switched to directly);
-/// a swipe reports the new tab through [onIndexChanged]. Every tab keeps
-/// its state (scroll position, loaded data) while another is showing, as
-/// an IndexedStack would.
+/// A home screen's bottom-navigation tabs as pages. [index] is the tab
+/// shown — set it to go to a tab (a neighbouring one slides in; a farther
+/// one is switched to directly). The tabs cannot be swiped between (the
+/// user's choice, 2026-11-08): only the bar moves them. [onIndexChanged]
+/// still hears of any page the PageView settles on by itself. Every tab
+/// keeps its state (scroll position, loaded data) while another is
+/// showing, as an IndexedStack would.
 ///
 /// A tab with its own horizontal swiping inside (the Orders status tabs)
-/// keeps it: a swipe there moves within that tab.
+/// keeps it.
 class SwipeableTabs extends StatefulWidget {
   final int index;
   final ValueChanged<int> onIndexChanged;
@@ -72,6 +73,9 @@ class _SwipeableTabsState extends State<SwipeableTabs> {
   Widget build(BuildContext context) {
     return PageView(
       controller: _controller,
+      // No swiping between the tabs (the user's choice, 2026-11-08); the
+      // Orders status tabs keep their own swipe.
+      physics: const NeverScrollableScrollPhysics(),
       onPageChanged: (page) {
         if (page == _page) return;
         _page = page;

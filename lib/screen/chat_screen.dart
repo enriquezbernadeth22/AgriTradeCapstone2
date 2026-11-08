@@ -24,6 +24,7 @@ import '../widgets/open_in_maps_button.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../widgets/online_dot.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/order_placed_message_card.dart';
 import '../widgets/receipt_message_card.dart';
 import 'chat_attachments.dart';
 import 'chat_product_context.dart';
@@ -31,6 +32,7 @@ import 'conversation_info_screen.dart';
 import 'conversation_tools_screens.dart';
 import '../services/chat_date_label.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 /// A single conversation thread — real-time, Messenger-style.
@@ -562,6 +564,7 @@ class _ChatScreenState extends State<ChatScreen> {
       'location' => 'Location',
       'pricingOptions' => 'Order options',
       'receipt' => 'Receipt',
+      MessageService.orderPlacedType => 'Order',
       _ =>
         (message['imageUrl'] ?? '').toString().isNotEmpty ? 'Photo' : 'Message',
     };
@@ -657,7 +660,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (isPending) {
       return Text(
         tl('Sending…'),
-        style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
+        style: TextStyle(fontSize: 10.5, color: AppColors.grey(500)),
       );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -678,7 +681,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               seen ? tl('Seen') : tl('Sent'),
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 color: seen ? Colors.blue : AppColors.grey(500),
               ),
             ),
@@ -706,7 +709,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ? _lastMessageStatus(time, isPending)
               : Text(
                   isPending ? tl('Sending…') : tl('Sent'),
-                  style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
+                  style: TextStyle(fontSize: 10.5, color: AppColors.grey(500)),
                 ),
         ),
       ],
@@ -735,15 +738,15 @@ class _ChatScreenState extends State<ChatScreen> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.grey(200),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.adapt(const Color(0xFFEFEDE6)),
+                borderRadius: BorderRadius.circular(AppTheme.pillRadius),
               ),
               child: Text(
                 chatDayLabel(sentAt(i)),
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                   color: AppColors.grey(700),
                 ),
@@ -864,6 +867,8 @@ class _ChatScreenState extends State<ChatScreen> {
         ? 'Location'
         : message['type'] == 'pricingOptions'
         ? 'Order options'
+        : message['type'] == MessageService.orderPlacedType
+        ? 'Order'
         : 'Message';
     setState(() {
       _replyTo = {
@@ -1133,7 +1138,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            ProfileAvatar(photoUrl: _otherPhotoUrl, name: _name, radius: 18),
+            ProfileAvatar(photoUrl: _otherPhotoUrl, name: _name, radius: 16),
             Positioned(
               right: -1,
               bottom: -1,
@@ -1152,7 +1157,10 @@ class _ChatScreenState extends State<ChatScreen> {
             _name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AgriAppBar.titleStyle(size: 16),
+            // 14 semibold beside a 32 photo (the user's sizes, 2026-11-08).
+            style: AgriAppBar.titleStyle(
+              size: 14,
+            ).copyWith(fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -1168,7 +1176,7 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             tooltip: tl('Conversation info'),
             onPressed: _openInfo,
-            icon: const Icon(Icons.info_outline_rounded),
+            icon: const Icon(Icons.info_outline_rounded, size: 20),
           ),
         ],
         // Tapping the photo or name opens the same Conversation Info as the
@@ -1202,6 +1210,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onSendOptions: _sendOrderOptions,
                 onTapDetails: _startNegotiation,
                 onDraftMessage: _setDraft,
+                onOrderPlaced: _postOrderCard,
               ),
             if (_pinned != null) _pinnedBanner(_pinned!),
             Expanded(
@@ -1298,6 +1307,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                               fallbackProductId: _productId,
                                               fallbackProductName: _productName,
                                               onDraftMessage: _setDraft,
+                                              onOrderPlaced: _postOrderCard,
                                             ),
                                             Map<String, dynamic>.from(
                                               data['likes'] ?? {},
@@ -1310,6 +1320,30 @@ class _ChatScreenState extends State<ChatScreen> {
                                               docs[i].metadata.hasPendingWrites,
                                           time: ts?.toDate(),
                                         ),
+                                      );
+                                    }
+                                    // An order placed from this chat: what
+                                    // the buyer chose, for the farmer to
+                                    // confirm here.
+                                    if (data['type'] ==
+                                        MessageService.orderPlacedType) {
+                                      return _withDeliveryStatus(
+                                        _reactableSpecialMessage(
+                                          docs[i].id,
+                                          OrderPlacedMessageCard(
+                                            data: data,
+                                            isMe: isMe,
+                                          ),
+                                          Map<String, dynamic>.from(
+                                            data['likes'] ?? {},
+                                          ),
+                                        ),
+                                        isMe: isMe,
+                                        isLastOutgoing:
+                                            i == latestOutgoingIndex,
+                                        isPending:
+                                            docs[i].metadata.hasPendingWrites,
+                                        time: ts?.toDate(),
                                       );
                                     }
                                     if (data['type'] == 'receipt') {
@@ -1480,16 +1514,16 @@ class _ChatScreenState extends State<ChatScreen> {
               margin: const EdgeInsets.symmetric(vertical: 3),
               padding: imageOnly
                   ? EdgeInsets.zero
-                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               constraints: BoxConstraints(
                 maxWidth:
                     MediaQuery.of(context).size.width *
-                    (imageOnly ? 0.62 : 0.72),
+                    (imageOnly ? 0.62 : 0.75),
               ),
               decoration: imageOnly
                   ? null
                   : BoxDecoration(
-                      color: isMe ? AppColors.brandFill : AppColors.surface,
+                      color: isMe ? _sentBubble : AppColors.surface,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
@@ -1498,16 +1532,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       // A received bubble keeps a quiet edge in dark mode (none in
                       // light, see AppColors.cardBorder).
-                      border: isMe ? null : AppColors.cardBorder,
-                      boxShadow: isMe
+                      border: isMe
                           ? null
-                          : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                          : AppColors.cardBorder ??
+                                Border.all(color: _receivedEdge),
                     ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1603,8 +1631,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       text,
                       style: TextStyle(
                         color: isMe ? Colors.white : AppColors.text,
-                        fontSize: 14.5,
-                        height: 1.3,
+                        fontSize: 13,
+                        height: 1.35,
                       ),
                     ),
                 ],
@@ -1616,7 +1644,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 _formatBubbleTime(time),
-                style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
+                style: TextStyle(fontSize: 10.5, color: AppColors.grey(500)),
               ),
             ),
           if (!overlay && likes.isNotEmpty)
@@ -1632,7 +1660,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   : Text(
                       isPending ? tl('Sending…') : tl('Sent'),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: AppColors.grey(500),
                       ),
                     ),
@@ -1745,12 +1773,12 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Container(
             margin: const EdgeInsets.symmetric(vertical: 3),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.72,
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
             decoration: BoxDecoration(
-              color: isMe ? AppColors.brandFill : AppColors.surface,
+              color: isMe ? _sentBubble : AppColors.surface,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
@@ -1759,16 +1787,9 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               // A received bubble keeps a quiet edge in dark mode (none in
               // light, see AppColors.cardBorder).
-              border: isMe ? null : AppColors.cardBorder,
-              boxShadow: isMe
+              border: isMe
                   ? null
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                  : AppColors.cardBorder ?? Border.all(color: _receivedEdge),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1791,7 +1812,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: isMe ? Colors.white : AppColors.text,
-                          fontSize: 13.5,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1826,7 +1847,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 _formatBubbleTime(ts.toDate()),
-                style: TextStyle(fontSize: 11, color: AppColors.grey(500)),
+                style: TextStyle(fontSize: 10.5, color: AppColors.grey(500)),
               ),
             ),
         ],
@@ -1836,15 +1857,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _composer() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.adapt(const Color(0xFFE0E0E0)),
-            width: 1,
-          ),
-        ),
+        color: AppColors.page,
+        border: Border(top: BorderSide(color: _receivedEdge, width: 1)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1924,6 +1940,37 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
+  }
+
+  // A sent bubble is the solid dark green (#0B4225); a received one white
+  // with a thin grey-green edge. Dark Mode keeps its own fill.
+  Color get _sentBubble =>
+      AppColors.isDark ? AppColors.brandFill : const Color(0xFF0B4225);
+  Color get _receivedEdge =>
+      AppColors.isDark ? AppColors.hairline : const Color(0xFFE8E9E3);
+
+  // An order the buyer just placed from this chat (the order options or
+  // Order Now): its card goes into the conversation, so the farmer sees
+  // what was chosen and can confirm it here. The order stands either way;
+  // the farmer is also notified of it as usual.
+  Future<void> _postOrderCard(String orderId) async {
+    try {
+      await _messageService.sendOrderPlacedMessage(
+        conversationId: widget.conversationId,
+        otherUserId: widget.otherUserId,
+        orderId: orderId,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        appSnackBar(
+          tl(
+            'Your order was placed, but it could not be shown in this chat. The farmer can still see it in Orders.',
+          ),
+          kind: MessageKind.warning,
+        ),
+      );
+    }
   }
 
   String _formatBubbleTime(DateTime dt) {

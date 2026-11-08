@@ -234,7 +234,7 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
 
   // The bottom bar hides while the buyer scrolls down a page and comes back
   // on a scroll up or at the top (the user's choice, 2026-11-07; the
-  // Farmer's stays). Another tab always shows it.
+  // farmer's too since 2026-11-08). Another tab always shows it.
   bool _navHidden = false;
   int _navShownFor = -1;
   final FiltersOnScroll _navOnScroll = FiltersOnScroll(showAfterUp: 24);

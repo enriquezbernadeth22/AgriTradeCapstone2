@@ -17,11 +17,27 @@ class LikeHeart extends StatefulWidget {
   /// Diameter of the white circle; the heart is a little over half of it.
   final double size;
 
+  /// The heart's own size, when not a little over half of [size].
+  final double? iconSize;
+
+  /// A tap area larger than the circle (it stays [size] to the eye), e.g.
+  /// 44 around a 36 circle.
+  final double? tapTarget;
+
+  /// The circle's fill and shadow, when not the plain white on a soft
+  /// shadow of the product cards.
+  final Color? background;
+  final double elevation;
+
   const LikeHeart({
     super.key,
     required this.liked,
     required this.onTap,
     this.size = 34,
+    this.iconSize,
+    this.tapTarget,
+    this.background,
+    this.elevation = 1.5,
   });
 
   /// The colour of a liked heart.
@@ -48,43 +64,55 @@ class _LikeHeartState extends State<LikeHeart>
     super.dispose();
   }
 
+  void _tap() {
+    _bounce.forward(from: 0);
+    widget.onTap!();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: widget.liked
-          ? tl('Remove from Liked Products')
-          : tl('Like product'),
-      child: Material(
-        color: AppColors.surface,
-        shape: const CircleBorder(),
-        elevation: 1.5,
-        shadowColor: Colors.black.withValues(alpha: 0.35),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: widget.onTap == null
-              ? null
-              : () {
-                  _bounce.forward(from: 0);
-                  widget.onTap!();
-                },
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: Center(
-              child: ScaleTransition(
-                scale: _scale,
-                child: Icon(
-                  widget.liked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: widget.size * 0.58,
-                  color: widget.liked ? LikeHeart.likedColor : AppColors.brand,
-                ),
+    final circle = Material(
+      color: widget.background ?? AppColors.surface,
+      shape: const CircleBorder(),
+      elevation: widget.elevation,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: widget.onTap == null ? null : _tap,
+        child: SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: Center(
+            child: ScaleTransition(
+              scale: _scale,
+              child: Icon(
+                widget.liked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                size: widget.iconSize ?? widget.size * 0.58,
+                color: widget.liked ? LikeHeart.likedColor : AppColors.brand,
               ),
             ),
           ),
         ),
       ),
+    );
+    final target = widget.tapTarget;
+    return Tooltip(
+      message: widget.liked
+          ? tl('Remove from Liked Products')
+          : tl('Like product'),
+      child: target == null || target <= widget.size
+          ? circle
+          // The whole square answers a tap; only the circle shows.
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onTap == null ? null : _tap,
+              child: SizedBox.square(
+                dimension: target,
+                child: Center(child: circle),
+              ),
+            ),
     );
   }
 }
@@ -111,10 +139,18 @@ Future<void> toggleLikedProduct(BuildContext context, String productId) async {
 
 /// The heart on Product Details, wired to the buyer's real liked state
 /// ([LikedProducts]). Draws nothing for anyone who isn't a buyer.
+///
+/// Drawn like the photo's other round buttons (the user's sizes,
+/// 2026-11-08): a 36 circle, white at 95%, a very soft shadow, an 18
+/// heart, and a 44 tap area.
 class SaveProductButton extends StatefulWidget {
   final String productId;
 
   const SaveProductButton({super.key, required this.productId});
+
+  static const double size = 36;
+  static const double iconSize = 18;
+  static const double tapTarget = 44;
 
   @override
   State<SaveProductButton> createState() => _SaveProductButtonState();
@@ -135,8 +171,13 @@ class _SaveProductButtonState extends State<SaveProductButton> {
         final likes = LikedProducts.instance;
         if (!likes.canLike) return const SizedBox.shrink();
         return LikeHeart(
+          key: const Key('productFavorite'),
           liked: likes.contains(widget.productId),
-          size: 40,
+          size: SaveProductButton.size,
+          iconSize: SaveProductButton.iconSize,
+          tapTarget: SaveProductButton.tapTarget,
+          background: AppColors.surface.withValues(alpha: 0.95),
+          elevation: 1,
           onTap: () => toggleLikedProduct(context, widget.productId),
         );
       },

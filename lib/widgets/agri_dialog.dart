@@ -654,12 +654,17 @@ class AgriMenuItem<T> {
   /// A thin line above this item, setting it apart from the ones before.
   final bool dividerBefore;
 
+  /// The option now in use: in a dense menu its label is semibold dark
+  /// green (give it a check as its [icon]).
+  final bool selected;
+
   const AgriMenuItem({
     required this.value,
     required this.icon,
     required this.label,
     this.destructive = false,
     this.dividerBefore = false,
+    this.selected = false,
   });
 }
 
@@ -673,12 +678,22 @@ class AgriMenuItem<T> {
 /// left edge, with a small pointer at the anchor (e.g. the chat + button).
 /// It doesn't take focus, so an open keyboard and the field under it stay
 /// as they are.
+///
+/// [dense] makes the rows smaller (16 icons, 12 labels in dark grey, about
+/// 38 high) with a thin line between every row and, on a menu that drops
+/// down, a small pointer at its top right towards the anchor: the Messages
+/// menu (the user's design, 2026-11-08).
 Future<T?> showAgriPopupMenu<T>({
   required BuildContext anchorContext,
   required List<AgriMenuItem<T>> items,
   double width = 210,
   bool upward = false,
+  bool dense = false,
+  bool? dividers,
 }) {
+  // A dense menu has a line between every row unless told otherwise (the
+  // chat's + menu keeps only its one line before Share Location).
+  final lined = dividers ?? dense;
   final anchorBox = anchorContext.findRenderObject() as RenderBox;
   final anchor = anchorBox.localToGlobal(Offset.zero) & anchorBox.size;
   const pointerHeight = 7.0;
@@ -698,16 +713,24 @@ Future<T?> showAgriPopupMenu<T>({
       final card = AgriFrostedCard(
         borderRadius: const BorderRadius.all(Radius.circular(14)),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: EdgeInsets.symmetric(vertical: dense ? 4 : 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final item in items) ...[
-                if (item.dividerBefore)
+              for (final (index, item) in items.indexed) ...[
+                if (lined && index > 0)
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: AppColors.grey(200),
+                  )
+                else if (item.dividerBefore)
                   Divider(height: 9, thickness: 1, color: AppColors.grey(200)),
                 _AgriMenuRow(
                   item: item,
-                  labelColor: upward ? AppColors.brand : null,
+                  dense: dense,
                   onTap: () => Navigator.pop(dialogContext, item.value),
                 ),
               ],
@@ -718,10 +741,13 @@ Future<T?> showAgriPopupMenu<T>({
       if (!upward) {
         // Each row is about 42 high; near the bottom of the screen the
         // menu opens above its anchor instead, so it is never cut off.
-        final menuHeight =
-            items.length * 42.0 +
-            items.where((i) => i.dividerBefore).length * 9 +
-            12;
+        final menuHeight = dense
+            ? items.length * 39.0 +
+                  (lined ? 0 : items.where((i) => i.dividerBefore).length * 9) +
+                  8
+            : items.length * 42.0 +
+                  items.where((i) => i.dividerBefore).length * 9 +
+                  12;
         final safe = MediaQuery.viewPaddingOf(dialogContext);
         final fitsBelow =
             anchor.bottom + 2 + menuHeight <= screen.height - safe.bottom - 8;
@@ -734,15 +760,31 @@ Future<T?> showAgriPopupMenu<T>({
           12.0,
           maxLeft,
         );
+        // A dense menu that drops down has a pointer at its top towards
+        // the anchor, so it sits that much lower.
+        final pointed = dense && fitsBelow;
+        final gap = pointed ? pointerHeight + 1 : 2.0;
         return Stack(
           children: [
             Positioned(
-              top: fitsBelow ? anchor.bottom + 2 : null,
+              top: fitsBelow ? anchor.bottom + gap : null,
               bottom: fitsBelow ? null : screen.height - anchor.top + 2,
               left: left,
               width: width,
               child: card,
             ),
+            if (pointed)
+              Positioned(
+                top: anchor.bottom + 1.5,
+                left: (anchor.center.dx - pointerWidth / 2).clamp(
+                  left + 14,
+                  left + width - 14 - pointerWidth,
+                ),
+                child: CustomPaint(
+                  size: const Size(pointerWidth, pointerHeight),
+                  painter: _MenuPointerPainter(AppColors.surface, up: true),
+                ),
+              ),
           ],
         );
       }
@@ -790,35 +832,48 @@ Future<T?> showAgriPopupMenu<T>({
   );
 }
 
-/// The little downward triangle linking an upward menu to its button.
+/// The little triangle linking a menu to its button: pointing down under
+/// an upward menu, or up ([up]) over a dense menu that drops down.
 class _MenuPointerPainter extends CustomPainter {
   final Color color;
-  _MenuPointerPainter(this.color);
+  final bool up;
+  _MenuPointerPainter(this.color, {this.up = false});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color.withValues(alpha: 0.94));
+    final path = up
+        ? (Path()
+            ..moveTo(0, size.height)
+            ..lineTo(size.width, size.height)
+            ..lineTo(size.width / 2, 0)
+            ..close())
+        : (Path()
+            ..moveTo(0, 0)
+            ..lineTo(size.width, 0)
+            ..lineTo(size.width / 2, size.height)
+            ..close());
+    canvas.drawPath(
+      path,
+      Paint()..color = up ? color : color.withValues(alpha: 0.94),
+    );
   }
 
   @override
   bool shouldRepaint(_MenuPointerPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.up != up;
 }
 
 class _AgriMenuRow<T> extends StatelessWidget {
   final AgriMenuItem<T> item;
   final VoidCallback onTap;
   final Color? labelColor;
+  final bool dense;
 
   const _AgriMenuRow({
     required this.item,
     required this.onTap,
     this.labelColor,
+    this.dense = false,
   });
 
   @override
@@ -826,24 +881,40 @@ class _AgriMenuRow<T> extends StatelessWidget {
     final color = item.destructive
         ? AppColors.tone(Colors.red, 700)
         : AppColors.brand;
+    final denseGreen = AppColors.isDark
+        ? AppColors.brand
+        : const Color(0xFF0B4225);
     return InkWell(
       onTap: onTap,
       child: Padding(
         // Compact (the user's sizes, 2026-11-08): 18 icons, 12.5 labels.
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: dense
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 11)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Icon(item.icon, size: 18, color: color),
-            const SizedBox(width: 11),
+            Icon(
+              item.icon,
+              size: dense ? 16 : 18,
+              color: dense && !item.destructive ? denseGreen : color,
+            ),
+            SizedBox(width: dense ? 10 : 11),
             Expanded(
               child: Text(
                 item.label,
                 style: GoogleFonts.montserrat(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
+                  fontSize: dense ? 12 : 12.5,
+                  fontWeight: dense && item.selected
+                      ? FontWeight.w600
+                      : FontWeight.w500,
                   color: item.destructive
                       ? color
-                      : labelColor ?? AppColors.text,
+                      : labelColor ??
+                            (dense
+                                ? (item.selected
+                                      ? denseGreen
+                                      : AppColors.grey(800))
+                                : AppColors.text),
                 ),
               ),
             ),

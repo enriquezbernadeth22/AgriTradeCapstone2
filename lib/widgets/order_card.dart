@@ -16,11 +16,43 @@ class OrderCardAction {
   final VoidCallback onTap;
   final OrderActionKind kind;
 
+  /// An icon before the label. In the details screen's bottom bar an
+  /// action with one is drawn like Product Details' Order Now / Message
+  /// (see [OrderActionButton]).
+  final IconData? icon;
+
   const OrderCardAction(
     this.label,
     this.onTap, {
     this.kind = OrderActionKind.secondary,
+    this.icon,
   });
+}
+
+/// The bottom bars' paired buttons (Product Details' Order Now / Message,
+/// Order Details' Review / View Receipt; the user's sizes, 2026-11-08):
+/// 46 high, corners 13, a 13 semibold label, an 18 icon 7 before it.
+/// Outlined: white, a thin dark green edge, dark green icon and text.
+/// Filled: solid dark green, a gold icon, white text.
+class BarActionStyle {
+  const BarActionStyle._();
+
+  static const double height = 46;
+  static const double radius = 13;
+  static const double iconSize = 18;
+  static const double gap = 7;
+  static const Color green = Color(0xFF0B4225);
+  static const Color gold = Color(0xFFF5BB24);
+
+  /// The dark green, or Dark Mode's own.
+  static Color get fill => AppColors.isDark ? AppColors.brandFill : green;
+  static Color get line => AppColors.isDark ? AppColors.brand : green;
+
+  static TextStyle get label => const TextStyle(
+    fontFamily: 'Montserrat',
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
 }
 
 Color orderStatusColor(String status) => switch (status) {
@@ -152,6 +184,8 @@ class OrderActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icon = action.icon;
+    if (large && icon != null) return _barButton(icon);
     final (Color fg, Color bg, BorderSide side) = switch (action.kind) {
       OrderActionKind.primary => (
         Colors.white,
@@ -200,6 +234,46 @@ class OrderActionButton extends StatelessWidget {
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(action.label, maxLines: 1),
+      ),
+    );
+  }
+
+  // A bottom-bar button with an icon, in [BarActionStyle]: filled for a
+  // primary action, outlined otherwise.
+  Widget _barButton(IconData icon) {
+    final filled = action.kind == OrderActionKind.primary;
+    final fg = filled ? Colors.white : BarActionStyle.line;
+    return TextButton(
+      onPressed: action.onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: fg,
+        backgroundColor: filled ? BarActionStyle.fill : AppColors.surface,
+        side: filled
+            ? BorderSide.none
+            : BorderSide(color: BarActionStyle.line, width: 1.2),
+        minimumSize: const Size(0, BarActionStyle.height),
+        fixedSize: const Size.fromHeight(BarActionStyle.height),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BarActionStyle.radius),
+        ),
+        textStyle: BarActionStyle.label,
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: BarActionStyle.iconSize,
+              color: filled ? BarActionStyle.gold : BarActionStyle.line,
+            ),
+            const SizedBox(width: BarActionStyle.gap),
+            Text(action.label, maxLines: 1),
+          ],
+        ),
       ),
     );
   }
@@ -279,7 +353,7 @@ class OrderCard extends StatelessWidget {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.montserrat(
-                                          fontSize: 14,
+                                          fontSize: 13,
                                           height: 1.2,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.brand,
@@ -318,14 +392,14 @@ class OrderCard extends StatelessWidget {
                               Text(
                                 order.quantityLabel,
                                 style: GoogleFonts.montserrat(
-                                  fontSize: 11.5,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                   color: AppColors.text,
                                 ),
                               ),
                               OrderPricingTag(order),
                               if (order.unitPriceLabel.isNotEmpty)
-                                Text(order.unitPriceLabel, style: _muted(11)),
+                                Text(order.unitPriceLabel, style: _muted(10.5)),
                             ],
                           ),
                           const SizedBox(height: 3),
@@ -333,15 +407,15 @@ class OrderCard extends StatelessWidget {
                             partyLine,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: _muted(),
+                            style: _muted(10.5),
                           ),
                           if (_dateLine.isNotEmpty)
-                            Text(_dateLine, style: _muted(10.5)),
+                            Text(_dateLine, style: _muted(10)),
                           if (order.status == 'shipped')
                             Text(
                               order.shippedProgressLabel,
                               style: GoogleFonts.montserrat(
-                                fontSize: 11.5,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
                                 color: orderStatusColor('shipped'),
                               ),
@@ -357,7 +431,7 @@ class OrderCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
-                                fontSize: 11.5,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.tone(Colors.orange, 800),
                               ),
@@ -376,7 +450,7 @@ class OrderCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
-                                fontSize: 11.5,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.brand,
                               ),
@@ -394,7 +468,7 @@ class OrderCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.montserrat(
-                                fontSize: 11.5,
+                                fontSize: 10.5,
                                 color: AppColors.tone(Colors.orange, 800),
                               ),
                             ),
@@ -417,8 +491,9 @@ class OrderCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(child: _total(total)),
-                    // White with a thin dark green outline, 36 high.
+                    // White with a thin dark green outline, 34 high.
                     TextButton.icon(
+                      key: const Key('orderCardDetails'),
                       onPressed: onDetails,
                       icon: const Icon(Icons.receipt_long_outlined, size: 16),
                       label: Text(tr(context).details),
@@ -426,15 +501,16 @@ class OrderCard extends StatelessWidget {
                         foregroundColor: AppColors.brand,
                         backgroundColor: AppColors.surface,
                         side: BorderSide(color: AppColors.brand, width: 1),
-                        fixedSize: const Size.fromHeight(36),
-                        padding: const EdgeInsets.symmetric(horizontal: 13),
+                        fixedSize: const Size.fromHeight(34),
+                        minimumSize: const Size(0, 34),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(11),
                         ),
                         textStyle: GoogleFonts.montserrat(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -453,12 +529,12 @@ class OrderCard extends StatelessWidget {
     children: [
       Text(
         total == null ? 'Subtotal + delivery' : tl('Total'),
-        style: _muted(10.5),
+        style: _muted(10),
       ),
       Text(
         formatPeso(total ?? order.subtotal),
         style: GoogleFonts.montserrat(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w700,
           color: AppColors.brand,
         ),

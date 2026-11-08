@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'package:flutter/services.dart';
 
 import 'agritrade_text.dart';
@@ -60,7 +61,7 @@ class PageHeader extends StatelessWidget {
 
   /// The dark green of the title, and of an icon placed beside it
   /// ([titleTrailing] — the menus).
-  static Color get titleColor => AppColors.brand;
+  static Color get titleColor => AppColors.heading;
 
   // The size the logo's artwork appears at, and the room it stands in.
   static const double _logoSize = 32;
@@ -289,11 +290,11 @@ class PageTitle extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              // As big as Explore's title, for every tab of both roles
-              // (2026-11-08): extra bold Montserrat in dark green.
+              // The same size on every tab of both roles (AppTheme's scale,
+              // 2026-11-08): extra bold Montserrat in dark green.
               style: TextStyle(
                 fontFamily: 'Montserrat',
-                fontSize: 23.5,
+                fontSize: AppTheme.mainTitleSize,
                 height: 1.15,
                 fontWeight: FontWeight.w800,
                 color: PageHeader.titleColor,

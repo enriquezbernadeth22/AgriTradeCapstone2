@@ -1025,8 +1025,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                     child: Text(
                       tl('Farmers'),
                       style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brand,
                       ),
                     ),
                   ),
@@ -1040,8 +1041,9 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
                       child: Text(
                         tl('Products'),
                         style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.brand,
                         ),
                       ),
                     ),

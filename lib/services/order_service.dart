@@ -49,6 +49,8 @@ class OrderService {
     // delivery coverage when deliveryMethod is 'delivery' (and again on
     // the server — see notifyNewOrder).
     BuyerArea? buyerArea,
+    // Told the new order's id once it is placed (a chat posts its card).
+    void Function(String orderId)? onPlaced,
   }) async {
     // An order must never be silently queued for later — if it can't be
     // confirmed against live Firestore data right now, it doesn't happen.
@@ -233,6 +235,7 @@ class OrderService {
         orderRef.id,
         buyerContact,
       );
+      onPlaced?.call(orderRef.id);
       return null;
     } on StateError catch (e) {
       // Our own checks above (stock, listing, fulfillment) — already

@@ -73,7 +73,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       Text(
                         tr(context).loginButton,
                         textAlign: TextAlign.center,
-                        style: AppTheme.pageTitle(color: AppColors.brand),
+                        style: AppTheme.loginTitle(color: AppColors.brand),
                       ),
                       const SizedBox(height: 6),
                       Text(

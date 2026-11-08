@@ -4,6 +4,7 @@
 // and rests under the terms and the review reminder once it is not.
 import 'package:agritrade/l10n/app_localizations.dart';
 import 'package:agritrade/screen/register_screen.dart';
+import 'package:agritrade/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,7 +20,10 @@ Finder get terms => find.textContaining('I agree to the', findRichText: true);
 /// A step's page title; the step names under the progress circles are
 /// small, so this finds the title alone.
 Finder pageTitle(String text) => find.byWidgetPredicate(
-  (w) => w is Text && w.data == text && w.style?.fontSize == 24,
+  (w) =>
+      w is Text &&
+      w.data == text &&
+      w.style?.fontSize == AppTheme.pageTitle().fontSize,
 );
 
 /// What a person has filled in on Your Information, so Continue goes on.

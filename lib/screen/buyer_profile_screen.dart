@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_refs.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/page_header.dart';
-import '../widgets/profile_avatar.dart';
+import '../widgets/profile_cover_header.dart';
 import '../widgets/profile_menu.dart';
 import 'farmer_edit_profile_screen.dart';
 import 'buyer_my_reviews_screen.dart';
@@ -66,34 +66,8 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
   void _open(Widget screen) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
-  // Same avatar-with-edit-badge treatment as the farmer profile, opening
-  // the same shared EditProfileScreen — account-detail editing (name,
-  // phone, photo) isn't role-specific, so there's no reason to duplicate
-  // that form for buyers.
-  Widget _avatarWithEditBadge(String name, String? photoUrl) {
-    return GestureDetector(
-      onTap: () => _open(const EditProfileScreen()),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ProfileAvatar(photoUrl: photoUrl, name: name, radius: 38),
-          Positioned(
-            bottom: -2,
-            right: -2,
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: AppColors.brandFill,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Icon(Icons.edit, color: Colors.white, size: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Color get _muted =>
+      AppColors.isDark ? AppColors.textSecondary : const Color(0xFF757575);
 
   @override
   Widget build(BuildContext context) {
@@ -119,25 +93,7 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                 ),
                 child: Column(
                   children: [
-                    // As big as Explore's, Messages' and Orders' titles.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(21, 8, 16, 10),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          tr(context).navProfile,
-                          style: TextStyle(
-                            fontFamily: 'Montserrat',
-                            fontSize: 23.5,
-                            height: 1.15,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.brand,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // ---- Photo, name, general location ----
+                    // ---- Title, cover, photo, name, general location ----
                     StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                       stream: _profile,
                       builder: (context, snapshot) {
@@ -163,33 +119,45 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                                 .where((v) => v.isNotEmpty)
                                 .join(', ');
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            children: [
-                              _avatarWithEditBadge(name, photoUrl),
-                              const SizedBox(height: 10),
-                              Text(
+                        return Column(
+                          children: [
+                            ProfileCoverHeader(
+                              title: tr(context).navProfile,
+                              name: name,
+                              photoUrl: photoUrl,
+                              onEdit: () => _open(const EditProfileScreen()),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Text(
                                 name,
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontFamily: 'Montserrat',
-                                  fontSize: 17.5,
+                                  fontSize: 19,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.brand,
+                                  color: AppColors.heading,
                                 ),
                               ),
-                              if (location.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
+                            ),
+                            if (location.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      Icons.place_outlined,
+                                      Icons.location_on_outlined,
                                       size: 14,
-                                      color: AppColors.grey(600),
+                                      color: _muted,
                                     ),
                                     const SizedBox(width: 3),
                                     Flexible(
@@ -198,17 +166,16 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.grey(700),
-                                          fontWeight: FontWeight.w500,
+                                          fontSize: 12.5,
+                                          color: _muted,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ],
-                          ),
+                          ],
                         );
                       },
                     ),
@@ -291,7 +258,12 @@ class _BuyerProfileScreenState extends State<BuyerProfileScreen> {
                     ),
                     if (widget.onLogout != null) ...[
                       const SizedBox(height: 14),
-                      LogOutButton(label: t.logOut, onTap: widget.onLogout!),
+                      // White with a thin dark green outline, icon and text.
+                      LogOutButton(
+                        label: t.logOut,
+                        onTap: widget.onLogout!,
+                        brandOutline: true,
+                      ),
                     ],
                   ],
                 ),

@@ -40,10 +40,8 @@ class MarketCardShell extends StatelessWidget {
       width: double.infinity,
       padding: embedded
           ? EdgeInsets.zero
-          : const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      decoration: embedded
-          ? null
-          : AppTheme.card(),
+          : const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: embedded ? null : AppTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -161,7 +159,7 @@ class MarketCardEmpty extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, size: 28, color: AppColors.grey(600)),
+          Icon(icon, size: AppTheme.stateIconSize, color: AppColors.grey(600)),
           const SizedBox(height: 8),
           Text(
             tl(message),
@@ -253,7 +251,7 @@ void openMarketCardScreen(
     context,
     MaterialPageRoute(
       builder: (_) => Scaffold(
-        backgroundColor: AppColors.surfaceAlt,
+        backgroundColor: AppColors.page,
         appBar: AgriAppBar(title: title),
         body: SafeArea(
           top: false,

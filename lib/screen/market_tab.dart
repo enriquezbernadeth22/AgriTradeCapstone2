@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firebase_refs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -117,7 +117,7 @@ class MarketInsightPicker extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const double height = 42;
+  static const double height = 36;
   static const double fontSize = 12;
   static const double _minFontSize = 10;
   // Inside the track (4 each side, and its 1px border) and inside each part.
@@ -132,7 +132,9 @@ class MarketInsightPicker extends StatelessWidget {
     fontWeight: FontWeight.w600,
     // Measured and drawn the same: no spacing added by the theme.
     letterSpacing: 0,
-    color: selected ? Colors.white : AppColors.text,
+    color: selected
+        ? (AppColors.isDark ? const Color(0xFF0B4225) : Colors.white)
+        : AppColors.text,
   );
 
   static double _widthOf(BuildContext context, String text) {
@@ -167,7 +169,7 @@ class MarketInsightPicker extends StatelessWidget {
         return Container(
           key: const Key('marketInsightPicker'),
           height: height,
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: AppColors.adapt(const Color(0xFFF3F5F2)),
             borderRadius: BorderRadius.circular(AppTheme.pillRadius),
@@ -230,7 +232,9 @@ class _Segment extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: ShapeDecoration(
               shape: const StadiumBorder(),
-              color: selected ? AppColors.brandFill : Colors.transparent,
+              color: selected
+                  ? (AppColors.isDark ? AppColors.gold : AppColors.brandFill)
+                  : Colors.transparent,
             ),
             child: Text(
               label,
@@ -297,9 +301,9 @@ class _MarketTabState extends State<MarketTab> {
       .myProductsStream();
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _profileStream() =>
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('users')
-          .doc(FirebaseAuth.instance.currentUser?.uid ?? '_')
+          .doc(FirebaseRefs.auth.currentUser?.uid ?? '_')
           .snapshots();
 
   void _reconnect() => setState(() {
@@ -320,7 +324,7 @@ class _MarketTabState extends State<MarketTab> {
   final _hints = MarketTabHints();
 
   Widget _salesPerformanceLineCard(int productCount) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     if (uid == null || uid.isEmpty) {
       return _salesCardMessage(tl('Log in to view your sales performance.'));
     }
@@ -428,7 +432,7 @@ class _MarketTabState extends State<MarketTab> {
                 : 'Starts on your verification date · ${MaterialLocalizations.of(context).formatShortDate(firstEligibleDate)}';
 
             return Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(14),
               decoration: AppTheme.card(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,10 +479,13 @@ class _MarketTabState extends State<MarketTab> {
                   else ...[
                     Text(
                       _formatCurrency(total),
+                      key: const Key('salesTotal'),
                       style: GoogleFonts.montserrat(
-                        fontSize: 25,
+                        fontSize: 23,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.brand,
+                        color: AppColors.isDark
+                            ? AppColors.gold
+                            : AppColors.brand,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -491,7 +498,7 @@ class _MarketTabState extends State<MarketTab> {
                     ),
                     const SizedBox(height: 14),
                     SizedBox(
-                      height: 175,
+                      height: 160,
                       child: LineChart(
                         LineChartData(
                           minX: 0,
@@ -562,7 +569,7 @@ class _MarketTabState extends State<MarketTab> {
                               // sudden jump in sales.
                               preventCurveOverShooting: true,
                               color: AppColors.brand,
-                              barWidth: 3,
+                              barWidth: 2.5,
                               dotData: const FlDotData(show: false),
                               belowBarData: BarAreaData(
                                 show: true,
@@ -574,12 +581,24 @@ class _MarketTabState extends State<MarketTab> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      tl('Revenue is based on orders marked completed.'),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.grey(600),
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 13,
+                          color: AppColors.grey(600),
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            tl('Revenue is based on orders marked completed.'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.grey(600),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -687,7 +706,7 @@ class _MarketTabState extends State<MarketTab> {
 
   Widget _salesCardMessage(String message) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.all(14),
     decoration: AppTheme.card(),
     child: Text(
       tl(message),
@@ -697,7 +716,7 @@ class _MarketTabState extends State<MarketTab> {
 
   Widget _salesLoadingCard() => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.all(14),
     decoration: AppTheme.card(),
     child: const Row(
       children: [
@@ -738,8 +757,8 @@ class _MarketTabState extends State<MarketTab> {
   // shows. The cards are fed by live listeners, so they take the new data
   // in place — nothing is cleared or swapped for a loading state meanwhile.
   Future<void> _refresh() async {
-    final db = FirebaseFirestore.instance;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final db = FirebaseRefs.firestore;
+    final uid = FirebaseRefs.auth.currentUser?.uid;
     const fromServer = GetOptions(source: Source.server);
     try {
       await Future.wait([
@@ -826,14 +845,14 @@ class _MarketTabState extends State<MarketTab> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _welcomeHeader(productCount),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             _statRow(productCount),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             KeyedSubtree(
                               key: _hints.keys[0],
                               child: _salesPerformanceLineCard(productCount),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
                             // The whole marketplace, one view at a time:
                             // the farmer picks which.
                             _insightsSection(),
@@ -883,7 +902,7 @@ class _MarketTabState extends State<MarketTab> {
     final month = _insightMonths[list]!;
     var sales = const <Map<String, dynamic>>[];
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseRefs.firestore
           .collection('market_sales')
           .get();
       sales = [for (final doc in snapshot.docs) doc.data()];
@@ -957,7 +976,7 @@ class _MarketTabState extends State<MarketTab> {
   }
 
   Widget _welcomeHeader(int productCount) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseRefs.auth.currentUser;
     if (user == null) return const SizedBox.shrink();
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -978,22 +997,29 @@ class _MarketTabState extends State<MarketTab> {
             ? NetworkImage(photoUrl)
             : null;
 
+        // Corners of 16 (the user's design, 2026-11-08); no shadow of its
+        // own, which would show in the picture's transparent edge.
+        // The size and insets are the ones tuned to the picture: the text
+        // clear of the leaves at its lower left, the photo in from the right.
         return Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           child: InkWell(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             onTap: () => widget.onNavigateToTab?.call(_profileTabIndex),
             child: Container(
+              key: const Key('marketWelcomeBanner'),
               height: 106,
-              // The text a little further in from the left edge, and the
-              // photo a little further in from the right, both clear of the
-              // banner's rounded corners.
               padding: const EdgeInsets.fromLTRB(40, 14, 34, 14),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/market_farmer.png'),
+                borderRadius: BorderRadius.circular(16),
+                // In Dark Mode its own copy, the cream curve forest green.
+                image: DecorationImage(
+                  image: AssetImage(
+                    AppColors.isDark
+                        ? 'assets/images/market_farmer_dark.png'
+                        : 'assets/images/market_farmer.png',
+                  ),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -1004,12 +1030,14 @@ class _MarketTabState extends State<MarketTab> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // On the banner's light picture: the same dark
-                        // text in light and dark mode.
+                        // Dark text on the light picture's cream curve;
+                        // light text on the dark one's green curve.
                         Text(
                           tr(context).welcomeBack,
                           style: TextStyle(
-                            color: const Color(0xFF52614F),
+                            color: AppColors.isDark
+                                ? const Color(0xFFE7EDE8)
+                                : const Color(0xFF52614F),
                             fontSize: 12,
                             fontWeight: FontWeight.normal,
                           ),
@@ -1020,8 +1048,10 @@ class _MarketTabState extends State<MarketTab> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.montserrat(
-                            color: const Color(0xFF173D21),
-                            fontSize: 22,
+                            color: AppColors.isDark
+                                ? Colors.white
+                                : const Color(0xFF173D21),
+                            fontSize: 19,
                             height: 1.05,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1030,7 +1060,9 @@ class _MarketTabState extends State<MarketTab> {
                         Text(
                           tr(context).productsListed(productCount),
                           style: TextStyle(
-                            color: const Color(0xFF52614F),
+                            color: AppColors.isDark
+                                ? const Color(0xFFB6C2B8)
+                                : const Color(0xFF52614F),
                             fontSize: 11,
                           ),
                         ),
@@ -1042,7 +1074,7 @@ class _MarketTabState extends State<MarketTab> {
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
+                      border: Border.all(color: Colors.white, width: 2.5),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.18),
@@ -1052,11 +1084,11 @@ class _MarketTabState extends State<MarketTab> {
                       ],
                     ),
                     child: CircleAvatar(
-                      radius: 29,
+                      radius: 26,
                       backgroundColor: AppColors.surface,
                       backgroundImage: imageProvider,
                       child: imageProvider == null
-                          ? Icon(Icons.person, color: AppColors.brand, size: 30)
+                          ? Icon(Icons.person, color: AppColors.brand, size: 26)
                           : null,
                     ),
                   ),
@@ -1092,7 +1124,7 @@ class _MarketTabState extends State<MarketTab> {
                       : widget.onNavigateToTab?.call(_ordersTabIndex),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _statCard(
                   tr(context).totalProductsCard,
@@ -1107,6 +1139,8 @@ class _MarketTabState extends State<MarketTab> {
     );
   }
 
+  // A figure on a white card, centred: the label in small capitals and
+  // the number under it (the user's design, 2026-11-08; no icon).
   Widget _statCard(String label, String value, {VoidCallback? onTap}) {
     return Material(
       color: Colors.transparent,
@@ -1115,29 +1149,34 @@ class _MarketTabState extends State<MarketTab> {
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          constraints: const BoxConstraints(minHeight: 76),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
           decoration: AppTheme.card(),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                label,
+                label.toUpperCase(),
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.normal,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.grey(600),
                   letterSpacing: 0.4,
-                  height: 1.3,
+                  height: 1.2,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 3),
               Text(
                 value,
+                textAlign: TextAlign.center,
                 style: GoogleFonts.montserrat(
-                  fontSize: 32,
+                  fontSize: 21,
+                  height: 1.15,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.brand,
+                  color: AppColors.heading,
                 ),
               ),
             ],
@@ -1197,9 +1236,9 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: GoogleFonts.montserrat(
-      fontSize: 16,
+      fontSize: 15.5,
       fontWeight: FontWeight.w600,
-      color: AppColors.text,
+      color: AppColors.heading,
     ),
   );
 }

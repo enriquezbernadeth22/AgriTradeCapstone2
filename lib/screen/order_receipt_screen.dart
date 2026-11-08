@@ -35,7 +35,7 @@ class _OrderReceiptScreenState extends State<OrderReceiptScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Transaction Receipt')),
       body: FutureBuilder<(OrderReceipt, Uint8List)?>(
         future: _receipt,

@@ -24,16 +24,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ManageAccountScreen(recoveryEmailVerified: Stream.value(false)),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: ManageAccountScreen()));
     await tester.pumpAndSettle();
 
     expect(find.text('Manage Account'), findsOneWidget);
     expect(find.text('Change Password'), findsOneWidget);
-    expect(find.text('Not verified'), findsOneWidget);
+    // The recovery email is in Edit Profile, under Personal Information.
+    expect(find.text('Recovery Email'), findsNothing);
     expect(find.textContaining('Notification'), findsNothing);
     expect(find.text('Help & Support'), findsNothing);
     expect(find.textContaining('Dark mode'), findsNothing);
@@ -47,17 +44,17 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: ManageAccountScreen(
-          part: ManageAccountPart.account,
-          recoveryEmailVerified: Stream.value(true),
-        ),
-      ),
+      MaterialApp(home: ManageAccountScreen(part: ManageAccountPart.account)),
     );
     await tester.pumpAndSettle();
     expect(find.text('Manage Account'), findsOneWidget);
     expect(find.text('Personal Information'), findsOneWidget);
-    expect(find.text('Recovery Email'), findsOneWidget);
+    // One row for the profile: no separate Recovery Email.
+    expect(find.text('Recovery Email'), findsNothing);
+    expect(
+      find.text('Name, photo, contact details and recovery email'),
+      findsOneWidget,
+    );
     expect(find.text('Change Password'), findsNothing);
     expect(find.text('Devices & Login Activity'), findsNothing);
     expect(find.text('Privacy Policy'), findsNothing);

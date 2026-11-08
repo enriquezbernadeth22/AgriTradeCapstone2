@@ -133,9 +133,7 @@ class _GlowFieldState extends State<GlowField> {
         radius: widget.radius,
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minHeight: AppTheme.formFieldHeight,
-        ),
+        constraints: const BoxConstraints(minHeight: AppTheme.formFieldHeight),
         child: Row(
           children: [
             Padding(
@@ -168,45 +166,52 @@ class _GlowFieldState extends State<GlowField> {
               ),
             Expanded(
               child: TextField(
-              controller: widget.controller,
-              focusNode: _focusNode,
-              readOnly: widget.readOnly,
-              canRequestFocus: !widget.readOnly,
-              enableInteractiveSelection: !widget.readOnly,
-              style: widget.readOnly
-                  ? TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: AppTheme.formTextSize,
-                    )
-                  : TextStyle(
-                      fontSize:
-                          widget.compact ? 13.5 : AppTheme.formTextSize,
-                    ),
-              keyboardType: widget.keyboardType,
-              obscureText: widget.obscureText,
-              textInputAction: widget.textInputAction,
-              onChanged: widget.onChanged,
-              onSubmitted: widget.onSubmitted,
-              autofillHints: widget.autofillHints,
-              inputFormatters: widget.inputFormatters,
-              decoration: InputDecoration(
-                hintText: widget.hint,
-                hintStyle: widget.compact
-                    ? TextStyle(fontSize: 13.5, color: AppColors.grey())
-                    : AppTheme.formHint(),
-                isDense: widget.compact,
-                suffixIcon: widget.suffix,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: widget.compact ? 11 : 12,
-                  horizontal: 12,
+                controller: widget.controller,
+                focusNode: _focusNode,
+                readOnly: widget.readOnly,
+                canRequestFocus: !widget.readOnly,
+                enableInteractiveSelection: !widget.readOnly,
+                style: widget.readOnly
+                    ? TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: AppTheme.formTextSize,
+                      )
+                    : TextStyle(
+                        fontSize: widget.compact ? 13.5 : AppTheme.formTextSize,
+                      ),
+                keyboardType: widget.keyboardType,
+                obscureText: widget.obscureText,
+                textInputAction: widget.textInputAction,
+                onChanged: widget.onChanged,
+                onSubmitted: widget.onSubmitted,
+                autofillHints: widget.autofillHints,
+                inputFormatters: widget.inputFormatters,
+                decoration: InputDecoration(
+                  hintText: widget.hint,
+                  hintStyle: widget.compact
+                      ? TextStyle(fontSize: 13.5, color: AppColors.grey())
+                      : AppTheme.formHint(),
+                  // Dense, so the field keeps [AppTheme.formFieldHeight] rather
+                  // than the 48 a plain field takes.
+                  isDense: true,
+                  suffixIcon: widget.suffix,
+                  // An eye button at the end stays within the field's height.
+                  suffixIconConstraints: const BoxConstraints(
+                    minWidth: AppTheme.formFieldHeight,
+                    minHeight: AppTheme.formFieldHeight,
+                    maxHeight: AppTheme.formFieldHeight,
+                  ),
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: widget.compact ? 11 : 12,
+                    horizontal: 12,
+                  ),
                 ),
-              ),
               ),
             ),
           ],

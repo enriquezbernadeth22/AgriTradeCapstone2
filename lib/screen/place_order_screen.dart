@@ -510,7 +510,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         ? (_fulfillment ?? 'unspecified')
         : 'unspecified';
 
+    String? placedId;
     final err = await _orderService.createOrder(
+      onPlaced: (id) => placedId = id,
       sellerId: widget.sellerId,
       sellerName: widget.sellerName,
       productId: widget.productId,
@@ -551,7 +553,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     unawaited(
       FeedbackService.instance.recordAction(FeedbackTrigger.orderPlaced),
     );
-    Navigator.pop(context, true);
+    // Back in a chat, the order is posted there as a card the farmer can
+    // confirm (see startChatOrder).
+    final id = placedId;
+    Navigator.pop(
+      context,
+      widget.fromChat && id != null ? PlacedOrder(id) : true,
+    );
   }
 
   // Outside the standard coverage: hand the buyer to Messages with a draft
@@ -1566,6 +1574,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 /// who it went to, a summary of what was ordered ([lines], then the
 /// [total] or, while a delivery fee is still to be agreed, [totalNote]),
 /// and that the farmer still has to confirm it. Closed with Done.
+/// What Place Order hands back to a chat when an order was placed there:
+/// the new order's id, for the order card posted in the conversation.
+class PlacedOrder {
+  final String orderId;
+  const PlacedOrder(this.orderId);
+}
+
 Future<void> showOrderPlacedDialog(
   BuildContext context, {
   required String farmerName,

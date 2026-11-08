@@ -468,6 +468,17 @@ service cloud.firestore {
             get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.status == 'completed' &&
             get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.buyerId in
               get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+          )) &&
+          // An 'orderPlaced' card (an order placed from the chat, which the
+          // farmer can confirm there): only from the buyer of that order,
+          // to the conversation with its farmer, under the one id reserved
+          // for it — so nobody can post a card for someone else's order.
+          (request.resource.data.get('type', '') != 'orderPlaced' || (
+            request.resource.data.orderId is string &&
+            messageId == 'order_' + request.resource.data.orderId &&
+            get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.buyerId == request.auth.uid &&
+            get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId in
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
           ));
         allow update: if marketplaceUser() &&
           request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants &&

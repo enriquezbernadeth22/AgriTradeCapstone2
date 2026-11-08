@@ -54,7 +54,7 @@
   "sectionAbout": "About",
   "sectionAccount": "Account",
   "personalInformation": "Personal Information",
-  "personalInformationHint": "Name, photo and contact details",
+  "personalInformationHint": "Name, photo, contact details and recovery email",
   "changePassword": "Change Password",
   "changePasswordHint": "Update the password you log in with.",
   "recoveryEmail": "Recovery Email",

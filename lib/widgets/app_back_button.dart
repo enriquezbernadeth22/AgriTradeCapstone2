@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 /// The look of every Back button in the app, and it follows the page's
@@ -119,8 +120,11 @@ class _AppBackIconState extends State<AppBackIcon> {
           TweenAnimationBuilder<Color?>(
             tween: ColorTween(end: arrowColor),
             duration: _fade,
-            builder: (context, color, _) =>
-                Icon(Icons.arrow_back, color: color ?? arrowColor, size: 22),
+            builder: (context, color, _) => Icon(
+              Icons.arrow_back,
+              color: color ?? arrowColor,
+              size: AppTheme.barIconSize,
+            ),
           ),
         ],
       ),

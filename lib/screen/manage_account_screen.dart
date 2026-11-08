@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -7,7 +5,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agri_app_bar.dart';
 import '../widgets/change_password_dialog.dart';
-import '../widgets/recovery_email_code_dialog.dart';
 import 'farmer_edit_profile_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'sign_in_activity_screen.dart';
@@ -33,36 +30,7 @@ enum ManageAccountPart { all, account, security }
 class ManageAccountScreen extends StatelessWidget {
   final ManageAccountPart part;
 
-  /// Whether the recovery email is verified (null: none added — the login
-  /// email does not count as one). Defaults to
-  /// the signed-in account's own profile; tests pass their own.
-  final Stream<bool?>? recoveryEmailVerified;
-
-  const ManageAccountScreen({
-    super.key,
-    this.recoveryEmailVerified,
-    this.part = ManageAccountPart.all,
-  });
-
-  static Stream<bool?> _recoveryStatus() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return Stream.value(null);
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .snapshots()
-        .map((doc) {
-          final data = doc.data() ?? const <String, dynamic>{};
-          final email = (data['recoveryEmail'] ?? '').toString().trim();
-          // No status until a second address (not the login email) is
-          // added; Verified only once its code was entered.
-          if (email.isEmpty ||
-              email.toLowerCase() == (user.email ?? '').toLowerCase()) {
-            return null;
-          }
-          return data['recoveryEmailVerified'] == true;
-        });
-  }
+  const ManageAccountScreen({super.key, this.part = ManageAccountPart.all});
 
   // Read once for the app's lifetime — it cannot change while running.
   static final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
@@ -86,15 +54,15 @@ class ManageAccountScreen extends StatelessWidget {
           children: [
             if (part != ManageAccountPart.security) ...[
               _SectionLabel(t.sectionAccount),
+              // One row: the name, photo, contact details and the recovery
+              // email are all in Edit Profile (the user, 2026-11-08; a
+              // separate Recovery Email row opened the same screen).
               _SettingsRow(
                 icon: Icons.person_outline,
                 title: t.personalInformation,
                 subtitle: t.personalInformationHint,
                 onTap: () => open(const EditProfileScreen()),
               ),
-              // The recovery email is part of the profile (Edit Profile); on
-              // the Farmer's Manage Account it stays with the account.
-              if (part == ManageAccountPart.account) _recoveryEmailRow(t, open),
             ],
             if (part == ManageAccountPart.all) const _SectionDivider(),
             if (part != ManageAccountPart.account) ...[
@@ -105,7 +73,6 @@ class ManageAccountScreen extends StatelessWidget {
                 subtitle: t.changePasswordHint,
                 onTap: () => showChangePasswordDialog(context),
               ),
-              if (part == ManageAccountPart.all) _recoveryEmailRow(t, open),
               _SettingsRow(
                 icon: Icons.devices_other_outlined,
                 title: t.devicesActivity,
@@ -136,21 +103,6 @@ class ManageAccountScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _recoveryEmailRow(AppLocalizations t, void Function(Widget) open) =>
-      StreamBuilder<bool?>(
-        stream: recoveryEmailVerified ?? _recoveryStatus(),
-        builder: (context, snapshot) => _SettingsRow(
-          icon: Icons.alternate_email_rounded,
-          title: t.recoveryEmail,
-          subtitle: t.recoveryEmailHint,
-          // Verified / Not verified, beside the title.
-          badge: snapshot.data == null
-              ? null
-              : RecoveryEmailStatusChip(verified: snapshot.data!),
-          onTap: () => open(const EditProfileScreen()),
-        ),
-      );
 
   // The real version from the installed build; nothing is shown until (or
   // unless) it can be read.
@@ -208,15 +160,11 @@ class _SettingsRow extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  /// Shown right after the title (the recovery email's status).
-  final Widget? badge;
-
   const _SettingsRow({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.badge,
   });
 
   // The same text as the Notification Settings rows.
@@ -229,21 +177,7 @@ class _SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
     leading: Icon(icon, color: AppColors.brand),
-    title: badge == null
-        ? Text(title, style: _titleStyle)
-        : Row(
-            children: [
-              Flexible(
-                child: Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: _titleStyle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              badge!,
-            ],
-          ),
+    title: Text(title, style: _titleStyle),
     subtitle: Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text(subtitle, style: _subtitleStyle),

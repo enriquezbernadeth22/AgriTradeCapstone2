@@ -113,7 +113,7 @@ class _BuyerPublicProfileScreenState extends State<BuyerPublicProfileScreen> {
     context,
     MaterialPageRoute(
       builder: (_) => Scaffold(
-        backgroundColor: AppColors.surfaceAlt,
+        backgroundColor: AppColors.page,
         appBar: AgriAppBar(title: tl('Orders from {0}', [name])),
         body: ValueListenableBuilder<AsyncSnapshot<List<OrderInfo>>>(
           valueListenable: _orders,
@@ -163,7 +163,7 @@ class _BuyerPublicProfileScreenState extends State<BuyerPublicProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Buyer Profile')),
       body: StreamBuilder<Map<String, dynamic>?>(
         stream: _profile,

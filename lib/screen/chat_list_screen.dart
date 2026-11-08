@@ -23,6 +23,7 @@ import 'message_search_screen.dart';
 import '../widgets/agri_empty_state.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 /// Which conversations a [ChatListScreen] shows.
@@ -351,10 +352,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   tr(context).navMessages,
                   style: TextStyle(
                     fontFamily: 'Montserrat',
-                    fontSize: 23.5,
+                    fontSize: AppTheme.mainTitleSize,
                     height: 1.15,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.brand,
+                    color: AppColors.heading,
                   ),
                 ),
               ),
@@ -418,8 +419,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Future<void> _openManageMenu(BuildContext buttonContext) async {
+    // White, compact, a thin line between rows and a pointer up to the ☰
+    // (the user's design, 2026-11-08).
     final Widget? screen = await showAgriPopupMenu<Widget>(
       anchorContext: buttonContext,
+      dense: true,
+      width: 176,
       items: [
         AgriMenuItem(
           value: ArchivedConversationsScreen(),
@@ -679,18 +684,39 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      shownName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Montserrat',
-                        fontSize: 14,
-                        fontWeight: unread > 0
-                            ? FontWeight.w700
-                            : FontWeight.w600,
-                        color: AppColors.brand,
-                      ),
+                    // The name, and a small grey bell-off right after it
+                    // while this chat is muted (a sign only, not a button).
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            shownName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontSize: 14,
+                              fontWeight: unread > 0
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: AppColors.brand,
+                            ),
+                          ),
+                        ),
+                        if (isMuted) ...[
+                          const SizedBox(width: 5),
+                          ExcludeSemantics(
+                            child: Icon(
+                              Icons.notifications_off_outlined,
+                              key: ValueKey('muted_$conversationId'),
+                              size: 13.5,
+                              color: AppColors.isDark
+                                  ? AppColors.textSecondary
+                                  : const Color(0xFF757575),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     if (location.isNotEmpty) ...[
                       const SizedBox(height: 2),

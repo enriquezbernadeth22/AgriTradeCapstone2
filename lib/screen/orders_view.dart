@@ -18,6 +18,7 @@ import 'inventory_screen.dart';
 import 'order_actions.dart';
 import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../l10n/app_language.dart';
 
 /// The Orders screen body for both the Farmer and the Buyer: same header,
@@ -131,25 +132,28 @@ class _OrdersViewState extends State<OrdersView> {
   String get _periodLabel => tl(_dateFilter.label);
 
   // The period picker: a menu that drops down from the period button
-  // itself (not a sheet from the bottom).
+  // itself (not a sheet from the bottom), in the Messages menu's compact
+  // style (dense: white, 16 icons, 12 labels, lines between, a pointer).
   Future<void> _pickPeriod(BuildContext anchorContext) async {
     final chosen = await showAgriPopupMenu<OrderDateFilter>(
       anchorContext: anchorContext,
-      // As wide as the longest period: each row is the text plus its icon
-      // (20) and gap (12) — see AgriMenuItem.
+      dense: true,
+      // As wide as the longest period: the text plus its icon (16), the
+      // gap (10) and the row's sides (12 + 12), with a little room.
       width: fittedMenuWidth(
         context,
         [for (final option in OrderDateFilter.values) tl(option.label)],
         style: GoogleFonts.montserrat(
-          fontSize: 13.5,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
-        extra: 32,
+        extra: 58,
       ),
       items: [
         for (final option in OrderDateFilter.values)
           AgriMenuItem(
             value: option,
+            selected: option == _dateFilter,
             icon: option == _dateFilter
                 ? Icons.check_rounded
                 : Icons.calendar_today_outlined,
@@ -358,10 +362,10 @@ class _OrdersViewState extends State<OrdersView> {
                     tr(context).navOrders,
                     style: TextStyle(
                       fontFamily: 'Montserrat',
-                      fontSize: 23.5,
+                      fontSize: AppTheme.mainTitleSize,
                       height: 1.15,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.brand,
+                      color: AppColors.heading,
                     ),
                   ),
                 ),

@@ -432,7 +432,7 @@ class AppTheme {
   );
 
   static TextStyle label() => GoogleFonts.montserrat(
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: FontWeight.w600,
     color: AppColors.text,
   );
@@ -461,9 +461,10 @@ class AppTheme {
   // display headings that use it ("Verify Your Email").
   static const String brandFontFamily = 'LilitaOne';
 
-  // Buttons app-wide are pills with 14px semibold text.
+  // A form button's label: 13 semibold, the app's primary action size
+  // (the user's size scale, 2026-11-08).
   static TextStyle buttonText() =>
-      GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
+      GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w600);
 
   // ==========================================================
   // FORMS
@@ -474,44 +475,51 @@ class AppTheme {
   // field labels, the fields, the primary button, then links.
   // ==========================================================
 
-  /// A form screen's title: the first thing read on it.
+  /// A form screen's title: the first thing read on it (18, the app's
+  /// secondary title size; the user, 2026-11-08).
   static TextStyle pageTitle({Color? color}) => GoogleFonts.montserrat(
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: FontWeight.w700,
     color: color ?? AppColors.text,
     height: 1.25,
   );
 
+  /// The Login sheet's own title (the app's front door): bigger than a
+  /// form's title (the user, 2026-11-08).
+  static TextStyle loginTitle({Color? color}) =>
+      pageTitle(color: color).copyWith(fontSize: 22);
+
   /// The line or two under a page title: support only, muted.
   static TextStyle pageDescription() => GoogleFonts.montserrat(
-    fontSize: 13.5,
+    fontSize: 12.5,
     color: AppColors.textSecondary,
     height: 1.45,
   );
 
   /// A secondary action in a form ("Forgot Password?", "Create One.",
   /// "Back to Login", "Update"): dark green, quieter than the primary button.
-  static TextStyle formLink({double size = 13.5}) => GoogleFonts.montserrat(
+  static TextStyle formLink({double size = 13}) => GoogleFonts.montserrat(
     fontSize: size,
     fontWeight: FontWeight.w600,
     color: AppColors.brand,
   );
 
   /// Size of the text typed into a form field, and of its placeholder.
-  static const double formTextSize = 14;
+  static const double formTextSize = 13;
 
   /// A form field's placeholder: muted.
   static TextStyle formHint() =>
       GoogleFonts.montserrat(fontSize: formTextSize, color: AppColors.grey());
 
   /// Every form field and dropdown is this tall.
-  static const double formFieldHeight = 48;
+  static const double formFieldHeight = 44;
 
-  /// Every primary and secondary button in a form is this tall.
-  static const double formButtonHeight = 50;
+  /// Every primary and secondary button in a form is this tall: the app's
+  /// [actionHeight], a little more than a field.
+  static const double formButtonHeight = actionHeight;
 
   /// The icon at the start of a field: one size, and quieter than the text.
-  static const double formIconSize = 20;
+  static const double formIconSize = 18;
   static Color get formIconColor => AppColors.grey(600);
 
   /// The left and right margin of a form page.
@@ -618,7 +626,7 @@ class AppTheme {
       ),
       helperMaxLines: 3,
       isDense: true,
-      contentPadding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
+      contentPadding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
       border: PillInputBorder(borderSide: _formOutline),
       enabledBorder: PillInputBorder(borderSide: _formOutline),
       disabledBorder: PillInputBorder(borderSide: _formOutline),
@@ -670,9 +678,9 @@ class AppTheme {
       suffix: suffix,
       errorText: errorText,
     ).copyWith(
-      // A dense dropdown's own line is 24 tall: 12 above and below makes
+      // A dense dropdown's own line is 24 tall: 10 above and below makes
       // [formFieldHeight], the same as a text field.
-      contentPadding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+      contentPadding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
       border: outline(_formOutline),
       enabledBorder: outline(_formOutline),
       disabledBorder: outline(_formOutline),
@@ -694,6 +702,7 @@ class AppTheme {
     // Bold, like the primary button's label; the colour is foregroundColor.
     textStyle: buttonText(),
     minimumSize: const Size(0, formButtonHeight),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     padding: const EdgeInsets.symmetric(horizontal: 20),
     // Dark enough to see the whole button on white, also while it is
     // waiting to be usable (Resend Reset Link's countdown).
@@ -731,6 +740,7 @@ class AppTheme {
     // the green one.
     disabledBackgroundColor: AppColors.isDark ? AppColors.grey(300) : null,
     minimumSize: const Size(0, formButtonHeight),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     padding: const EdgeInsets.symmetric(horizontal: 20),
     elevation: 0,
     shape: buttonShape,
@@ -803,6 +813,35 @@ class AppTheme {
   /// The corner radius that turns a box of any height into a pill: Flutter
   /// shrinks a radius larger than half the box's height to fit it.
   static const double pillRadius = 999;
+
+  // ---------- ONE SIZE SCALE FOR THE MOBILE APP (the user, 2026-11-08) ----
+  // Taken from Explore, so nothing grows from one screen to the next. Use
+  // these rather than a size of a screen's own.
+
+  /// A tab's own title: Explore, Messages, Orders, Profile, the farmer's
+  /// Market and Profile.
+  static const double mainTitleSize = 21;
+
+  /// A secondary screen's title, in its [AgriAppBar].
+  static const double barTitleSize = 17;
+
+  /// Back and the header's actions.
+  static const double barIconSize = 20;
+
+  /// A section's heading on a page.
+  static const double sectionTitleSize = 15;
+
+  /// An empty or offline state's icon (as in [AgriEmptyState]).
+  static const double stateIconSize = 28;
+
+  /// The bottom bars' paired buttons and other primary actions.
+  static const double actionHeight = 46;
+  static const double actionLabelSize = 13;
+  static const double actionIconSize = 18;
+
+  /// Compact secondary buttons (Choose Retail, Details…).
+  static const double compactActionHeight = 38;
+  static const double compactActionLabelSize = 12;
 
   // ---------- BUTTONS AND CARDS (the user's design, 2026-11-07) ----------
   // Buttons are rounded rectangles: 12 on a full-size button, 8 on a

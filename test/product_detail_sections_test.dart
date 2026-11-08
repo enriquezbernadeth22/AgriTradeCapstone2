@@ -91,6 +91,86 @@ void main() {
     }
   }
 
+  testWidgets('Back and Share over the photo: 36 circles, 18 icons, 44 to '
+      'tap, 12 from the edges', (tester) async {
+    await open(tester);
+    for (final key in ['productBack', 'productShare']) {
+      final button = find.byKey(Key(key));
+      expect(tester.getSize(button), const Size.square(44), reason: key);
+      final circle = find.descendant(
+        of: button,
+        matching: find.byType(Material),
+      );
+      expect(tester.getSize(circle.first), const Size.square(36));
+      final material = tester.widget<Material>(circle.first);
+      expect(material.color!.a, closeTo(0.95, 0.01));
+      final icon = tester.widget<Icon>(
+        find.descendant(of: button, matching: find.byType(Icon)),
+      );
+      expect(icon.size, 18);
+      expect(icon.color, const Color(0xFF0B4225));
+    }
+    Rect circleOf(String key) => tester.getRect(
+      find
+          .descendant(of: find.byKey(Key(key)), matching: find.byType(Material))
+          .first,
+    );
+    expect(circleOf('productBack').left, moreOrLessEquals(12));
+    expect(circleOf('productShare').right, moreOrLessEquals(400 - 12));
+    // A tap at the rim of the 44 area, outside the circle, still counts.
+    final back = tester.getRect(find.byKey(const Key('productBack')));
+    expect(
+      tester
+          .widget<GestureDetector>(find.byKey(const Key('productBack')))
+          .onTap,
+      isNotNull,
+    );
+    expect(back.width, 44);
+  });
+
+  testWidgets('Order Now is white with a dark green icon; Message dark green '
+      'with a gold icon; both 46 high and the same width', (tester) async {
+    await open(tester);
+    final orderNow = find.byKey(const Key('orderNow'));
+    final message = find.byKey(const Key('messageFarmer'));
+    expect(tester.getSize(orderNow).height, 46);
+    expect(tester.getSize(message).height, 46);
+    expect(
+      tester.getSize(orderNow).width,
+      moreOrLessEquals(tester.getSize(message).width),
+    );
+    expect(
+      tester.getTopLeft(message).dx - tester.getTopRight(orderNow).dx,
+      moreOrLessEquals(10),
+    );
+    Icon iconIn(Finder button) => tester.widget<Icon>(
+      find.descendant(of: button, matching: find.byType(Icon)),
+    );
+    expect(iconIn(orderNow).icon, Icons.shopping_bag_outlined);
+    expect(iconIn(orderNow).color, const Color(0xFF0B4225));
+    expect(iconIn(orderNow).size, 18);
+    expect(iconIn(message).icon, Icons.chat_bubble_outline_rounded);
+    expect(iconIn(message).color, const Color(0xFFF5BB24));
+    final label = tester.widget<Text>(
+      find.descendant(of: orderNow, matching: find.text('Order Now')),
+    );
+    expect(label.style!.fontSize, 13);
+    expect(label.style!.fontWeight, FontWeight.w600);
+  });
+
+  testWidgets('the category pill is the word alone, no icon', (tester) async {
+    await open(tester);
+    final pill = find.byKey(const Key('productCategoryPill'));
+    expect(
+      find.descendant(of: pill, matching: find.text('Grains')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: pill, matching: find.byType(Icon)),
+      findsNothing,
+    );
+  });
+
   testWidgets('Recommended Products: other Corn listings with stock only', (
     tester,
   ) async {

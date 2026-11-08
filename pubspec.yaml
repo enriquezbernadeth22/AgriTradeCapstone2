@@ -2,7 +2,7 @@ name: agritrade
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+3
+version: 1.0.1+4
 
 environment:
   sdk: ^3.12.2
@@ -76,6 +76,8 @@ flutter:
     - assets/images/bg_admin.png
     - assets/images/bg_panel.png
     - assets/images/market_farmer.png
+    # Its Dark Mode copy: the cream curve forest green (#193D2A).
+    - assets/images/market_farmer_dark.png
 
   # Montserrat with its real weights, for the mobile app: a browser does
   # not fake a bold from the regular file, so titles need the bold one.

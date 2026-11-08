@@ -267,10 +267,17 @@ void main() {
     final title = AppTheme.pageTitle().fontSize!;
     final description = AppTheme.pageDescription().fontSize!;
     final label = AppTheme.label().fontSize!;
-    expect(title, inInclusiveRange(24, 26));
-    expect(description, inInclusiveRange(13, 14));
-    expect(label, inInclusiveRange(13, 14));
-    expect(AppTheme.formTextSize, 14);
+    // The app's size scale (the user, 2026-11-08): a secondary title,
+    // 12-13 body and fields, 13 button labels.
+    expect(title, inInclusiveRange(16, 18));
+    expect(description, inInclusiveRange(12, 13));
+    expect(label, inInclusiveRange(12, 13));
+    expect(AppTheme.formTextSize, 13);
+    expect(AppTheme.buttonText().fontSize, 13);
+    expect(AppTheme.formButtonHeight, inInclusiveRange(44, 46));
+    // The Login sheet's title is bigger than a form's (the front door).
+    expect(AppTheme.loginTitle().fontSize, 22);
+    expect(AppTheme.loginTitle().fontSize, greaterThan(title));
     expect(AppTheme.buttonText().fontWeight, FontWeight.w600);
     expect(AppTheme.formLink().color, AppColors.brand);
   });

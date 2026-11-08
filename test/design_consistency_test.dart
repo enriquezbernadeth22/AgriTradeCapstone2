@@ -39,12 +39,8 @@ String callAt(String text, int open) {
 
 void main() {
   test('buttons are rounded rectangles, not pills', () {
-    // The pill buttons the user chose: Continue with Google (2026-11-07)
-    // and the small See all on a farmer's public profile (2026-11-08).
-    const allowed = {
-      'lib/widgets/login_form_fields.dart',
-      'lib/screen/farmer_storefront_screen.dart',
-    };
+    // The pill button the user chose: Continue with Google (2026-11-07).
+    const allowed = {'lib/widgets/login_form_fields.dart'};
     final found = <String>[];
     final button = RegExp(
       r'(ElevatedButton|OutlinedButton|FilledButton|TextButton)\.styleFrom\(',

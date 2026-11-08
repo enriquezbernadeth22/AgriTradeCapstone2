@@ -121,13 +121,14 @@ class AdminPalette {
   // so the widgets that read it keep working, and a dark palette can be
   // added beside this one: every colour the portal draws is one of these.
   //
-  // Neutral first: off-white page, white cards and inputs, near-black and
-  // grey text, light grey borders. Green is the accent (buttons, the open
+  // Neutral first: a warm off-white page (#FAF8F2, the app's cream family,
+  // 2026-11-08), white cards and inputs, near-black and grey text, light
+  // grey borders. Green is the accent (buttons, the open
   // page, selected controls, the brand) and a status (success), never a
   // general background.
   static const light = AdminPalette(
     isDark: false,
-    bg: Color(0xFFF8F9FA),
+    bg: Color(0xFFFAF8F2),
     sidebarBg: Colors.white,
     surface: Colors.white,
     surfaceAlt: Color(0xFFF1F3F5),

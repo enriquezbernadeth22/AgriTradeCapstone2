@@ -593,6 +593,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       processing: _sending,
       confirm: _leaveConfirm,
       child: Scaffold(
+        // White, like every sign-in screen (the user, 2026-11-08).
         backgroundColor: AppColors.authPage,
         appBar: const AgriAppBar(titleWidget: AgriTradeHeaderBrand()),
         body: SafeArea(

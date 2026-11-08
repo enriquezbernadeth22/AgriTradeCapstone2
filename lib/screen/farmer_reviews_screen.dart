@@ -93,7 +93,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(
         title: _forProduct ? tl('Product Reviews') : tl('Buyer Reviews'),
       ),
@@ -153,7 +153,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
 
   Widget _summaryCard(String title, RatingSummary summary) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(14),
     decoration: AppTheme.card(),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,7 +181,7 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
               Text(
                 formatRating(summary.average),
                 style: GoogleFonts.montserrat(
-                  fontSize: 26,
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.brand,
                 ),

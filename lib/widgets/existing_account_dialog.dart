@@ -64,10 +64,13 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
       title: Text(copy.title),
       content: Text(copy.message),
       // One layout whichever of the buttons below it has: Back to Login on
-      // top, then the others, all the same slim size.
+      // top, then the other, the same slim size. From Create account
+      // (offerDifferentEmail) there is no Cancel: Back to Login or Register
+      // a different email (the user, 2026-11-08); tapping outside still
+      // closes it.
       stackedActions: true,
       actions: [
-        if (copy.cancellable)
+        if (copy.cancellable && !offerDifferentEmail)
           AgriDialogButton(
             label: tl('Cancel'),
             onPressed: () =>

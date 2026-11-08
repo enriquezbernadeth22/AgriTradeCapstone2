@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import '../services/filters_on_scroll.dart';
 import '../services/product_share_service.dart';
 import '../services/notification_permission_prompt.dart';
 import '../services/push_notification_service.dart';
@@ -168,8 +169,35 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
+  // The bottom bar hides while a page is scrolled down and comes back on a
+  // scroll up or at the top, as the buyer's does (the user's choice,
+  // 2026-11-08; it had always stayed). Another tab always shows it.
+  bool _navHidden = false;
+  int _navShownFor = -1;
+  final FiltersOnScroll _navOnScroll = FiltersOnScroll(showAfterUp: 24);
+
+  bool _onPageScroll(ScrollUpdateNotification notification) {
+    // Up and down only: not a sideways swipe (the Orders status tabs).
+    if (notification.metrics.axis != Axis.vertical) return false;
+    final hide = _navOnScroll.update(
+      delta: notification.scrollDelta ?? 0,
+      pixels: notification.metrics.pixels,
+      dragging: notification.dragDetails != null,
+    );
+    if (hide != null && hide != _navHidden) {
+      setState(() => _navHidden = hide);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // A new tab starts with the bottom bar showing.
+    if (_navShownFor != _selectedIndex) {
+      _navShownFor = _selectedIndex;
+      _navHidden = false;
+      _navOnScroll.reset();
+    }
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -195,42 +223,48 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         // The page runs on behind the floating bar, with no band around it.
         extendBody: true,
         // ---- Bottom navigation bar (Market · Messages · + · Orders · Profile) ----
-        // The floating dark green bar, always on screen.
-        bottomNavigationBar: DockedNavBar(
-          children: [
-            _navItem(
-              0,
-              Icons.storefront_outlined,
-              Icons.storefront,
-              tr(context).navMarket,
-              // Icons.storefront is still an outline, so the selected tab
-              // draws the same shop filled in, like the other tabs.
-              activeIconBuilder: (color, size) =>
-                  FilledStorefrontIcon(color: color, size: size),
-            ),
-            _navItem(
-              1,
-              Icons.mail_outline,
-              Icons.mail,
-              tr(context).navMessages,
-              showUnreadDot: true,
-            ),
-            _buildAddButton(),
-            _navItem(
-              2,
-              Icons.shopping_bag_outlined,
-              Icons.shopping_bag,
-              tr(context).navOrders,
-              key: _ordersTabKey,
-              showUnseenOrdersDot: true,
-            ),
-            _navItem(
-              3,
-              Icons.person_outline,
-              Icons.person,
-              tr(context).navProfile,
-            ),
-          ],
+        // The floating dark green bar; it slides away while a page is
+        // scrolled down.
+        bottomNavigationBar: AnimatedSlide(
+          offset: _navHidden ? const Offset(0, 1.6) : Offset.zero,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          child: DockedNavBar(
+            children: [
+              _navItem(
+                0,
+                Icons.storefront_outlined,
+                Icons.storefront,
+                tr(context).navMarket,
+                // Icons.storefront is still an outline, so the selected tab
+                // draws the same shop filled in, like the other tabs.
+                activeIconBuilder: (color, size) =>
+                    FilledStorefrontIcon(color: color, size: size),
+              ),
+              _navItem(
+                1,
+                Icons.mail_outline,
+                Icons.mail,
+                tr(context).navMessages,
+                showUnreadDot: true,
+              ),
+              _buildAddButton(),
+              _navItem(
+                2,
+                Icons.shopping_bag_outlined,
+                Icons.shopping_bag,
+                tr(context).navOrders,
+                key: _ordersTabKey,
+                showUnseenOrdersDot: true,
+              ),
+              _navItem(
+                3,
+                Icons.person_outline,
+                Icons.person,
+                tr(context).navProfile,
+              ),
+            ],
+          ),
         ),
 
         // ---- Each tab lives in its own file now ----
@@ -247,22 +281,26 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           child: HomeLogoAction(
             onTap: () => setState(() => _selectedIndex = 0),
             onNotifications: _openNotifications,
-            child: SwipeableTabs(
-              index: _selectedIndex,
-              onIndexChanged: (i) => setState(() => _selectedIndex = i),
-              children: [
-                MarketTab(
-                  onNavigateToTab: (i) => setState(() => _selectedIndex = i),
-                  onOpenOrders: _openOrders,
-                  onNotificationsPressed: _openNotifications,
-                ),
-                const ChatListScreen(),
-                OrdersTab(
-                  showStatus: _ordersStatus,
-                  active: _selectedIndex == 2,
-                ),
-                ProfileTab(onOpenSettings: _openSettings),
-              ],
+            // The pages' scrolling hides and shows the bottom bar.
+            child: NotificationListener<ScrollUpdateNotification>(
+              onNotification: _onPageScroll,
+              child: SwipeableTabs(
+                index: _selectedIndex,
+                onIndexChanged: (i) => setState(() => _selectedIndex = i),
+                children: [
+                  MarketTab(
+                    onNavigateToTab: (i) => setState(() => _selectedIndex = i),
+                    onOpenOrders: _openOrders,
+                    onNotificationsPressed: _openNotifications,
+                  ),
+                  const ChatListScreen(),
+                  OrdersTab(
+                    showStatus: _ordersStatus,
+                    active: _selectedIndex == 2,
+                  ),
+                  ProfileTab(onOpenSettings: _openSettings),
+                ],
+              ),
             ),
           ),
         ),
@@ -305,15 +343,20 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           child: InkWell(
             onTap: _openAddProduct,
             customBorder: const CircleBorder(),
+            // 46 across with a 22 +: the main action, without taking over
+            // the bar (the user's sizes, 2026-11-08).
             child: Container(
               key: _addProductKey,
-              width: 40,
-              height: 40,
-              // Gold, the bar's selected colour: dark green would vanish
-              // into the dark green bar.
+              width: 46,
+              height: 46,
+              // White with a dark green + (the user's choice, 2026-11-08): it
+              // stands out on the dark green bar without competing with the
+              // gold of the selected tab.
               decoration: BoxDecoration(
-                color: DockedNavBar.selectedColor,
+                color: Colors.white,
                 shape: BoxShape.circle,
+                // A thin black outline around the white (the user's picture).
+                border: Border.all(color: Colors.black, width: 1.5),
                 // A soft lift; in dark mode a plain shadow, not a glow.
                 boxShadow: [
                   BoxShadow(
@@ -325,7 +368,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.add, color: DockedNavBar.color, size: 24),
+              child: const Icon(Icons.add, color: DockedNavBar.color, size: 22),
             ),
           ),
         ),

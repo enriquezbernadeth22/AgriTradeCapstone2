@@ -90,9 +90,8 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
   @override
   Widget build(BuildContext context) {
     // The user's design (2026-11-08): no app bar — a Back over a drawn
-    // landscape, the photo, name, place and badge, a card of the farmer's
-    // numbers, then the reviews and the products. The products and the
-    // reviews are each read once, for the numbers and the lists alike.
+    // cover, the photo in a full gold ring, name, place and badge, a thin
+    // line, then the reviews (with their rating) and the products.
     return Scaffold(
       backgroundColor: AppColors.page,
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -142,8 +141,16 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
                       children: [
                         _header(profile),
                         const SizedBox(height: 16),
-                        _stats(reviews, products),
-                        const SizedBox(height: 18),
+                        // A thin line closes the profile header.
+                        Divider(
+                          key: const Key('storefrontDivider'),
+                          height: 1,
+                          thickness: 1,
+                          indent: 16,
+                          endIndent: 16,
+                          color: _line,
+                        ),
+                        const SizedBox(height: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _reviewsSection(
@@ -179,71 +186,6 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
       icon: Icon(Icons.arrow_back_rounded, color: AppColors.brand, size: 24),
     ),
   );
-
-  // Rating | Reviews | Products: the farmer's real numbers ("–" until
-  // there is a rating), on one white card.
-  Widget _stats(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>? reviews,
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>? products,
-  ) {
-    final count = reviews?.length;
-    final rating = reviews == null || reviews.isEmpty
-        ? '–'
-        : averageReviewRating(reviews).toStringAsFixed(1);
-    Widget stat(Widget icon, String value, String label) => Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: 5),
-              Text(
-                value,
-                style: TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.brand,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11.5, color: _muted)),
-        ],
-      ),
-    );
-    Widget line() => Container(width: 1, height: 34, color: _line);
-    return Container(
-      key: const Key('storefrontStats'),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(vertical: 13),
-      decoration: AppTheme.card(),
-      child: Row(
-        children: [
-          stat(
-            const Icon(Icons.star_rounded, size: 19, color: Color(0xFFF5BB24)),
-            rating,
-            tl('Rating'),
-          ),
-          line(),
-          stat(
-            Icon(Icons.rate_review_outlined, size: 18, color: AppColors.brand),
-            count == null ? '–' : '$count',
-            count == 1 ? tl('Review') : tl('Reviews'),
-          ),
-          line(),
-          stat(
-            Icon(Icons.inventory_2_outlined, size: 18, color: AppColors.brand),
-            products == null ? '–' : '${products.length}',
-            products?.length == 1 ? tl('Product') : tl('Products'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Color get _muted =>
       AppColors.isDark ? AppColors.textSecondary : const Color(0xFF757575);
@@ -282,7 +224,8 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
 
     final photoUrl = (profile['photoUrl'] ?? '').toString();
     final topInset = MediaQuery.paddingOf(context).top;
-    const landscape = 132.0;
+    // A compact cover; the photo stands on its lower part.
+    const landscape = 118.0;
     const photo = 92.0;
     return Column(
       children: [
@@ -298,8 +241,13 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
                 right: 0,
                 top: 0,
                 height: topInset + landscape,
-                child: const ExcludeSemantics(
-                  child: CustomPaint(painter: ProfileLandscapePainter()),
+                child: ExcludeSemantics(
+                  child: CustomPaint(
+                    painter: ProfileLandscapePainter(
+                      topInset: topInset,
+                      dark: AppColors.isDark,
+                    ),
+                  ),
                 ),
               ),
               Positioned(top: topInset, left: 0, child: _backButton()),
@@ -326,7 +274,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Text(
@@ -343,7 +291,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
           ),
         ),
         if (location.isNotEmpty) ...[
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
@@ -365,7 +313,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
         ],
         // Only when the Admin has verified this farmer.
         if (verified) ...[
-          const SizedBox(height: 9),
+          const SizedBox(height: 7),
           Container(
             padding: const EdgeInsets.fromLTRB(9, 5, 12, 5),
             decoration: BoxDecoration(
@@ -518,37 +466,40 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
                 tl('Reviews ({0})', [reviews.length]),
               ),
             ),
-            // A small outlined pill.
+            // Plain muted dark green text with a small chevron.
             if (reviews.isNotEmpty)
-              OutlinedButton(
+              InkWell(
                 key: const Key('storefrontSeeAllReviews'),
-                onPressed: seeAll,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.brand,
-                  side: BorderSide(
-                    color: AppColors.brand.withValues(alpha: 0.5),
-                  ),
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
-                  minimumSize: const Size(0, 30),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      tl('See all'),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                onTap: seeAll,
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 6, 0, 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        tl('See all'),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.brand.withValues(alpha: 0.75),
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.chevron_right_rounded, size: 16),
-                  ],
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 17,
+                        color: AppColors.brand.withValues(alpha: 0.75),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
         ),
+        if (reviews.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          _ratingSummary(reviews),
+        ],
         const SizedBox(height: 10),
         if (reviews.isEmpty)
           _note(tl('No reviews yet.'))
@@ -558,6 +509,36 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
             _reviewCard(doc.id, doc.data()),
             const SizedBox(height: 10),
           ],
+      ],
+    );
+  }
+
+  // The farmer's real average, gold stars and how many reviews it is from.
+  Widget _ratingSummary(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> reviews,
+  ) {
+    final average = averageReviewRating(reviews);
+    return Row(
+      key: const Key('storefrontRatingSummary'),
+      children: [
+        Text(
+          average.toStringAsFixed(1),
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.brand,
+          ),
+        ),
+        const SizedBox(width: 6),
+        ReviewStars(rating: average, size: 15),
+        const SizedBox(width: 6),
+        Text(
+          reviews.length == 1
+              ? tl('(1 review)')
+              : tl('({0} reviews)', [reviews.length]),
+          style: TextStyle(fontSize: 11.5, color: _muted),
+        ),
       ],
     );
   }
@@ -701,7 +682,7 @@ class _FarmerStorefrontScreenState extends State<FarmerStorefrontScreen> {
   }
 }
 
-/// The farmer's photo in a white ring with a gold arc along part of it, on
+/// The farmer's photo inside a full gold circle with a thin white ring, on
 /// a soft shadow, and — only for a verified farmer — a small dark green
 /// shield with a white check at its lower right.
 class _FramedPhoto extends StatelessWidget {
@@ -717,6 +698,10 @@ class _FramedPhoto extends StatelessWidget {
     required this.verified,
   });
 
+  // The gold circle's width and the white gap between it and the photo.
+  static const double _ring = 2.5;
+  static const double _gap = 2.5;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -725,10 +710,13 @@ class _FramedPhoto extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // A full gold circle, a thin white ring inside it, then the photo.
           Container(
+            key: const Key('storefrontGoldRing'),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
+              border: Border.all(color: const Color(0xFFF5BB24), width: _ring),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.12),
@@ -737,15 +725,12 @@ class _FramedPhoto extends StatelessWidget {
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(3.5),
+            padding: const EdgeInsets.all(_gap),
             child: ProfileAvatar(
               photoUrl: photoUrl,
               name: name,
-              radius: size / 2 - 3.5,
+              radius: size / 2 - _ring - _gap,
             ),
-          ),
-          const Positioned.fill(
-            child: IgnorePointer(child: CustomPaint(painter: _GoldArc())),
           ),
           if (verified)
             Positioned(
@@ -773,131 +758,217 @@ class _FramedPhoto extends StatelessWidget {
   }
 }
 
-// A gold arc along the upper right of the photo's white ring.
-class _GoldArc extends CustomPainter {
-  const _GoldArc();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFF5BB24)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      (Offset.zero & size).deflate(1.25),
-      -math.pi * 0.62,
-      math.pi * 0.7,
-      false,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_GoldArc oldDelegate) => false;
-}
-
-/// The top of a farmer's public profile: a pale cream sky with a faint
-/// gold sun, soft rolling hills, curved field rows and small leaves at the
-/// edges, fading into the page at its foot.
+/// The cover of a farmer's public profile: a warm cream sky with a faint
+/// gold glow high in the middle, three soft layers of rolling hills with a
+/// few faint field lines following their curves, and two small sprigs of
+/// leaves at the outer top corners, fading into the page at its foot.
 class ProfileLandscapePainter extends CustomPainter {
-  const ProfileLandscapePainter();
+  /// The status bar's height: the scene is laid out below it.
+  final double topInset;
+
+  /// The sky fades in from the page at the top, for a cover that starts
+  /// under a header (the Buyer Profile) rather than at the screen's top:
+  /// no edge where the header ends and the cover begins.
+  final bool softTop;
+
+  /// The Dark Mode scene: deep forest greens and a fainter glow. Callers
+  /// pass [AppColors.isDark].
+  final bool dark;
+
+  const ProfileLandscapePainter({
+    this.topInset = 0,
+    this.softTop = false,
+    this.dark = false,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    Paint fill(int color) => Paint()..color = Color(color);
+    final s = h - topInset;
+    double y(double f) => topInset + s * f;
+    Paint shaded(Rect rect, int from, int to) =>
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(from), Color(to)],
+          ).createShader(rect);
 
-    // A faint gold sun, high on the right.
-    canvas.drawCircle(
-      Offset(w * 0.78, h * 0.32),
-      h * 0.42,
+    // A warm cream sky, a touch deeper at the top.
+    final sky = Offset.zero & size;
+    canvas.drawRect(
+      sky,
       Paint()
-        ..shader =
-            RadialGradient(
-              colors: [
-                const Color(0xFFF5BB24).withValues(alpha: 0.22),
-                const Color(0xFFF5BB24).withValues(alpha: 0),
-              ],
-            ).createShader(
-              Rect.fromCircle(
-                center: Offset(w * 0.78, h * 0.32),
-                radius: h * 0.42,
-              ),
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.alphaBlend(
+              const Color(0xFFF5BB24).withValues(alpha: dark ? 0.03 : 0.07),
+              AppColors.page,
             ),
+            AppColors.page,
+          ],
+        ).createShader(sky),
     );
 
-    // Far hills.
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, h * 0.62)
-        ..quadraticBezierTo(w * 0.22, h * 0.40, w * 0.48, h * 0.56)
-        ..quadraticBezierTo(w * 0.74, h * 0.36, w, h * 0.52)
-        ..lineTo(w, h)
-        ..lineTo(0, h)
-        ..close(),
-      fill(0xFFDDEBCB),
+    // A very light golden glow near the top centre.
+    final glowAt = Offset(w * 0.5, y(0.08));
+    final glowRadius = w * 0.42;
+    canvas.drawCircle(
+      glowAt,
+      glowRadius,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            const Color(0xFFF5BB24).withValues(alpha: dark ? 0.07 : 0.16),
+            const Color(0xFFF5BB24).withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: glowAt, radius: glowRadius)),
     );
-    // Near hills.
-    final near = Path()
-      ..moveTo(0, h * 0.80)
-      ..quadraticBezierTo(w * 0.30, h * 0.60, w * 0.58, h * 0.74)
-      ..quadraticBezierTo(w * 0.82, h * 0.84, w, h * 0.66)
+
+    if (softTop) {
+      final top = Rect.fromLTRB(0, 0, w, h * 0.45);
+      canvas.drawRect(
+        top,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.page, AppColors.page.withValues(alpha: 0)],
+          ).createShader(top),
+      );
+    }
+
+    // Far hills: the palest, highest layer.
+    final far = Path()
+      ..moveTo(0, y(0.60))
+      ..cubicTo(w * 0.16, y(0.46), w * 0.34, y(0.47), w * 0.50, y(0.56))
+      ..cubicTo(w * 0.66, y(0.64), w * 0.82, y(0.43), w, y(0.50))
       ..lineTo(w, h)
       ..lineTo(0, h)
       ..close();
-    canvas.drawPath(near, fill(0xFFB9DA98));
-    // Curved field rows across them.
-    canvas.save();
-    canvas.clipPath(near);
-    final row = Paint()
-      ..color = const Color(0xFF9CCB7C).withValues(alpha: 0.8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
-    for (var i = 0; i < 6; i++) {
-      final y = h * (0.74 + i * 0.06);
-      canvas.drawPath(
-        Path()
-          ..moveTo(-10, y + 6)
-          ..quadraticBezierTo(w * 0.45, y - h * 0.08, w + 10, y),
-        row,
+    canvas.drawPath(
+      far,
+      shaded(
+        Rect.fromLTRB(0, y(0.44), w, h),
+        dark ? 0xFF1C3226 : 0xFFE2EDD2,
+        dark ? 0xFF1F382A : 0xFFD2E5BB,
+      ),
+    );
+
+    // Middle hills, with two faint field lines that follow their curve.
+    Path midLine(double dy) => Path()
+      ..moveTo(0, y(0.71 + dy))
+      ..cubicTo(
+        w * 0.20,
+        y(0.60 + dy),
+        w * 0.42,
+        y(0.63 + dy),
+        w * 0.60,
+        y(0.73 + dy),
+      )
+      ..cubicTo(
+        w * 0.76,
+        y(0.81 + dy),
+        w * 0.90,
+        y(0.68 + dy),
+        w,
+        y(0.65 + dy),
       );
-    }
+    final mid = midLine(0)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(
+      mid,
+      shaded(
+        Rect.fromLTRB(0, y(0.60), w, h),
+        dark ? 0xFF22402F : 0xFFC9E1AC,
+        dark ? 0xFF254532 : 0xFFB8D797,
+      ),
+    );
+    canvas.save();
+    canvas.clipPath(mid);
+    final furrow = Paint()
+      ..color = (dark ? const Color(0xFF34573F) : const Color(0xFFA2C985))
+          .withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1;
+    canvas.drawPath(midLine(0.07), furrow);
+    canvas.drawPath(midLine(0.14), furrow);
     canvas.restore();
 
-    // Small leaves at the edges.
-    void leaf(Offset at, double length, double angle, int color) {
+    // Near hills: the deepest green, lowest layer.
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, y(0.88))
+        ..cubicTo(w * 0.24, y(0.76), w * 0.48, y(0.81), w * 0.70, y(0.89))
+        ..cubicTo(w * 0.86, y(0.95), w * 0.95, y(0.85), w, y(0.83))
+        ..lineTo(w, h)
+        ..lineTo(0, h)
+        ..close(),
+      shaded(
+        Rect.fromLTRB(0, y(0.76), w, h),
+        dark ? 0xFF2A4E36 : 0xFFADD38B,
+        dark ? 0xFF2C5238 : 0xFFA2CB7E,
+      ),
+    );
+
+    // A small, quiet sprig of leaves growing in from a side edge.
+    final leafPaint = Paint()
+      ..color = const Color(0xFF8DBF70).withValues(alpha: 0.6);
+    final stemPaint = Paint()
+      ..color = const Color(0xFF8DBF70).withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+    void leaf(double along, double length, double angle) {
       canvas.save();
-      canvas.translate(at.dx, at.dy);
+      canvas.translate(along, 0);
       canvas.rotate(angle);
       canvas.drawPath(
         Path()
           ..moveTo(0, 0)
-          ..quadraticBezierTo(length * 0.5, -length * 0.32, length, 0)
-          ..quadraticBezierTo(length * 0.5, length * 0.32, 0, 0),
-        fill(color),
+          ..quadraticBezierTo(length * 0.5, -length * 0.34, length, 0)
+          ..quadraticBezierTo(length * 0.5, length * 0.34, 0, 0),
+        leafPaint,
       );
       canvas.restore();
     }
 
-    leaf(Offset(w * 0.02, h * 0.50), h * 0.26, -0.5, 0xFF8BC06A);
-    leaf(Offset(w * 0.03, h * 0.62), h * 0.20, -1.1, 0xFFA6CF86);
-    leaf(Offset(w * 0.98, h * 0.48), h * 0.26, math.pi + 0.5, 0xFF8BC06A);
-    leaf(Offset(w * 0.97, h * 0.60), h * 0.20, math.pi + 1.1, 0xFFA6CF86);
+    void sprig(Offset base, double angle) {
+      canvas.save();
+      canvas.translate(base.dx, base.dy);
+      canvas.rotate(angle);
+      canvas.drawLine(Offset.zero, const Offset(20, 0), stemPaint);
+      leaf(6, 9, -0.75);
+      leaf(11, 9, 0.75);
+      leaf(19, 10, -0.15);
+      canvas.restore();
+    }
+
+    // Left: below Back, right: high on the other side; both at the edge.
+    sprig(Offset(-2, y(0.50)), -0.45);
+    sprig(Offset(w + 2, y(0.30)), math.pi + 0.45);
 
     // Fading into the page at the foot.
+    final foot = Rect.fromLTRB(0, y(0.87), w, h);
     canvas.drawRect(
-      Rect.fromLTRB(0, h * 0.78, w, h),
+      foot,
       Paint()
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [AppColors.page.withValues(alpha: 0), AppColors.page],
-        ).createShader(Rect.fromLTRB(0, h * 0.78, w, h)),
+        ).createShader(foot),
     );
   }
 
   @override
-  bool shouldRepaint(ProfileLandscapePainter oldDelegate) => false;
+  bool shouldRepaint(ProfileLandscapePainter oldDelegate) =>
+      oldDelegate.topInset != topInset ||
+      oldDelegate.softTop != softTop ||
+      oldDelegate.dark != dark;
 }

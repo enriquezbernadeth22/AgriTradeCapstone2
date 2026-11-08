@@ -39,26 +39,30 @@ void main() {
     );
   });
 
-  test('dark mode: charcoal page, cards one step lighter, quiet borders', () {
-    AppColors.isDark = true;
-    addTearDown(() => AppColors.isDark = false);
-    expect(AppColors.page, const Color(0xFF101214));
-    expect(AppColors.surface, const Color(0xFF1B1E20));
-    expect(AppColors.outline, const Color(0xFF303437));
-    expect(AppColors.cardBorder, isNotNull);
-    expect(
-      AppColors.surface.computeLuminance(),
-      greaterThan(AppColors.page.computeLuminance()),
-    );
-    // Not pure black.
-    expect(AppColors.page, isNot(Colors.black));
-  });
+  test(
+    'dark mode: forest-green page, cards one step lighter, quiet borders',
+    () {
+      AppColors.isDark = true;
+      addTearDown(() => AppColors.isDark = false);
+      expect(AppColors.page, const Color(0xFF101C17));
+      expect(AppColors.surface, const Color(0xFF1B2B24));
+      expect(AppColors.field, const Color(0xFF24382E));
+      expect(AppColors.outline, const Color(0xFF34483D));
+      expect(AppColors.cardBorder, isNotNull);
+      expect(
+        AppColors.surface.computeLuminance(),
+        greaterThan(AppColors.page.computeLuminance()),
+      );
+      // Not pure black.
+      expect(AppColors.page, isNot(Colors.black));
+    },
+  );
 
   test('dark mode text: soft off-white, readable muted grey', () {
     AppColors.isDark = true;
     addTearDown(() => AppColors.isDark = false);
-    expect(AppColors.text, const Color(0xFFF2F3F2));
-    expect(AppColors.textSecondary, const Color(0xFFA7ADAA));
+    expect(AppColors.text, const Color(0xFFF4F6F2));
+    expect(AppColors.textSecondary, const Color(0xFFB6C2B8));
     double contrast(Color a, Color b) {
       final la = a.computeLuminance(), lb = b.computeLuminance();
       return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);

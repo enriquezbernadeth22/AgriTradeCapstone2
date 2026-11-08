@@ -49,7 +49,9 @@ Future<ChatAttachment?> showChatAttachmentMenu(BuildContext plusButtonContext) {
   return showAgriPopupMenu<ChatAttachment>(
     anchorContext: plusButtonContext,
     upward: true,
-    width: 236,
+    dense: true,
+    dividers: false,
+    width: 224,
     items: [
       AgriMenuItem(
         value: ChatAttachment.camera,
@@ -445,6 +447,22 @@ class ChatSuggestionChip extends StatelessWidget {
 /// From how many characters the message box shows its count ("900/1000").
 const int kChatCounterFrom = 900;
 
+/// The composer's row: the one-line message box's height, and the tap area
+/// of + and Send (the user's sizes, 2026-11-08).
+const double kChatComposerHeight = 40;
+
+/// The circles as seen, inside their [kChatComposerHeight] tap areas: +
+/// white with a dark green outline, Send dark green.
+const double kChatPlusSize = 34;
+const double kChatSendSize = 38;
+
+/// What is seen between +, the message box and Send.
+const double kChatComposerGap = 8;
+
+/// Send's dark green circle and its gold arrow.
+const Color kChatSendGreen = Color(0xFF0B4225);
+const Color kChatSendGold = Color(0xFFF5BB24);
+
 /// The message box: one + button for attachments, a wide text field that
 /// grows as the user types more lines, and Send.
 ///
@@ -495,7 +513,7 @@ class ChatComposerBar extends StatelessWidget {
             ),
             if (length >= kChatCounterFrom)
               Padding(
-                padding: const EdgeInsets.only(top: 4, right: 52),
+                padding: const EdgeInsets.only(top: 4, right: 54),
                 child: Text(
                   '$length/$max',
                   key: const Key('chatCharacterCount'),
@@ -530,29 +548,62 @@ class ChatComposerBar extends StatelessWidget {
                     key: const ValueKey('attach'),
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // A 34 white circle with a thin dark green outline
+                      // and an 18 dark green + (no gold: only Send has it),
+                      // in a 40 tap area.
                       Builder(
-                        builder: (buttonContext) => IconButton(
-                          key: plusKey,
-                          tooltip: tl('Attach'),
-                          onPressed: sending
+                        builder: (buttonContext) {
+                          final onTap = sending
                               ? null
-                              : () => onAttach(buttonContext),
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 42,
-                          ),
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            Icons.add_circle_outline_rounded,
-                            color: AppColors.brand,
-                            size: 26,
-                          ),
-                        ),
+                              : () => onAttach(buttonContext);
+                          return Tooltip(
+                            message: tl('Attach'),
+                            child: GestureDetector(
+                              key: const Key('chatPlus'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: onTap,
+                              child: SizedBox.square(
+                                dimension: kChatComposerHeight,
+                                child: Center(
+                                  child: Material(
+                                    key: plusKey,
+                                    color: AppColors.surface,
+                                    shape: CircleBorder(
+                                      side: BorderSide(
+                                        color: AppColors.brand,
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: onTap,
+                                      child: SizedBox.square(
+                                        dimension: kChatPlusSize,
+                                        child: Icon(
+                                          Icons.add_rounded,
+                                          color: AppColors.brand,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(width: 2),
+                      const SizedBox(
+                        width:
+                            kChatComposerGap -
+                            (kChatComposerHeight - kChatPlusSize) / 2,
+                      ),
                     ],
                   )
-                : const SizedBox(key: ValueKey('noAttach'), height: 42),
+                : const SizedBox(
+                    key: ValueKey('noAttach'),
+                    height: kChatComposerHeight,
+                  ),
           ),
         ),
         // The forms' field (as on Log In): a thin grey outline at rest, and
@@ -562,31 +613,57 @@ class ChatComposerBar extends StatelessWidget {
             key: fieldKey,
             child: TextField(
               controller: controller,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 13),
               minLines: 1,
               maxLines: 6,
               keyboardType: TextInputType.multiline,
               textCapitalization: TextCapitalization.sentences,
-              decoration: AppTheme.plainFieldDecoration(hint: hintText),
+              // A white pill as tall as the round buttons beside it.
+              decoration: AppTheme.plainFieldDecoration(hint: hintText)
+                  .copyWith(
+                    hintStyle: AppTheme.formHint().copyWith(fontSize: 12),
+                    // One line is 40 high, as tall as the buttons' row.
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(
+          width: kChatComposerGap - (kChatComposerHeight - kChatSendSize) / 2,
+        ),
         Semantics(
           button: true,
           enabled: canSend,
           label: tl('Send'),
-          child: Material(
-            color: canSend ? AppColors.brandFill : AppColors.grey(400),
-            shape: const CircleBorder(),
-            child: InkWell(
-              key: const Key('chatSend'),
-              onTap: canSend ? onSend : null,
-              customBorder: const CircleBorder(),
-              child: const SizedBox(
-                width: 42,
-                height: 42,
-                child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+          // A 38 dark green circle with an 18 gold arrow: the only gold in
+          // the chat (the user's design, 2026-11-08), in a 40 tap area.
+          // Grey while it cannot send.
+          child: GestureDetector(
+            key: const Key('chatSend'),
+            behavior: HitTestBehavior.opaque,
+            onTap: canSend ? onSend : null,
+            child: SizedBox.square(
+              dimension: kChatComposerHeight,
+              child: Center(
+                child: Material(
+                  color: canSend ? kChatSendGreen : AppColors.grey(400),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: canSend ? onSend : null,
+                    customBorder: const CircleBorder(),
+                    child: SizedBox.square(
+                      dimension: kChatSendSize,
+                      child: Icon(
+                        Icons.send_rounded,
+                        color: canSend ? kChatSendGold : Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

@@ -115,7 +115,7 @@ class _NotificationPreferencesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tr(context).notificationSettings),
       body: StreamBuilder<NotificationPrefs>(
         stream: _prefs,

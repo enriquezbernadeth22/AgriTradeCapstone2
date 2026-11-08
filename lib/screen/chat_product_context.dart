@@ -1,13 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/commodity_master_list.dart';
 import '../services/delivery_coverage.dart';
+import '../services/firebase_refs.dart';
 import '../services/market_price_helpers.dart';
 import '../services/pricing_tier_service.dart';
 import '../widgets/agri_dialog.dart';
@@ -119,7 +119,7 @@ class ChatProduct {
 }
 
 Future<ChatProduct?> fetchChatProduct(String productId) async {
-  final snap = await FirebaseFirestore.instance
+  final snap = await FirebaseRefs.firestore
       .collection('products')
       .doc(productId)
       .get();
@@ -127,7 +127,7 @@ Future<ChatProduct?> fetchChatProduct(String productId) async {
   return data == null ? null : ChatProduct.fromData(snap.id, data);
 }
 
-String? get _myUid => FirebaseAuth.instance.currentUser?.uid;
+String? get _myUid => FirebaseRefs.auth.currentUser?.uid;
 
 // Unless said otherwise, a message here is something that cannot be done.
 void _snack(
@@ -151,7 +151,9 @@ void _snack(
 ///
 /// Resolves to a draft message when the buyer tapped Message Farmer (to ask
 /// about delivery outside the farmer's coverage) — the caller puts it in
-/// the chat's composer — otherwise null.
+/// the chat's composer — otherwise null. When the buyer placed the order,
+/// [onPlaced] is told its id, so the chat can post the order's card for
+/// the farmer to confirm there.
 Future<String?> startChatOrder(
   BuildContext context, {
   required String productId,
@@ -159,6 +161,7 @@ Future<String?> startChatOrder(
   required String sellerName,
   String? pricingType,
   num? quotedPrice,
+  ValueChanged<String>? onPlaced,
 }) async {
   if (productId.isEmpty) {
     _snack(
@@ -283,6 +286,7 @@ Future<String?> startChatOrder(
       ),
     ),
   );
+  if (result is PlacedOrder) onPlaced?.call(result.orderId);
   return result is String ? result : null;
 }
 
@@ -464,7 +468,7 @@ class _FulfillmentLines extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.montserrat(
-                fontSize: compact ? 11 : 11.5,
+                fontSize: compact ? 10.5 : 11.5,
                 color: AppColors.grey(700),
               ),
             ),
@@ -506,6 +510,10 @@ class ChatProductCard extends StatefulWidget {
   /// the order flow (see [startChatOrder]), to put in the composer.
   final ValueChanged<String>? onDraftMessage;
 
+  /// Buyer only: told the id of an order placed from here, so the chat
+  /// posts its card.
+  final ValueChanged<String>? onOrderPlaced;
+
   const ChatProductCard({
     super.key,
     required this.productId,
@@ -518,6 +526,7 @@ class ChatProductCard extends StatefulWidget {
     this.onSendOptions,
     this.onTapDetails,
     this.onDraftMessage,
+    this.onOrderPlaced,
   });
 
   @override
@@ -531,7 +540,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
   Stream<DocumentSnapshot<Map<String, dynamic>>>? _watch() =>
       widget.productId.isEmpty
       ? null
-      : FirebaseFirestore.instance
+      : FirebaseRefs.firestore
             .collection('products')
             .doc(widget.productId)
             .snapshots();
@@ -614,7 +623,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
     final details = Row(
       children: [
         _image(product),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,18 +633,18 @@ class _ChatProductCardState extends State<ChatProductCard> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.montserrat(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 1),
               if (product != null)
                 Text(
                   product.retailLabel,
                   style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.brand,
                   ),
                 )
@@ -655,7 +664,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.montserrat(
-                      fontSize: 11.5,
+                      fontSize: 10.5,
                       color: AppColors.grey(700),
                     ),
                   ),
@@ -672,7 +681,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                   child: Text(
                     status,
                     style: GoogleFonts.montserrat(
-                      fontSize: 11.5,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.tone(Colors.orange, 800),
                     ),
@@ -694,6 +703,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
                       productId: widget.productId,
                       sellerId: widget.sellerId,
                       sellerName: widget.sellerName,
+                      onPlaced: widget.onOrderPlaced,
                     );
                     if (draft != null) widget.onDraftMessage?.call(draft);
                   }),
@@ -704,20 +714,10 @@ class _ChatProductCardState extends State<ChatProductCard> {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.7)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+      padding: const EdgeInsets.all(10),
+      // A white card on a soft shadow (AppTheme.card), as on Explore.
+      decoration: AppTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -772,8 +772,8 @@ class _ChatProductCardState extends State<ChatProductCard> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
-        width: 58,
-        height: 58,
+        width: 48,
+        height: 48,
         child: url != null && url.isNotEmpty
             ? Image.network(
                 url,
@@ -795,11 +795,13 @@ class _ChatProductCardState extends State<ChatProductCard> {
   }) {
     final style = primary
         ? ElevatedButton.styleFrom(
-            backgroundColor: AppColors.brandFill,
+            backgroundColor: AppColors.isDark
+                ? AppColors.brandFill
+                : const Color(0xFF0B4225),
             foregroundColor: Colors.white,
             disabledBackgroundColor: AppColors.grey(300),
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: AppTheme.compactButtonShape,
@@ -814,10 +816,7 @@ class _ChatProductCardState extends State<ChatProductCard> {
           );
     final text = Text(
       label,
-      style: GoogleFonts.montserrat(
-        fontSize: 12.5,
-        fontWeight: FontWeight.w600,
-      ),
+      style: GoogleFonts.montserrat(fontSize: 12, fontWeight: FontWeight.w600),
     );
     final busyOnPressed = _busy ? null : onPressed;
     if (primary) {
@@ -860,6 +859,10 @@ class OrderOptionsMessageCard extends StatefulWidget {
   /// flow (see [startChatOrder]).
   final ValueChanged<String>? onDraftMessage;
 
+  /// Told the id of an order placed from this card (Choose Retail or
+  /// Wholesale), so the chat posts what the buyer chose for the farmer.
+  final ValueChanged<String>? onOrderPlaced;
+
   const OrderOptionsMessageCard({
     super.key,
     required this.data,
@@ -869,6 +872,7 @@ class OrderOptionsMessageCard extends StatefulWidget {
     this.fallbackProductName,
     this.fallbackUnit,
     this.onDraftMessage,
+    this.onOrderPlaced,
   });
 
   @override
@@ -890,6 +894,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
         sellerName: widget.sellerName,
         pricingType: type,
         quotedPrice: price,
+        onPlaced: widget.onOrderPlaced,
       );
       if (draft != null) widget.onDraftMessage?.call(draft);
     } finally {
@@ -923,21 +928,18 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
           color: isMe ? AppColors.tint : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.accent),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(
+            color: AppColors.isDark
+                ? AppColors.hairline
+                : const Color(0xFFE8E9E3),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,26 +952,26 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
                 Text(
                   isMe ? tl('Order options sent') : tl('Order options'),
                   style: GoogleFonts.montserrat(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    color: AppColors.brand,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               productName,
               style: GoogleFonts.montserrat(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: AppColors.text,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             _priceBlock('Retail', formatPriceWithUnit(retailPrice, unit)),
             if (hasWholesale) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _priceBlock(
                 'Wholesale',
                 formatPriceWithUnit(wholesalePrice, unit),
@@ -977,11 +979,15 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
               ),
             ],
             if (deliveryLine != null && pickupLine != null) ...[
-              const SizedBox(height: 8),
-              _FulfillmentLines(delivery: deliveryLine, pickup: pickupLine),
+              const SizedBox(height: 6),
+              _FulfillmentLines(
+                delivery: deliveryLine,
+                pickup: pickupLine,
+                compact: true,
+              ),
             ],
             if (!isMe) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               _chooseButton(
                 tl('Choose Retail'),
                 primary: true,
@@ -1018,7 +1024,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
         Text(
           label,
           style: GoogleFonts.montserrat(
-            fontSize: 11.5,
+            fontSize: 10.5,
             fontWeight: FontWeight.w600,
             color: AppColors.textSecondary,
           ),
@@ -1027,7 +1033,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           price,
           style: GoogleFonts.montserrat(
             fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
             color: AppColors.brand,
           ),
         ),
@@ -1035,7 +1041,7 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           Text(
             note,
             style: GoogleFonts.montserrat(
-              fontSize: 11.5,
+              fontSize: 10.5,
               color: AppColors.grey(700),
             ),
           ),
@@ -1048,13 +1054,18 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
     required VoidCallback onPressed,
     bool primary = false,
   }) {
+    // 38 high, 12 labels (AppTheme's compact actions, 2026-11-08).
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(30),
+      borderRadius: BorderRadius.circular(10),
     );
-    const padding = EdgeInsets.symmetric(vertical: 10);
+    const padding = EdgeInsets.zero;
+    const size = Size.fromHeight(AppTheme.compactActionHeight);
     final text = Text(
       label,
-      style: GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w600),
+      style: GoogleFonts.montserrat(
+        fontSize: AppTheme.compactActionLabelSize,
+        fontWeight: FontWeight.w600,
+      ),
     );
     return SizedBox(
       width: double.infinity,
@@ -1062,10 +1073,15 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
           ? ElevatedButton(
               onPressed: _busy ? null : onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brandFill,
+                backgroundColor: AppColors.isDark
+                    ? AppColors.brandFill
+                    : const Color(0xFF0B4225),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: padding,
+                minimumSize: size,
+                fixedSize: size,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: shape,
               ),
               child: text,
@@ -1076,6 +1092,9 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
                 foregroundColor: AppColors.brand,
                 side: BorderSide(color: AppColors.brand),
                 padding: padding,
+                minimumSize: size,
+                fixedSize: size,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: shape,
               ),
               child: text,

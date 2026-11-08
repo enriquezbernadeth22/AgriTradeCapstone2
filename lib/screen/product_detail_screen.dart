@@ -25,6 +25,7 @@ import '../services/harvest_info.dart';
 import '../services/market_price_helpers.dart';
 import '../widgets/agri_refresh_indicator.dart';
 import '../widgets/save_product_button.dart';
+import '../widgets/order_card.dart' show BarActionStyle;
 import '../data/commodity_master_list.dart';
 import 'chat_screen.dart';
 import 'place_order_screen.dart';
@@ -697,14 +698,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
             ),
+          // Each button's 44 tap area holds a 36 circle, 4 in from its
+          // sides: 8 + 4 puts the circles 12 from the screen's edges, and
+          // two side by side 8 apart.
           Positioned(
             top: 0,
-            left: 12,
-            right: 12,
+            left: 8,
+            right: 8,
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 4),
                 child: Row(
                   children: [
                     // Back again over the photo (the user's picture,
@@ -718,7 +722,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const Spacer(),
                     // The heart — buyers only (it draws nothing otherwise).
                     SaveProductButton(productId: widget.productId),
-                    const SizedBox(width: 10),
                     Builder(
                       builder: (buttonContext) => circleButton(
                         Icons.share_outlined,
@@ -727,6 +730,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           widget.productId,
                           data,
                         ),
+                        key: const Key('productShare'),
+                        tooltip: tl('Share'),
                       ),
                     ),
                   ],
@@ -1250,26 +1255,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (category.isNotEmpty) ...[
+          // The category alone: no icon on a category badge anywhere (the
+          // user, 2026-11-08).
           Container(
-            padding: const EdgeInsets.fromLTRB(8, 4, 12, 4),
+            key: const Key('productCategoryPill'),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: _paleGreen,
               borderRadius: BorderRadius.circular(AppTheme.pillRadius),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.eco_rounded, size: 13, color: AppColors.mid),
-                const SizedBox(width: 5),
-                Text(
-                  category,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.brand,
-                  ),
-                ),
-              ],
+            child: Text(
+              category,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.brand,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -1706,36 +1707,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final canContact = farmerId != null && farmerId.isNotEmpty;
     final canOrder = available > 0 && canContact;
 
-    // Compact, fixed under the page (the user's sizes, 2026-11-08): both
-    // 46 high, 13 labels, 18 icons, 7 between them.
-    // The icon in the brand's gold (2026-11-08); grey while the button is
-    // off.
-    Widget label(IconData icon, String text, {required bool on}) => Row(
+    // Compact, fixed under the page, in BarActionStyle (the user's sizes,
+    // 2026-11-08; the same as Order Details' Review / View Receipt): 46
+    // high, 13 labels, 18 icons, 7 between them. The icon gold on the
+    // filled Message, dark green on the white Order Now; grey while off.
+    Widget label(
+      IconData icon,
+      String text, {
+      required bool on,
+      required bool filled,
+    }) => Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
-          size: 18,
-          color: on ? const Color(0xFFF5BB24) : AppColors.grey(500),
+          size: BarActionStyle.iconSize,
+          color: !on
+              ? AppColors.grey(500)
+              : filled
+              ? BarActionStyle.gold
+              : BarActionStyle.line,
         ),
-        const SizedBox(width: 7),
+        const SizedBox(width: BarActionStyle.gap),
         Flexible(
           child: Text(
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: 'Montserrat',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+            style: BarActionStyle.label,
           ),
         ),
       ],
     );
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(BarActionStyle.radius),
     );
 
     return SafeArea(
@@ -1766,14 +1772,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.brand,
+                  foregroundColor: BarActionStyle.line,
                   backgroundColor: AppColors.surface,
                   disabledForegroundColor: AppColors.grey(500),
                   side: BorderSide(
-                    color: canOrder ? AppColors.brand : AppColors.grey(300),
+                    color: canOrder ? BarActionStyle.line : AppColors.grey(300),
                     width: 1.2,
                   ),
                   minimumSize: const Size.fromHeight(_actionHeight),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   shape: shape,
                 ),
@@ -1781,6 +1788,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   available > 0 ? Icons.shopping_bag_outlined : Icons.block,
                   available > 0 ? tl('Order Now') : tl('Out of Stock'),
                   on: canOrder,
+                  filled: false,
                 ),
               ),
             ),
@@ -1792,14 +1800,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ? () => _messageFarmer(farmerId, farmerName, name)
                     : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.isDark
-                      ? AppColors.brandFill
-                      : const Color(0xFF0B4225),
+                  backgroundColor: BarActionStyle.fill,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: AppColors.grey(300),
                   disabledForegroundColor: AppColors.grey(600),
                   elevation: 0,
                   minimumSize: const Size.fromHeight(_actionHeight),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   shape: shape,
                 ),
@@ -1807,6 +1814,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Icons.chat_bubble_outline_rounded,
                   tl('Message'),
                   on: canOrder,
+                  filled: true,
                 ),
               ),
               key: _messageKey,
@@ -1819,7 +1827,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // One height for every action on this screen; the buttons are rounded
   // rectangles of it.
-  static const double _actionHeight = 46;
+  static const double _actionHeight = BarActionStyle.height;
 
   // A bottom-bar button: the two share the bar's whole width equally, so
   // there is no empty space beside them.
@@ -1905,27 +1913,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // A white round button over the photo, on a soft shadow.
+  // A round button over the photo (the user's sizes, 2026-11-08): a 36
+  // white circle at 95% on a very soft shadow, an 18 dark green icon, and
+  // a 44 tap area around it (the circle stays 36).
   Widget circleButton(
     IconData icon,
     VoidCallback onTap, {
     Key? key,
     String? tooltip,
   }) {
-    final button = Material(
-      key: key,
-      color: AppColors.surface,
+    final circle = Material(
+      color: AppColors.surface.withValues(alpha: 0.95),
       shape: const CircleBorder(),
-      elevation: 2,
+      elevation: 1,
       shadowColor: Colors.black.withValues(alpha: 0.35),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: AppColors.brand, size: 22),
+        child: SizedBox.square(
+          dimension: SaveProductButton.size,
+          child: Icon(
+            icon,
+            color: AppColors.isDark ? AppColors.brand : const Color(0xFF0B4225),
+            size: SaveProductButton.iconSize,
+          ),
         ),
+      ),
+    );
+    final button = GestureDetector(
+      key: key,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox.square(
+        dimension: SaveProductButton.tapTarget,
+        child: Center(child: circle),
       ),
     );
     return tooltip == null ? button : Tooltip(message: tooltip, child: button);

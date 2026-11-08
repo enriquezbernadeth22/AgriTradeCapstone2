@@ -471,11 +471,11 @@ class _OrderStatusPagerState extends State<OrderStatusPager>
           labelColor: AppColors.brand,
           unselectedLabelColor: const Color(0xFF757575),
           labelStyle: GoogleFonts.montserrat(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
           unselectedLabelStyle: GoogleFonts.montserrat(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
           splashFactory: NoSplash.splashFactory,

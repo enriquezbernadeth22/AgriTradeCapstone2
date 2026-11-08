@@ -23,7 +23,7 @@ class DockedNavBar extends StatelessWidget {
   static const Color color = Color(0xFF063B1C);
   static const Color topColor = Color(0xFF0B4626);
 
-  /// The gold of the selected tab's pill (and the farmer's +).
+  /// The gold of the selected tab's pill.
   static const Color selectedColor = Color(0xFFFDBE1D);
 
   /// The thin rim around the pill.

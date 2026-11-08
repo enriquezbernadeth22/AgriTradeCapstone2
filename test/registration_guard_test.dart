@@ -97,7 +97,9 @@ void main() {
     );
   });
 
-  testWidgets('an approved farmer is offered only Back to Login', (tester) async {
+  testWidgets('an approved farmer is offered only Back to Login', (
+    tester,
+  ) async {
     ExistingAccountChoice? choice;
     await tester.pumpWidget(
       MaterialApp(
@@ -132,6 +134,34 @@ void main() {
         offerDifferentEmail: true,
       ),
       ExistingAccountChoice.differentEmail,
+    );
+  });
+
+  testWidgets('from Create account: Back to Login and Register a different '
+      'email, no Cancel', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showExistingAccountDialog(
+              context,
+              ExistingAccount.registered,
+              offerDifferentEmail: true,
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Back to Login'), findsOneWidget);
+    expect(find.text('Register a different email'), findsOneWidget);
+    expect(find.text('Cancel'), findsNothing);
+    // Back to Login on top.
+    expect(
+      tester.getTopLeft(find.text('Back to Login')).dy,
+      lessThan(tester.getTopLeft(find.text('Register a different email')).dy),
     );
   });
 }

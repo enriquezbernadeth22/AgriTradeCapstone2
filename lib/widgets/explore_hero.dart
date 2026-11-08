@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import 'docked_nav_bar.dart';
 
 /// The cream page colour of the buyer's Explore (the user's design,
@@ -21,6 +22,13 @@ class ExploreHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = AppColors.isDark;
+    // Always the full width: under loose constraints (Explore's
+    // AnimatedSize) the Stack would shrink to the words, and the scene,
+    // pinned to its right, would land on the left under the title.
+    return SizedBox(width: double.infinity, child: _content(dark));
+  }
+
+  Widget _content(bool dark) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -58,10 +66,10 @@ class ExploreHero extends StatelessWidget {
                   // The bundled Montserrat, so the ExtraBold file is used
                   // (the theme's own family has only its regular one).
                   fontFamily: 'Montserrat',
-                  fontSize: 23.5,
+                  fontSize: AppTheme.mainTitleSize,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.brand,
+                  color: AppColors.heading,
                 ),
               ),
               const SizedBox(height: 2),

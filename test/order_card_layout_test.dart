@@ -54,4 +54,43 @@ void main() {
       expect(opened, 1);
     });
   }
+
+  testWidgets(
+    'compact sizes: name 13, total 14, Details 34 high with 11 text',
+    (tester) async {
+      const priced = OrderInfo('o2', {
+        'productName': 'Chicken',
+        'status': 'pending',
+        'buyerName': 'Sander Calda',
+        'total': 190,
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OrderCard(
+              order: priced,
+              role: OrderRole.farmer,
+              onDetails: () {},
+            ),
+          ),
+        ),
+      );
+      double size(String text) =>
+          tester.widget<Text>(find.text(text)).style!.fontSize!;
+      expect(size('Chicken'), 13);
+      final details = find.byKey(const Key('orderCardDetails'));
+      expect(tester.getSize(details).height, 34);
+      final label = tester.widget<DefaultTextStyle>(
+        find
+            .ancestor(
+              of: find.text('Details'),
+              matching: find.byType(DefaultTextStyle),
+            )
+            .first,
+      );
+      expect(label.style.fontSize, 11);
+      final total = find.textContaining('190');
+      expect(tester.widget<Text>(total).style!.fontSize, 14);
+    },
+  );
 }

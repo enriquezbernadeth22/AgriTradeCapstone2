@@ -47,7 +47,7 @@
   "sectionAbout": "Tungkol",
   "sectionAccount": "Account",
   "personalInformation": "Personal na Impormasyon",
-  "personalInformationHint": "Pangalan, larawan at contact details",
+  "personalInformationHint": "Pangalan, larawan, contact details at recovery email",
   "changePassword": "Palitan ang Password",
   "changePasswordHint": "Palitan ang password na ginagamit mo sa pag-login.",
   "recoveryEmail": "Recovery Email",

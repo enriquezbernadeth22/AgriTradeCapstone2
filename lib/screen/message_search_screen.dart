@@ -376,7 +376,11 @@ class _MessageSearchScreenState extends State<MessageSearchScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 44, color: AppColors.grey(400)),
+            Icon(
+              icon,
+              size: AppTheme.stateIconSize,
+              color: AppColors.grey(400),
+            ),
             const SizedBox(height: 12),
             Text(
               title,

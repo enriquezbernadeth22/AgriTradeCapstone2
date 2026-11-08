@@ -1,11 +1,11 @@
 import '../widgets/agri_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/conversation_prefs_service.dart';
+import '../services/firebase_refs.dart';
 import '../services/presence_service.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/profile_avatar.dart';
@@ -55,20 +55,20 @@ class ConversationInfoScreen extends StatefulWidget {
 
 class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
   final ConversationPrefs _prefs = ConversationPrefs.instance;
-  final String? _myUid = FirebaseAuth.instance.currentUser?.uid;
+  final String? _myUid = FirebaseRefs.auth.currentUser?.uid;
 
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _profile =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('publicProfiles')
           .doc(widget.otherUserId)
           .snapshots();
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _presence =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('presence')
           .doc(widget.otherUserId)
           .snapshots();
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _conversation =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('conversations')
           .doc(widget.conversationId)
           .snapshots();
@@ -126,7 +126,9 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      // The cream page with white grouped cards (the user's design,
+      // 2026-11-08): no gold anywhere on this screen.
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Conversation Info')),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _profile,
@@ -151,10 +153,10 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               widget.productId != null && widget.productId!.isNotEmpty;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
             children: [
               _header(profile, profileSnap.hasData, name, role, area),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
 
               _sectionTitle(tl('Conversation tools')),
               _section(
@@ -180,7 +182,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               ),
 
               if (hasProduct) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 _sectionTitle(tl('Product context')),
                 _section(
                   children: [
@@ -189,17 +191,13 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                       label: (widget.productName ?? '').isNotEmpty
                           ? widget.productName!
                           : tl('View product'),
-                      trailing: Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textMuted,
-                      ),
                       onTap: _openProduct,
                     ),
                   ],
                 ),
               ],
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               _sectionTitle(tl('Conversation')),
               StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: _conversation,
@@ -207,7 +205,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                     _management(convSnap.data?.data()),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               _sectionTitle(tl('Safety')),
               _section(
                 children: [
@@ -234,7 +232,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                 ],
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               _sectionTitle(tl('Location privacy')),
               _section(
                 children: [
@@ -312,16 +310,17 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                   ProfileAvatar(
                     photoUrl: loaded ? livePhotoUrl : widget.otherUserPhotoUrl,
                     name: name,
-                    radius: 42,
+                    // Clean: no ring, badge or icon over the photo.
+                    radius: 34,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Text(
                     name,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.montserrat(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
+                      fontSize: 17.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brand,
                     ),
                   ),
                 ],
@@ -329,7 +328,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: _presence,
           builder: (context, snap) {
@@ -344,30 +343,31 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
             return Text(
               parts.join(' · '),
               style: GoogleFonts.montserrat(
-                fontSize: 12.5,
+                fontSize: 12,
                 color: online
                     ? AppColors.adapt(const Color(0xFF16A34A))
-                    : AppColors.grey(600),
-                fontWeight: FontWeight.w600,
+                    : _muted,
+                fontWeight: FontWeight.w500,
               ),
             );
           },
         ),
         if (area.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.place_outlined, size: 15, color: AppColors.grey(600)),
-              const SizedBox(width: 4),
+              Icon(
+                Icons.location_on_outlined,
+                size: 14,
+                color: AppColors.brand,
+              ),
+              const SizedBox(width: 3),
               Flexible(
                 child: Text(
                   area,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 12.5,
-                    color: AppColors.grey(700),
-                  ),
+                  style: GoogleFonts.montserrat(fontSize: 11.5, color: _muted),
                 ),
               ),
             ],
@@ -375,20 +375,30 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
         ],
         if (openProfile != null) ...[
           const SizedBox(height: 12),
+          // White, a thin dark green outline, 40 high.
           OutlinedButton.icon(
+            key: const Key('conversationInfoViewProfile'),
             onPressed: openProfile,
             icon: Icon(
               role == 'farmer'
                   ? Icons.storefront_outlined
                   : Icons.person_outline_rounded,
-              size: 18,
+              size: 16,
             ),
             label: Text(
               role == 'farmer' ? tl('View Storefront') : tl('View Profile'),
+              style: GoogleFonts.montserrat(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.brand,
+              backgroundColor: AppColors.surface,
               side: BorderSide(color: AppColors.brand),
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: AppTheme.buttonShape,
             ),
           ),
@@ -408,6 +418,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
         _actionRow(
           icon: pinned ? Icons.push_pin : Icons.push_pin_outlined,
           label: pinned ? tl('Unpin conversation') : tl('Pin conversation'),
+          chevron: false,
           onTap: () => _prefs.togglePinned(id),
         ),
         _actionRow(
@@ -415,6 +426,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
               ? Icons.notifications_active_outlined
               : Icons.notifications_off_outlined,
           label: muted ? tl('Unmute notifications') : tl('Mute notifications'),
+          chevron: false,
           onTap: () => _prefs.toggleMuted(id),
         ),
         _actionRow(
@@ -422,6 +434,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
           label: archived
               ? tl('Unarchive conversation')
               : tl('Archive conversation'),
+          chevron: false,
           onTap: () => archived
               ? _prefs.unarchive(id)
               : _prefs.archive(id, lastMessageMs: _lastMessageMs(conversation)),
@@ -430,15 +443,20 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     );
   }
 
+  Color get _muted =>
+      AppColors.isDark ? AppColors.textSecondary : const Color(0xFF757575);
+  Color get _line =>
+      AppColors.isDark ? AppColors.hairline : const Color(0xFFE8E9E3);
+
+  // A dark green heading over each group.
   Widget _sectionTitle(String text) => Padding(
-    padding: const EdgeInsets.only(left: 6, bottom: 6),
+    padding: const EdgeInsets.only(left: 4, bottom: 7),
     child: Text(
       text,
       style: GoogleFonts.montserrat(
-        fontSize: 12,
+        fontSize: 12.5,
         fontWeight: FontWeight.w700,
-        color: AppColors.textSecondary,
-        letterSpacing: 0.2,
+        color: AppColors.brand,
       ),
     ),
   );
@@ -476,7 +494,7 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     final productId = widget.productId;
     if (productId == null || productId.isEmpty) return;
     try {
-      final snap = await FirebaseFirestore.instance
+      final snap = await FirebaseRefs.firestore
           .collection('products')
           .doc(productId)
           .get();
@@ -512,22 +530,37 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     }
   }
 
+  // One white rounded card, a thin line between its rows.
   Widget _section({required List<Widget> children}) {
     return Container(
       decoration: AppTheme.card(),
       clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: 46,
+                endIndent: 14,
+                color: _line,
+              ),
+            children[i],
+          ],
+        ],
+      ),
     );
   }
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppColors.brand),
-          const SizedBox(width: 12),
+          Icon(icon, size: 19, color: AppColors.brand),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -535,18 +568,18 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
                 Text(
                   label,
                   style: GoogleFonts.montserrat(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    color: AppColors.text,
-                    height: 1.35,
+                    fontSize: 11.5,
+                    color: _muted,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -557,40 +590,66 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
     );
   }
 
+  // A compact row: a dark green outline icon (red for Report and Block),
+  // the label, an optional line under it, and a chevron on rows that open
+  // something.
   Widget _actionRow({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     String? subtitle,
-    Widget? trailing,
     bool destructive = false,
+    bool chevron = true,
   }) {
     final color = destructive
         ? AppColors.tone(Colors.red, 700)
         : AppColors.brand;
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(
-        label,
-        style: GoogleFonts.montserrat(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: destructive ? color : AppColors.text,
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 19, color: color),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: destructive ? color : AppColors.text,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 11,
+                          color: _muted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (chevron && !destructive)
+                Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+            ],
+          ),
         ),
       ),
-      subtitle: subtitle == null
-          ? null
-          : Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.montserrat(
-                fontSize: 12,
-                color: AppColors.grey(600),
-              ),
-            ),
-      trailing: trailing,
-      onTap: onTap,
     );
   }
 

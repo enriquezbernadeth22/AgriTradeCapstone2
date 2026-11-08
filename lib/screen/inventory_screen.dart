@@ -154,7 +154,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceAlt,
+      backgroundColor: AppColors.page,
       appBar: AgriAppBar(title: tl('Inventory')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _products,

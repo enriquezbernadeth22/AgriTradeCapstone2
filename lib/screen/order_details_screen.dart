@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../services/firebase_refs.dart';
 import '../services/market_price_helpers.dart';
 import '../services/order_contact_service.dart';
 import '../services/order_format.dart';
@@ -40,7 +41,7 @@ class OrderDetailsScreen extends StatefulWidget {
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _orderStream =
-      FirebaseFirestore.instance
+      FirebaseRefs.firestore
           .collection('orders')
           .doc(widget.orderId)
           .snapshots();
@@ -56,7 +57,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Future<Map<String, dynamic>> _loadProfile(String uid) async {
     try {
-      final snap = await FirebaseFirestore.instance
+      final snap = await FirebaseRefs.firestore
           .collection('publicProfiles')
           .doc(uid)
           .get();
@@ -141,30 +142,50 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   // ---- Building blocks ----
 
-  Widget _section({String? title, required Widget child}) => Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.all(14),
-    decoration: AppTheme.card(),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null) ...[
-          Text(
-            title.toUpperCase(),
-            style: GoogleFonts.montserrat(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-              color: AppColors.brand,
-            ),
-          ),
-          const SizedBox(height: 10),
-        ],
-        child,
-      ],
-    ),
-  );
+  // A section's card. [icon], when given, is a small dark green outline
+  // icon before the title (the user's design, 2026-11-08); the title
+  // itself is unchanged.
+  Widget _section({String? title, IconData? icon, required Widget child}) =>
+      Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: AppTheme.card(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null) ...[
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: AppColors.isDark
+                          ? AppColors.brand
+                          : const Color(0xFF0B4225),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      title.toUpperCase(),
+                      style: GoogleFonts.montserrat(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                        color: AppColors.brand,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+            child,
+          ],
+        ),
+      );
 
   Widget _line(
     String label,
@@ -364,6 +385,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Widget _productSummary(OrderInfo order) => _section(
     title: tl('Product Summary'),
+    icon: Icons.inventory_2_outlined,
     child: Column(
       children: [
         Row(
@@ -404,6 +426,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final name = order.otherPartyName(_role);
     return _section(
       title: _role == OrderRole.farmer ? tl('Buyer') : tl('Farmer'),
+      icon: Icons.person_outline_rounded,
       child: FutureBuilder<Map<String, dynamic>>(
         future: _otherProfile,
         builder: (context, snapshot) {
@@ -459,6 +482,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Widget _contact(OrderInfo order) => _section(
     title: 'Contact Number',
+    icon: Icons.phone_outlined,
     child: OrderContactSection(
       orderId: order.id,
       status: order.status,
@@ -471,6 +495,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final feeParty = _role == OrderRole.farmer ? 'buyer' : 'seller';
     return _section(
       title: tl('Fulfillment Summary'),
+      icon: Icons.location_on_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -570,6 +595,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final feeParty = _role == OrderRole.farmer ? 'buyer' : 'seller';
     return _section(
       title: tl('Payment Summary'),
+      icon: Icons.account_balance_wallet_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

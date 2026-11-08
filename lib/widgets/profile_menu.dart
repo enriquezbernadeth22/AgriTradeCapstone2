@@ -121,10 +121,11 @@ class ProfileSectionLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Text(
         text,
+        // 15 (the Buyer Profile's design, 2026-11-08).
         style: GoogleFonts.montserrat(
-          fontSize: 13,
+          fontSize: 15,
           fontWeight: FontWeight.w700,
-          color: AppColors.brand,
+          color: AppColors.heading,
         ),
       ),
     ),

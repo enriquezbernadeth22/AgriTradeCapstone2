@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_back_button.dart';
 import 'docked_nav_bar.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 
 /// The header of every inner screen (anything opened on top of the main
 /// tabs — the tabs themselves use PageHeader). One widget, so the screens
@@ -73,11 +74,12 @@ class AgriAppBar extends StatefulWidget implements PreferredSizeWidget {
   static const double height = 60;
 
   /// The title style, for a [titleWidget] that shows a name of its own.
-  static TextStyle titleStyle({double size = 18}) => GoogleFonts.montserrat(
-    fontSize: size,
-    fontWeight: FontWeight.bold,
-    color: foreground,
-  );
+  static TextStyle titleStyle({double size = AppTheme.barTitleSize}) =>
+      GoogleFonts.montserrat(
+        fontSize: size,
+        fontWeight: FontWeight.bold,
+        color: foreground,
+      );
 
   @override
   Size get preferredSize => const Size.fromHeight(height);
@@ -157,8 +159,14 @@ class _AgriAppBarState extends State<AgriAppBar> {
       toolbarHeight: AgriAppBar.height,
       // Status bar padding is drawn by the strip above, not here.
       primary: false,
-      iconTheme: IconThemeData(color: AgriAppBar.foreground, size: 24),
-      actionsIconTheme: IconThemeData(color: AgriAppBar.foreground, size: 24),
+      iconTheme: IconThemeData(
+        color: AgriAppBar.foreground,
+        size: AppTheme.barIconSize,
+      ),
+      actionsIconTheme: IconThemeData(
+        color: AgriAppBar.foreground,
+        size: AppTheme.barIconSize,
+      ),
       automaticallyImplyLeading: false,
       // The 40px circle sits 12px from the screen edge; the title starts
       // 12px after it (or at the 16px page edge when there is no Back).

@@ -63,11 +63,16 @@ class OrderActions {
     if (order.isCompleted) {
       return [
         if (role == OrderRole.buyer && !order.reviewed)
-          OrderCardAction('Review', () => review(context, order)),
+          OrderCardAction(
+            'Review',
+            () => review(context, order),
+            icon: Icons.star_outline_rounded,
+          ),
         OrderCardAction(
           tl('View Receipt'),
           () => viewReceipt(context, order.id),
           kind: OrderActionKind.primary,
+          icon: Icons.receipt_long_outlined,
         ),
       ];
     }

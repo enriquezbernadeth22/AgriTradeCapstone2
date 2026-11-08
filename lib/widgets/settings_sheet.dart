@@ -31,18 +31,32 @@ class LogOutButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const LogOutButton({super.key, required this.label, required this.onTap});
+  /// A thin dark green outline with a dark green icon and label (the
+  /// Buyer Profile, 2026-11-08), in place of the grey outline and dark
+  /// text the farmer's Settings keep.
+  final bool brandOutline;
+
+  const LogOutButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.brandOutline = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final ink = AppColors.text;
+    final green = AppColors.isDark ? AppColors.brand : const Color(0xFF0B4225);
+    final ink = brandOutline ? green : AppColors.text;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Material(
         color: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
-          side: BorderSide(color: AppColors.grey(600)),
+          side: BorderSide(
+            color: brandOutline ? green : AppColors.grey(600),
+            width: brandOutline ? 1.2 : 1,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

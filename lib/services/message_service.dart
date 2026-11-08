@@ -212,6 +212,60 @@ class MessageService {
     await batch.commit();
   }
 
+  /// The message type of an order placed from a chat: a card telling the
+  /// farmer what the buyer chose, which the farmer can confirm right there.
+  static const String orderPlacedType = 'orderPlaced';
+
+  /// Posts the card of an order the buyer just placed from this chat (from
+  /// the order options' Choose Retail / Wholesale, or Order Now). One card
+  /// per order (the message id comes from the order id). The card itself
+  /// reads the order live; what is saved here is only for the Messages
+  /// list's last line and an older app.
+  Future<void> sendOrderPlacedMessage({
+    required String conversationId,
+    required String otherUserId,
+    required String orderId,
+  }) async {
+    await _requireOnline();
+    final convRef = _conversations.doc(conversationId);
+    final msgRef = convRef.collection('messages').doc('order_$orderId');
+    if ((await msgRef.get()).exists) return;
+    final order =
+        (await _firestore.collection('orders').doc(orderId).get()).data() ??
+        const <String, dynamic>{};
+    final productName = (order['productName'] ?? '').toString();
+    final wholesale =
+        (order['pricingType'] ?? '').toString().toLowerCase() == 'wholesale';
+    final quantity = order['quantity'] as num?;
+    final unit = (order['unit'] ?? '').toString();
+    final amount = quantity == null ? '' : '${formatStock(quantity, unit)} ';
+
+    await _ensureConversation(conversationId);
+    final batch = _firestore.batch();
+    batch.set(msgRef, {
+      'senderId': currentUid,
+      'type': orderPlacedType,
+      'orderId': orderId,
+      'productId': order['productId'],
+      'productName': productName,
+      'pricingType': wholesale ? 'wholesale' : 'retail',
+      'quantity': quantity,
+      'unit': unit,
+      'total': order['total'],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(convRef, {
+      'lastMessage':
+          'Placed an order: $amount$productName '
+          '(${wholesale ? 'Wholesale' : 'Retail'})',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'lastSenderId': currentUid,
+      'unreadCount.$otherUserId': FieldValue.increment(1),
+      'hasMessages': true,
+    });
+    await batch.commit();
+  }
+
   /// Sends an order-options card (Retail, plus Wholesale when the listing
   /// offers it) for one product, at the prices current when sent. The
   /// buyer's choice is re-checked against the listing before ordering.

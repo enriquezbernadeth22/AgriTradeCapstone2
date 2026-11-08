@@ -7,6 +7,7 @@ import 'package:agritrade/screen/choose_role_screen.dart';
 import 'package:agritrade/screen/register_screen.dart';
 import 'package:agritrade/widgets/agri_app_bar.dart';
 import 'package:agritrade/widgets/registration_step_indicator.dart';
+import 'package:agritrade/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -44,7 +45,10 @@ void main() {
   Rect steps(WidgetTester tester) =>
       tester.getRect(find.byType(RegistrationStepIndicator).last);
   Finder title(String text) => find.byWidgetPredicate(
-    (w) => w is Text && w.data == text && w.style?.fontSize == 24,
+    (w) =>
+        w is Text &&
+        w.data == text &&
+        w.style?.fontSize == AppTheme.pageTitle().fontSize,
   );
 
   testWidgets(

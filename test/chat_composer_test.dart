@@ -257,7 +257,7 @@ void main() {
         ),
       ),
     );
-    Finder plus() => find.byIcon(Icons.add_circle_outline_rounded);
+    Finder plus() => find.byKey(const Key('chatPlus'));
     expect(plus(), findsOneWidget);
     final emptyWidth = tester.getSize(find.byType(TextField)).width;
 
@@ -279,4 +279,86 @@ void main() {
     await tester.pumpAndSettle();
     expect(plus(), findsOneWidget);
   });
+
+  testWidgets(
+    'Send is a dark green circle with a gold arrow; the + has no gold',
+    (tester) async {
+      final controller = TextEditingController(text: 'Hi');
+      addTearDown(controller.dispose);
+      Future<void> show(String text) async {
+        controller.text = text;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: ChatComposerBar(
+                  controller: controller,
+                  hintText: 'Message Ana...',
+                  sending: false,
+                  onSend: () {},
+                  onAttach: (_) {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await show('Hi');
+      final send = find.byKey(const Key('chatSend'));
+      final circleFinder = find
+          .descendant(of: send, matching: find.byType(Material))
+          .first;
+      final circle = tester.widget<Material>(circleFinder);
+      expect(circle.color, kChatSendGreen);
+      final arrow = tester.widget<Icon>(
+        find.descendant(of: send, matching: find.byIcon(Icons.send_rounded)),
+      );
+      expect(arrow.color, kChatSendGold);
+      expect(arrow.size, 18);
+      // A 40 circle to see, in a 42 tap area.
+      expect(tester.getSize(circleFinder), const Size.square(kChatSendSize));
+      expect(tester.getSize(send), const Size.square(kChatComposerHeight));
+
+      await show('');
+      final plus = find.byKey(const Key('chatPlus'));
+      final plusIcon = tester.widget<Icon>(
+        find.descendant(of: plus, matching: find.byType(Icon)),
+      );
+      expect(plusIcon.color, isNot(kChatSendGold));
+      final ringFinder = find
+          .descendant(of: plus, matching: find.byType(Material))
+          .first;
+      final ring = tester.widget<Material>(ringFinder);
+      // A 36 circle to see, in a 42 tap area.
+      expect(tester.getSize(ringFinder), const Size.square(kChatPlusSize));
+      expect(tester.getSize(plus), const Size.square(kChatComposerHeight));
+      expect((ring.shape! as CircleBorder).side.color, isNot(kChatSendGold));
+      expect(ring.color, isNot(kChatSendGold));
+      expect(plusIcon.size, 18);
+
+      // 8 seen between +, the box and Send; the box 40 high, its hint 12.
+      final field = tester.getRect(find.byType(TextField));
+      final sendCircle = tester.getRect(
+        find
+            .descendant(
+              of: find.byKey(const Key('chatSend')),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(
+        field.left - tester.getRect(ringFinder).right,
+        moreOrLessEquals(8),
+      );
+      expect(sendCircle.left - field.right, moreOrLessEquals(8));
+      expect(field.height, moreOrLessEquals(kChatComposerHeight, epsilon: 1));
+      final decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration!;
+      expect(decoration.hintStyle!.fontSize, 12);
+    },
+  );
 }
