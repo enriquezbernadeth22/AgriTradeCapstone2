@@ -1098,12 +1098,9 @@ cannot delete them.
 
 ## Known open items (as of 2026-10-29)
 
-- Hosting was last deployed on 2026-11-08 (app 1.0.1+4: the APK and the
-  download page); rules and functions on 2026-11-06. Not yet deployed:
-  firestore.rules' orderPlaced card rule and review likes, and the
-  commodity-removal functions, the review photo rule (`reviewPhotosOk`), and the product web page's "Available" for
-  livestock sold by the animal (product_page.js). Redeploy after backend changes, then
-  hard-refresh.
+- Rules, functions and hosting (the Admin Portal and the APK, app
+  1.0.1+4) were all deployed on 2026-11-10 from commit 22d71d9; nothing is
+  waiting. Redeploy after backend changes, then hard-refresh.
 - Dark mode not verified on every admin page (tables, Moderation, Audit Log).
 - Long subtitles on Market Demand / Sales by Category are cut short at
   ~1440px wide screens (controls stay top-right by design).
