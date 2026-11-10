@@ -10,7 +10,6 @@ import '../services/ph_mobile.dart';
 import '../services/registration_guard.dart';
 import '../widgets/agri_dialog.dart';
 import '../widgets/existing_account_dialog.dart';
-import 'login_screen.dart';
 import '../services/rsba_number.dart';
 import '../theme/app_theme.dart';
 import '../widgets/agritrade_text.dart';
@@ -391,38 +390,25 @@ class _RegisterScreenState extends State<RegisterScreen>
     setState(() => _loading = true);
 
     // An account or a Farmer application for this email already exists:
-    // say where it stands and send them to Login, rather than starting a
-    // second registration. Checked by the normalized email (see
-    // RegistrationGuard); nothing has been created at this point.
+    // say so and offer Log In, rather than starting a second registration.
+    // Checked by the normalized email (see RegistrationGuard); nothing has
+    // been created at this point.
     final existing = await RegistrationGuard.check(_emailController.text);
     if (!mounted) return;
     if (existing != ExistingAccount.none) {
       setState(() => _loading = false);
-      final choice = await showExistingAccountDialog(context, existing);
-      if (!mounted) return;
-      if (choice == ExistingAccountChoice.login) {
-        Navigator.pushReplacement(
-          context,
-          slideRoute(
-            LoginScreen(
-              role: existing == ExistingAccount.registered
-                  ? _selectedRole
-                  : 'farmer',
-            ),
-          ),
-        );
-      }
+      await _accountAlreadyExists(existing);
       return;
     }
 
-    // One role per account is already guaranteed by Firebase Auth itself Ã¢â‚¬â€
+    // One role per account is already guaranteed by Firebase Auth itself:
     // an email can only ever back one account/uid, and a role is fixed to
     // that account at creation and immutable afterward (see firestore
-    // .rules' users/{userId} update rule). signUp below surfaces
-    // "email-already-in-use" if this email is already registered under
-    // any role.
+    // .rules' users/{userId} update rule). When the check above could not
+    // be made (offline, the function unreachable), signUp still refuses an
+    // email that is taken, and that gets the same dialog.
 
-    // ---- Step 1: create the Firebase Auth account only Ã¢â‚¬â€ no Firestore
+    // ---- Step 1: create the Firebase Auth account only, no Firestore
     // profile yet. That's written in one shot, after email verification
     // actually succeeds, by EmailVerificationScreen (see
     // AuthService.completeRegistration's doc comment for why).
@@ -432,6 +418,11 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
 
     if (!mounted) return;
+    if (error == AuthService.emailInUse) {
+      setState(() => _loading = false);
+      await _accountAlreadyExists(ExistingAccount.registered);
+      return;
+    }
     if (error != null) {
       setState(() => _loading = false);
       _showMessage(error);
@@ -450,8 +441,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     final pendingProfile = PendingRegistrationProfile(
       role: _selectedRole,
       fullName: joinName(_firstNameController.text, _lastNameController.text),
-      firstName: tidyName(_firstNameController.text),
-      lastName: tidyName(_lastNameController.text),
+      firstName: formatPersonName(_firstNameController.text),
+      lastName: formatPersonName(_lastNameController.text),
       mobileNumber: mobileDigits.isEmpty ? null : phMobileE164(mobileDigits),
       supportedProductsAcknowledged:
           _isFarmer && _supportedProductsAcknowledged,
@@ -481,6 +472,24 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
+  // "Account Already Exists" (system testing, 2026-11-09): Cancel stays on
+  // this form, just as it was; Log In opens the Log In page with this email
+  // typed in, and closes the registration screens under it, so Back never
+  // lands on a blank or half-done step. Nothing is created or changed: the
+  // existing account and its data stay as they are.
+  Future<void> _accountAlreadyExists(ExistingAccount account) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final choice = await showExistingAccountDialog(context, account);
+    if (!mounted || choice != ExistingAccountChoice.login) return;
+    setState(() => _leaving = true);
+    // Whoever the account belongs to, Farmer or Buyer: the Log In page
+    // sends it to its own home.
+    goToLoginAfterExistingAccount(
+      context,
+      email: _emailController.text.trim(),
+    );
+  }
+
   // Every message here is a problem to fix before continuing.
   void _showMessage(String message) {
     showAppMessage(context, tl(message), kind: MessageKind.error);
@@ -500,6 +509,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     Widget? suffix,
     String? prefixText,
     List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
     TextInputType keyboard = TextInputType.text,
   }) {
     return Column(
@@ -516,6 +526,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           suffix: suffix,
           prefixText: prefixText,
           inputFormatters: inputFormatters,
+          textCapitalization: textCapitalization,
         ),
         // Rendered as its own line below the field, not inside it (GlowField
         // no longer accepts an errorText of its own) Ã¢â‚¬â€ keeps every field's
@@ -1103,6 +1114,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                           controller: _firstNameController,
                           hint: 'Juan',
                           icon: Icons.person_outline,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: kNameInputFormatters,
                           errorText: _firstNameError == null
                               ? null
                               : tl(_firstNameError!),
@@ -1112,6 +1125,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                           controller: _lastNameController,
                           hint: 'Santos',
                           icon: Icons.person_outline,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: kNameInputFormatters,
                           errorText: _lastNameError == null
                               ? null
                               : tl(_lastNameError!),

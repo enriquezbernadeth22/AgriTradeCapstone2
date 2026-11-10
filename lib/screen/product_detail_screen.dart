@@ -5,6 +5,8 @@ import '../widgets/farm_buyer_map.dart';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/section_tabs.dart';
 import '../widgets/explore_product_card.dart';
+import '../services/buyer_area_watcher.dart';
+import '../services/delivery_coverage.dart';
 import '../services/firebase_refs.dart';
 import '../theme/app_theme.dart';
 import 'dart:convert';
@@ -752,6 +754,88 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // One fact of the summary: a dark green icon and the text, with an
   // optional note after it.
+  // The listing's delivery coverage in full: the reach, every area under its
+  // province, the fee, and whether it reaches the buyer's saved area.
+  Widget _deliveryCoverageSection(Map<String, dynamic> data) {
+    final coverage = DeliveryCoverage.fromProduct(data);
+    final origin = coverage.origin.label;
+    final groups = areasByProvince(coverage.areas);
+    final reach = coverage.reach(BuyerAreaWatcher.instance.area);
+    final lineStyle = TextStyle(
+      fontSize: 12.5,
+      height: 1.45,
+      color: AppColors.text,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.local_shipping_outlined,
+              size: 19,
+              color: AppColors.brand,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: _sectionTitle(tl('Delivery Coverage'))),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (coverage.type == DeliveryCoverageType.sameBarangay)
+          Text(
+            coverage.originBarangay.isEmpty
+                ? tl('Same barangay as the farm only ({0})', [origin])
+                : tl('Barangay {0}, {1} only', [
+                    coverage.originBarangay,
+                    origin,
+                  ]),
+            style: lineStyle,
+          )
+        else if (coverage.type == DeliveryCoverageType.municipality)
+          Text(tl('Anywhere in {0}', [origin]), style: lineStyle)
+        else if (groups.isEmpty)
+          Text(tl('Areas to be arranged with the farmer.'), style: lineStyle)
+        else
+          for (final g in groups)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: g.province.isEmpty ? tl('Other areas') : g.province,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(text: ': ${g.towns.join(', ')}'),
+                  ],
+                ),
+                style: lineStyle,
+              ),
+            ),
+        const SizedBox(height: 6),
+        _infoRow(
+          Icons.payments_outlined,
+          coverage.feeKnown
+              ? tl('Delivery fee: {0}', [coverage.feeLabel])
+              : tl('Delivery fee: to be arranged with the farmer'),
+        ),
+        if (reach != DeliveryReach.unknownLocation) ...[
+          const SizedBox(height: 8),
+          _infoRow(
+            reach == DeliveryReach.covered
+                ? Icons.check_circle_outline
+                : Icons.info_outline,
+            reach == DeliveryReach.covered
+                ? tl('Delivers to your area')
+                : tl(
+                    'Your area is outside this coverage. Message the farmer to arrange delivery.',
+                  ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _infoRow(IconData icon, String text, {Widget? trailing}) => Row(
     children: [
       Icon(icon, size: 16, color: AppColors.brand),
@@ -1223,11 +1307,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;
     final wholesalePrice = (data['wholesalePrice'] as num?)?.toDouble();
     final wholesaleMinimum = (data['wholesaleMinimumQuantity'] as num?) ?? 1;
-    final wholesaleEnabled =
-        data['wholesaleEnabled'] == true ||
-        (data['wholesaleEnabled'] == null &&
-            wholesalePrice != null &&
-            wholesalePrice > 0);
+    // None for livestock sold per head or piece (listingHasWholesale).
+    final wholesaleEnabled = listingHasWholesale(data);
     final hasWholesale =
         wholesaleEnabled && wholesalePrice != null && wholesalePrice > 0;
     // A buyer who orders in bulk sees the wholesale price first, unless the
@@ -1351,9 +1432,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       children: [
         _infoRow(
           Icons.inventory_2_outlined,
-          available > 0
-              ? tl('{0} available', [formatStock(available, unit)])
-              : tl('Out of stock'),
+          available <= 0
+              ? tl('Out of stock')
+              // Livestock sold by the animal shows "Available", not how
+              // many are left (system testing, 2026-11-09).
+              : isSoldPerAnimal(data)
+              ? tl('Available')
+              : tl('{0} available', [formatStock(available, unit)]),
         ),
         if (available <= 0)
           Padding(
@@ -1633,6 +1718,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               _SectionCard(
                 key: const Key('reviewsSection'),
                 child: _reviewsSection(name, farmerId),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ---- Where the farmer delivers (system testing, 2026-11-09:
+            // the coverage shown clearly): part of the Overview ----
+            if (_activeTab == 0 && delivery) ...[
+              _SectionCard(
+                key: const Key('deliveryCoverageSection'),
+                child: _deliveryCoverageSection(data),
               ),
               const SizedBox(height: 12),
             ],

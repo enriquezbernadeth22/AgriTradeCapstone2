@@ -118,8 +118,8 @@ void main() {
     expect(rowColor(tester, 'Dashboard')!.a, 0);
   });
 
-  testWidgets('the active page is a dark green block with rounded corners, '
-      'inset from both sides of the sidebar', (tester) async {
+  testWidgets('the active page is a golden yellow pill, inset from both '
+      'sides, clear of the curved edge', (tester) async {
     await pump(tester);
     final row = find
         .ancestor(
@@ -130,7 +130,8 @@ void main() {
     final sidebar = tester.getRect(find.byType(AdminSidebar));
     final block = tester.getRect(row);
     expect(block.left - sidebar.left, 12);
-    expect(sidebar.right - block.right, inInclusiveRange(12, 13));
+    // 12 from the edge, plus the 10 the curve comes in.
+    expect(sidebar.right - block.right, inInclusiveRange(22, 23));
     final decoration =
         tester.widget<AnimatedContainer>(row).decoration as BoxDecoration;
     expect(decoration.color, AdminSidebarColors.light.activeBackground);
@@ -140,7 +141,7 @@ void main() {
       decoration.borderRadius,
       BorderRadius.circular(kAdminSidebarRowRadius),
     );
-    // White icon and text on it.
+    // Dark green icon and text on it.
     expect(
       tester.widget<Text>(find.text('Dashboard')).style!.color,
       AdminSidebarColors.light.activeForeground,
@@ -150,7 +151,7 @@ void main() {
       AdminSidebarColors.light.activeForeground,
     );
     // Same width as before.
-    expect(tester.getSize(find.byType(AdminSidebar)).width, 248);
+    expect(tester.getSize(find.byType(AdminSidebar)).width, AdminSidebar.expandedWidth);
   });
 
   testWidgets('Audit Log is a row of its own and is highlighted when open', (
@@ -252,7 +253,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Open sidebar'));
     await tester.pumpAndSettle();
     expect(collapsed, isFalse);
-    expect(tester.getSize(find.byType(AdminSidebar)).width, 248);
+    expect(tester.getSize(find.byType(AdminSidebar)).width, AdminSidebar.expandedWidth);
   });
 
   testWidgets('the logo band says Admin Panel, and the pages sit in titled '

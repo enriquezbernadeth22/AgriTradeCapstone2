@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show AutofillHints, TextInput;
 import 'package:flutter_svg/flutter_svg.dart';
@@ -28,10 +29,12 @@ import '../l10n/app_language.dart';
 /// inline, right under the logo, over the background photo) so both stay in
 /// sync instead of drifting apart across edits.
 ///
-/// Remembering credentials is left entirely to the OS's own password
-/// manager (Google Password Manager / iCloud Keychain), via the
-/// [AutofillGroup] + autofillHints below — the app itself never stores an
-/// password or email on this device. The Admin form starts empty every time
+/// Passwords are left entirely to the OS's own password manager (Google
+/// Password Manager / iCloud Keychain), via the [AutofillGroup] +
+/// autofillHints below: the app never stores a password. On the phone the
+/// Email field starts with the account last used there (see initialEmail);
+/// once signed in, Firebase keeps the session until Log Out or until it is
+/// no longer valid. The Admin form starts empty every time
 /// (a remembered email went stale after a Change Email); what older
 /// versions saved is removed when the form opens.
 class LoginFormFields extends StatefulWidget {
@@ -44,7 +47,18 @@ class LoginFormFields extends StatefulWidget {
   /// sign-in page passes this to swap its form in place instead.
   final ValueChanged<String>? onForgotPassword;
 
-  const LoginFormFields({super.key, this.role, this.onForgotPassword});
+  /// Typed into the Email field when the form opens. Left null, the phone's
+  /// form starts with the email of the account last used on this phone
+  /// (RegistrationGuard.remembered), so signing in again is only the
+  /// password, or one tap with the phone's password manager.
+  final String? initialEmail;
+
+  const LoginFormFields({
+    super.key,
+    this.role,
+    this.onForgotPassword,
+    this.initialEmail,
+  });
 
   /// Removes the admin email and password older versions of the admin
   /// form saved on this device.
@@ -82,8 +96,25 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
   void initState() {
     super.initState();
     if (_isAdmin) LoginFormFields.clearSavedAdminPassword();
+    _prefillEmail();
     _emailController.addListener(_clearLoginError);
     _passwordController.addListener(_clearLoginError);
+  }
+
+  // The email to start with: the one passed in, or on the phone the
+  // account last used here. Never a password: that is left to the phone's
+  // own password manager. The Admin form starts empty (see above).
+  Future<void> _prefillEmail() async {
+    final given = widget.initialEmail?.trim() ?? '';
+    if (given.isNotEmpty) {
+      _emailController.text = given;
+      return;
+    }
+    if (_isAdmin || kIsWeb) return;
+    final remembered = await RegistrationGuard.remembered();
+    if (!mounted || remembered == null) return;
+    // Only into an empty field: never over what they have started typing.
+    if (_emailController.text.isEmpty) _emailController.text = remembered;
   }
 
   // Editing either field means the message is about something no longer
@@ -430,128 +461,124 @@ class _LoginFormFieldsState extends State<LoginFormFields> {
       ),
     );
 
-    return AutofillGroup(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _adminLabel('Email Address'),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: _adminHeight,
-            child: GlowField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              hint: 'admin@example.com',
-              icon: Icons.email_outlined,
-              compact: true,
-              radius: AppTheme.pillRadius,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _loading ? null : _login(),
-              autofillHints: const [
-                AutofillHints.email,
-                AutofillHints.username,
-              ],
-            ),
+    // No autofill on the Admin login (the web): Chrome's password manager
+    // filling Flutter's hidden inputs left the password field taking no
+    // more typing (2026-11-09/10). The phone's login keeps autofill.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _adminLabel('Email Address'),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: _adminHeight,
+          child: GlowField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            hint: 'admin@example.com',
+            icon: Icons.email_outlined,
+            compact: true,
+            radius: AppTheme.pillRadius,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _loading ? null : _login(),
           ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _adminLabel('Password'),
-              TextButton(
-                onPressed: _openForgotPassword,
-                style: TextButton.styleFrom(
-                  // The dark green, smaller and lighter than the labels
-                  // beside it (13, semi-bold).
-                  foregroundColor: AppColors.brand,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  tl('Forgot Password?'),
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
-                ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _adminLabel('Password'),
+            TextButton(
+              onPressed: _openForgotPassword,
+              style: TextButton.styleFrom(
+                // The dark green, smaller and lighter than the labels
+                // beside it (13, semi-bold).
+                foregroundColor: AppColors.brand,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: _adminHeight,
-            child: GlowField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              hint: tl('Enter your password'),
-              icon: Icons.lock_outline,
-              compact: true,
-              radius: AppTheme.pillRadius,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _loading ? null : _login(),
-              autofillHints: const [AutofillHints.password],
-              suffix: IconButton(
-                visualDensity: VisualDensity.compact,
-                iconSize: 19,
-                tooltip: _obscurePassword
-                    ? tl('Show password')
-                    : tl('Hide password'),
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.grey(600),
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
+              child: Text(
+                tl('Forgot Password?'),
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
               ),
             ),
-          ),
-          _loginErrorText(),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: _adminHeight,
-            child: ElevatedButton(
-              onPressed: (_loading || _googleLoading) ? null : _login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brandFill,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.brandFill.withValues(
-                  alpha: 0.6,
-                ),
-                elevation: 0,
-                padding: EdgeInsets.zero,
-                shape: buttonShape,
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: _adminHeight,
+          child: GlowField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            hint: tl('Enter your password'),
+            icon: Icons.lock_outline,
+            compact: true,
+            radius: AppTheme.pillRadius,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _loading ? null : _login(),
+            suffix: IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 19,
+              tooltip: _obscurePassword
+                  ? tl('Show password')
+                  : tl('Hide password'),
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                color: AppColors.grey(600),
               ),
-              child: _loading
-                  ? spinner
-                  : Text(
-                      'Login',
-                      // The portal's font (the form around it is in it).
-                      style: AppTheme.buttonText().copyWith(
-                        fontFamily: kAdminFontFamily,
-                      ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+            ),
+          ),
+        ),
+        _loginErrorText(),
+        const SizedBox(height: 24),
+        SizedBox(
+          height: _adminHeight,
+          child: ElevatedButton(
+            onPressed: (_loading || _googleLoading) ? null : _login,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandFill,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.brandFill.withValues(
+                alpha: 0.6,
+              ),
+              elevation: 0,
+              padding: EdgeInsets.zero,
+              shape: buttonShape,
+            ),
+            child: _loading
+                ? spinner
+                : Text(
+                    'Login',
+                    // The portal's font (the form around it is in it).
+                    style: AppTheme.buttonText().copyWith(
+                      fontFamily: kAdminFontFamily,
                     ),
-            ),
+                  ),
           ),
-          const SizedBox(height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.shield_outlined,
-                size: 15,
+        ),
+        const SizedBox(height: 28),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.shield_outlined,
+              size: 15,
+              color: AppColors.adapt(const Color(0xFF6B7468)),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              tl('Authorized administrators only'),
+              style: TextStyle(
+                fontSize: 12,
                 color: AppColors.adapt(const Color(0xFF6B7468)),
               ),
-              const SizedBox(width: 6),
-              Text(
-                tl('Authorized administrators only'),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.adapt(const Color(0xFF6B7468)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

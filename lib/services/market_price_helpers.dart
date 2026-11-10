@@ -142,3 +142,25 @@ double? computeWholesaleLiveAverage(
   String commodityKey,
 ) =>
     computeLiveAverage(products, commodityKey, pricingType: 'wholesale');
+
+/// A listing's stock as a buyer sees it: "Available" for livestock sold by
+/// the animal ([isSoldPerAnimal]; the count stays the farmer's, on their
+/// Profile and Inventory), otherwise "3 heads", "50 kg" ([formatStock]).
+/// Sold out reads the same for both, from the caller.
+String buyerStockLabel(
+  Map<String, dynamic>? product,
+  num quantity,
+  String? unit,
+) => isSoldPerAnimal(product) ? 'Available' : formatStock(quantity, unit);
+
+/// Whether a listing offers a wholesale price a buyer can order at. Never
+/// for livestock sold by the animal (system testing, 2026-11-09), even one
+/// saved with a wholesale price before; otherwise the farmer's own switch,
+/// or, for listings from before that switch, a wholesale price on record.
+bool listingHasWholesale(Map<String, dynamic> product) {
+  if (isSoldPerAnimal(product)) return false;
+  final enabled = product['wholesaleEnabled'];
+  if (enabled is bool) return enabled;
+  final price = product['wholesalePrice'];
+  return price is num && price > 0;
+}

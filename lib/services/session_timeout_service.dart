@@ -1,18 +1,19 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../screen/app_bootstrap.dart';
 import 'auth_service.dart';
 
-/// Signs the signed-in user out after the app has sat backgrounded and
-/// untouched for [kInactivityTimeout] — NOT on every relaunch. Firebase Auth's
-/// own session already persists across a normal close/reopen, and
-/// AppRouter/AuthRoutingService already route a still-valid session
-/// straight to its home screen on cold start; this only adds the missing
-/// piece, an actual inactivity timeout, on top of that.
+/// On the web only ([appliesHere]): signs the signed-in user out after the
+/// app has sat backgrounded and untouched for [kInactivityTimeout] — NOT
+/// on every relaunch. Firebase Auth's own session already persists across
+/// a normal close/reopen, and AppRouter/AuthRoutingService already route a
+/// still-valid session straight to its home screen on cold start; this
+/// only adds an inactivity timeout on top of that, for the Admin Portal.
 ///
 /// The backgrounded-at timestamp is kept in SharedPreferences (not just
 /// memory) because Android can kill the process outright while it sits in
@@ -30,6 +31,14 @@ class SessionTimeoutService extends WidgetsBindingObserver {
   /// ending abandoned sessions automatically.
   static const kInactivityTimeout = Duration(days: 30);
 
+  /// Whether the timeout applies here: only the web (the Admin Portal). On
+  /// the phone a farmer or buyer stays signed in until they tap Log Out or
+  /// the session is no longer valid (the account disabled or deleted, its
+  /// token revoked: AppRouter checks that on every start), as the panel
+  /// asked in system testing (2026-11-09). Firebase keeps that session
+  /// securely; no password is ever stored by the app.
+  static bool get appliesHere => kIsWeb;
+
   GlobalKey<NavigatorState>? _navigatorKey;
   Timer? _idleTimer;
   DateTime? _lastActivity;
@@ -45,6 +54,7 @@ class SessionTimeoutService extends WidgetsBindingObserver {
   /// Starts or refreshes the active-session inactivity clock. Lifecycle
   /// timestamps separately cover a suspended app and process restarts.
   void recordActivity() {
+    if (!appliesHere) return;
     if (FirebaseAuth.instance.currentUser == null) {
       _idleTimer?.cancel();
       _idleTimer = null;
@@ -106,6 +116,7 @@ class SessionTimeoutService extends WidgetsBindingObserver {
   }
 
   Future<void> _markBackgrounded() async {
+    if (!appliesHere) return;
     if (FirebaseAuth.instance.currentUser == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -148,6 +159,7 @@ class SessionTimeoutService extends WidgetsBindingObserver {
       final prefs = await SharedPreferences.getInstance();
       final ms = prefs.getInt(_backgroundedAtKey);
       await prefs.remove(_backgroundedAtKey);
+      if (!appliesHere) return false;
       if (ms == null) return false;
       if (FirebaseAuth.instance.currentUser == null) return false;
 

@@ -14,6 +14,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/cloudinary_service.dart';
 import '../services/geocoding_service.dart';
+import '../services/person_name.dart';
 import '../services/ph_mobile.dart';
 import '../widgets/buyer_location_picker.dart';
 import 'set_farm_location_screen.dart';
@@ -172,7 +173,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _save() async {
-    final name = _nameController.text.trim();
+    // Saved with each word's first letter a capital (person_name.dart).
+    final name = formatPersonName(_nameController.text);
     final phoneDigits = _phoneController.text.trim();
     // Always stored as +639XXXXXXXXX.
     final phone = phMobileE164(phoneDigits);
@@ -655,6 +657,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 FormFieldGlow(
                   child: TextField(
                     controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
+                    inputFormatters: kNameInputFormatters,
                     style: GoogleFonts.montserrat(fontSize: 14),
                     decoration: _fieldDecoration(Icons.person_outline),
                   ),

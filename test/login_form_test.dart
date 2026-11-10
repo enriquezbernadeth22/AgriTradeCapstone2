@@ -60,4 +60,37 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Continue with Google'), findsOneWidget);
   });
+
+  testWidgets("the Admin login has no autofill; the phone's keeps it", (
+    tester,
+  ) async {
+    // Chrome's password manager filling the hidden inputs left the Admin
+    // password field taking no more typing (2026-11-10).
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
+          body: SingleChildScrollView(child: LoginFormFields(role: 'admin')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AutofillGroup), findsNothing);
+    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(field.autofillHints, isNull);
+    }
+    // Showing the password keeps the same field, ready to type in.
+    await tester.enterText(find.byType(TextField).last, 'Admin@123');
+    await tester.tap(find.byIcon(Icons.visibility_off));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).last, 'Admin@1234');
+    expect(find.text('Admin@1234'), findsOneWidget);
+
+    await open(tester);
+    expect(find.byType(AutofillGroup), findsOneWidget);
+  });
 }

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/laurel_barangays.dart';
 import '../screen/confirm_farm_location_screen.dart';
+import '../services/geocoding_service.dart';
 import '../services/location_permission_prompt.dart';
 import '../theme/app_theme.dart';
 import 'agri_dialog.dart';
@@ -13,10 +14,11 @@ import '../l10n/app_language.dart';
 
 /// Farmer-only barangay picker (buyers use BuyerLocationField instead, since
 /// buyer registration isn't restricted to Laurel): a field that opens a
-/// searchable list (kLaurelBarangays, see [showBarangayPicker]) plus a "Use my location" action that
-/// gets a GPS fix and opens a map on it (ConfirmFarmLocationScreen) for
-/// the farmer to confirm. The barangay is only suggested there when the
-/// position's looked-up address clearly names one of Laurel's — it is
+/// searchable list (kLaurelBarangays, see [showBarangayPicker]) plus a
+/// "Use my location" action that gets a GPS fix and, when its looked-up
+/// address clearly names one of Laurel's barangays, sets it at once with
+/// nothing to confirm; otherwise it opens a map on the fix
+/// (ConfirmFarmLocationScreen) for the farmer to confirm or pick. It is
 /// never taken from which barangay happens to be nearest, since the
 /// barangay points in laurel_barangays.dart are placeholders, not
 /// surveyed centers. [onLocationDetected] additionally hands
@@ -38,11 +40,16 @@ class BarangayLocationField extends StatefulWidget {
     this.label = 'Barangay (Laurel)',
     this.errorText,
     this.askLocation,
+    this.lookup,
   });
 
   /// Stands in for requestFarmerLocationPermission in tests.
   @visibleForTesting
   final Future<bool> Function(BuildContext context)? askLocation;
+
+  /// Stands in for the address lookup in tests.
+  @visibleForTesting
+  final Future<ResolvedAddress?> Function(double lat, double lng)? lookup;
 
   @override
   State<BarangayLocationField> createState() => _BarangayLocationFieldState();
@@ -70,10 +77,10 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
     if (picked != null && mounted) widget.onChanged(picked);
   }
 
-  // "Use my location": get one GPS fix (nothing is tracked afterwards),
-  // then open the map on it for the farmer to confirm. The map opens
-  // whether or not the position's address can be looked up; a barangay is
-  // only ever suggested there, never chosen for them.
+  // "Use my location": get one GPS fix (nothing is tracked afterwards). A
+  // barangay the address clearly names is set at once; otherwise the map
+  // opens on the fix for the farmer to confirm or pick. Never a guess from
+  // which barangay is nearest.
   Future<void> _useMyLocation() async {
     setState(() => _locating = true);
     // The reason for location is shown here, so "Select Manually" after it
@@ -128,6 +135,29 @@ class _BarangayLocationFieldState extends State<BarangayLocationField> {
         return;
       }
       if (!mounted) return;
+
+      // The address clearly names one of Laurel's barangays: that is the
+      // farmer's location, with nothing more to tap (the user, 2026-11-09).
+      // Only when it can't be told (no address, no clear barangay, or not
+      // Laurel) does the map open for them to confirm or pick.
+      final lookup = widget.lookup ?? GeocodingService.reverseGeocode;
+      final reading = readFarmLocation(
+        await lookup(position.latitude, position.longitude),
+        position.latitude,
+        position.longitude,
+      );
+      if (!mounted) return;
+      final found = reading.inLaurel ? reading.barangay : null;
+      if (found != null) {
+        widget.onChanged(found);
+        widget.onLocationDetected?.call(position.latitude, position.longitude);
+        showAppMessage(
+          context,
+          tl('Location set: Barangay {0}', [found]),
+          kind: MessageKind.success,
+        );
+        return;
+      }
 
       final result = await Navigator.push<FarmLocationResult>(
         context,

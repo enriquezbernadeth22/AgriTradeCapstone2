@@ -461,6 +461,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           appSnackBar(
             available <= 0
                 ? tl('This item is out of stock.')
+                // Livestock sold by the animal never shows its count.
+                : isSoldPerAnimal(data)
+                ? tl('Not that many are available. Lower your quantity.')
                 : tl('Only {0} available right now. Lower your quantity.', [
                     formatStock(available, _unit),
                   ]),
@@ -664,6 +667,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     if (available != null && q > available) {
       return available <= 0
           ? 'This item is out of stock.'
+          : isSoldPerAnimal(_liveProduct)
+          ? 'Not that many are available right now.'
           : 'Only ${formatStock(available, _unit)} available right now.';
     }
     return null;

@@ -784,6 +784,14 @@ service cloud.firestore {
     match /productReviews/{reviewId} {
       allow read: if true;
 
+      // A review's photos (optional): a list of at most three
+      // (ReviewService.maxPhotos), or none.
+      function reviewPhotosOk() {
+        return !('imageUrls' in request.resource.data) ||
+          (request.resource.data.imageUrls is list &&
+            request.resource.data.imageUrls.size() <= 3);
+      }
+
       // Buyer can create one review doc per completed order (reviewId == orderId).
       allow create: if isBuyer()
         && request.resource.data.buyerId == request.auth.uid
@@ -796,6 +804,7 @@ service cloud.firestore {
         && request.resource.data.rating >= 0.5
         && request.resource.data.rating <= 5
         && (request.resource.data.rating * 2) % 1 == 0
+        && reviewPhotosOk()
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.buyerId == request.auth.uid
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.productId == request.resource.data.productId
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId == request.resource.data.sellerId
@@ -808,7 +817,8 @@ service cloud.firestore {
         request.resource.data.orderId == resource.data.orderId &&
         request.resource.data.productId == resource.data.productId &&
         request.resource.data.sellerId == resource.data.sellerId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'imageUrl']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'imageUrl', 'imageUrls']) &&
+        reviewPhotosOk() &&
         request.resource.data.rating is number &&
         request.resource.data.rating >= 0.5 &&
         request.resource.data.rating <= 5 &&

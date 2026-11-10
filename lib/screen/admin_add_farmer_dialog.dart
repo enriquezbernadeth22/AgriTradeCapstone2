@@ -256,8 +256,8 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
     });
     if (!_valid || _saving) return;
     setState(() => _saving = true);
-    final firstName = tidyName(_firstName.text);
-    final lastName = tidyName(_lastName.text);
+    final firstName = formatPersonName(_firstName.text);
+    final lastName = formatPersonName(_lastName.text);
     final email = _email.text.trim().toLowerCase();
     final password = _password.text;
     try {
@@ -434,6 +434,8 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                           controller: _firstName,
                           icon: Icons.person_outline,
                           autofocus: true,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: kNameInputFormatters,
                           decoration: const InputDecoration(
                             hintText: 'e.g. Juan',
                           ),
@@ -451,6 +453,8 @@ class _AddFarmerDialogState extends State<_AddFarmerDialog> {
                         _label('Last name'),
                         AdminField(
                           controller: _lastName,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: kNameInputFormatters,
                           decoration: const InputDecoration(
                             hintText: 'e.g. Dela Cruz',
                           ),

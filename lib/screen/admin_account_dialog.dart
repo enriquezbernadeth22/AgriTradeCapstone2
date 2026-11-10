@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/account_activity.dart';
 import '../services/dashboard_data_service.dart';
+import '../services/market_price_helpers.dart' show formatPeso;
 import '../services/moderation_model.dart';
 import 'admin_dashboard_screen.dart' show AdminPalette, AdminStatusBadge;
 import 'admin_filter_controls.dart';
@@ -304,6 +306,12 @@ class _AccountDialog extends StatelessWidget {
                         ),
                         _row(c, 'Warnings Issued', Text('${summary.warnings}')),
                       ],
+                      _section(c, 'Platform Activity'),
+                      _ActivitySection(
+                        palette: c,
+                        uid: uid,
+                        isBuyer: row.isBuyer,
+                      ),
                     ],
                   ),
                 ),
@@ -322,6 +330,116 @@ class _AccountDialog extends StatelessWidget {
               );
             },
           ),
+    );
+  }
+}
+
+/// What the account has done on the platform (system objectives,
+/// 2026-11-09: the Admin monitors the activities of farmers and buyers):
+/// its orders by status, the value of the completed ones, a farmer's
+/// listings, and the latest of it, from the portal's live orders and
+/// listings ([accountActivity]).
+class _ActivitySection extends StatelessWidget {
+  final AdminPalette palette;
+  final String uid;
+  final bool isBuyer;
+  const _ActivitySection({
+    required this.palette,
+    required this.uid,
+    required this.isBuyer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = palette;
+    final data = DashboardDataService.instance;
+    data.ensureLoaded();
+    return ListenableBuilder(
+      listenable: data,
+      builder: (context, _) {
+        if (!data.ordersReady || (!isBuyer && !data.productsReady)) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: AdminLoadingBar(),
+          );
+        }
+        final a = accountActivity(
+          uid: uid,
+          isBuyer: isBuyer,
+          orders: [for (final d in data.allOrders) d.data()],
+          products: [for (final d in data.products) d.data()],
+        );
+        final when = DateFormat('MMM d, y – h:mm a');
+        return Column(
+          key: const Key('accountActivity'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _row(
+              c,
+              isBuyer ? 'Orders Placed' : 'Orders Received',
+              Text('${a.orders}'),
+            ),
+            _row(
+              c,
+              'By Status',
+              Text(
+                '${a.pending} pending · ${a.inProgress} in progress · '
+                '${a.completed} completed · ${a.cancelled} cancelled/rejected',
+              ),
+            ),
+            _row(
+              c,
+              isBuyer ? 'Completed Purchases' : 'Completed Sales',
+              Text(formatPeso(a.completedValue)),
+            ),
+            if (!isBuyer)
+              _row(
+                c,
+                'Listings',
+                Text(
+                  '${a.activeListings} on sale · '
+                  '${a.inactiveListings} archived or hidden',
+                ),
+              ),
+            _row(
+              c,
+              'Last Activity',
+              Text(
+                a.lastActivity == null
+                    ? 'No orders or listings yet'
+                    : when.format(a.lastActivity!),
+              ),
+            ),
+            if (a.recent.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final item in a.recent)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.circle, size: 6, color: c.textMuted),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${item.title} · ${item.detail}',
+                          style: TextStyle(
+                            color: c.textPrimary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        when.format(item.when),
+                        style: TextStyle(color: c.textMuted, fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

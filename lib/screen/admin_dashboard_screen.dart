@@ -37,6 +37,7 @@ import '../services/admin_session_service.dart';
 import '../services/audit_log_service.dart';
 import '../services/dashboard_analytics_service.dart';
 import '../services/dashboard_data_service.dart';
+import '../services/demand_heatmap_service.dart';
 import '../services/dashboard_overview_service.dart';
 import '../services/geocoding_service.dart';
 import '../services/trackpad_pan_io.dart'
@@ -46,12 +47,16 @@ import '../widgets/admin_loading_scope.dart';
 import 'admin_filter_controls.dart';
 import 'admin_suspend_accounts_dialog.dart';
 import 'admin_global_search.dart';
-import 'admin_market_trends_card.dart';
-import 'admin_price_trend_chart.dart';
+import '../services/market_change_service.dart' show ChangeRange;
+import 'admin_analytics_widgets.dart' show matchCommodities;
+import 'admin_market_change.dart';
 import 'admin_notifications.dart';
 import 'admin_account_views.dart';
 import 'admin_info_dialogs.dart';
-import 'admin_analytics_widgets.dart';
+import 'admin_price_tracker.dart';
+import 'admin_market_demand.dart';
+import 'admin_full_product_demand.dart';
+import '../services/monthly_demand_service.dart';
 import 'admin_demand_widgets.dart';
 import 'admin_overview_widgets.dart';
 import 'admin_user_accounts_view.dart';
@@ -126,21 +131,24 @@ class AdminPalette {
   // grey borders. Green is the accent (buttons, the open
   // page, selected controls, the brand) and a status (success), never a
   // general background.
+  // The user's design system of 2026-11-10: cream #FAF8F2, white cards,
+  // text #202623 and #737D76, borders #E5EAE5, soft green #EAF3E9, the
+  // secondary green #2E7951, and the sidebar dark green #0B4225.
   static const light = AdminPalette(
     isDark: false,
     bg: Color(0xFFFAF8F2),
-    sidebarBg: Colors.white,
+    sidebarBg: Color(0xFF0B4225),
     surface: Colors.white,
-    surfaceAlt: Color(0xFFF1F3F5),
-    border: Color(0xFFE2E5E9),
-    textPrimary: Color(0xFF1C1F23),
-    textSecondary: Color(0xFF676D78),
+    surfaceAlt: Color(0xFFF2F4F1),
+    border: Color(0xFFE5EAE5),
+    textPrimary: Color(0xFF202623),
+    textSecondary: Color(0xFF737D76),
     textMuted: Color(0xFFA0A5AF),
-    heading: AppTheme.dark,
+    heading: Color(0xFF0B4225),
     eyebrow: AppTheme.mid,
     iconInactive: Color(0xFF52575F),
-    green: Color(0xFF24833D),
-    greenBg: Color(0x2024833D),
+    green: Color(0xFF2E7951),
+    greenBg: Color(0xFFEAF3E9),
     red: Color(0xFFDC2626),
     redBg: Color(0x20DC2626),
     amber: Color(0xFFD97706),
@@ -193,7 +201,7 @@ class AdminRadii {
   AdminRadii._();
   // Cards and tables: 16, white with a soft shadow (adminCard), like the
   // mobile app's cards (the user's design, 2026-11-07).
-  static const double card = 16;
+  static const double card = 12;
   static const double control = 10;
 
   /// Status badges, small filter chips, counters and compact options to
@@ -275,7 +283,7 @@ class AdminThemeToggle extends StatelessWidget {
             decoration: adminHeaderButtonDecoration(c),
             child: Icon(
               dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-              color: c.textSecondary,
+              color: adminHeaderIconColor(c),
               size: 20,
             ),
           ),
@@ -869,6 +877,7 @@ class _AdminShellState extends State<_AdminShell> {
           AdminSubNav.audit,
         ]),
         builder: (context, _) => AdminSidebar(
+          curved: !inDrawer,
           entries: _sidebarEntries,
           selectedIndex: _selected.value,
           // The Admin account, with Logout in its menu, pinned at the
@@ -949,7 +958,7 @@ class _AdminShellState extends State<_AdminShell> {
                     _AdminUtilityBar(
                       selected: _selected,
                       onGoHome: () => _goTo(0),
-                      showBrand: width < _sidebarFrom,
+                      showBrand: useDrawer,
                       onOpenMenu: useDrawer
                           ? () => _scaffoldKey.currentState?.openDrawer()
                           : null,
@@ -964,32 +973,35 @@ class _AdminShellState extends State<_AdminShell> {
                             ),
                           ),
                           Expanded(
-                            child: RepaintBoundary(
-                              child: ValueListenableBuilder<int>(
-                                valueListenable: _shown,
-                                builder: (context, shown, _) => IndexedStack(
-                                  index: shown,
-                                  sizing: StackFit.expand,
-                                  children: [
-                                    for (
-                                      var i = 0;
-                                      i < widget.pages.length;
-                                      i++
-                                    )
-                                      // Not opened yet: an empty placeholder,
-                                      // so nothing loads until its page is opened.
-                                      // Hidden pages have their animations paused.
-                                      _visited.contains(i)
-                                          ? AdminLoadingScope(
-                                              page: i,
-                                              onChanged: _onPageLoadingChanged,
-                                              child: TickerMode(
-                                                enabled: i == shown,
-                                                child: widget.pages[i],
-                                              ),
-                                            )
-                                          : const SizedBox.shrink(),
-                                  ],
+                            child: _UnderHeaderShadow(
+                              child: RepaintBoundary(
+                                child: ValueListenableBuilder<int>(
+                                  valueListenable: _shown,
+                                  builder: (context, shown, _) => IndexedStack(
+                                    index: shown,
+                                    sizing: StackFit.expand,
+                                    children: [
+                                      for (
+                                        var i = 0;
+                                        i < widget.pages.length;
+                                        i++
+                                      )
+                                        // Not opened yet: an empty placeholder,
+                                        // so nothing loads until its page is opened.
+                                        // Hidden pages have their animations paused.
+                                        _visited.contains(i)
+                                            ? AdminLoadingScope(
+                                                page: i,
+                                                onChanged:
+                                                    _onPageLoadingChanged,
+                                                child: TickerMode(
+                                                  enabled: i == shown,
+                                                  child: widget.pages[i],
+                                                ),
+                                              )
+                                            : const SizedBox.shrink(),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1011,13 +1023,9 @@ class _AdminShellState extends State<_AdminShell> {
 // The notification bell and its feed are in admin_notifications.dart.
 
 // ============================================================
-// The Dashboard's welcome banner: the greeting, today's date, and the
-// banner picture on the right.
+// The Dashboard's welcome banner: the greeting and today's date and time,
+// plain (no picture or illustration, the user's design system 2026-11-10).
 // ============================================================
-
-/// The banner picture. Until the file is added to the project (and listed
-/// under assets in pubspec.yaml) the banner simply shows without it.
-const String kAdminDashboardBanner = 'assets/images/admin_dashboard_banner.png';
 
 class _DashboardWelcome extends StatefulWidget {
   const _DashboardWelcome();
@@ -1171,25 +1179,8 @@ class _DashboardWelcomeState extends State<_DashboardWelcome> {
                         child: greeting,
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    // The picture, scaled to the banner's height, fading
-                    // into the card on its left so it has no hard edge.
-                    Expanded(
-                      flex: 6,
-                      child: ShaderMask(
-                        blendMode: BlendMode.dstIn,
-                        shaderCallback: (bounds) => const LinearGradient(
-                          colors: [Colors.transparent, Colors.black],
-                          stops: [0, 0.3],
-                        ).createShader(bounds),
-                        child: Image.asset(
-                          kAdminDashboardBanner,
-                          fit: BoxFit.cover,
-                          alignment: Alignment.centerRight,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
-                      ),
-                    ),
+                    // No picture: the welcome stays plain (the user's design
+                    // system, 2026-11-10).
                     // Today's date and the time, in the right corner.
                     const SizedBox(width: 20),
                     Center(child: date),
@@ -1323,7 +1314,7 @@ class _AdminUtilityBar extends StatelessWidget {
             _header(c, index),
             if (index != 0)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 2, 24, 10),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
                 child: Text(
                   _pageTitles[index],
                   maxLines: 1,
@@ -1354,8 +1345,13 @@ class _AdminUtilityBar extends StatelessWidget {
   // account is at the bottom of the sidebar). The page's title is on its
   // own line under it.
   Widget _header(AdminPalette c, int page) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(onOpenMenu == null ? 24 : 10, 14, 24, 8),
+    // A straight white bar to the right of the sidebar, level with its top
+    // (the user's final design, 2026-11-10): no wave, no coloured border;
+    // its soft shadow lies over the page (_UnderHeaderShadow).
+    return Container(
+      height: kAdminHeaderHeight,
+      color: c.surface,
+      padding: EdgeInsets.fromLTRB(onOpenMenu == null ? 24 : 10, 0, 24, 0),
       child: Row(
         children: [
           ?_menuButton(c),
@@ -1384,7 +1380,7 @@ class _AdminUtilityBar extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       // The dark green would not show on the dark theme.
-                      color: c.isDark ? c.textPrimary : AppTheme.dark,
+                      color: c.isDark ? c.textPrimary : kAdminGreen,
                     ),
                   ),
                 ],
@@ -1409,6 +1405,44 @@ class _AdminUtilityBar extends StatelessWidget {
           const AdminNotificationBell(),
         ],
       ),
+    );
+  }
+}
+
+/// The white top bar's soft shadow, drawn over the top of the page under
+/// it, so it shows over cards scrolled up beneath the bar too; it never
+/// takes a click.
+class _UnderHeaderShadow extends StatelessWidget {
+  final Widget child;
+  const _UnderHeaderShadow({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = AdminThemeScope.of(context).palette.isDark;
+    return Stack(
+      children: [
+        Positioned.fill(child: child),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 10,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: dark ? 0.35 : 0.07),
+                    Colors.black.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1645,7 +1679,8 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
               : const EdgeInsets.fromLTRB(8, 0, 6, 0),
           alignment: collapsed ? Alignment.center : null,
           decoration: BoxDecoration(
-            color: c.textPrimary.withValues(alpha: _hovered ? 0.08 : 0),
+            // White on the dark green sidebar.
+            color: Colors.white.withValues(alpha: _hovered ? 0.08 : 0),
             borderRadius: BorderRadius.circular(12),
           ),
           child: collapsed
@@ -1665,7 +1700,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: adminFont(
-                                color: c.textPrimary,
+                                color: Colors.white,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1674,7 +1709,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                               'Administrator',
                               maxLines: 1,
                               style: adminFont(
-                                color: c.textSecondary,
+                                color: Colors.white.withValues(alpha: 0.7),
                                 fontSize: 11.5,
                               ),
                             ),
@@ -1684,7 +1719,7 @@ class _AdminAccountMenuState extends State<_AdminAccountMenu> {
                       Icon(
                         Icons.unfold_more_rounded,
                         size: 18,
-                        color: c.textSecondary,
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ],
                   ),
@@ -2071,8 +2106,118 @@ class _SectionHeader extends StatelessWidget {
 // reports, orders, and market_prices.
 // ============================================================
 
-class _AnalyticsDashboardView extends StatelessWidget {
+/// The Analytics Dashboard page: the dashboard itself, or Full Product
+/// Demand opened from its Market Demand. The dashboard stays alive behind
+/// it (an IndexedStack), so Back returns to it exactly as it was: its
+/// scroll, the year, product and month chosen on Market Demand.
+class _AnalyticsDashboardView extends StatefulWidget {
   const _AnalyticsDashboardView();
+
+  @override
+  State<_AnalyticsDashboardView> createState() =>
+      _AnalyticsDashboardViewState();
+}
+
+class _AnalyticsDashboardViewState extends State<_AnalyticsDashboardView> {
+  FullDemandRequest? _fullDemand;
+
+  // Market Change Analysis: open as its own page, and the product and
+  // period chosen there or on the dashboard's preview (shared by both).
+  bool _marketChange = false;
+  MarketChangeChoice _changeChoice = (product: null, range: ChangeRange.days30);
+
+  @override
+  Widget build(BuildContext context) {
+    final full = _fullDemand;
+    return IndexedStack(
+      index: full != null ? 1 : (_marketChange ? 2 : 0),
+      sizing: StackFit.expand,
+      children: [
+        _AnalyticsDashboardBody(
+          onViewFull: (request) => setState(() => _fullDemand = request),
+          changeChoice: _changeChoice,
+          onChangeProduct: (product) => setState(
+            () =>
+                _changeChoice = (product: product, range: _changeChoice.range),
+          ),
+          onViewMarketChange: () => setState(() => _marketChange = true),
+        ),
+        if (full == null)
+          const SizedBox.shrink()
+        else
+          ListenableBuilder(
+            listenable: DashboardDataService.instance,
+            builder: (context, _) => AdminFullProductDemand(
+              key: ValueKey(full),
+              orders: _dashboardDemandOrders(DashboardDataService.instance),
+              month: full.month,
+              product: full.product,
+              onBack: () => setState(() => _fullDemand = null),
+            ),
+          ),
+        if (!_marketChange)
+          const SizedBox.shrink()
+        else
+          ListenableBuilder(
+            listenable: Listenable.merge([
+              DashboardDataService.instance,
+              CommodityRegistry.instance,
+            ]),
+            builder: (context, _) {
+              final svc = DashboardDataService.instance;
+              return AdminMarketChangeAnalysis(
+                products: _marketChangeProducts(),
+                orders: _dashboardDemandOrders(svc),
+                listings: [for (final d in svc.products) d.data()],
+                loading: !svc.ordersReady,
+                choice: _changeChoice,
+                onProductChanged: (product) => setState(
+                  () => _changeChoice = (
+                    product: product,
+                    range: _changeChoice.range,
+                  ),
+                ),
+                onRangeChanged: (range) => setState(
+                  () => _changeChoice = (
+                    product: _changeChoice.product,
+                    range: range,
+                  ),
+                ),
+                onBack: () => setState(() => _marketChange = false),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+/// The products Market Change Analysis can be of: the supported
+/// commodities, sorted.
+List<String> _marketChangeProducts() => matchCommodities([
+  for (final commodity in CommodityRegistry.instance.all) commodity.name,
+], '');
+
+/// The completed orders Market Demand and Full Product Demand count, from
+/// the dashboard's shared listeners: each once, with its listing for the
+/// category.
+List<DemandOrder> _dashboardDemandOrders(DashboardDataService svc) =>
+    demandOrdersOf(
+      [for (final d in svc.orders) (id: d.id, data: d.data())],
+      productsById: {for (final p in svc.products) p.id: p.data()},
+    );
+
+class _AnalyticsDashboardBody extends StatelessWidget {
+  final ValueChanged<FullDemandRequest> onViewFull;
+  final MarketChangeChoice changeChoice;
+  final ValueChanged<String> onChangeProduct;
+  final VoidCallback onViewMarketChange;
+  const _AnalyticsDashboardBody({
+    required this.onViewFull,
+    required this.changeChoice,
+    required this.onChangeProduct,
+    required this.onViewMarketChange,
+  });
 
   Future<void> _openExportDialog(BuildContext context) {
     // showDialog's builder context sits in the root Overlay, outside this
@@ -2157,56 +2302,89 @@ class _AnalyticsDashboardView extends StatelessWidget {
               final orders = svc.orders;
               final products = svc.products;
               final marketPrices = svc.marketPrices;
-              final now = DateTime.now();
               // Mapped once per data load, not once per chart rebuild.
               final orderData = [for (final d in orders) d.data()];
-              final topProducts = DashboardAnalyticsService.topSellingProducts(
-                orders,
-              );
-              // The supported commodity list (the Admin-managed one the
-              // whole app uses), each matched by name to its baseline
-              // price where the Admin has set one.
-              final commodities = [
+              // The price tracker's commodities: the supported list (the
+              // Admin-managed one the whole app uses), each with its Price
+              // Management record (matched by name, as that record's id is
+              // the name's), compared in that record's unit, else the list's.
+              final recordByName =
+                  <String, QueryDocumentSnapshot<Map<String, dynamic>>>{
+                    for (final doc in marketPrices)
+                      (doc.data()['name'] ?? doc.id)
+                              .toString()
+                              .trim()
+                              .toLowerCase():
+                          doc,
+                  };
+              PriceTrackerCommodity tracked(Commodity commodity) {
+                final record = recordByName[commodity.name.toLowerCase()];
+                final unit = (record?.data()['unit'] ?? '').toString().trim();
+                return PriceTrackerCommodity(
+                  id:
+                      record?.id ??
+                      commodity.name.toLowerCase().replaceAll(
+                        RegExp(r'[^a-z0-9]+'),
+                        '_',
+                      ),
+                  name: commodity.name,
+                  category: commodity.category,
+                  unit: unit.isEmpty ? commodity.unit : unit,
+                  record: record?.data(),
+                );
+              }
+
+              // Archived commodities are not tracked.
+              final trackerCommodities = [
                 for (final commodity in CommodityRegistry.instance.all)
-                  commodity.name,
+                  if (commodity.isActive) tracked(commodity),
               ];
-              final baselineByName = <String, double>{
-                for (final doc in marketPrices)
-                  if (((doc.data()['baselinePrice'] as num?) ?? 0) > 0)
-                    (doc.data()['name'] ?? doc.id)
-                        .toString()
-                        .trim()
-                        .toLowerCase(): (doc.data()['baselinePrice'] as num)
-                        .toDouble(),
-              };
-              final baselineByCommodity = <String, double>{
-                for (final name in commodities)
-                  if (baselineByName[name.toLowerCase()] != null)
-                    name: baselineByName[name.toLowerCase()]!,
-              };
-              final weeklyPricesByCommodity = <String, List<double?>>{
-                for (final name in commodities)
-                  name: DashboardAnalyticsService.weeklyAveragePrice(
-                    orders,
-                    name,
-                    now: now,
-                  ),
-              };
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ---- 2. MARKET DEMAND AND SALES ---- (each card is
-                  // titled; the two share one body height)
-                  _responsiveRow(
-                    [
-                      AdminMarketDemandCard(
-                        completedOrders: orderData,
-                        bodyHeight: _demandRowHeight,
-                        error: svc.ordersError,
-                        onRetry: svc.refresh,
-                      ),
-                      ChartCaptureBoundary(
+                  // The order of the sections (the user's final layout,
+                  // 2026-11-10): the price tracker, Market Demand, then
+                  // Sales by Category beside Market Change Analysis.
+                  // ---- 2. AVERAGE PRICE VS. ADMIN BASELINE ---- the price
+                  // tracker, full width for its list and chart.
+                  ChartCaptureBoundary(
+                    captureKey: DashboardChartKeys.priceTrend,
+                    child: AdminPriceTracker(
+                      commodities: trackerCommodities,
+                      completedOrders: orderData,
+                      loadBaselineHistory: (id) => FirebaseFirestore.instance
+                          .collection('market_prices')
+                          .doc(id)
+                          .collection('history')
+                          .get()
+                          .then(
+                            (snap) => [for (final d in snap.docs) d.data()],
+                          ),
+                    ),
+                  ),
+
+                  const SizedBox(height: _sectionGap),
+
+                  // ---- 3. MARKET DEMAND ---- full width but compact: the
+                  // months on the left, the details on the right.
+                  AdminMarketDemandSection(
+                    orders: _dashboardDemandOrders(svc),
+                    error: svc.ordersError,
+                    onRetry: svc.refresh,
+                    onViewFull: onViewFull,
+                  ),
+
+                  const SizedBox(height: _sectionGap),
+
+                  // ---- 4. SALES BY CATEGORY | MARKET CHANGE ANALYSIS ----
+                  // side by side (45 / 55), one height; stacked when
+                  // narrow. Top-selling products are in Full Product
+                  // Demand's By Quantity Sold; Market Change Analysis is a
+                  // preview, its chart on its own page.
+                  LayoutBuilder(
+                    builder: (context, box) {
+                      final sales = ChartCaptureBoundary(
                         captureKey: DashboardChartKeys.salesByCategory,
                         child: AdminSalesByCategoryCard(
                           bodyHeight: _demandRowHeight,
@@ -2221,33 +2399,38 @@ class _AnalyticsDashboardView extends StatelessWidget {
                                     ),
                               ),
                         ),
-                      ),
-                    ],
-                    flexes: const [3, 2],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // ---- 3. MARKET INTELLIGENCE ---- (each card is titled)
-                  _responsiveRow(
-                    [
-                      ChartCaptureBoundary(
-                        captureKey: DashboardChartKeys.priceTrend,
-                        child: AdminPriceTrendCard(
-                          commodities: commodities,
-                          baselineByCommodity: baselineByCommodity,
-                          weeklyPricesByCommodity: weeklyPricesByCommodity,
+                      );
+                      final change = AdminMarketChangePreview(
+                        products: _marketChangeProducts(),
+                        orders: _dashboardDemandOrders(svc),
+                        listings: [for (final d in products) d.data()],
+                        choice: changeChoice,
+                        onProductChanged: onChangeProduct,
+                        onViewDetails: onViewMarketChange,
+                      );
+                      if (box.maxWidth < _pairFrom) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            sales,
+                            const SizedBox(height: _sectionGap),
+                            change,
+                          ],
+                        );
+                      }
+                      return SizedBox(
+                        height: _pairHeight,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(flex: 45, child: sales),
+                            const SizedBox(width: _sectionGap),
+                            Expanded(flex: 55, child: change),
+                          ],
                         ),
-                      ),
-                      AdminTopProductsCard(products: topProducts),
-                    ],
-                    flexes: const [3, 2],
+                      );
+                    },
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // ---- 4. MARKET TRENDS ---- (the card is titled)
-                  const AdminMarketTrendsCard(),
                 ],
               );
             },
@@ -2386,23 +2569,13 @@ class _DashboardSectionsSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionHeader(title: 'Sales Performance'),
-        const SizedBox(height: 12),
-        _responsiveRow(
-          const [
-            AdminChartCardSkeleton(bodyHeight: _demandRowHeight),
-            AdminChartCardSkeleton(bodyHeight: _demandRowHeight),
-          ],
-          flexes: const [3, 2],
-        ),
-        const SizedBox(height: 16),
-        _responsiveRow(
-          const [
-            AdminChartCardSkeleton(bodyHeight: 288),
-            AdminChartCardSkeleton(bodyHeight: 288),
-          ],
-          flexes: const [3, 2],
-        ),
+        // In the sections' own order: the price tracker and Market
+        // Demand full width, then Sales by Category.
+        const AdminChartCardSkeleton(bodyHeight: 486),
+        const SizedBox(height: _sectionGap),
+        const AdminChartCardSkeleton(bodyHeight: 286),
+        const SizedBox(height: _sectionGap),
+        const AdminChartCardSkeleton(bodyHeight: _demandRowHeight),
       ],
     );
   }
@@ -2439,40 +2612,19 @@ class _UserAccountsPage extends StatelessWidget {
   }
 }
 
-// Lays [children] out as a Row of Expanded(flex: flexes[i]) above ~900px,
-// or stacks them into a single Column below it — the same breakpoint the
-// KPI row already uses.
-// The body height of the Market Demand card and Sales by Category
-// beside it (the demand card's controls, summary and chart need the room).
-const double _demandRowHeight = 350;
+// The body height of Sales by Category: the donut and its legend, with no
+// empty band around them (the user's sizing pass, 2026-11-10).
+const double _demandRowHeight = 180;
 
-Widget _responsiveRow(List<Widget> children, {List<int>? flexes}) {
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      final isNarrow = constraints.maxWidth < 900;
-      if (isNarrow) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              children[i],
-              if (i != children.length - 1) const SizedBox(height: 16),
-            ],
-          ],
-        );
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            Expanded(flex: flexes != null ? flexes[i] : 1, child: children[i]),
-            if (i != children.length - 1) const SizedBox(width: 16),
-          ],
-        ],
-      );
-    },
-  );
-}
+// Sales by Category and Market Change Analysis side by side: their one
+// height (Sales by Category's padding, heading with its period picker,
+// and body) and the width from which they pair up; narrower, one under
+// the other.
+const double _pairHeight = 300;
+const double _pairFrom = 1000;
+
+// Between the dashboard's sections.
+const double _sectionGap = 16;
 
 // ============================================================
 // DEMAND HEATMAP — a smooth, blended density layer (ride-hailing-app
@@ -2480,9 +2632,10 @@ Widget _responsiveRow(List<Widget> children, {List<int>? flexes}) {
 //
 // Completed orders only, for the selected Month/Year, by the BUYER's own
 // saved area (see DashboardAnalyticsService._resolveBuyerArea) — never the
-// farmer's, product's or seller's. Purchases are counted per area and each
-// area is one point, weighted by its count: more completed purchases means
-// stronger heat. Aggregated only — no buyer's identity or exact pin is
+// farmer's, product's or seller's. Two modes (demand_heatmap_service.dart):
+// Buyer Demand, unique buyers per area; Product Demand, unique buyers or
+// completed orders per category and area. Each area is one point, weighted
+// by its count: more means stronger heat. Aggregated only — no buyer's identity or exact pin is
 // plotted. See _buildDemandPoints below.
 // ============================================================
 
@@ -2519,23 +2672,19 @@ const String _mutedMapStyle = '''
 // on web, so it's unusable here now.
 
 // Real demand only — no mock/baseline padding. One point per buyer area
-// (DashboardAnalyticsService.combinedDemandByArea), at that area's general
-// location, weighted by its demand score (completed purchases ×2 + buyer
-// searches ×1) — the weight becomes the heat's colour and size. An area
-// with no completed purchase has no point, and a buyer with no location on
-// file contributes to none, rather than a fabricated one.
-
-List<WeightedLatLng> _buildDemandPoints(
-  List<({String area, int orderCount, num revenue, double? lat, double? lng})>
-  demand,
-) {
+// (demand_heatmap_service.dart's areaDemand), at that area's general
+// location, weighted by its count — unique buyers, or completed orders —
+// the same number the ranking shows; the weight becomes the heat's colour
+// and size. Buyer searches play no part. An area with no completed order
+// has no point, and a buyer with no location on file contributes to none.
+List<WeightedLatLng> _buildDemandPoints(List<AreaDemand> demand) {
   return [
     for (final area in demand)
       // An area still being located has no point yet.
-      if (area.orderCount > 0 && area.lat != null && area.lng != null)
+      if (area.count > 0 && area.lat != null && area.lng != null)
         WeightedLatLng(
           LatLng(area.lat!, area.lng!),
-          weight: area.orderCount.toDouble(),
+          weight: area.count.toDouble(),
         ),
   ];
 }
@@ -2723,13 +2872,12 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
 
   @override
   void dispose() {
-    _searchSubscription?.cancel();
     _buyerPinsVersion.dispose();
     super.dispose();
   }
 
   // Defaults to the current month/year on first open — everything below
-  // (the map, Highest Demand Areas, Top Buyer Searches) refreshes together
+  // (the map, the panels beside it and the report) refreshes together
   // whenever either changes (see build()'s use of these two).
   final DateTime _now = DateTime.now();
   late int _selectedYear = _now.year;
@@ -2770,51 +2918,10 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
     _focusRequest++;
   });
 
-  // Buyer searches for the selected month — a live listener on just that
-  // month's records; they add to the demand heat with the purchases.
-  // null = not loaded yet.
-  List<Map<String, dynamic>>? _searchEvents;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _searchSubscription;
-  int? _searchPeriod;
-
-  void _watchSearches() {
-    final period = _selectedYear * 12 + _selectedMonth;
-    if (_searchPeriod == period && _searchSubscription != null) return;
-    _searchSubscription?.cancel();
-    _searchPeriod = period;
-    _searchEvents = null;
-    final window = DashboardAnalyticsService.monthWindow(
-      _selectedYear,
-      _selectedMonth,
-    );
-    _searchSubscription =
-        AdminPerf.firstEvent(
-          'heatmap: searchEvents for the month (live)',
-          FirebaseFirestore.instance
-              .collection('searchEvents')
-              .where(
-                'createdAt',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(window.start),
-              )
-              .where('createdAt', isLessThan: Timestamp.fromDate(window.end))
-              .snapshots(),
-          describe: (s) => '${s.docs.length} docs',
-        ).listen(
-          (snapshot) {
-            if (!mounted || _searchPeriod != period) return;
-            setState(() {
-              _searchEvents = [for (final doc in snapshot.docs) doc.data()];
-            });
-          },
-          onError: (Object _) {
-            if (!mounted || _searchPeriod != period) return;
-            // Shown as "no searches" rather than loading forever; switching
-            // month or layer tries again.
-            _searchSubscription = null;
-            setState(() => _searchEvents = const []);
-          },
-        );
-  }
+  // Buyer Demand (the default) or Product Demand, and how Product Demand
+  // counts (the final revision, 2026-11-09).
+  DemandMode _mode = DemandMode.buyer;
+  DemandCounting _counting = DemandCounting.uniqueBuyers;
 
   // Where an area is, for the ones no buyer pin could place: looked up
   // once by name and kept for the session. null = looked up, not found.
@@ -2923,6 +3030,8 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
     required VoidCallback onExport,
     String? emptyMessage,
     String legendTitle = 'Completed purchases',
+    ({int lowMax, int mediumMax})? legendThresholds,
+    String legendUnit = 'buyers',
   }) async {
     final themeScope = AdminThemeScope.of(context);
     await Navigator.of(context, rootNavigator: true).push(
@@ -2947,6 +3056,8 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
               onExport: onExport,
               emptyMessage: emptyMessage,
               legendTitle: legendTitle,
+              legendThresholds: legendThresholds,
+              legendUnit: legendUnit,
             ),
           );
         },
@@ -2957,63 +3068,45 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
     if (mounted) setState(() {});
   }
 
+  // The report of what the page shows now: a Buyer Demand Report or a
+  // Product Demand Report, from [data] (demandReportData, the page's own
+  // numbers). A failure says so and leaves the page as it was.
+  bool _exporting = false;
+
   Future<void> _exportReport(
     BuildContext context,
-    List<({String area, int orderCount, num revenue, double? lat, double? lng})>
-    demand,
+    DemandReportData data,
   ) async {
-    final periodLabel = '${_monthNames[_selectedMonth - 1]} $_selectedYear';
-    // Buyer searches are only part of the exported report, so they are read
-    // once, here, when a report is asked for — not kept open as a live
-    // listener for the whole time the page is on screen.
-    var topSearches = const <MapEntry<String, int>>[];
+    if (_exporting) return;
+    _exporting = true;
+    final title = data.mode == DemandMode.product
+        ? 'Product Demand Report'
+        : 'Buyer Demand Report';
     try {
-      final searches = await AdminPerf.time(
-        'heatmap export: searchEvents',
-        // Only the month being exported — not the whole collection.
-        () {
-          final window = DashboardAnalyticsService.monthWindow(
-            _selectedYear,
-            _selectedMonth,
-          );
-          return FirebaseFirestore.instance
-              .collection('searchEvents')
-              .where(
-                'createdAt',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(window.start),
-              )
-              .where('createdAt', isLessThan: Timestamp.fromDate(window.end))
-              .get();
-        },
-        describe: (s) => '${s.docs.length} docs',
+      final bytes = await PdfReportService.buildDemandHeatmapReport(data);
+      if (!context.mounted) return;
+      final file = data.mode == DemandMode.product
+          ? 'agritrade_product_demand_report.pdf'
+          : 'agritrade_buyer_demand_report.pdf';
+      await PdfReportService.share(bytes, file);
+      AuditLogService.log(
+        AuditAction.exportReport,
+        'Exported the $title (${data.periodLabel}'
+        '${data.mode == DemandMode.product ? ', ${data.category ?? 'All Categories'}, ${data.counting.label}' : ''}'
+        ', PDF).',
       );
-      topSearches = DashboardAnalyticsService.topSearchQueriesForMonth(
-        searches.docs,
-        year: _selectedYear,
-        month: _selectedMonth,
-      );
-    } catch (_) {
-      // The report is still exported, without the searches table's rows.
+    } catch (error) {
+      debugPrint('Demand Heatmap export failed: $error');
+      if (context.mounted) {
+        showAppMessage(
+          context,
+          'Could not export the $title. Please try again.',
+          kind: MessageKind.error,
+        );
+      }
+    } finally {
+      _exporting = false;
     }
-    final bytes = await PdfReportService.buildDemandReport(
-      demand: demand
-          .map(
-            (d) => (
-              barangay: d.area,
-              orderCount: d.orderCount,
-              revenue: d.revenue,
-            ),
-          )
-          .toList(),
-      topSearches: topSearches,
-      periodLabel: periodLabel,
-    );
-    if (!context.mounted) return;
-    await PdfReportService.share(bytes, 'agritrade_demand_report.pdf');
-    AuditLogService.log(
-      AuditAction.exportReport,
-      'Exported the Demand Heatmap report ($periodLabel, PDF).',
-    );
   }
 
   // Which product category the heat is for; null = every category.
@@ -3167,128 +3260,89 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                           heatOrdersAll,
                           _now,
                         );
-                    // One product category at a time, when one is chosen:
-                    // by each order's own recorded category, and each
-                    // search by the commodity it names.
-                    final category = _category;
-                    final productById = category == null
-                        ? const <String, Map<String, dynamic>>{}
-                        : {for (final p in heatProducts) p.id: p.data()};
-                    final heatOrders = category == null
-                        ? heatOrdersAll
-                        : [
-                            for (final doc in heatOrdersAll)
-                              if (DashboardAnalyticsService.orderCategory(
-                                    doc.data(),
-                                    productById[(doc.data()['productId'] ?? '')
-                                        .toString()],
-                                  ) ==
-                                  category)
-                                doc,
-                          ];
-                    final purchaseDemand =
-                        DashboardAnalyticsService.demandByBuyerAreaForMonth(
-                          heatOrders,
-                          usersByUid,
-                          year: _selectedYear,
-                          month: _selectedMonth,
-                          areaCoordinates: _areaCoordinates,
-                        );
-                    // Where buyers searched, counted by area the same way —
-                    // added to the purchase heat below (one demand map).
-                    _watchSearches();
-                    final monthSearches = _searchEvents ?? const [];
-                    final searches =
-                        DashboardAnalyticsService.searchesByBuyerAreaForMonth(
-                          category == null
-                              ? monthSearches
-                              : [
-                                  for (final event in monthSearches)
-                                    if (categoryOfCommodity(
-                                          matchSupportedCommodity(
-                                                (event['query'] ?? '')
-                                                    .toString(),
-                                              ) ??
-                                              '',
-                                        ) ==
-                                        category)
-                                      event,
-                                ],
-                          usersByUid,
-                          year: _selectedYear,
-                          month: _selectedMonth,
-                          areaCoordinates: _areaCoordinates,
-                        );
-                    // One demand map: purchases and searches together, as
-                    // each area's demand score (a purchase counts twice a
-                    // search) — see combinedDemandByArea. The score sets
-                    // the heat and the ranking.
-                    final combined =
-                        DashboardAnalyticsService.combinedDemandByArea(
-                          purchaseDemand,
-                          searches.areas,
-                        );
-                    final rankedDemand = [
-                      for (final area in combined)
-                        (
-                          area: area.area,
-                          orderCount: area.score,
-                          revenue: area.revenue,
-                          lat: area.lat,
-                          lng: area.lng,
-                        ),
-                    ];
-                    String plural(int n, String one, String many) =>
-                        '$n ${n == 1 ? one : many}';
-                    final countTexts = {
-                      for (final area in combined)
-                        area.area: [
-                          if (area.purchases > 0)
-                            plural(area.purchases, 'purchase', 'purchases'),
-                          if (area.searches > 0)
-                            plural(area.searches, 'search', 'searches'),
-                        ].join(' · '),
+                    // Every number below comes from the completed orders of
+                    // the chosen month, by the buyer's location, through
+                    // demand_heatmap_service.dart: the map, the panels and
+                    // the exported report alike. Buyer searches play no
+                    // part (the final revision, 2026-11-09).
+                    final productById = {
+                      for (final p in heatProducts) p.id: p.data(),
                     };
-                    const noneMessage =
-                        'No completed purchases or buyer searches for this '
-                        'period.';
+                    final window = DashboardAnalyticsService.monthWindow(
+                      _selectedYear,
+                      _selectedMonth,
+                    );
+                    final records = demandRecords(
+                      orders: [
+                        for (final doc in heatOrdersAll)
+                          (id: doc.id, data: doc.data()),
+                      ],
+                      usersByUid: usersByUid,
+                      productsById: productById,
+                      start: window.start,
+                      end: window.end,
+                    );
+                    final product = _mode == DemandMode.product;
+                    // Buyer Demand always counts unique buyers, across
+                    // every category.
+                    final counting = product
+                        ? _counting
+                        : DemandCounting.uniqueBuyers;
+                    final category = product ? _category : null;
+                    final areas = areaDemand(
+                      records,
+                      counting: counting,
+                      category: category,
+                      areaCoordinates: _areaCoordinates,
+                    );
+                    final summary = categoryDemand(records, counting: counting);
+                    final busiest = areas.isEmpty ? 0 : areas.first.count;
+                    final thresholds = demandThresholds(busiest);
+                    final periodLabel =
+                        '${_monthNames[_selectedMonth - 1]} $_selectedYear';
+                    DemandReportData report() => demandReportData(
+                      records,
+                      mode: _mode,
+                      periodLabel: periodLabel,
+                      counting: counting,
+                      category: category,
+                    );
+                    final noneMessage = !product
+                        ? 'No completed orders from buyers with a known '
+                              'location in this period.'
+                        : category == null
+                        ? 'No completed orders in this period.'
+                        : 'No completed orders for $category in this period.';
                     const areasTitle = 'Highest Demand Areas';
+                    final areasSubtitle = !product
+                        ? 'Unique buyers with completed orders by location.'
+                        : '${category ?? 'All Categories'} · '
+                              '${counting == DemandCounting.uniqueBuyers ? 'unique buyers' : 'completed orders'} '
+                              'by location';
+                    final legendTitle = !product
+                        ? 'Buyer demand (unique buyers)'
+                        : 'Product demand · ${category ?? 'All Categories'}';
                     _locateAreas([
-                      for (final area in rankedDemand)
+                      for (final area in areas)
                         if (area.lat == null) area.area,
                     ]);
-                    final productsByArea =
-                        DashboardAnalyticsService.productsByBuyerAreaForMonth(
-                          heatOrders,
-                          usersByUid,
-                          year: _selectedYear,
-                          month: _selectedMonth,
-                        );
                     final selectedArea =
-                        rankedDemand.any((d) => d.area == _selectedArea)
+                        areas.any((d) => d.area == _selectedArea)
                         ? _selectedArea
-                        : (rankedDemand.isEmpty
-                              ? null
-                              : rankedDemand.first.area);
+                        : (areas.isEmpty ? null : areas.first.area);
                     final plottedAreas = [
-                      for (final area in rankedDemand)
+                      for (final area in areas)
                         if (area.lat != null && area.lng != null)
                           (area: area.area, lat: area.lat!, lng: area.lng!),
                     ];
                     // Where the demand is, for framing the map: the areas
                     // themselves, never individual buyers.
                     final buyerPoints = [
-                      for (final area in rankedDemand)
-                        if (area.lat != null && area.lng != null)
-                          (lat: area.lat!, lng: area.lng!),
+                      for (final area in plottedAreas)
+                        (lat: area.lat, lng: area.lng),
                     ];
-                    // The Month/Year selection just changed (or this is the
-                    // first build) — snap the camera to where this period's
-                    // real buyer demand actually is instead of leaving it
-                    // wherever a previous period's data happened to be (or a
-                    // fixed Laurel-only default), so a period with demand
-                    // entirely outside Laurel is visible without the admin
-                    // having to hunt for it by panning.
+                    // The month just changed (or this is the first build):
+                    // the camera moves to where this period's demand is.
                     if (_framedMonth != _selectedMonth ||
                         _framedYear != _selectedYear) {
                       // Zoomed out over every area with demand.
@@ -3296,6 +3350,20 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                       _framedMonth = _selectedMonth;
                       _framedYear = _selectedYear;
                     }
+                    final areasPanel = AdminDemandAreasPanel(
+                      key: const Key('highestDemandAreas'),
+                      areas: [
+                        for (final d in areas)
+                          (area: d.area, orderCount: d.count),
+                      ],
+                      selectedArea: selectedArea,
+                      onSelect: _selectArea,
+                      emptyText: noneMessage,
+                      title: areasTitle,
+                      subtitle: areasSubtitle,
+                      unit: counting.unit,
+                      unitPlural: counting.unitPlural,
+                    );
 
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
@@ -3304,21 +3372,29 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                         children: [
                           // The title is in the utility bar above.
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Row(
-                                children: [
-                                  _categorySelector(c),
-                                  const SizedBox(width: 12),
-                                  _monthYearSelector(c, years),
-                                  const SizedBox(width: 12),
-                                  AdminQuickActionButton(
-                                    icon: Icons.download,
-                                    label: 'Export Report',
-                                    onPressed: () =>
-                                        _exportReport(context, purchaseDemand),
-                                  ),
-                                ],
+                              for (final mode in DemandMode.values)
+                                AdminRadioChoice<DemandMode>(
+                                  key: Key('demandMode_${mode.name}'),
+                                  value: mode,
+                                  groupValue: _mode,
+                                  label: mode.label,
+                                  onChanged: (value) =>
+                                      setState(() => _mode = value),
+                                ),
+                              const Spacer(),
+                              // Categories only for Product Demand.
+                              if (product) ...[
+                                _categorySelector(c),
+                                const SizedBox(width: 12),
+                              ],
+                              _monthYearSelector(c, years),
+                              const SizedBox(width: 12),
+                              AdminQuickActionButton(
+                                icon: Icons.download,
+                                label: 'Export Report',
+                                onPressed: () =>
+                                    _exportReport(context, report()),
                               ),
                             ],
                           ),
@@ -3333,11 +3409,11 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                                     builder: (context) {
                                       // Nothing bought, or bought but the
                                       // areas are still being located.
-                                      final emptyMessage = rankedDemand.isEmpty
+                                      final emptyMessage = areas.isEmpty
                                           ? noneMessage
                                           : buyerPoints.isNotEmpty
                                           ? null
-                                          : rankedDemand.any(
+                                          : areas.any(
                                               (d) => !_areaLookups.containsKey(
                                                 d.area,
                                               ),
@@ -3346,16 +3422,16 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                                           : 'These buyer areas could not be '
                                                 'placed on the map. They are '
                                                 'listed under $areasTitle.';
-                                      final points = _buildDemandPoints(
-                                        rankedDemand,
-                                      );
+                                      final points = _buildDemandPoints(areas);
                                       return _HeatmapMap(
                                         initialCamera: _camera,
                                         points: points,
                                         bounds: _computeMapBounds(buyerPoints),
                                         onCameraIdle: _onCameraIdle,
                                         isFullscreen: false,
-                                        legendTitle: 'Buyer demand',
+                                        legendTitle: legendTitle,
+                                        legendThresholds: thresholds,
+                                        legendUnit: counting.unitPlural,
                                         emptyMessage: emptyMessage,
                                         areas: plottedAreas,
                                         onSelectArea: _selectArea,
@@ -3365,14 +3441,16 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                                             _openFullscreen(
                                               context,
                                               emptyMessage: emptyMessage,
-                                              legendTitle: 'Buyer demand',
+                                              legendTitle: legendTitle,
+                                              legendThresholds: thresholds,
+                                              legendUnit: counting.unitPlural,
                                               points: points,
                                               bounds: _computeMapBounds(
                                                 buyerPoints,
                                               ),
                                               onExport: () => _exportReport(
                                                 context,
-                                                purchaseDemand,
+                                                report(),
                                               ),
                                             ),
                                       );
@@ -3382,58 +3460,49 @@ class _DemandHeatmapViewState extends State<_DemandHeatmapView> {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   flex: 2,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        // Ranked by demand score: purchases
-                                        // and searches together.
-                                        child: AdminDemandAreasPanel(
-                                          areas: [
-                                            for (final d in rankedDemand)
-                                              if (d.orderCount > 0)
-                                                (
-                                                  area: d.area,
-                                                  orderCount: d.orderCount,
+                                  child: product
+                                      // Product Demand: the categories,
+                                      // then their areas.
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            Expanded(
+                                              flex: 5,
+                                              child: AdminProductDemandSummary(
+                                                key: const Key(
+                                                  'productDemandSummary',
                                                 ),
+                                                rows: summary.rows,
+                                                counting: counting,
+                                                onCountingChanged: (value) =>
+                                                    setState(
+                                                      () => _counting = value,
+                                                    ),
+                                                selectedCategory: category,
+                                                // Again on the chosen one:
+                                                // back to All Categories.
+                                                onSelectCategory: (name) =>
+                                                    setState(
+                                                      () => _category =
+                                                          _category == name
+                                                          ? null
+                                                          : name,
+                                                    ),
+                                                emptyText:
+                                                    'No completed orders in '
+                                                    'this period.',
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Expanded(
+                                              flex: 4,
+                                              child: areasPanel,
+                                            ),
                                           ],
-                                          countTexts: countTexts,
-                                          selectedArea: selectedArea,
-                                          onSelect: _selectArea,
-                                          emptyText: noneMessage,
-                                          title: areasTitle,
-                                          subtitle:
-                                              'Purchases (×2) and searches (×1) · select an area',
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      // The selected area: what buyers
-                                      // there bought, and what they
-                                      // searched for.
-                                      Expanded(
-                                        child: AdminAreaProductsPanel(
-                                          area: selectedArea,
-                                          products:
-                                              productsByArea[selectedArea] ??
-                                              const [],
-                                          emptyText: noneMessage,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Expanded(
-                                        child: AdminAreaSearchesPanel(
-                                          area: selectedArea,
-                                          terms:
-                                              searches.terms[selectedArea] ??
-                                              const [],
-                                          emptyText: _searchEvents == null
-                                              ? 'Loading buyer searches…'
-                                              : 'No buyer searches here for this period.',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                        )
+                                      // Buyer Demand: the areas alone.
+                                      : areasPanel,
                                 ),
                               ],
                             ),
@@ -3471,8 +3540,11 @@ class _HeatmapMap extends StatefulWidget {
   /// Shown over the map when there is nothing to plot; null for none.
   final String? emptyMessage;
 
-  /// What the heat counts, for the legend.
+  /// What the heat counts, for the legend, and its numbers (see
+  /// demandThresholds) in [legendUnit] per location.
   final String legendTitle;
+  final ({int lowMax, int mediumMax})? legendThresholds;
+  final String legendUnit;
 
   /// The areas behind the heat, so a click on the map can select one.
   final List<({String area, double lat, double lng})> areas;
@@ -3501,6 +3573,8 @@ class _HeatmapMap extends StatefulWidget {
     required this.isFullscreen,
     this.emptyMessage,
     this.legendTitle = 'Completed purchases',
+    this.legendThresholds,
+    this.legendUnit = 'buyers',
     required this.onToggleFullscreen,
     this.onExport,
   });
@@ -3830,7 +3904,13 @@ class _HeatmapMapState extends State<_HeatmapMap> {
           Positioned(
             left: 12,
             bottom: 12,
-            child: AdminHeatLegend(title: widget.legendTitle),
+            child: AdminHeatLegend(
+              title: widget.legendTitle,
+              thresholds: widget.legendThresholds,
+              // "buyers" / "orders" in the singular for one.
+              unit: widget.legendUnit.replaceFirst(RegExp(r's$'), ''),
+              unitPlural: widget.legendUnit,
+            ),
           ),
         ],
       ),
@@ -3883,8 +3963,10 @@ class _FullscreenHeatmapPage extends StatelessWidget {
   final VoidCallback onExport;
   final String? emptyMessage;
 
-  /// What the heat counts, for the legend.
+  /// What the heat counts, for the legend, and its numbers.
   final String legendTitle;
+  final ({int lowMax, int mediumMax})? legendThresholds;
+  final String legendUnit;
 
   const _FullscreenHeatmapPage({
     required this.initialCamera,
@@ -3894,6 +3976,8 @@ class _FullscreenHeatmapPage extends StatelessWidget {
     required this.onExport,
     this.emptyMessage,
     this.legendTitle = 'Completed purchases',
+    this.legendThresholds,
+    this.legendUnit = 'buyers',
   });
 
   @override
@@ -3922,6 +4006,8 @@ class _FullscreenHeatmapPage extends StatelessWidget {
                 isFullscreen: true,
                 emptyMessage: emptyMessage,
                 legendTitle: legendTitle,
+                legendThresholds: legendThresholds,
+                legendUnit: legendUnit,
                 onToggleFullscreen: () => Navigator.of(context).pop(),
                 onExport: onExport,
               ),

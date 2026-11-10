@@ -39,9 +39,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
 
   double _rating = 0;
   bool _submitting = false;
-  XFile? _selectedImage;
-  // The chosen photo's bytes, read once for its preview.
-  Uint8List? _selectedBytes;
+  // The chosen photos, each with its bytes read once for its preview.
+  final List<({XFile file, Uint8List bytes})> _photos = [];
 
   @override
   void dispose() {
@@ -50,9 +49,11 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   }
 
   Future<void> _pickImage() async {
+    final room = ReviewService.maxPhotos - _photos.length;
+    if (room <= 0) return;
     final source = await showAgriSheet<ImageSource>(
       context: context,
-      title: tl('Add a photo'),
+      title: tl('Add photos'),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -73,161 +74,152 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
 
     if (source == null) return;
 
-    final picked = await _picker.pickImage(
-      source: source,
-      maxWidth: 1200,
-      maxHeight: 1200,
-      imageQuality: 75,
-    );
-
-    if (!mounted || picked == null) return;
-    final bytes = await picked.readAsBytes();
-    if (!mounted) return;
-    setState(() {
-      _selectedImage = picked;
-      _selectedBytes = bytes;
-    });
-  }
-
-  void _removeImage() => setState(() {
-    _selectedImage = null;
-    _selectedBytes = null;
-  });
-
-  // The photo part: an inviting tile to add one, or — once chosen — the
-  // photo itself, large, with round Change and Remove buttons on it.
-  Widget _photoSection() {
-    final bytes = _selectedBytes;
-    final Widget body;
-    if (bytes == null) {
-      body = Material(
-        color: AppColors.tint,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          key: const Key('reviewAddPhoto'),
-          borderRadius: BorderRadius.circular(16),
-          onTap: _submitting ? null : _pickImage,
-          child: CustomPaint(
-            painter: _DashedOutlinePainter(
-              color: AppColors.brand.withValues(alpha: 0.45),
-              radius: 16,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-              child: Column(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      shape: BoxShape.circle,
-                      border: AppColors.cardBorder,
-                    ),
-                    child: Icon(
-                      Icons.add_a_photo_outlined,
-                      color: AppColors.brand,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    tl('Add a photo'),
-                    style: TextStyle(
-                      color: AppColors.brand,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    tl('Take one or choose from your gallery'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    // The gallery takes several at once, up to the room left.
+    final List<XFile> picked;
+    if (source == ImageSource.gallery && room > 1) {
+      picked = await _picker.pickMultiImage(
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 75,
+        limit: room,
       );
     } else {
-      Widget roundButton({
-        required Key key,
-        required IconData icon,
-        required String tooltip,
-        required VoidCallback onTap,
-      }) => Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.white,
-          shape: const CircleBorder(),
-          elevation: 2,
-          shadowColor: Colors.black38,
-          child: InkWell(
-            key: key,
-            customBorder: const CircleBorder(),
-            onTap: _submitting ? null : onTap,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(icon, size: 18, color: AppTheme.dark),
+      final one = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 75,
+      );
+      picked = [?one];
+    }
+
+    if (!mounted || picked.isEmpty) return;
+    final added = <({XFile file, Uint8List bytes})>[];
+    for (final file in picked.take(room)) {
+      added.add((file: file, bytes: await file.readAsBytes()));
+    }
+    if (!mounted) return;
+    setState(() => _photos.addAll(added));
+  }
+
+  void _removeImage(int index) => setState(() => _photos.removeAt(index));
+
+  // The photo part (system objectives, 2026-11-09: "optional review
+  // photos"): up to [ReviewService.maxPhotos] in one row of equal squares,
+  // each with an × at its corner, a dashed "Add" square while there is
+  // room, and the count above.
+  Widget _photoSection() {
+    final max = ReviewService.maxPhotos;
+    final canAdd = _photos.length < max;
+    Widget square(Widget child) =>
+        Expanded(child: AspectRatio(aspectRatio: 1, child: child));
+
+    Widget photoTile(int index) => ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.memory(
+            _photos[index].bytes,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Material(
+              color: AppTheme.dark,
+              shape: const CircleBorder(),
+              child: InkWell(
+                key: Key('reviewRemovePhoto_$index'),
+                customBorder: const CircleBorder(),
+                onTap: _submitting ? null : () => _removeImage(index),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 15,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final addTile = Material(
+      color: AppColors.tint,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        key: const Key('reviewAddPhoto'),
+        borderRadius: BorderRadius.circular(12),
+        onTap: _submitting ? null : _pickImage,
+        child: CustomPaint(
+          painter: _DashedOutlinePainter(
+            color: AppColors.brand.withValues(alpha: 0.45),
+            radius: 12,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add_a_photo_outlined,
+                  color: AppColors.brand,
+                  size: 22,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  tl('Add Photo'),
+                  style: TextStyle(
+                    color: AppColors.brand,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      );
-      body = ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: AspectRatio(
-          aspectRatio: 4 / 3,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Row(
-                  children: [
-                    roundButton(
-                      key: const Key('reviewChangePhoto'),
-                      icon: Icons.edit_outlined,
-                      tooltip: tl('Change photo'),
-                      onTap: _pickImage,
-                    ),
-                    const SizedBox(width: 8),
-                    roundButton(
-                      key: const Key('reviewRemovePhoto'),
-                      icon: Icons.close_rounded,
-                      tooltip: tl('Remove photo'),
-                      onTap: _removeImage,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Text(tl('Photo'), style: AppTheme.label()),
+            Text(tl('Photos'), style: AppTheme.label()),
             const SizedBox(width: 6),
             Text(
-              tl('(optional)'),
+              tl('(optional, up to {0})', [max]),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const Spacer(),
+            Text(
+              '${_photos.length} / $max',
+              key: const Key('reviewPhotoCount'),
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        body,
+        Row(
+          children: [
+            for (var i = 0; i < max; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              square(
+                i < _photos.length
+                    ? photoTile(i)
+                    : i == _photos.length && canAdd
+                    ? addTile
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ],
+        ),
       ],
     );
   }
@@ -256,13 +248,15 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
 
     setState(() => _submitting = true);
 
-    String? imageUrl;
-    if (_selectedImage != null) {
-      imageUrl = await _cloudinary.uploadImage(
-        _selectedImage!,
+    // Every photo uploaded, in order; one that fails stops the review, so
+    // nothing is saved with a photo missing.
+    final imageUrls = <String>[];
+    for (final photo in _photos) {
+      final url = await _cloudinary.uploadImage(
+        photo.file,
         folder: 'agritrade/reviews',
       );
-      if (_selectedImage != null && imageUrl == null) {
+      if (url == null) {
         if (!mounted) return;
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -273,6 +267,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
         );
         return;
       }
+      imageUrls.add(url);
     }
 
     final err = await _reviewService.submitReview(
@@ -282,7 +277,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
       sellerId: widget.sellerId,
       rating: _rating,
       comment: comment,
-      imageUrl: imageUrl,
+      imageUrls: imageUrls,
     );
 
     if (!mounted) return;

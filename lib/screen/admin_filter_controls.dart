@@ -47,7 +47,15 @@ TextStyle adminFont({
 /// The colour of a popup's main button and its chosen option: the app's
 /// dark green, or the portal's lighter green on the dark theme, where the
 /// dark one would not show.
-Color adminActionColor(AdminPalette c) => c.isDark ? c.green : AppTheme.dark;
+/// The Admin Portal's dark green (#0B4225, the user's design system of
+/// 2026-11-10): the header, the sidebar, primary buttons and headings.
+const Color kAdminGreen = Color(0xFF0B4225);
+
+/// Its golden yellow: the open page in the sidebar, the sidebar's accent
+/// and a few highlights, never a whole card.
+const Color kAdminGold = Color(0xFFF5BB24);
+
+Color adminActionColor(AdminPalette c) => c.isDark ? c.green : kAdminGreen;
 
 /// Text and icons on [adminActionColor].
 Color adminOnActionColor(AdminPalette c) =>
@@ -122,9 +130,10 @@ const double kAdminControlHeight = 40;
 /// ([kAdminInputRadius]); buttons are rounded rectangles (AdminRadii).
 const double kAdminFieldRadius = AppTheme.adminFieldRadius;
 
-/// Text fields and searches are pills, like the mobile app's (the user's
-/// design, 2026-11-07); several lines tall, their corners are 16.
-const double kAdminInputRadius = AppTheme.pillRadius;
+/// Text fields and searches: rounded rectangles with 10 corners (the user's
+/// design system, 2026-11-10, in place of the pills of 2026-11-07);
+/// several lines tall, their corners are 16.
+const double kAdminInputRadius = 10;
 
 /// The outline of a dropdown that sits in a form among text fields: a
 /// rounded rectangle, where the fields around it are pills.
@@ -697,7 +706,9 @@ BoxDecoration adminCard(AdminPalette c, {BorderRadius? borderRadius}) =>
     BoxDecoration(
       color: c.surface,
       borderRadius: borderRadius ?? BorderRadius.circular(AdminRadii.card),
-      border: c.isDark ? Border.all(color: c.border) : null,
+      // A thin border and a soft shadow (the user's design system,
+      // 2026-11-10).
+      border: Border.all(color: c.border),
       boxShadow: c.isDark ? null : AppTheme.cardShadow,
     );
 
@@ -1962,16 +1973,20 @@ class AdminAvatar extends StatelessWidget {
   }
 }
 
-/// The header's round-cornered square buttons (Announce, Dark Mode, the
-/// bell): white with a light grey border, 40 across like the search.
+/// The header's buttons (Announce, Dark Mode, the bell): rounded squares
+/// with a thin grey border on the white top bar (the user's final design,
+/// 2026-11-10, after a day on dark green); 40 across like the search.
 BoxDecoration adminHeaderButtonDecoration(AdminPalette c) => BoxDecoration(
   color: c.surface,
   borderRadius: BorderRadius.circular(kAdminHeaderButtonRadius),
   border: Border.all(color: c.border),
 );
 
+/// The header buttons' icons: dark grey on the white bar.
+Color adminHeaderIconColor(AdminPalette c) => c.textSecondary;
+
 /// How round the header's square buttons are.
-const double kAdminHeaderButtonRadius = 8;
+const double kAdminHeaderButtonRadius = 10;
 
 /// Their shape, for the ripple and hover.
 const ShapeBorder adminHeaderButtonShape = RoundedRectangleBorder(

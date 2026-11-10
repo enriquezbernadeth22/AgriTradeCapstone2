@@ -71,6 +71,11 @@ class _SetFarmLocationScreenState extends State<SetFarmLocationScreen> {
       await _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(here, 16.0),
       );
+      // The phone's own position is the farm's: saved at once, with no
+      // Save to tap (the user, 2026-11-09).
+      if (!mounted) return;
+      setState(() => _locating = false);
+      await _save();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

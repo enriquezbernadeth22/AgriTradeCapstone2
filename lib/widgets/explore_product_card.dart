@@ -110,11 +110,8 @@ class ExploreProductCard extends StatelessWidget {
     final farmer = (data['farmerName'] ?? tl('Local Farmer')).toString();
     final price = (data['retailPrice'] as num?) ?? (data['price'] as num?) ?? 0;
     final wholesalePrice = (data['wholesalePrice'] as num?)?.toDouble();
-    final wholesaleEnabled =
-        data['wholesaleEnabled'] == true ||
-        (data['wholesaleEnabled'] == null &&
-            wholesalePrice != null &&
-            wholesalePrice > 0);
+    // None for livestock sold per head or piece (listingHasWholesale).
+    final wholesaleEnabled = listingHasWholesale(data);
     final wholesaleMinimum = (data['wholesaleMinimumQuantity'] as num?) ?? 1;
     final quantity = (data['quantity'] as num?) ?? 0;
     final unit = (data['unit'] as String?) ?? unitForProductName(name);
@@ -300,7 +297,15 @@ class ExploreProductCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             [
-                              tl('{0} left', [formatStock(quantity, unit)]),
+                              // Livestock sold by the animal: "Available",
+                              // not how many (system testing, 2026-11-09).
+                              isSoldPerAnimal(data)
+                                  ? (quantity > 0
+                                        ? tl('Available')
+                                        : tl('Out of stock'))
+                                  : tl('{0} left', [
+                                      formatStock(quantity, unit),
+                                    ]),
                               if (harvested != null) harvestLabel(harvested),
                             ].join(' · '),
                             maxLines: 1,

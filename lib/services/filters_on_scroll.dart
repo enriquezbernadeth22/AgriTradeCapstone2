@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart' show ScrollMetrics;
+
 /// When a list's filters above it hide and come back as the list scrolls
 /// (Explore's category pills and location dropdown): scrolling down hides
 /// them; they come back only after a deliberate scroll back up — at least
@@ -35,6 +37,21 @@ class FiltersOnScroll {
     }
     if (pixels <= 0) hide = false;
     return hide;
+  }
+
+  /// The list's size changed without a scroll (a card on the page grew
+  /// or shrank, as on switching the farmer's Market insights). Returns false
+  /// (show them) when the list can no longer be scrolled or is back at the
+  /// top: a page that fits on the screen gives no scroll to bring them back
+  /// with, so they would stay hidden. Null leaves them as they are.
+  bool? metricsChanged(ScrollMetrics metrics) {
+    if (!metrics.hasContentDimensions || !metrics.hasPixels) return null;
+    final scrollable = metrics.maxScrollExtent > metrics.minScrollExtent;
+    if (!scrollable || metrics.pixels <= metrics.minScrollExtent) {
+      _scrolledUp = 0;
+      return false;
+    }
+    return null;
   }
 
   /// The filters were shown some other way (back to the top, new posts).

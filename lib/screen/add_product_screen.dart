@@ -261,7 +261,25 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // Stock / Price per Unit labels below and updates immediately whenever
   // _matchedCommodity changes, since both read straight from this getter
   // on every rebuild rather than caching a stale value.
-  String get _currentUnit => unitForCommodity(_matchedCommodity ?? '');
+  String get _currentUnit {
+    final own = unitForCommodity(_matchedCommodity ?? '');
+    if (!_isLivestock) return own;
+    final chosen = _livestockUnit;
+    return chosen != null && livestockUnitChoices(own).contains(chosen)
+        ? chosen
+        : defaultLivestockUnit(own);
+  }
+
+  // The unit the farmer picked for a livestock listing (Head, Piece, or
+  // the commodity's own kg liveweight; system testing, 2026-11-09). Null
+  // until they pick: then [defaultLivestockUnit].
+  String? _livestockUnit;
+
+  // Livestock sold by the animal (per head or per piece) has no wholesale
+  // price (system testing, 2026-11-09): the switch is not offered, and a
+  // listing saved with one before is saved without it.
+  bool get _wholesaleAllowed => !(_isLivestock && _isCountBasedUnit);
+  bool get _wholesaleOn => _wholesaleEnabled && _wholesaleAllowed;
   bool get _isCountBasedUnit => isCountBasedUnit(_currentUnit);
 
   // Every commodity the Admin files under Livestock has a Selling Option.
@@ -375,6 +393,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
         continue;
       }
 
+      // The Admin's reference is per the commodity's own unit: no use for
+      // a listing sold by another (a pig sold per head, not per kg
+      // liveweight).
+      final referenceUnit = (data['unit'] ?? '').toString().trim();
+      final ownUnit = referenceUnit.isNotEmpty
+          ? referenceUnit.toLowerCase()
+          : unitForCommodity(commodity);
+      if (ownUnit != _currentUnit) continue;
+
       // A wholesale reference is used only when the agricultural office
       // explicitly supplied one. Never derive it by discounting retail.
       final price = isWholesale
@@ -421,6 +448,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
               existingWholesale != null &&
               existingWholesale > 0);
       _quantityController.text = (data['quantity'] as num?)?.toString() ?? '';
+      final savedUnit = (data['unit'] ?? '').toString().trim().toLowerCase();
+      if (savedUnit.isNotEmpty) _livestockUnit = savedUnit;
       _descriptionController.text = data['description']?.toString() ?? '';
       final harvested = data['harvestDate'];
       if (harvested is Timestamp) _harvestDate = harvested.toDate();
@@ -497,8 +526,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String _formSignature() => [
     _nameController.text.trim(),
     _listingOption?.value,
+    _currentUnit,
     _priceController.text.trim(),
-    _wholesaleEnabled,
+    _wholesaleOn,
     _wholesalePriceController.text.trim(),
     _wholesaleMinimumController.text.trim(),
     _quantityController.text.trim(),
@@ -976,7 +1006,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       );
     }
 
-    if (_wholesaleEnabled) {
+    if (_wholesaleOn) {
       final wholesaleText = _wholesalePriceController.text.trim();
       final wholesalePrice = double.tryParse(wholesaleText);
       if (wholesaleText.isEmpty) {
@@ -1080,10 +1110,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final price = double.parse(_priceController.text.trim());
     final quantity = num.parse(_quantityController.text.trim());
     final unit = _currentUnit;
-    final wholesalePrice = _wholesaleEnabled
+    final wholesalePrice = _wholesaleOn
         ? double.parse(_wholesalePriceController.text.trim())
         : null;
-    final wholesaleMinimum = _wholesaleEnabled
+    final wholesaleMinimum = _wholesaleOn
         ? num.parse(_wholesaleMinimumController.text.trim())
         : null;
 
@@ -1152,7 +1182,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             price: price,
             quantity: quantity,
             description: description,
-            wholesaleEnabled: _wholesaleEnabled,
+            wholesaleEnabled: _wholesaleOn,
             wholesalePrice: wholesalePrice,
             wholesaleMinimumQuantity: wholesaleMinimum ?? 1,
             imageUrls: imageUrls,
@@ -1173,7 +1203,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           price: price,
           quantity: quantity,
           description: description,
-          wholesaleEnabled: _wholesaleEnabled,
+          wholesaleEnabled: _wholesaleOn,
           wholesalePrice: wholesalePrice,
           wholesaleMinimumQuantity: wholesaleMinimum ?? 1,
           imageUrls: imageUrls,
@@ -1425,6 +1455,76 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // register_screen.dart's Supported Products section).
   // Health certificates are not uploaded here: the farmer sends a photo
   // of one to the buyer in Messages when asked (see ChatScreen).
+  // ---- Livestock: what it is sold by (system testing, 2026-11-09) ----
+  // Head or Piece, or the commodity's own weight unit (kg liveweight). The
+  // choice is saved as the listing's unit, so the card, Product Details,
+  // the order and its receipt all say the same.
+  Widget _livestockUnitPicker() {
+    final own = unitForCommodity(_matchedCommodity ?? '');
+    final choices = livestockUnitChoices(own);
+    final current = _currentUnit;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _label(tl('Sold by')),
+        Row(
+          children: [
+            for (var i = 0; i < choices.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _choiceTile(
+                  key: Key('livestockUnit_${choices[i]}'),
+                  selected: current == choices[i],
+                  title: tl(unitChoiceLabel(choices[i])),
+                  onTap: () => setState(() => _livestockUnit = choices[i]),
+                ),
+              ),
+            ],
+          ],
+        ),
+        Text(
+          isCountBasedUnit(current)
+              ? tl(
+                  'Buyers see "Available" instead of how many you have, and there is no wholesale price.',
+                )
+              : tl('Priced per kilogram of live weight.'),
+          style: GoogleFonts.montserrat(
+            fontSize: 11.5,
+            color: AppColors.grey(600),
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // In place of Offer Wholesale for livestock sold per head or piece.
+  Widget _noWholesaleNote() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 16, color: AppColors.grey(600)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              tl(
+                'Wholesale is not offered for livestock sold per {0}.',
+                [unitChoiceLabel(_currentUnit).toLowerCase()],
+              ),
+              style: GoogleFonts.montserrat(
+                fontSize: 11.5,
+                color: AppColors.grey(600),
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _healthCertificateNote() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1636,7 +1736,130 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
+  Future<void> _editDeliveryAreas() async {
+    final picked = await showDeliveryAreaPicker(
+      context,
+      initial: _customAreas,
+      originProvince: _farmOrigin.province,
+    );
+    if (picked != null && mounted) setState(() => _customAreas = picked);
+  }
+
+  Widget _luzonOnlyBadge() => Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+    decoration: BoxDecoration(
+      // A badge (pale green pill), like the area picker's.
+      color: AppColors.adapt(const Color(0xFFE8F3E3)),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      tl('Luzon only'),
+      style: GoogleFonts.montserrat(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w600,
+        color: AppColors.brand,
+      ),
+    ),
+  );
+
+  // The chosen areas under their provinces, on a white card, with Edit
+  // Areas to open the picker again.
+  Widget _customAreasSummary() {
+    final groups = areasByProvince(_customAreas);
+    return Container(
+      key: const Key('customAreasSummary'),
+      margin: const EdgeInsets.only(top: 2, bottom: 6),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.adapt(const Color(0xFFE0E6DC))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (groups.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                tl('No areas chosen yet.'),
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  color: AppColors.grey(600),
+                ),
+              ),
+            ),
+          for (final g in groups)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 16,
+                    color: AppColors.brand,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: g.province.isEmpty
+                                ? tl('Other areas')
+                                : g.province,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          TextSpan(text: ' (${g.towns.length})\n'),
+                          TextSpan(
+                            text: g.towns.join(', '),
+                            style: TextStyle(color: AppColors.grey(700)),
+                          ),
+                        ],
+                      ),
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              key: const Key('editDeliveryAreas'),
+              onPressed: _editDeliveryAreas,
+              icon: Icon(Icons.edit_location_alt_outlined, size: 16),
+              label: Text(
+                _customAreas.isEmpty ? tl('Choose Areas') : tl('Edit Areas'),
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.brand,
+                side: BorderSide(color: AppColors.brand),
+                minimumSize: const Size(0, 36),
+                shape: AppTheme.compactButtonShape,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---- Delivery coverage + fee (shown while Delivery Available is on) ----
+  // Redesigned after system testing (2026-11-09): one plain question, the
+  // four reaches as choices, and for chosen areas a summary under their
+  // provinces with Edit Areas, Luzon only. Nothing is chosen for the farmer:
+  // no one is assumed to deliver all over Luzon.
   Widget _deliverySetup() {
     final nearby = nearbyAreasFor(_farmOrigin).map((a) => a.name).toList();
     final town = _farmOrigin.name;
@@ -1651,7 +1874,24 @@ class _AddProductScreenState extends State<AddProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _label(tl('Delivery Coverage'), key: _coverageKey),
+          Row(
+            children: [
+              Expanded(
+                child: _label(tl('Delivery Coverage'), key: _coverageKey),
+              ),
+              _luzonOnlyBadge(),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              tl('Where will you deliver this product?'),
+              style: GoogleFonts.montserrat(
+                fontSize: 11.5,
+                color: AppColors.grey(600),
+              ),
+            ),
+          ),
           _choiceTile(
             selected: _coverageType == DeliveryCoverageType.sameBarangay,
             title: DeliveryCoverageType.sameBarangay.label,
@@ -1683,76 +1923,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 setState(() => _coverageType = DeliveryCoverageType.nearby),
           ),
           _choiceTile(
+            key: const Key('coverageCustom'),
             selected: _coverageType == DeliveryCoverageType.custom,
-            title: DeliveryCoverageType.custom.label,
-            subtitle: tl('Choose specific municipalities/cities'),
+            title: tl('Choose Provinces & Towns'),
+            subtitle: tl('Pick the provinces, cities and towns in Luzon'),
             error: _hasIssue(_coverageKey),
-            onTap: () {
+            onTap: () async {
+              final first = _coverageType != DeliveryCoverageType.custom;
               setState(() {
                 _coverageType = DeliveryCoverageType.custom;
-                // Start from the farm's own town — usually wanted.
+                // Start from the farm's own town: usually wanted.
                 if (_customAreas.isEmpty) _customAreas = [_farmOrigin];
               });
+              if (first) await _editDeliveryAreas();
             },
           ),
-          if (_coverageType == DeliveryCoverageType.custom) ...[
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final area in _customAreas)
-                  InputChip(
-                    label: Text(
-                      area.name,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.brand,
-                      ),
-                    ),
-                    backgroundColor: AppColors.surface,
-                    side: BorderSide(color: AppColors.accent),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    deleteIconColor: AppColors.brand,
-                    visualDensity: VisualDensity.compact,
-                    onDeleted: () => setState(
-                      () => _customAreas = [..._customAreas]..remove(area),
-                    ),
-                  ),
-                ActionChip(
-                  avatar: Icon(Icons.add, size: 16, color: AppColors.brand),
-                  label: Text(
-                    _customAreas.isEmpty
-                        ? tl('Select areas')
-                        : tl('Add or remove'),
-                    style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.brand,
-                    ),
-                  ),
-                  backgroundColor: AppColors.surface,
-                  side: BorderSide(color: AppColors.brand),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () async {
-                    final picked = await showDeliveryAreaPicker(
-                      context,
-                      initial: _customAreas,
-                    );
-                    if (picked != null && mounted) {
-                      setState(() => _customAreas = picked);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
+          if (_coverageType == DeliveryCoverageType.custom)
+            _customAreasSummary(),
           _fieldError(_coverageKey),
           const SizedBox(height: 12),
           _label('Delivery Fee', key: _deliveryFeeKey),
@@ -1834,6 +2021,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   Widget _choiceTile({
+    Key? key,
     required bool selected,
     required String title,
     String? subtitle,
@@ -1841,6 +2029,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     required VoidCallback onTap,
   }) {
     return Padding(
+      key: key,
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
         onTap: onTap,
@@ -2384,7 +2573,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             tl('Data availability'),
             result.tier.dataAvailabilityLabel,
           ),
-          if (_wholesaleEnabled) ...[
+          if (_wholesaleOn) ...[
             const SizedBox(height: 8),
             Divider(color: AppColors.brand.withValues(alpha: 0.15)),
             const SizedBox(height: 10),
@@ -2930,6 +3119,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         if (_isLivestock) ...[
                           _healthCertificateNote(),
                           const SizedBox(height: 12),
+                          _livestockUnitPicker(),
+                          const SizedBox(height: 12),
                         ],
 
                         // ---- Category + Quantity side by side ----
@@ -3068,6 +3259,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         _fieldError(_priceKey),
                         const SizedBox(height: 12),
 
+                        // No wholesale for livestock sold per head or
+                        // piece (system testing, 2026-11-09).
+                        if (!_wholesaleAllowed)
+                          _noWholesaleNote()
+                        else
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
@@ -3093,7 +3289,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             if (!value) _wholesalePriceController.clear();
                           }),
                         ),
-                        if (_wholesaleEnabled) ...[
+                        if (_wholesaleOn) ...[
                           const SizedBox(height: 4),
                           _label('Wholesale Price', key: _wholesalePriceKey),
                           _GlowPlate(

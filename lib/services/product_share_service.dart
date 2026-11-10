@@ -71,12 +71,16 @@ String productShareText({
   required num quantity,
   required String location,
   required Uri link,
+  // Livestock sold by the animal never shows how many are left.
+  bool soldPerAnimal = false,
 }) => [
   '$name available on AgriTrade+',
   formatPriceWithUnit(price, unit),
-  quantity > 0
-      ? 'Available Stock: ${formatStock(quantity, unit)}'
-      : 'Currently out of stock',
+  quantity <= 0
+      ? 'Currently out of stock'
+      : soldPerAnimal
+      ? 'Available'
+      : 'Available Stock: ${formatStock(quantity, unit)}',
   if (location.isNotEmpty) 'Location: $location',
   'View Product: $link',
 ].join('\n');
@@ -157,6 +161,7 @@ class ProductShareService {
       quantity: (product['quantity'] as num?) ?? 0,
       location: await _generalLocation(product['farmerId']?.toString()),
       link: productLink(productId),
+      soldPerAnimal: isSoldPerAnimal(product),
     );
     await SharePlus.instance.share(
       ShareParams(

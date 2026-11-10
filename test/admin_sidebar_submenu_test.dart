@@ -132,7 +132,7 @@ void main() {
       greaterThan(tester.getTopLeft(find.text('Moderation')).dx),
     );
     // The sidebar keeps its width.
-    expect(tester.getSize(find.byType(AdminSidebar)).width, 248);
+    expect(tester.getSize(find.byType(AdminSidebar)).width, AdminSidebar.expandedWidth);
   });
 
   testWidgets('the icon rail has no submenus or chevrons', (tester) async {

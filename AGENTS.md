@@ -150,7 +150,10 @@ test/         widget + unit tests (one file per feature)
   21; the welcome banner 106 high (text 40 from the left, photo 34 from the
   right, tuned to the picture), corners 16, no shadow (it showed in the
   picture's transparent edge), the photo 52
-  in a white ring; Orders Today and Total Products on white cards 10 apart
+  in a white ring; Orders Today, Total Orders and Total Products on white
+  cards 10 apart (Total Orders = completed orders, all time,
+  `totalOrdersCount`, opening Orders' Completed tab: objective 1.4,
+  2026-11-09)
   (no icon, everything centred: the label in small capitals 10.5, the
   number 21; the user, 2026-11-08); section titles 15.5 semibold dark green;
   the sales total 23 and a 160-high chart with a 2.5 line; the note under
@@ -298,6 +301,13 @@ test/         widget + unit tests (one file per feature)
   Products (Explore's cards). No numbers card (removed by the user). Reviews everywhere show the
   reviewer's photo from publicProfiles (`ReviewerAvatar`, once per buyer;
   initials without one), the user's choice 2026-11-08.
+  A review may carry up to three photos (`ReviewService.maxPhotos`, saved
+  as `imageUrls` with the first also as `imageUrl`; `reviewPhotos` reads
+  both; firestore.rules `reviewPhotosOk`; objective 2.5, 2026-11-09): Add
+  Review shows them in one row of three squares with an Add Photo square.
+  The Admin's User Account popup has Platform Activity (objective 3.1):
+  orders placed or received by status, completed value, a farmer's
+  listings, last activity and the five latest (`accountActivity`).
   Place Order (the user's design, 2026-11-08; UI only): the cream page
   under a plain Back + title; the product card (photo 60, name 14, price
   16); section titles 15.5 with a small dark green icon (Buyer Details,
@@ -367,10 +377,14 @@ test/         widget + unit tests (one file per feature)
   them (`suggestedSearchTerms`). Product Details' map preview opens Farm
   Location (`BuyerMapView`), which shows the distance from the last known
   position at once and has a refresh; Order Now and Message fill the bar.
-- **What a buyer buys comes first** (decided by the user, 2026-11-05):
-  Explore puts the products a buyer buys most (from their own orders;
-  `boughtFirst` / `boughtCounts`) ahead of the rest, inside the area tiers
-  below, and each pull-to-refresh deals a fresh mix (`_feedMix`). Search's
+- **Explore is newest first** (the panel's finding in system testing,
+  2026-11-09, replacing the bought-first, area-first and fresh-mix order of
+  11-04/11-05): listings from the newest post to the oldest by `createdAt`
+  (`newestFirst`, newest_first.dart; one just posted, with no server time
+  yet, counts as newest). Category, location and search filters are
+  unchanged, and the card still says "Delivers to you". New posts come in
+  at once at the top, by themselves on scrolling back to the top, or by the
+  pill while scrolled down. Search's
   Recommended Products puts listings of a product they bought first, and
   shows no "based onâ¦" line. A confirmed pick-up order shows the buyer the
   pick-up address, a map of the farm pin and Get Directions
@@ -378,8 +392,8 @@ test/         widget + unit tests (one file per feature)
   orders/{id}/private/farmer, `pickupAddress`/`pickupLat`/`pickupLng`).
   Map points for an area wait at most 3 s for geocoding (`geocodeWait`),
   then use the barangay's reference point and finish in the background.
-- **The buyer's area is the feed's priority** (decided by the user,
-  2026-11-04): in Explore and Search, listings whose delivery coverage
+- **The buyer's area is Search's priority** (decided by the user,
+  2026-11-04; Explore is newest first since 2026-11-09): in Search, listings whose delivery coverage
   reaches the buyer's saved area (`BuyerAreaWatcher`, users/{uid}
   barangay/municipality/province) come first via `deliveringFirst`, each
   group keeping the feed's own ranking; nothing is hidden. Their card shows
@@ -455,7 +469,40 @@ test/         widget + unit tests (one file per feature)
   Records saved as `slaughtered` before then still read so
   (`isSlaughtered`, "â¦ (Slaughtered)") and stay out of live prices and
   price suggestions.
-$1- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
+- **Livestock by the animal** (system testing, 2026-11-09): Add Product's
+  "Sold by" lets the farmer pick Head, Piece, or the commodity's own weight
+  unit (kg liveweight for Swine and Chicken; `livestockUnitChoices`); a new
+  listing starts on the commodity's unit if it counts animals, else Head
+  (`defaultLivestockUnit`). It is saved as the listing's `unit`, so the card,
+  Product Details, orders and receipts all say it. A listing sold per head
+  or piece (`isSoldPerAnimal`) shows buyers "Available" instead of its count
+  (card, Product Details, share text, the web product page; the farmer's
+  Profile and Inventory keep the count, and orders are still held to it,
+  refused with "Not that many are available") and has no wholesale: the
+  switch is replaced by a note, it saves `wholesaleEnabled: false`, and
+  `PricingTierService.wholesaleAvailable` / `listingHasWholesale` refuse it
+  even for older listings. The Admin's reference price only suggests a
+  price for a listing in its own unit.
+- **Delivery Coverage, Luzon only** (system testing, 2026-11-09): Add
+  Product asks "Where will you deliver this product?" with the four reaches
+  (nothing chosen for the farmer; no one is assumed to deliver all over
+  Luzon); "Choose Provinces & Towns" opens `showDeliveryAreaPicker`:
+  Luzon's cities and municipalities only (PSGC regions 01-05, 13, 14, 17;
+  `fetchLuzonCitiesMunicipalities`, `isLuzonRegionCode`), under their
+  provinces (the farm's first and open), a box per province for all its
+  towns, and a search for a town or province. The chosen areas show under
+  their provinces with Edit Areas (`areasByProvince`), and Product
+  Details' Overview has a Delivery Coverage card: the areas in full, the
+  fee, and whether it reaches the buyer's saved area.
+- **Use My Current Location needs no confirming** (the user, 2026-11-09):
+  the buyer's location popup closes with the detected barangay when the
+  address names it (`_BuyerLocationPopup`; only a barangay it cannot tell
+  is left to tap); the farmer's registration barangay is set at once when
+  the address clearly names one of Laurel's (`BarangayLocationField`,
+  `readFarmLocation`, a "Location set" message), the map
+  (`ConfirmFarmLocationScreen`) opening only when it cannot tell; Set Farm
+  Location saves the phone's position as soon as it has it.
+- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
   Vegetables, Spices, Fruits, Livestock (`kBuiltInCategories`, listed in
   that order, then any the Admin adds). Root Crops and Spices were part of
   Vegetables from 2026-10-28 to 11-06; a listing or order saved as
@@ -484,9 +531,10 @@ $1- **Categories** (restored by the user 2026-11-06): Grains, Root Crops,
 All admin colours, shapes and sizes come from a few shared places â change
 those, not individual screens:
 
-- `AdminPalette` (`admin_dashboard_screen.dart`): `light` and `dark`
-  (the light page canvas is the warm off-white #FAF8F2 since 2026-11-08,
-  the mobile cream's family; cards stay white)
+- `AdminPalette` (`admin_dashboard_screen.dart`): `light` and `dark`.
+  The light one is the user's design system of 2026-11-10: canvas #FAF8F2,
+  white cards, text #202623 / #737D76, borders #E5EAE5, `greenBg` #EAF3E9,
+  `green` #2E7951, `heading` and `sidebarBg` #0B4225.
   (neutral: near-black/greys; green only for accent + success). Read it with
   `AdminThemeScope.of(context).palette`; in dialogs (outside the scope) use
   `AdminPalette.fallback(context)`. Titles, headings and field labels use
@@ -500,39 +548,62 @@ those, not individual screens:
   for a style of its own). The mobile app keeps Montserrat. The Admin login and
   Forgot Password forms are in Inter too (`AdminAuthShell._forms`): outside
   the portal theme the web default is Google Fonts Montserrat in its regular
-  file only, where bold cannot be drawn.
-- `AdminRadii`: `card` 16 (cards and tables, `kAdminTableRadius`; white
-  with a soft shadow, `adminCard()`; tables keep their outline for the
-  tabs), `control` 10 (buttons, dropdowns, date/year pickers, toggles:
+  file only, where bold cannot be drawn. The Admin login has no autofill
+  (no AutofillGroup or hints): Chrome's password manager left its password
+  field taking no more typing (2026-11-10); the phone's login keeps it.
+- `AdminRadii`: `card` 12 (cards and tables, `kAdminTableRadius`; white
+  with a thin #E5EAE5 border and a soft shadow, `adminCard()`, the user's
+  design system of 2026-11-10), `control` 10 (buttons, dropdowns, date/year pickers, toggles:
   `kAdminFieldRadius`), `pill` (chips, badges). Text fields and searches
-  are pills (`kAdminInputRadius`; 16 when several lines tall; a dropdown in
+  are rounded rectangles, 10 (`kAdminInputRadius`, pills until 2026-11-10;
+  16 when several lines tall; a dropdown in
   a form uses `adminDropdownBorder`). The Admin login and Forgot Password
   fields are pills too (`GlowField(radius: AppTheme.pillRadius)`), their
-  buttons rounded rectangles. Header buttons (Announce, Dark Mode, bell): white
-  rounded squares with a grey border (`adminHeaderButtonDecoration`).
+  buttons rounded rectangles. Header buttons (Announce, Dark Mode, bell): dark
+  grey icons (`adminHeaderIconColor`) on white squares with a grey border
+  (`adminHeaderButtonDecoration`) on the white top bar.
 - `admin_filter_controls.dart`: `kAdminControlHeight` = 40,
   `AdminInputGlow` (the white rounded plate behind every search/dropdown/
   date picker), `adminFieldDecoration` (16px inset, 16px icon),
   `AdminPillDropdown`, `AdminPillSearch`, `AdminMonthPill`, `AdminYearPill`,
   `AdminPillToggle`, `adminPillControlStyle` (a date button styled as a
   pill), `AdminGreyMenu`, `AdminLoadingBar`.
-- `adminActionColor(c)` = dark green (primary buttons, active nav, selected
-  controls). `adminControlColor(c)` = near-black (field icons, chosen menu
+- `adminActionColor(c)` = `kAdminGreen` #0B4225 (primary buttons, selected
+  controls; the admin's own green, not the app's `AppTheme.dark`); its gold
+  is `kAdminGold` #F5BB24. `adminControlColor(c)` = near-black (field icons, chosen menu
   items). Buttons: primary filled dark green; secondary outlined white with
   grey border; tertiary text-only near-black; destructive red.
 - Dark Mode: `adminDarkMode` (ValueNotifier, saved per browser) and the
   moon/sun `AdminThemeToggle` beside Announce. Default is light. Not every
   page has been checked in dark mode.
-- Sidebar: `lib/widgets/admin_sidebar.dart` (`AdminSidebarColors.of(context)`):
-  white top (logo, "AgriTrade+" bold dark green, "Admin Panel"; no green
-  band, removed by the user 2026-11-05), dark green group names,
-  pages in groups MAIN / MODERATION (`AdminSidebarEntry.section`, a line
-  between groups), the open page a dark green block with 8px corners
-  (`kAdminSidebarRowRadius`), sub-pages with a small dot. Dashboard look
+- **Shell (the user's design, 2026-11-10, from their picture).**
+  - **Top bar** (the user's final design, 2026-11-10; dark green for a
+    day before): straight white, `kAdminHeaderHeight` 64, beginning right
+    of the sidebar, a soft shadow over the page under it
+    (`_UnderHeaderShadow`, so it shows over cards scrolled beneath), no
+    wave or coloured border. The logo shows in it only when the sidebar is
+    a drawer (`showBrand: useDrawer`), never beside the sidebar's own.
+  - **Sidebar** (`lib/widgets/admin_sidebar.dart`,
+    `AdminSidebarColors.of(context)`):
+    - dark green the whole way, 256 wide;
+    - its top level with the top bar: the logo, "AgriTrade" in white with a
+      gold "+", and "Admin Panel";
+    - below the bar, its right edge flows in a shallow curve
+      (`_SidebarShapePainter`, `curved`, off in the drawer). The rows keep
+      10 clear of it (the curve 10 deep; 14 until the sizing pass of
+      2026-11-10). A thin 1.5 gold line follows the upper half of the
+      curve only, fading out;
+    - pages in white, in groups MAIN / MODERATION;
+    - the open page a solid golden yellow #F5BB24 pill with dark green text
+      and icon (`kAdminSidebarRowRadius` 999, 42 high);
+    - sub-pages with a small dot, the open one in gold;
+    - the account at the bottom in white.
+  - **Whole sidebar:** never a pill; only the selected row is one.
+  - **Overview cards:** no corner wave (removed 2026-11-10). Dashboard look
   (2026-11-04, from the user's mock-up; the bar beside the welcome text, the
   leaf before "Overview" and the icons before card titles were removed by
   the user on 2026-11-05): Overview cards with a pale green (amber for
-  attention) icon box and a soft wave in the corner. Pop-up notices
+  attention) icon box. Pop-up notices
   (`AdminAlertToasts`, admin_notifications.dart): what happens while the
   portal is open (orders, applications, approvals, reports; not the
   Admin's own announcements or sign-ins) pops up at the top right for 6 s
@@ -714,14 +785,30 @@ white (the user's picture)
 2026-11-08 (it had been 48; the farmer's + a 46 white circle with a thin black outline and a 22 dark green +, 2026-11-08), the gold pill about 79 x 41,
 icons 19, labels 9.5. The buyer's slides away on a scroll down
 and back on a scroll up (`FiltersOnScroll(showAfterUp: 24)`); the
-farmer's too since 2026-11-08 (the user's choice). The **buyer** has no gear (2026-11-04) â the same options are rows on
+farmer's too since 2026-11-08 (the user's choice). It also comes back when
+a page's content changes size and no longer scrolls (Market's Buyer Areas
+is short: it had stayed hidden there, system testing 2026-11-09;
+`FiltersOnScroll.metricsChanged` on `ScrollMetricsNotification`). The **buyer** has no gear (2026-11-04) â the same options are rows on
 the Buyer Profile: My Activity (My Reviews, Liked Products, Purchase History
 = Orders â Completed), Preferences & Account (Delivery & Pick-up, Manage
 Account, Notification Settings, Appearance = Dark Mode), Support & More
 (Share, Feedback, Help), then `LogOutButton`. Both reuse the same screens
-(`shareAgriTrade`, `showFeedbackSheet`, `AppearanceScreen`). From Create account, an account already on this phone shows "Account
-already registered" with Back to Login and Register a different email only
-(no Cancel, the user's choice 2026-11-08; `showExistingAccountDialog`).
+(`shareAgriTrade`, `showFeedbackSheet`, `AppearanceScreen`). An existing
+account shows "Account Already Exists" ("An account with this email address
+is already registered with AgriTrade+. Please log in to continue.";
+`showExistingAccountDialog`, the panel's wording, system testing 2026-11-09).
+On the form's Register: Cancel (stay on the form) and Log In, both when
+`registrationStatus` finds it and when Firebase refuses the email
+(`AuthService.emailInUse`); Log In opens Log In with the email typed in
+and closes the registration screens (`goToLoginAfterExistingAccount`).
+From Create account (the email last used on this phone): Log In and
+Register a different email (no Cancel, the user's choice 2026-11-08).
+Names (First/Last, Google form, Edit Profile, Add Farmer) capitalize each
+word as typed and are saved so (`NameCapitalizationFormatter`,
+`formatPersonName`). The phone stays signed in until Log Out or an invalid
+session: the 30-day inactivity sign-out is the web's only
+(`SessionTimeoutService.appliesHere`), and the phone's Log In starts with
+the email of the account last used there (never a password).
 Registration
 asks before Back throws away a filled-in form ("Leave registration?":
 `RegisterScreen`, and the Google profile form, whose Cancel asks too). Explore
@@ -742,18 +829,148 @@ standalone info icons (no box), every control in a toolbar the same height.
 
 ## Analytics Dashboard specifics
 
-- **Market Demand** (`AdminMarketDemandCard`, `admin_price_trend_chart.dart`):
-  grouped monthly bars, earlier year `#A5D6A7`, later `#2E7D32`; Admin
-  searches a product and picks two years (`AdminYearCompare`). Shows
-  "No data to display" states, error + Retry (`DashboardDataService.ordersError`).
+- **Demand Heatmap** (the final revision, 2026-11-09;
+  `demand_heatmap_service.dart` feeds the map, the panels and the report
+  alike): completed orders only, by the buyer's location, the month by
+  completion date; **never buyer searches** (the Most Searched panel and
+  the purchases ×2 + searches ×1 score are gone; search data itself is
+  kept). Two radio choices (`AdminRadioChoice`): **Buyer Demand**
+  (default) = unique buyers per location (`areaDemand`), no category
+  dropdown, only Highest Demand Areas on the right; **Product Demand** =
+  the category dropdown, Product Demand Summary (`AdminProductDemandSummary`:
+  names, counts, bars and "% of buyers/orders", no category icons; its own
+  radio choice of Unique Buyers per Category or Completed Orders per
+  Category; a row picks the category) over Highest Demand Areas for that
+  category and method. A buyer counts once per location and once in the
+  total (`demandTotal`); unregistered buyers and orders listed twice never
+  count. The legend shows each level's numbers (`demandThresholds`, the
+  map's own scale, floor 5). Export Report builds a Buyer Demand Report or
+  Product Demand Report (`PdfReportService.buildDemandHeatmapReport`, from
+  `demandReportData`); a failure shows a message.
+- **Average Price vs. Admin Baseline** (`AdminPriceTracker`,
+  admin_price_tracker.dart; numbers in price_tracker_service.dart): a price
+  tracker laid out from the user's reference picture (2026-11-10), full width
+  under Market Demand. On the left: a search (38 high, radius 10),
+  category chips and a text-only list (no pictures), each row showing the
+  latest sale's price. On the right: three cards (AgriTrade+ Average Price,
+  Admin Baseline, Price Difference), AgriTrade+ | Compare, and 7D / 30D / 90D /
+  All Data. The AgriTrade+ price is the quantity-weighted price of completed
+  retail orders per day; wholesale is left out, and so is another unit (it
+  is counted and said). The baseline is Price Management's history
+  (market_prices/{id}/history) plus the current record, in effect day by
+  day, drawn as a step line. The cards cover the chosen range; the
+  difference is against the baseline at its end. Hovering anywhere draws a
+  line that follows the pointer (`_HoverLayer`, not fl_chart's snapping
+  tooltip) and a white box: AgriTrade+ in green (the last real sale on or
+  before the day, dated when not that day) and the Admin Baseline in red.
+- **Dashboard order** (the user's final layout, 2026-11-10):
+  1. Welcome and Overview.
+  2. Average Price vs. Admin Baseline (full width).
+  3. Market Demand (full width, compact).
+  4. Sales by Category (45%) beside Market Change Analysis (55%, the
+     preview), one height (`_pairHeight` 300); stacked under 1000 wide
+     (`_pairFrom`). Top-Selling Products is in Full Product Demand's By
+     Quantity Sold (the user's choice 2026-11-10).
+
+  Sizes (the user's sizing passes, 2026-11-10: keep the running app's
+  compact text, icons and controls; no zoom or scaling of the page):
+  - sections 16 apart (`_sectionGap`);
+  - the price tracker 540 (`AdminPriceTracker.wideHeight`): the list about
+    26% wide (280 to 380), the name 20 with its category beside it, cards
+    88, rows about 57, a chart about 250 tall;
+  - Market Demand 340 inside its card (`AdminMarketDemandSection.wideHeight`,
+    about 380 in all): the panel shows as many of the top five as fit whole
+    (three in the overall view);
+  - Sales by Category's body 180 (`_demandRowHeight`): a 156 donut with
+    the legend beside it (category, ₱ sales, share), two columns only when
+    the legend has 560 across.
+
+  Keep the skeleton (`_DashboardSectionsSkeleton`) in step. Checked at the
+  content width of 1366 and 1920 screens by throwaway goldens.
+- **Market Demand** (`AdminMarketDemandSection`, admin_market_demand.dart;
+  the numbers in monthly_demand_service.dart, *not* market_demand_service.dart,
+  which is the farmer Market tab's). The user's design, 2026-11-10.
+  - What it counts: completed orders by completion month, each order once
+    (by id). A product's demand is the completed orders containing it, never
+    searches or quantity. An order counts under the commodity frozen on it
+    first: matching the name would put Palay under Ampalaya.
+  - The default view: the latest year and All Products. Only the months from
+    the first record (to this month in the current year) are shown, and the
+    chart is on the left (68%).
+  - Four greens by level (`DemandScale`, set around the average of the non-zero
+    counts):
+    - Very Low #DCEFE2: below half the average.
+    - Low #7FBF92: below the average.
+    - Moderate #2E7951: below 1.5 times the average.
+    - High #0B4225: everything else.
+
+    So the busiest month is High only when well above the rest. The legend
+    shows the count ranges.
+  - Hover a month for a white box: its count, its level and the top 3
+    products.
+  - Click a month to hold it: a gold #F5BB24 outline, the month label on pale
+    yellow, the other bars dimmed, a 220 ms animation (none with reduced
+    motion). Click again, ×, or Esc lets it go.
+  - The panel on the right: a dark green header (the period, and the
+    product when one is chosen) over the top products, and View Full
+    Product Demand, always there (the user, 2026-11-10): the held month, or
+    else the latest month with orders.
+  - **Full Product Demand** (`AdminFullProductDemand`) opens inside the
+    Dashboard page through an IndexedStack, so Back returns to the
+    dashboard as it was. It has:
+    - controls: month, search, category, a unit picker on the quantity tab,
+      and Export Report;
+    - three summary cards: orders, products, and the most in-demand;
+    - two tabs:
+      - **By Orders**: Rank (ties share it), Product, Category, Completed
+        Orders, Share of Monthly Orders (order penetration), Demand Level.
+      - **By Quantity Sold**: `productQuantities` / `rankQuantities`, one
+        unit at a time (kg and head are never ranked together), with
+        Quantity, Unit, Completed Orders and Total Sales Value.
+    - sorting, and pages of 10.
+
+    The export (`PdfReportService.buildFullProductDemandReport`) prints the
+    view's own `FullDemandExport`: the tab, the filters, the sort and every
+    page of the table on screen.
 - **Years start at the first completed order** (no fixed 2025): used by
-  Market Demand and Price Trend (`PriceTrendService.yearsOnRecord`). One year
+  Market Demand's year picker and Price Trend (`PriceTrendService.yearsOnRecord`). One year
   on record â one bar/line per month; comparison appears with two years.
-- **Market Change Analysis** (`admin_market_trends_card.dart`): Price Trend
-  (listings, completed sales, Admin reference prices, imports) + Last 30 Days
-  (demand, local supply, market price, possible factors). The **Import
-  Historical Data button is hidden** (`_importEnabled = false`); imports older
-  than the first completed order are ignored.
+- **Market Change Analysis** (the user's design, 2026-11-10;
+  admin_market_change.dart, the numbers in market_change_service.dart).
+  - **On the dashboard:** `AdminMarketChangePreview`, beside Sales by
+    Category and as tall (it fills a fixed height, else takes its own): the
+    product (searchable), the period, three small tiles (Demand Trend /
+    Local Supply / Market Price: label, status, change, figures) and View
+    Detailed Analysis at the foot. No chart there.
+  - **The page:** `AdminMarketChangeAnalysis` opens inside the Dashboard
+    page (the same IndexedStack as Full Product Demand, so Back to Dashboard
+    keeps the scroll). It has:
+    - the product and the period (Last 7 / 30 / 90 Days; shared with the
+      preview, `MarketChangeChoice`);
+    - Completed Orders Trend (68%): the current period dark green over the
+      previous one golden yellow, at the same positions (Day 1-30, or Week
+      1-13 for 90 days, both periods alike), a white hover box with both
+      dates;
+    - four tiles beside it (32%): Demand Trend, Local Supply, Market Price,
+      Net Change;
+    - Insights Summary under them.
+  - **The measures, each separate:**
+    - Demand: distinct completed orders containing the product, by
+      completion date.
+    - Local Supply: new listings posted in each period. Past stock is not on
+      record, so today's stock is shown and never compared.
+    - Market Price: the Current Market Average (`liveAverageOfListings`,
+      the mobile app's figure) today against the previous period's last
+      day, from the listings on sale then at their saved prices. Never the
+      Admin Baseline.
+    - Net Change: the difference in orders.
+    - Nothing to compare is "Insufficient Data".
+  - **The summary** states only what changed and says the records do not
+    show why: no weather, season or behaviour reasons.
+  - **The old card** (price by year and "Possible Factors") is gone.
+    `MarketDiagnosticsService` still feeds the exported report. The
+    Historical Data import screen (historical_demand_import.dart) is kept
+    but linked from nowhere.
 - **Export Report** (`export_options_dialog.dart` â `ReportExportService` â
   `PdfReportService`/Excel): paper size A4 / Short / Long
   (`ReportPaper`). Choices on the left (sections in two columns; a short
@@ -843,12 +1060,49 @@ which logging in to an existing account sets, so only new accounts get it).
   `GoogleFonts.config.allowRuntimeFetching = false`, render with
   `matchesGoldenFile`, then delete the test and the image.
 
+## Admin records import (2026-11-10)
+
+`node functions/import_admin_records.js <workbook.xlsx>` imports the
+user's generated test workbook (AgriTrade_Admin_Records_Aug-Nov_2026.xlsx:
+the workbook itself says its identities, contacts and RSBSA numbers are
+generated and unverified) into the app's own collections and fields
+(`import_admin_records_logic.js`, tested in
+`functions/test/import_admin_records.test.js`; `xlsx_reader.js` reads the
+file without a dependency). It runs as a dry run unless given `--apply`, and outside
+the emulator `--apply`/`--remove` also need `--confirm <project>`. Each
+document keeps the workbook's id and gets `importBatch:
+admin-records-aug-nov-2026` plus `importSourceId`. Documents are created
+and never overwritten; an existing one is skipped and reported. `--remove`
+deletes only documents that carry that batch. `--verify` reads the import back
+and checks it against the workbook's summary sheets. Choices made:
+- No admin accounts and no Auth logins are created.
+- Others → Fruits, and Chicken (Liveweight) → Chicken in kg liveweight.
+- No wholesale price is invented.
+- Coverage is the workbook buyers' towns.
+- Search events carry `buyerId`, not `userId`, so Trending stays clean.
+- Audit logs go in only with `--include-audit-logs`.
+
+`--photos <dir>` uploads one photo per commodity, `<slug>.jpg` with
+`credits.json`, to Storage `product-photos/imported/`. The Commons photos
+and credits are in the user's `Downloads/AgriTrade_import_photos`. Their
+CC BY/BY-SA licences need the credits shown somewhere. Checked on the
+emulator: import, a second run (no duplicates), verify and remove. The
+app's analytics give the workbook's figures: 330 completed orders,
+₱332,183.45, 102 buyers, and every area and category.
+Applied to production on 2026-11-10: 2,972 documents. The project has no
+Storage bucket, so the photos are on the app's Cloudinary account
+(`--photo-host cloudinary`, the default; folder agritrade/imported). Their
+addresses are kept in the photo folder's `cloudinary_urls.json`, so a rerun
+reuses them. `--remove` leaves the photos on Cloudinary: an unsigned preset
+cannot delete them.
+
 ## Known open items (as of 2026-10-29)
 
 - Hosting was last deployed on 2026-11-08 (app 1.0.1+4: the APK and the
   download page); rules and functions on 2026-11-06. Not yet deployed:
   firestore.rules' orderPlaced card rule and review likes, and the
-  commodity-removal functions. Redeploy after backend changes, then
+  commodity-removal functions, the review photo rule (`reviewPhotosOk`), and the product web page's "Available" for
+  livestock sold by the animal (product_page.js). Redeploy after backend changes, then
   hard-refresh.
 - Dark mode not verified on every admin page (tables, Moderation, Audit Log).
 - Long subtitles on Market Demand / Sales by Category are cut short at

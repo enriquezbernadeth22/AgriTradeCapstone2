@@ -23,9 +23,14 @@ class LoginScreen extends StatefulWidget {
   /// This browser was signed out from Active Sessions on another device.
   final bool adminSessionRevoked;
 
+  /// Typed into the Email field when the page opens (Log In from "Account
+  /// Already Exists" on registration).
+  final String? initialEmail;
+
   const LoginScreen({
     super.key,
     this.role,
+    this.initialEmail,
     this.flashMessage,
     this.disableBackNavigation = false,
     this.adminSessionRevoked = false,
@@ -162,7 +167,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                         const SizedBox(height: AppTheme.formSectionGap),
-                        LoginFormFields(role: widget.role),
+                        LoginFormFields(
+                          role: widget.role,
+                          initialEmail: widget.initialEmail,
+                        ),
                         // Makes no sense for admin accounts (created
                         // manually via the Firebase Console), so hidden
                         // for that door.

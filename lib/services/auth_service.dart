@@ -233,11 +233,19 @@ class AuthService {
       );
       return null;
     } on FirebaseAuthException catch (e) {
+      // Told apart from the other errors, so registration shows "Account
+      // Already Exists" with Log In rather than a passing message.
+      if (e.code == 'email-already-in-use') return emailInUse;
       return _messageFromCode(e.code);
     } catch (e) {
       return 'Something went wrong. Please try again.';
     }
   }
+
+  /// What [signUp] returns when the email already has an account (Firebase
+  /// Authentication allows one account per email, whatever its sign-in
+  /// method: a password or Google).
+  static const String emailInUse = 'EMAIL_IN_USE';
 
   // The one, consolidated write that used to happen immediately inside
   // signUp() (plus, for farmers, a second write from saveVerificationDocument)

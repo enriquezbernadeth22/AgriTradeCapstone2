@@ -212,12 +212,15 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
             // The pages' scrolling hides and shows the bottom bar.
-            child: NotificationListener<ScrollUpdateNotification>(
-              onNotification: _onPageScroll,
-              child: SwipeableTabs(
-                index: _navIndex,
-                onIndexChanged: (i) => setState(() => _navIndex = i),
-                children: pages,
+            child: NotificationListener<ScrollMetricsNotification>(
+              onNotification: _onPageMetrics,
+              child: NotificationListener<ScrollUpdateNotification>(
+                onNotification: _onPageScroll,
+                child: SwipeableTabs(
+                  index: _navIndex,
+                  onIndexChanged: (i) => setState(() => _navIndex = i),
+                  children: pages,
+                ),
               ),
             ),
           ),
@@ -249,6 +252,18 @@ class _BuyerMarketplaceScreenState extends State<BuyerMarketplaceScreen> {
     );
     if (hide != null && hide != _navHidden) {
       setState(() => _navHidden = hide);
+    }
+    return false;
+  }
+
+  // A page whose content changed size (Market's insights picker: Buyer
+  // Areas is shorter than the others) may now fit on the screen. It can
+  // then not be scrolled up to bring the bar back, so it shows again.
+  bool _onPageMetrics(ScrollMetricsNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (_navHidden &&
+        _navOnScroll.metricsChanged(notification.metrics) == false) {
+      setState(() => _navHidden = false);
     }
     return false;
   }

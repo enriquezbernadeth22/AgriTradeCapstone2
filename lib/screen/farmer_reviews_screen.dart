@@ -6,6 +6,8 @@ import '../widgets/app_scaffold_messenger.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../services/review_service.dart';
+import '../widgets/chat_photo_viewer.dart';
 import '../services/review_stats.dart';
 import '../widgets/profile_avatar.dart';
 import '../theme/app_colors.dart';
@@ -209,7 +211,8 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
     final buyerName = (review['buyerName'] ?? tl('Buyer')).toString();
     final buyerId = (review['buyerId'] ?? '').toString();
     final comment = (review['comment'] ?? '').toString();
-    final imageUrl = (review['imageUrl'] ?? '').toString();
+    // Every photo the buyer attached (up to three).
+    final photos = reviewPhotos(review);
     final createdAt = review['createdAt'];
     final reply = (review['sellerReply'] ?? '').toString();
     final repliedAt = review['sellerReplyAt'];
@@ -319,17 +322,29 @@ class _FarmerReviewsScreenState extends State<FarmerReviewsScreen> {
               ),
             ),
           ],
-          if (imageUrl.isNotEmpty) ...[
+          if (photos.isNotEmpty) ...[
             const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                imageUrl,
-                height: 170,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
+            // In a row; a tap opens them full screen, to swipe through.
+            Row(
+              children: [
+                for (var i = 0; i < photos.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () =>
+                        openPhotoGallery(context, photos, initialIndex: i),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        photos[i],
+                        width: 88,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
           if (reply.isNotEmpty) ...[

@@ -255,6 +255,20 @@ class DashboardAnalyticsService {
       _timestampToDate(data['updatedAt']) ??
       _timestampToDate(data['createdAt']);
 
+  /// [_completionDate], for the Demand Heatmap's own counting
+  /// (demand_heatmap_service.dart).
+  static DateTime? completionDate(Map<String, dynamic> data) =>
+      _completionDate(data);
+
+  /// Where a completed purchase came from (see _resolveBuyerArea): the
+  /// area frozen on the order, else the buyer's saved one, else the
+  /// order's address; null for an unregistered buyer or no area at all.
+  static ({String area, double? lat, double? lng})? buyerAreaOf(
+    Map<String, dynamic>? user,
+    Map<String, dynamic> order,
+  ) =>
+      _resolveBuyerArea(user, order);
+
   static bool _inRange(DateTime? date, DateTimeRange? range) {
     if (range == null) return true;
     if (date == null) return false;

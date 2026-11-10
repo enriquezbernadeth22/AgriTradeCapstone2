@@ -6,7 +6,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import 'market_price_helpers.dart';
+import 'demand_heatmap_service.dart';
+import 'monthly_demand_service.dart';
 import 'report_section.dart';
 
 /// The paper a report is laid out on — the sizes used in the Philippines.
@@ -444,41 +445,152 @@ class PdfReportService {
   /// The Demand Heatmap screen's report: completed-order demand grouped
   /// by buyer location, plus the top buyer search terms — the same two
   /// datasets the old CSV export covered, now as an actual PDF.
-  static Future<Uint8List> buildDemandReport({
-    required List<({String barangay, int orderCount, num revenue})> demand,
-    required List<MapEntry<String, int>> topSearches,
-    String? periodLabel,
-  }) async {
+  /// The Demand Heatmap's report (the final revision of 2026-11-09): a
+  /// Buyer Demand Report or a Product Demand Report, whichever the page
+  /// shows, from the very numbers the page shows ([demandReportData]).
+  /// Completed orders only; never buyer searches.
+  /// Full Product Demand's report: the table on screen ([data]: its
+  /// analysis tab, filters and sort, every page), with its summary and
+  /// notes, built by the view from the same figures it shows.
+  static Future<Uint8List> buildFullProductDemandReport(FullDemandExport data, {DateTime? generatedAt}) async {
     final doc = pw.Document(theme: await _theme());
     final logo = await _logo();
-    final now = DateTime.now();
-    final period = periodLabel ?? 'All time';
+    final now = generatedAt ?? DateTime.now();
+    const title = 'Full Product Demand Report';
+    final month = demandMonthLabel(data.month);
+    pw.Widget note(String text) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 6),
+          child: pw.Text(_safe(text), style: const pw.TextStyle(fontSize: 8.5, color: _muted, lineSpacing: 1.4)),
+        );
+    final widgets = <pw.Widget>[
+      _titleBlock(title, [
+        ('Reporting month', month),
+        ('Analysis', data.analysis),
+        ...data.filters,
+        ('Data', 'Completed orders only, each order counted once, by completion date'),
+        ('Date generated', _generatedLabel(now)),
+      ]),
+      _sectionHeading('Summary', number: 1),
+      _table(['Measure', 'Value'], data.summary, weights: const [2.2, 2]),
+      pw.SizedBox(height: 18),
+      _sectionHeading(data.analysis == 'By Orders' ? 'Most In-Demand Products' : 'Top-Selling Products', number: 2),
+      _table(data.headers, data.rows, weights: data.weights),
+      if (data.rows.isEmpty) note('No product matches the filters for $month.'),
+      for (final text in data.notes) note(text),
+      pw.SizedBox(height: 24),
+      _signOff(),
+    ];
     doc.addPage(
       _pages(
         format: PdfPageFormat.a4,
         logo: logo,
-        kind: 'Market Demand Report',
-        title: 'Market Demand Report',
-        period: period,
+        kind: title,
+        title: title,
+        period: month,
         generatedAt: now,
-        build: (context) => [
-          _titleBlock('Market Demand Report', [
-            ('Reporting period', period),
-            ('Coverage', 'Completed orders by buyer location'),
-            ('Date generated', _generatedLabel(now)),
-          ]),
-          _sectionHeading('Demand by Area', number: 1),
-          _table(
-            ['Area', 'Completed Orders', 'Revenue'],
-            demand.map((d) => [d.barangay, '${d.orderCount}', formatPeso(d.revenue)]).toList(),
-          ),
-          pw.SizedBox(height: 20),
-          _sectionHeading('Top Buyer Searches', number: 2),
-          _table(
-            ['Search Term', 'Count'],
-            topSearches.map((e) => [e.key, '${e.value}']).toList(),
-          ),
-        ],
+        build: (context) => widgets,
+      ),
+    );
+    return doc.save();
+  }
+
+  static Future<Uint8List> buildDemandHeatmapReport(DemandReportData data, {DateTime? generatedAt}) async {
+    final doc = pw.Document(theme: await _theme());
+    final logo = await _logo();
+    final now = generatedAt ?? DateTime.now();
+    final product = data.mode == DemandMode.product;
+    final title = product ? 'Product Demand Report' : 'Buyer Demand Report';
+    final counting = data.counting;
+    final unit = product ? counting.unitPlural : 'buyers';
+    final unitTitle = product
+        ? (counting == DemandCounting.uniqueBuyers ? 'Unique Buyers' : 'Completed Orders')
+        : 'Unique Buyers';
+    final busiest = data.areas.isEmpty ? 0 : data.areas.first.count;
+    final thresholds = demandThresholds(busiest);
+    String percent(double? p) => p == null ? '—' : '${p.toStringAsFixed(1)}%';
+
+    pw.Widget note(String text) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 6),
+          child: pw.Text(_safe(text), style: const pw.TextStyle(fontSize: 8.5, color: _muted, lineSpacing: 1.4)),
+        );
+
+    final areaRows = [
+      for (var i = 0; i < data.areas.length; i++)
+        ['${i + 1}', data.areas[i].area, '${data.areas[i].count}', demandLevel(data.areas[i].count, busiest)],
+    ];
+    final areasTable = _table(['Rank', 'Location', unitTitle, 'Demand Level'], areaRows, weights: const [0.5, 2.6, 1.1, 1.1]);
+    final legendNote = 'Demand levels: Low = 1–${thresholds.lowMax}, Medium = ${thresholds.lowMax + 1}–${thresholds.mediumMax}, '
+        'High = ${thresholds.mediumMax + 1} or more $unit per location.';
+
+    final widgets = <pw.Widget>[
+      _titleBlock(title, [
+        ('Reporting period', data.periodLabel),
+        if (product) ('Category', data.category ?? 'All Categories'),
+        ('Counting method', product ? counting.label : 'Unique buyers with completed orders'),
+        ('Data', 'Completed orders only, by the buyer\'s location'),
+        ('Date generated', _generatedLabel(now)),
+      ]),
+    ];
+
+    if (data.isEmpty) {
+      widgets.addAll([
+        _sectionHeading('Summary', number: 1),
+        _table(['Measure', 'Value'], const []),
+        note('There are no completed orders in this period, so there is no demand to report.'),
+      ]);
+    } else if (!product) {
+      widgets.addAll([
+        _sectionHeading('Summary', number: 1),
+        _table(['Measure', 'Value'], [
+          ['Unique buyers with completed orders', '${data.uniqueBuyers}'],
+          ['Of these, with a known location', '${data.locatedBuyers}'],
+          ['Locations with demand', '${data.areas.length}'],
+        ], weights: const [3, 1]),
+        note('Each buyer is counted once in the total. A buyer who ordered from more than one location is counted once in each of those locations, so the location counts can add up to more than the total.'),
+        pw.SizedBox(height: 18),
+        _sectionHeading('Highest Demand Areas', number: 2),
+        areasTable,
+        note('Unique buyers with completed orders by location. $legendNote'),
+      ]);
+    } else {
+      final what = counting == DemandCounting.uniqueBuyers ? 'unique buyers' : 'completed orders';
+      widgets.addAll([
+        _sectionHeading('Summary', number: 1),
+        _table(['Measure', 'Value'], [
+          ['Total $what (${data.category ?? 'All Categories'})', '${data.total}'],
+          ['Unique buyers with completed orders (all categories)', '${data.uniqueBuyers}'],
+          ['Locations with demand', '${data.areas.length}'],
+        ], weights: const [3, 1]),
+        pw.SizedBox(height: 18),
+        _sectionHeading('Product Demand Summary', number: 2),
+        _table(
+          ['Rank', 'Category', unitTitle, counting == DemandCounting.uniqueBuyers ? '% of Buyers' : '% of Orders'],
+          [
+            for (var i = 0; i < data.categories.length; i++)
+              ['${i + 1}', data.categories[i].category, '${data.categories[i].count}', percent(data.categories[i].percent)],
+          ],
+          weights: const [0.5, 2.4, 1.1, 1.1],
+        ),
+        note(counting == DemandCounting.uniqueBuyers
+            ? 'Each buyer counts once per category. Percentages are of all ${data.denominator} unique buyers in the period; a buyer of several categories counts in each, so they can add up to more than 100%.'
+            : 'Each completed order counts once in its category. Percentages are of all ${data.denominator} completed orders in the period.'),
+        pw.SizedBox(height: 18),
+        _sectionHeading('Highest Demand Areas — ${data.category ?? 'All Categories'}', number: 3),
+        areasTable,
+        note('${counting.label} by location${data.category == null ? '; with all categories, a buyer or an order still counts once in a location' : ''}. $legendNote'),
+      ]);
+    }
+    widgets.addAll([pw.SizedBox(height: 24), _signOff()]);
+
+    doc.addPage(
+      _pages(
+        format: PdfPageFormat.a4,
+        logo: logo,
+        kind: title,
+        title: title,
+        period: data.periodLabel,
+        generatedAt: now,
+        build: (context) => widgets,
       ),
     );
     return doc.save();

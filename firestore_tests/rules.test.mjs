@@ -272,6 +272,17 @@ await check('a farmer cannot like a review', async () => {
   await assertFails(updateDoc(review(as('farmer2')), { 'likes.farmer2': true }));
 });
 
+// Review photos: up to three, on the buyer's own review.
+const pics = (n) => Array.from({ length: n }, (_, i) => `https://res.cloudinary.com/x/r${i}.jpg`);
+await check('the buyer edits their review with three photos', async () => {
+  await seedReview();
+  await assertSucceeds(updateDoc(review(buyer()), { imageUrls: pics(3), imageUrl: pics(3)[0] }));
+});
+await check('a review cannot carry four photos', async () => {
+  await seedReview();
+  await assertFails(updateDoc(review(buyer()), { imageUrls: pics(4) }));
+});
+
 // An order placed from the chat: its card, from that order's buyer only.
 const orderCard = (db, sender, orderId, id = 'order_' + orderId) =>
   setDoc(doc(db, `conversations/c1/messages/${id}`), {

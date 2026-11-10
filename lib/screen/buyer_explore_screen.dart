@@ -1,22 +1,16 @@
-import 'dart:math';
 import '../widgets/docked_nav_bar.dart';
 import '../widgets/notification_bell.dart';
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/commodity_master_list.dart';
-import '../services/bought_first.dart';
 import '../services/buyer_area_watcher.dart';
-import '../services/delivery_coverage.dart';
 import '../services/filters_on_scroll.dart';
 import '../services/firebase_refs.dart';
-import '../services/order_service.dart';
 import '../services/product_service.dart';
-import '../services/product_recommendation_service.dart';
-import '../services/product_visibility_service.dart';
+import '../services/newest_first.dart';
 import '../services/saved_products_service.dart';
 import '../widgets/page_header.dart';
 import '../widgets/retry_message.dart';
@@ -104,18 +98,13 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
 
   final _grid = ScrollController();
 
-  // Which mix of the feed is shown: 0 is the plain ranking; each Back to
-  // the top (see [backToTop]) deals a fresh mix, so other products come
-  // first. It only changes then, so the grid never reshuffles by itself.
-  int _feedMix = 0;
-
   /// Back pressed on Explore: when the grid is scrolled down, it glides
-  /// back to the top with a fresh mix of products and true is returned
+  /// back to the top, where the newest posts are, and true is returned
   /// (Back is handled); at the top it returns false.
   bool backToTop() {
     if (!_grid.hasClients || _grid.offset <= 0) return false;
     setState(() {
-      _feedMix++;
+      _bringInNewPosts();
       _filtersHidden = false;
       _filtersOnScroll.reset();
     });
@@ -140,22 +129,12 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
   // Every listing in the latest data, for the next refresh.
   Set<String> _latestIds = {};
 
-  // The posts the last refresh brought in — shown first, newest first.
-  Set<String> _freshIds = {};
-
   // Scrolling down tucks the category and location filters away; scrolling
   // up (or reaching the top) brings them back.
   bool _filtersHidden = false;
 
   Map<String, String> _barangayByFarmerUid = {};
-  Map<String, bool> _verifiedByFarmerUid = {};
   StreamSubscription? _usersSub;
-
-  // Visibility-ranking inputs (ProductVisibilityService) — the "demand"
-  // signal is each listing's own completedOrderCount (kept by Cloud
-  // Functions; a buyer cannot read other buyers' orders to count them);
-  // seller verification feeds
-  // "credibility" alongside each product's own rating/reviewCount.
 
   // Liked Products hearts: the shared LikedProducts state, so a like made
   // here, in Search, on a farmer profile or in Product Details shows the
@@ -170,10 +149,9 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     LikedProducts.instance
       ..start()
       ..addListener(_onLikesChanged);
-    // Listings that deliver to the buyer's area come first; reorder when
-    // the area arrives or changes.
+    // A card says "Delivers to you" when its listing reaches the buyer's
+    // area; drawn again when the area arrives or changes.
     BuyerAreaWatcher.instance.addListener(_onAreaChanged);
-    _watchMyOrders();
     _usersSub = FirebaseRefs.firestore
         .collection('publicProfiles')
         .snapshots()
@@ -186,39 +164,12 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
                     (doc.data()['barangay'] ?? '').toString().isNotEmpty)
                   doc.id: doc.data()['barangay'].toString(),
             };
-            // Derived directly from approvalStatus — the single source of
-            // truth for verification state across the whole app — rather than
-            // the separate isVerified field, which existed only as a mirror
-            // and could historically drift from it (see
-            // verification_queue_view.dart's _setFarmerApproval).
-            _verifiedByFarmerUid = {
-              for (final doc in snap.docs)
-                if ((doc.data()['role'] ?? '') == 'farmer')
-                  doc.id: doc.data()['approvalStatus'] == 'approved',
-            };
           });
         });
   }
 
-  // How often this buyer bought each product (from their own orders), so
-  // what they buy most comes first in the feed.
-  Map<String, int> _boughtCounts = const {};
-  StreamSubscription? _ordersSub;
-
-  void _watchMyOrders() {
-    if (FirebaseRefs.auth.currentUser == null) return;
-    _ordersSub = OrderService().buyerOrdersStream().listen((snap) {
-      if (!mounted) return;
-      final counts = boughtCounts([for (final d in snap.docs) d.data()]);
-      if (!mapEquals(counts, _boughtCounts)) {
-        setState(() => _boughtCounts = counts);
-      }
-    }, onError: (_) {});
-  }
-
   @override
   void dispose() {
-    _ordersSub?.cancel();
     _usersSub?.cancel();
     _grid.dispose();
     BuyerAreaWatcher.instance.removeListener(_onAreaChanged);
@@ -232,21 +183,14 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
 
   // Brings in the posts made since the feed was loaded, at the top.
   void _bringInNewPosts() {
-    final shown = _shownIds ?? const <String>{};
-    _freshIds = _latestIds.difference(shown);
     _shownIds = {..._latestIds};
   }
 
-  // Pull to refresh: the new posts come in, and the feed is dealt a fresh
-  // mix (as Back to the top does) — the products this buyer buys most
-  // still come first (see boughtFirst).
+  // Pull to refresh: the new posts come in, at the top.
   Future<void> _refreshProducts() async {
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
-    setState(() {
-      _feedMix++;
-      _bringInNewPosts();
-    });
+    setState(_bringInNewPosts);
   }
 
   // The "new posts" pill: the same as pulling to refresh, then back to the
@@ -444,6 +388,15 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
     if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return false;
     }
+    // Back at the top with posts made meanwhile: they come in by
+    // themselves, first in the feed, with no pill to tap.
+    final shown = _shownIds;
+    if (notification is ScrollEndNotification &&
+        notification.metrics.pixels <= 0 &&
+        shown != null &&
+        _latestIds.difference(shown).isNotEmpty) {
+      setState(_bringInNewPosts);
+    }
     bool? hide;
     if (notification is UserScrollNotification &&
         notification.direction == ScrollDirection.reverse &&
@@ -565,7 +518,6 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
           atTop: !_grid.hasClients || _grid.offset <= 0,
         );
         _shownIds = feed.fixed;
-        if (feed.fresh.isNotEmpty) _freshIds = feed.fresh;
         final shown = feed.shown;
 
         // On sale, and in the category and barangay the buyer picked.
@@ -599,60 +551,12 @@ class BuyerExploreScreenState extends State<BuyerExploreScreen> {
             .where((d) => !shown.contains(d.id) && listed(d))
             .length;
 
-        // Rank by demand + seller credibility + interaction (prescriptive
-        // analytics: which listings get priority visibility). Ties — most
-        // commonly an all-zero score on a fresh marketplace with no orders/
-        // reviews/views yet — fall back to newest-first, today's old order.
-        final scores = ProductVisibilityService.scoreProducts(
-          products: {for (final d in docs) d.id: d.data()},
-          completedOrderCountByProductId: {
-            for (final d in docs)
-              d.id: ProductRecommendationService.completedOrders(d.data()),
-          },
-          verifiedByFarmerId: _verifiedByFarmerUid,
-        );
-        // After a Back to the top, a fresh mix: each listing's rank is
-        // nudged by a random amount fixed for that mix, so the order
-        // changes but well-ranked listings still tend to come first.
-        int created(QueryDocumentSnapshot<Map<String, dynamic>> d) =>
-            (d.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-        if (_feedMix > 0) {
-          final nudged = {
-            for (final d in docs)
-              d.id:
-                  ((scores[d.id] ?? 0) + 1) *
-                  (0.4 + Random(Object.hash(_feedMix, d.id)).nextDouble()),
-          };
-          docs.sort((a, b) => nudged[b.id]!.compareTo(nudged[a.id]!));
-        } else {
-          docs.sort((a, b) {
-            final scoreCompare = (scores[b.id] ?? 0).compareTo(
-              scores[a.id] ?? 0,
-            );
-            if (scoreCompare != 0) return scoreCompare;
-            final aCreated = a.data()['createdAt'] as Timestamp?;
-            final bCreated = b.data()['createdAt'] as Timestamp?;
-            return (bCreated?.millisecondsSinceEpoch ?? 0).compareTo(
-              aCreated?.millisecondsSinceEpoch ?? 0,
-            );
-          });
-        }
-        // What this buyer buys most comes first, most-bought first, each
-        // group still in the order above.
-        docs = boughtFirst(docs, _boughtCounts, (d) => d.data());
-        // Then the buyer's area first: listings whose delivery reaches it,
-        // each group still in the order above; nothing else is hidden.
-        docs = deliveringFirst(
-          docs,
-          BuyerAreaWatcher.instance.area,
-          (d) => d.data(),
-        );
-        // The posts the last refresh brought in come first, newest first.
-        if (_freshIds.isNotEmpty) {
-          final fresh = docs.where((d) => _freshIds.contains(d.id)).toList()
-            ..sort((a, b) => created(b).compareTo(created(a)));
-          docs = [...fresh, ...docs.where((d) => !_freshIds.contains(d.id))];
-        }
+        // Newest post first, oldest last, by when each was posted (the
+        // panel's finding in system testing, 2026-11-09): a listing just
+        // published leads the feed. The category, location and search
+        // filters above still choose what is in it; a listing that delivers
+        // to the buyer's area keeps its "Delivers to you" on the card.
+        docs = newestFirst(docs, (d) => d.data());
 
         // The "new posts" pill floats over the top of the feed (or of the
         // empty message, when nothing was on offer yet).

@@ -7,6 +7,10 @@ class ReviewService {
   /// The longest review description, in characters.
   static const int maxCommentLength = 50;
 
+  /// The most photos a review may carry (system objectives, 2026-11-09:
+  /// "optional review photos"). Kept in step with firestore.rules.
+  static const int maxPhotos = 3;
+
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
@@ -44,6 +48,8 @@ class ReviewService {
     required double rating,
     required String comment,
     String? imageUrl,
+    // Every photo, the first also saved as imageUrl for older readers.
+    List<String> imageUrls = const [],
   }) async {
     final offlineError = await requireOnlineOrError();
     if (offlineError != null) return offlineError;
@@ -101,7 +107,10 @@ class ReviewService {
           'buyerName': buyerName,
           'rating': normalizedRating,
           'comment': trimmedComment,
-          'imageUrl': imageUrl ?? '',
+          'imageUrl': imageUrl ?? (imageUrls.isEmpty ? '' : imageUrls.first),
+          'imageUrls': imageUrls.isNotEmpty
+              ? imageUrls.take(maxPhotos).toList()
+              : [if ((imageUrl ?? '').isNotEmpty) imageUrl!],
           // Only stamped on first submission — merge leaves it untouched
           // on a later edit of the same review.
           if (!isEdit) 'createdAt': FieldValue.serverTimestamp(),
@@ -126,4 +135,19 @@ class ReviewService {
       return 'Could not submit review. Please try again.';
     }
   }
+}
+
+/// The photos a buyer attached to [review]: the `imageUrls` list, and the
+/// single `imageUrl` older reviews were saved with, each once, in order.
+List<String> reviewPhotos(Map<String, dynamic> review) {
+  final photos = <String>[];
+  void add(Object? url) {
+    final value = (url ?? '').toString().trim();
+    if (value.isNotEmpty && !photos.contains(value)) photos.add(value);
+  }
+
+  add(review['imageUrl']);
+  final list = review['imageUrls'];
+  if (list is List) list.forEach(add);
+  return photos;
 }

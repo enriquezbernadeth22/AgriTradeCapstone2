@@ -567,7 +567,7 @@ class AdminAnnounceButton extends StatelessWidget {
           decoration: adminHeaderButtonDecoration(c),
           child: Icon(
             Icons.campaign_outlined,
-            color: c.textSecondary,
+            color: adminHeaderIconColor(c),
             size: 20,
           ),
         ),
@@ -806,7 +806,7 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
           children: [
             Icon(
               Icons.notifications_outlined,
-              color: c.textSecondary,
+              color: adminHeaderIconColor(c),
               size: 20,
             ),
             if (unread > 0)

@@ -201,3 +201,15 @@ test("only this response's own style and script are allowed to run", () => {
   assert.match(html, /<script nonce="n0nce">/);
   assert.strictEqual((html.match(/<script/g) || []).length, 1);
 });
+
+// System testing (2026-11-09): livestock sold by the animal shows
+// "Available", never its count, and no wholesale.
+test("livestock sold per head shows Available and no wholesale", () => {
+  const pig = { ...product, name: "Swine", category: "Livestock", unit: "head", quantity: 4 };
+  const view = publicProductView({ id: "p1", product: pig, farmer });
+  assert.strictEqual(view.perAnimal, true);
+  assert.strictEqual(view.wholesale, null);
+  const html = page(view);
+  assert.ok(html.includes("Available"));
+  assert.ok(!html.includes("4 head available"));
+});

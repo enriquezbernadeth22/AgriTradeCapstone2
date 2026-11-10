@@ -61,6 +61,13 @@ String firstNameOf(String fullName) {
   return (max: (maxRevenue * 1.05 / step).ceil() * step, step: step);
 }
 
+/// Market's "Total Orders" (system objectives, 2026-11-09: the farmer
+/// monitors their total orders): every order of theirs that was completed,
+/// all time, like the rest of the analytics (completed orders only).
+int totalOrdersCount(Iterable<Map<String, dynamic>> orders) => orders
+    .where((o) => (o['status'] ?? '').toString().toLowerCase() == 'completed')
+    .length;
+
 /// Market's "Orders Today": the farmer's orders confirmed today that are
 /// still Confirmed (not yet shipped) — the ones waiting on Orders'
 /// Confirmed tab. Confirmed when stockDeductedAt was stamped, or — for an
@@ -1108,6 +1115,9 @@ class _MarketTabState extends State<MarketTab> {
         final totalOrdersToday = confirmedTodayCount([
           for (final doc in snapshot.data?.docs ?? const []) doc.data(),
         ], now: DateTime.now());
+        final totalOrders = totalOrdersCount([
+          for (final doc in snapshot.data?.docs ?? const []) doc.data(),
+        ]);
 
         return IntrinsicHeight(
           child: Row(
@@ -1121,6 +1131,18 @@ class _MarketTabState extends State<MarketTab> {
                   '$totalOrdersToday',
                   onTap: () => widget.onOpenOrders != null
                       ? widget.onOpenOrders!('confirmed')
+                      : widget.onNavigateToTab?.call(_ordersTabIndex),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _statCard(
+                  // Completed orders, all time: opens Orders' Completed tab.
+                  tl('Total Orders'),
+                  '$totalOrders',
+                  key: const Key('totalOrdersCard'),
+                  onTap: () => widget.onOpenOrders != null
+                      ? widget.onOpenOrders!('completed')
                       : widget.onNavigateToTab?.call(_ordersTabIndex),
                 ),
               ),
@@ -1141,8 +1163,14 @@ class _MarketTabState extends State<MarketTab> {
 
   // A figure on a white card, centred: the label in small capitals and
   // the number under it (the user's design, 2026-11-08; no icon).
-  Widget _statCard(String label, String value, {VoidCallback? onTap}) {
+  Widget _statCard(
+    String label,
+    String value, {
+    Key? key,
+    VoidCallback? onTap,
+  }) {
     return Material(
+      key: key,
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       child: InkWell(

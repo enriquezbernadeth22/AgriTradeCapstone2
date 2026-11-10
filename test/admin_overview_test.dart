@@ -5,7 +5,7 @@ import 'package:agritrade/data/report_reasons.dart';
 import 'package:agritrade/screen/admin_dashboard_screen.dart'
     show AdminPalette, AdminThemeScope;
 import 'package:agritrade/screen/admin_overview_widgets.dart';
-import 'package:agritrade/screen/admin_price_trend_chart.dart';
+import 'package:agritrade/screen/admin_analytics_widgets.dart';
 import 'package:agritrade/services/dashboard_analytics_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -161,26 +161,23 @@ void main() {
   });
 
   testWidgets('Sales by Category lists real categories and their shares, '
-      'and matches the Market Trend card in height', (tester) async {
+      'and matches Top-Selling Products beside it in height', (tester) async {
     await pump(
       tester,
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 3,
-            child: AdminMarketDemandCard(
-              completedOrders: [order('completed', DateTime.now(), 100)],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            flex: 2,
             child: AdminSalesByCategoryCard(
+              bodyHeight: 350,
               revenueFor: (months) => months == 6
                   ? {'Vegetables': 750, 'Fruits': 250, 'Grains': 0}
                   : {},
             ),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: AdminTopProductsCard(products: [], bodyHeight: 350),
           ),
         ],
       ),
@@ -194,7 +191,7 @@ void main() {
     expect(find.text('₱1,000.00'), findsOneWidget);
     expect(
       tester.getSize(find.byType(AdminSalesByCategoryCard)).height,
-      tester.getSize(find.byType(AdminMarketDemandCard)).height,
+      tester.getSize(find.byType(AdminTopProductsCard)).height,
     );
 
     await tester.tap(find.text('Last 6 Months').last);

@@ -101,8 +101,11 @@ class OrderService {
         final available =
             (productSnapshot.data()?['quantity'] as num?)?.toDouble() ?? 0;
         if (q > available) {
+          // Livestock sold by the animal never shows its buyers the count.
           throw StateError(
-            'Only ${formatStock(available, realUnit)} available.',
+            isSoldPerAnimal(productData)
+                ? 'Not that many are available. Lower your quantity.'
+                : 'Only ${formatStock(available, realUnit)} available.',
           );
         }
 

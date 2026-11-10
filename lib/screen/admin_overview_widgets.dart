@@ -116,10 +116,9 @@ class AdminOverviewStrip extends StatelessWidget {
     // Material + InkWell, so a clickable card shows the pointer, a hover
     // tint and a ripple inside its own rounded shape.
     // White with a soft shadow, as every card (adminCard), outlined only
-    // when chosen; the icon box and a soft wave in the bottom right corner
-    // carry the colour (amber for a figure waiting on the Admin, green
-    // otherwise).
-    final tone = item.attention ? c.amber : c.green;
+    // when chosen; the icon box carries the colour (amber for a figure
+    // waiting on the Admin, green otherwise). No corner wave: the cards
+    // stay plain (the user's design system, 2026-11-10).
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: radius,
@@ -141,54 +140,11 @@ class AdminOverviewStrip extends StatelessWidget {
           onTap: item.onTap,
           hoverColor: c.surfaceAlt,
           splashColor: c.border,
-          child: Stack(
-            children: [
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    size: const Size(96, 34),
-                    painter: _CornerWavePainter(tone),
-                  ),
-                ),
-              ),
-              _OverviewSegment(item: item),
-            ],
-          ),
+          child: _OverviewSegment(item: item),
         ),
       ),
     );
   }
-}
-
-/// Two soft overlapping waves rising toward the bottom right corner of an
-/// Overview card, in faint steps of [color]. Decoration only.
-class _CornerWavePainter extends CustomPainter {
-  final Color color;
-  const _CornerWavePainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final back = Path()
-      ..moveTo(0, h)
-      ..cubicTo(w * 0.35, h, w * 0.55, h * 0.15, w, 0)
-      ..lineTo(w, h)
-      ..close();
-    final front = Path()
-      ..moveTo(w * 0.3, h)
-      ..cubicTo(w * 0.6, h, w * 0.75, h * 0.45, w, h * 0.3)
-      ..lineTo(w, h)
-      ..close();
-    canvas.drawPath(back, Paint()..color = color.withValues(alpha: 0.08));
-    canvas.drawPath(front, Paint()..color = color.withValues(alpha: 0.12));
-  }
-
-  @override
-  bool shouldRepaint(_CornerWavePainter oldDelegate) =>
-      oldDelegate.color != color;
 }
 
 class _OverviewSegment extends StatelessWidget {
@@ -611,22 +567,22 @@ class _AdminSalesByCategoryCardState extends State<AdminSalesByCategoryCard> {
           : Row(
               children: [
                 SizedBox(
-                  width: 172,
-                  height: 172,
+                  width: 156,
+                  height: 156,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       PieChart(
                         PieChartData(
                           startDegreeOffset: -90,
-                          centerSpaceRadius: 56,
+                          centerSpaceRadius: 52,
                           sectionsSpace: 2,
                           sections: [
                             for (var i = 0; i < slices.length; i++)
                               PieChartSectionData(
                                 value: slices[i].value,
                                 color: colorOf(i),
-                                radius: 28,
+                                radius: 26,
                                 showTitle: false,
                               ),
                           ],
@@ -663,13 +619,23 @@ class _AdminSalesByCategoryCardState extends State<AdminSalesByCategoryCard> {
                   ),
                 ),
                 const SizedBox(width: 24),
+                // The legend beside the donut: each category's sales and
+                // share, in two columns when the card is wide, so a full-
+                // width card has no long empty gap in each row.
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (var i = 0; i < slices.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final columns = box.maxWidth >= 560 ? 2 : 1;
+                      const gap = 32.0;
+                      final width = math.min(
+                        290.0,
+                        (box.maxWidth - gap * (columns - 1)) / columns,
+                      );
+                      final perColumn = (slices.length / columns).ceil();
+                      Widget entry(int i) => SizedBox(
+                        width: width,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Row(
                             children: [
                               adminLegendDot(colorOf(i)),
@@ -687,17 +653,56 @@ class _AdminSalesByCategoryCardState extends State<AdminSalesByCategoryCard> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                _share(slices[i].value, total),
+                                formatPeso(slices[i].value),
                                 style: TextStyle(
                                   color: c.textSecondary,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 46,
+                                child: Text(
+                                  _share(slices[i].value, total),
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: c.textPrimary,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                    ],
+                      );
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var col = 0; col < columns; col++) ...[
+                              if (col > 0) const SizedBox(width: gap),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (
+                                    var i = col * perColumn;
+                                    i <
+                                        math.min(
+                                          slices.length,
+                                          (col + 1) * perColumn,
+                                        );
+                                    i++
+                                  )
+                                    entry(i),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

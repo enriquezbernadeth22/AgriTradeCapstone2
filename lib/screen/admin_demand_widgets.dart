@@ -2,16 +2,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../services/demand_heatmap_service.dart';
 import '../services/market_price_helpers.dart';
 import 'admin_dashboard_screen.dart'
     show AdminThemeScope, AdminPalette, AdminRadii;
 import 'admin_filter_controls.dart' show adminActionColor, adminOnActionColor;
 
 // ============================================================
-// The Demand Heatmap's colour scale, its legend, and the two panels beside
-// the map: Highest Demand Areas and Most Purchased Products by Area.
-// Everything here shows what it is given — completed buyer purchases,
-// counted per buyer area — and nothing else.
+// The Demand Heatmap's colour scale, its legend, and the panels beside the
+// map: Highest Demand Areas and the Product Demand Summary (and Most
+// Purchased Products by Area, no longer on the page). Everything here
+// shows what it is given — demand from completed orders, counted by
+// demand_heatmap_service.dart — and nothing else; never buyer searches.
 // ============================================================
 
 /// Heat colours, low demand to high.
@@ -51,10 +53,31 @@ class AdminHeatLegend extends StatelessWidget {
   /// What the colours count.
   final String title;
 
-  const AdminHeatLegend({super.key, this.title = 'Completed purchases'});
+  /// The numbers behind each colour (demandThresholds): Low up to
+  /// lowMax, Medium up to mediumMax, High above, in [unitPlural] per
+  /// location. Null shows the colours alone.
+  final ({int lowMax, int mediumMax})? thresholds;
+  final String unit;
+  final String unitPlural;
+
+  const AdminHeatLegend({
+    super.key,
+    this.title = 'Completed purchases',
+    this.thresholds,
+    this.unit = 'buyer',
+    this.unitPlural = 'buyers',
+  });
 
   @override
   Widget build(BuildContext context) {
+    final t = thresholds;
+    // " (1–2 buyers)", or nothing without thresholds.
+    String range(int from, int? to) => to == null
+        ? ''
+        : from >= to
+        ? ' ($to ${to == 1 ? unit : unitPlural})'
+        : ' ($from–$to $unitPlural)';
+
     // Every row has the same swatch — one pill of the same size, in one
     // colour or (for medium) blending its two — so the labels line up.
     Widget entry(List<Color> colors, String label) => Padding(
@@ -73,9 +96,12 @@ class AdminHeatLegend extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
+          // Wraps rather than overflows on a narrow map.
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: Colors.black87),
+            ),
           ),
         ],
       ),
@@ -116,12 +142,15 @@ class AdminHeatLegend extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 3),
-            entry(const [kHeatLow], 'Green = Low Demand'),
-            entry(const [
-              kHeatMedium,
-              kHeatMediumHigh,
-            ], 'Yellow/Orange = Medium Demand'),
-            entry(const [kHeatHigh], 'Red = High Demand'),
+            entry(const [kHeatLow], 'Green = Low Demand${range(1, t?.lowMax)}'),
+            entry(
+              const [kHeatMedium, kHeatMediumHigh],
+              'Yellow/Orange = Medium Demand${range((t?.lowMax ?? 0) + 1, t?.mediumMax)}',
+            ),
+            entry(
+              const [kHeatHigh],
+              'Red = High Demand${t == null ? '' : ' (${t.mediumMax + 1}+ $unitPlural)'}',
+            ),
           ],
         ),
       ),
@@ -235,9 +264,10 @@ Widget _rankBadge(AdminPalette c, int rank, {required bool strong}) =>
       ),
     );
 
-/// HIGHEST DEMAND AREAS — buyer areas ranked by completed purchases, each
-/// with its rank, name and count, and a dot in its colour on the map.
-/// Clicking one selects it (see [AdminAreaProductsPanel]).
+/// HIGHEST DEMAND AREAS — buyer areas ranked by their demand (unique
+/// buyers or completed orders, as the page counts), each with its rank,
+/// name and count, and a dot in its colour on the map. Clicking one moves
+/// the map to it.
 class AdminDemandAreasPanel extends StatelessWidget {
   /// Ranked, most completed purchases first.
   final List<({String area, int orderCount})> areas;
@@ -448,71 +478,204 @@ class AdminAreaProductsPanel extends StatelessWidget {
   }
 }
 
-/// MOST SEARCHED BY AREA — what buyers in the selected area searched for,
-/// most searched first. The search layer's counterpart to
-/// [AdminAreaProductsPanel]: searches show interest, not purchases.
-class AdminAreaSearchesPanel extends StatelessWidget {
-  /// The selected area; null when the period has no placed searches.
-  final String? area;
-  final List<({String term, int searches})> terms;
+/// One of a set of mutually exclusive choices, as a radio button and its
+/// label (the Demand Heatmap's Buyer / Product Demand and counting
+/// methods): the chosen one a filled dark green dot.
+class AdminRadioChoice<T> extends StatelessWidget {
+  final T value;
+  final T groupValue;
+  final String label;
+  final ValueChanged<T> onChanged;
+  final double fontSize;
+
+  const AdminRadioChoice({
+    super.key,
+    required this.value,
+    required this.groupValue,
+    required this.label,
+    required this.onChanged,
+    this.fontSize = 13,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AdminThemeScope.of(context).palette;
+    final selected = value == groupValue;
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => onChanged(value),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 18,
+                color: selected ? adminActionColor(c) : c.textMuted,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? c.textPrimary : c.textSecondary,
+                  fontSize: fontSize,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// PRODUCT DEMAND SUMMARY — product categories by demand from completed
+/// orders, counted as [counting] says (chosen here, by two radio buttons):
+/// each row the category's name, its count, a bar against the busiest
+/// category and its share of every unique buyer (or completed order) in
+/// the period. Text, numbers and bars only: no category icons (the final
+/// revision, 2026-11-09). A row selects its category.
+class AdminProductDemandSummary extends StatelessWidget {
+  final List<CategoryDemand> rows;
+  final DemandCounting counting;
+  final ValueChanged<DemandCounting> onCountingChanged;
+  final String? selectedCategory;
+  final ValueChanged<String> onSelectCategory;
   final String emptyText;
 
-  const AdminAreaSearchesPanel({
+  const AdminProductDemandSummary({
     super.key,
-    required this.area,
-    required this.terms,
+    required this.rows,
+    required this.counting,
+    required this.onCountingChanged,
+    required this.selectedCategory,
+    required this.onSelectCategory,
     required this.emptyText,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = AdminThemeScope.of(context).palette;
+    final busiest = rows.fold<int>(0, (m, r) => math.max(m, r.count));
+    final share = counting == DemandCounting.uniqueBuyers
+        ? 'of buyers'
+        : 'of orders';
     return _DemandPanel(
-      icon: Icons.search,
-      title: 'Most Searched by Area',
-      subtitle: area,
-      child: area == null || terms.isEmpty
-          ? _panelEmpty(c, emptyText)
-          : ListView.builder(
-              itemCount: terms.length,
-              itemBuilder: (context, i) {
-                final t = terms[i];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 7,
-                  ),
-                  child: Row(
-                    children: [
-                      _rankBadge(c, i + 1, strong: i == 0),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          t.term,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: c.textPrimary,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
+      icon: Icons.bar_chart_rounded,
+      title: 'Product Demand Summary',
+      subtitle: counting == DemandCounting.uniqueBuyers
+          ? 'Unique buyers per category, from completed orders'
+          : 'Completed orders per category',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 4,
+            children: [
+              for (final method in DemandCounting.values)
+                AdminRadioChoice<DemandCounting>(
+                  key: Key('counting_${method.name}'),
+                  value: method,
+                  groupValue: counting,
+                  label: method.label,
+                  fontSize: 12,
+                  onChanged: onCountingChanged,
+                ),
+            ],
+          ),
+          Divider(height: 10, thickness: 1, color: c.border),
+          Expanded(
+            child: busiest == 0
+                ? _panelEmpty(c, emptyText)
+                : ListView.separated(
+                    itemCount: rows.length,
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, thickness: 1, color: c.border),
+                    itemBuilder: (context, i) {
+                      final row = rows[i];
+                      final selected = row.category == selectedCategory;
+                      return InkWell(
+                        key: Key('categoryRow_${row.category}'),
+                        onTap: () => onSelectCategory(row.category),
+                        child: Container(
+                          color: selected ? c.surfaceAlt : null,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 7,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      row.category,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: c.textPrimary,
+                                        fontSize: 12.5,
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    counting.count(row.count),
+                                    style: TextStyle(
+                                      color: c.textPrimary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (row.percent != null) ...[
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 92,
+                                      child: Text(
+                                        '${row.percent!.toStringAsFixed(1)}% '
+                                        '$share',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                          color: c.textSecondary,
+                                          fontSize: 11.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: row.count / busiest,
+                                  minHeight: 5,
+                                  backgroundColor: c.surfaceAlt,
+                                  color: adminActionColor(c),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${t.searches} '
-                        '${t.searches == 1 ? 'search' : 'searches'}',
-                        style: TextStyle(
-                          color: c.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

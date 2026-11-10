@@ -10,47 +10,36 @@ import '../l10n/app_language.dart';
 /// What the person chose in [showExistingAccountDialog].
 enum ExistingAccountChoice { cancel, login, differentEmail }
 
-/// The title and message for an account that already exists.
-({String title, String message, bool cancellable}) existingAccountCopy(
+/// The title and message for an account that already exists. Every kind
+/// has the one title, "Account Already Exists" (the panel's wording, system
+/// testing 2026-11-09); a Farmer application says where it stands.
+({String title, String message}) existingAccountCopy(
   ExistingAccount account,
-) => switch (account) {
-  ExistingAccount.farmerPending => (
-    title: tl('Application already submitted'),
-    message: tl(
-      'Your Farmer application is already under review. Please log in to check your application status.',
+) => (
+  title: tl('Account Already Exists'),
+  message: switch (account) {
+    ExistingAccount.farmerPending => tl(
+      'An account with this email address is already registered with AgriTrade+. Its Farmer application is under review: please log in to check its status.',
     ),
-    cancellable: true,
-  ),
-  ExistingAccount.farmerApproved => (
-    title: tl('Account already registered'),
-    message: tl(
-      'This email is already registered as an approved Farmer. Please log in to continue.',
+    // There is no resubmission in the app: the application's status, and
+    // the office's reason, are shown after signing in.
+    ExistingAccount.farmerRejected => tl(
+      'An account with this email address is already registered with AgriTrade+. Its Farmer application was not approved: please log in to see the reason given.',
     ),
-    cancellable: false,
-  ),
-  // There is no resubmission in the app: the application's status, and
-  // the office's reason, are shown after signing in.
-  ExistingAccount.farmerRejected => (
-    title: tl('Application not approved'),
-    message: tl(
-      'Your previous Farmer application was not approved. Please sign in to see your application status and the reason given.',
+    ExistingAccount.farmerApproved ||
+    ExistingAccount.registered ||
+    ExistingAccount.none => tl(
+      'An account with this email address is already registered with AgriTrade+. Please log in to continue.',
     ),
-    cancellable: true,
-  ),
-  ExistingAccount.registered || ExistingAccount.none => (
-    title: tl('Account already registered'),
-    message: tl(
-      'This email already has an AgriTrade+ account. Please log in to continue.',
-    ),
-    cancellable: true,
-  ),
-};
+  },
+);
 
-/// Tells someone the account they are about to register already exists.
+/// Tells someone the account they are about to register already exists:
+/// Cancel (stay on the form) or Log In.
 ///
-/// [offerDifferentEmail] adds a way through for someone else using the
-/// same phone: the check before the form opens is against the email last
-/// used on this phone, which may not be theirs.
+/// [offerDifferentEmail] is for "Create one", before any form: the check
+/// there is against the email last used on this phone, which may not be
+/// theirs, so Register a different email takes the place of Cancel.
 Future<ExistingAccountChoice> showExistingAccountDialog(
   BuildContext context,
   ExistingAccount account, {
@@ -63,19 +52,10 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
       icon: Icons.info_outline_rounded,
       title: Text(copy.title),
       content: Text(copy.message),
-      // One layout whichever of the buttons below it has: Back to Login on
-      // top, then the other, the same slim size. From Create account
-      // (offerDifferentEmail) there is no Cancel: Back to Login or Register
-      // a different email (the user, 2026-11-08); tapping outside still
-      // closes it.
-      stackedActions: true,
+      // Cancel and Log In side by side, as the panel drew it; the longer
+      // Register a different email goes under Log In instead.
+      stackedActions: offerDifferentEmail,
       actions: [
-        if (copy.cancellable && !offerDifferentEmail)
-          AgriDialogButton(
-            label: tl('Cancel'),
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(ExistingAccountChoice.cancel),
-          ),
         if (offerDifferentEmail)
           AgriDialogButton(
             label: tl('Register a different email'),
@@ -83,9 +63,15 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
             onPressed: () => Navigator.of(
               dialogContext,
             ).pop(ExistingAccountChoice.differentEmail),
+          )
+        else
+          AgriDialogButton(
+            label: tl('Cancel'),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(ExistingAccountChoice.cancel),
           ),
         AgriDialogButton(
-          label: tl('Back to Login'),
+          label: tl('Log In'),
           kind: AgriButtonKind.primary,
           onPressed: () =>
               Navigator.of(dialogContext).pop(ExistingAccountChoice.login),
@@ -93,7 +79,23 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
       ],
     ),
   );
+  // Tapping outside is the same as Cancel.
   return choice ?? ExistingAccountChoice.cancel;
+}
+
+/// Log In from the registration screens: back to the first screen (role
+/// selection), with the Log In page over it, [email] already typed in.
+/// Every registration screen in between is closed, so Back never returns to
+/// a half-filled form and nothing is left blank under the login.
+void goToLoginAfterExistingAccount(
+  BuildContext context, {
+  String? role,
+  String? email,
+}) {
+  Navigator.of(context).pushAndRemoveUntil(
+    slideRoute(LoginScreen(role: role, initialEmail: email)),
+    (route) => route.isFirst,
+  );
 }
 
 /// "Create one": opens the choice of role and then the registration form,
@@ -101,7 +103,7 @@ Future<ExistingAccountChoice> showExistingAccountDialog(
 /// first.
 ///
 /// [onLoginPage] is true when this is called from the login page itself,
-/// where "Back to Login" simply closes the dialog.
+/// where Log In simply closes the dialog.
 Future<void> openRegistration(
   BuildContext context, {
   String? role,
@@ -129,6 +131,7 @@ Future<void> openRegistration(
               slideRoute(
                 LoginScreen(
                   role: account == ExistingAccount.registered ? role : 'farmer',
+                  initialEmail: email,
                 ),
               ),
             );

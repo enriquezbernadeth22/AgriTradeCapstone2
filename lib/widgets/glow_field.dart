@@ -24,6 +24,9 @@ class GlowField extends StatefulWidget {
   // fill this field, instead of the app remembering anything itself.
   final Iterable<String>? autofillHints;
   final List<TextInputFormatter>? inputFormatters;
+
+  /// Which letters the keyboard starts with a capital (names: each word).
+  final TextCapitalization textCapitalization;
   // A fixed, non-editable label shown before the editable text — e.g.
   // "+63 " for a Philippines-only mobile number field.
   final String? prefixText;
@@ -53,6 +56,7 @@ class GlowField extends StatefulWidget {
     this.onChanged,
     this.autofillHints,
     this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
     this.prefixText,
     this.autofocus = false,
     this.readOnly = false,
@@ -186,6 +190,11 @@ class _GlowFieldState extends State<GlowField> {
                 onSubmitted: widget.onSubmitted,
                 autofillHints: widget.autofillHints,
                 inputFormatters: widget.inputFormatters,
+                textCapitalization: widget.textCapitalization,
+                // In the middle of the field, also when an eye button at the
+                // end makes it taller than its text (the Admin login's
+                // password sat high, 2026-11-09).
+                textAlignVertical: TextAlignVertical.center,
                 decoration: InputDecoration(
                   hintText: widget.hint,
                   hintStyle: widget.compact

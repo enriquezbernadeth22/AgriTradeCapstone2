@@ -1,3 +1,5 @@
+import '../data/commodity_master_list.dart';
+
 class PricingTierQuote {
   final String pricingType;
   final double unitPrice;
@@ -20,6 +22,9 @@ class PricingTierService {
   const PricingTierService._();
 
   static bool wholesaleAvailable(Map<String, dynamic> product) {
+    // Livestock sold per head or per piece has no wholesale (system
+    // testing, 2026-11-09), even a listing saved with one before.
+    if (isSoldPerAnimal(product)) return false;
     final price = _asDouble(product['wholesalePrice']);
     final minimum = _asNum(product['wholesaleMinimumQuantity']);
     final explicit = product['wholesaleEnabled'];

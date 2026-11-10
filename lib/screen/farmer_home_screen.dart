@@ -190,6 +190,18 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     return false;
   }
 
+  // A page whose content changed size (Market's insights picker: Buyer
+  // Areas is shorter than the others) may now fit on the screen. It can
+  // then not be scrolled up to bring the bar back, so it shows again.
+  bool _onPageMetrics(ScrollMetricsNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (_navHidden &&
+        _navOnScroll.metricsChanged(notification.metrics) == false) {
+      setState(() => _navHidden = false);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     // A new tab starts with the bottom bar showing.
@@ -282,24 +294,28 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
             onTap: () => setState(() => _selectedIndex = 0),
             onNotifications: _openNotifications,
             // The pages' scrolling hides and shows the bottom bar.
-            child: NotificationListener<ScrollUpdateNotification>(
-              onNotification: _onPageScroll,
-              child: SwipeableTabs(
-                index: _selectedIndex,
-                onIndexChanged: (i) => setState(() => _selectedIndex = i),
-                children: [
-                  MarketTab(
-                    onNavigateToTab: (i) => setState(() => _selectedIndex = i),
-                    onOpenOrders: _openOrders,
-                    onNotificationsPressed: _openNotifications,
-                  ),
-                  const ChatListScreen(),
-                  OrdersTab(
-                    showStatus: _ordersStatus,
-                    active: _selectedIndex == 2,
-                  ),
-                  ProfileTab(onOpenSettings: _openSettings),
-                ],
+            child: NotificationListener<ScrollMetricsNotification>(
+              onNotification: _onPageMetrics,
+              child: NotificationListener<ScrollUpdateNotification>(
+                onNotification: _onPageScroll,
+                child: SwipeableTabs(
+                  index: _selectedIndex,
+                  onIndexChanged: (i) => setState(() => _selectedIndex = i),
+                  children: [
+                    MarketTab(
+                      onNavigateToTab: (i) =>
+                          setState(() => _selectedIndex = i),
+                      onOpenOrders: _openOrders,
+                      onNotificationsPressed: _openNotifications,
+                    ),
+                    const ChatListScreen(),
+                    OrdersTab(
+                      showStatus: _ordersStatus,
+                      active: _selectedIndex == 2,
+                    ),
+                    ProfileTab(onOpenSettings: _openSettings),
+                  ],
+                ),
               ),
             ),
           ),

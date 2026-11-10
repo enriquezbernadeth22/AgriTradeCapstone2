@@ -69,7 +69,14 @@ function publicProductView({ id, product, farmer, reviews = [] }) {
     .slice(0, 8);
   if (images.length === 0 && httpsUrl(product.imageUrl)) images.push(httpsUrl(product.imageUrl));
 
-  const wholesalePrice = product.wholesaleEnabled === true ? number(product.wholesalePrice) : null;
+  // Livestock sold by the animal (per head or per piece) shows "Available"
+  // instead of how many are left, and has no wholesale (the app's
+  // isSoldPerAnimal; system testing, 2026-11-09).
+  const perAnimal =
+    text(product.category, 60).toLowerCase() === "livestock" &&
+    (unit.toLowerCase() === "head" || unit.toLowerCase() === "piece");
+  const wholesalePrice =
+    product.wholesaleEnabled === true && !perAnimal ? number(product.wholesalePrice) : null;
   const reviewCount = Math.max(0, Math.floor(number(product.reviewCount) ?? 0));
 
   return {
@@ -86,6 +93,7 @@ function publicProductView({ id, product, farmer, reviews = [] }) {
         ? null
         : { price: wholesalePrice, minimumQuantity: number(product.wholesaleMinimumQuantity) },
     quantity,
+    perAnimal,
     outOfStock: quantity <= 0,
     delivery: product.deliveryAvailable === true && product.pickupOnly !== true,
     // Pick-up is always possible; where exactly is agreed in the app.
@@ -132,6 +140,11 @@ function peso(amount) {
 
 function amount(value) {
   return Number(value).toLocaleString("en-PH", { maximumFractionDigits: 2 });
+}
+
+/** "12 kg available", or "Available" for livestock sold by the animal. */
+function stockText(v) {
+  return v.perAnimal ? "Available" : `${amount(v.quantity)} ${v.unit} available`;
 }
 
 function stars(rating) {
@@ -272,7 +285,7 @@ function renderProductPage(view, { id, nonce, downloadUrl = APP_DOWNLOAD_URL } =
   const priceLine = `${peso(v.retailPrice)}/${v.unit}`;
   const summary = [
     priceLine,
-    v.outOfStock ? "Out of Stock" : `${amount(v.quantity)} ${v.unit} available`,
+    v.outOfStock ? "Out of Stock" : stockText(v),
     v.farmer.area,
   ]
     .filter(Boolean)
@@ -321,7 +334,7 @@ ${gallery}
 <h1>${esc(v.name)}</h1>
 <div class="price">${esc(peso(v.retailPrice))}<small>/${esc(v.unit)}</small></div>
 <div style="margin-top:10px"><span class="badge${v.outOfStock ? " out" : ""}">${
-    v.outOfStock ? "Out of Stock" : `${esc(amount(v.quantity))} ${esc(v.unit)} available`
+    v.outOfStock ? "Out of Stock" : esc(stockText(v))
   }</span></div>
 </section>
 <section><h2>Pricing</h2>

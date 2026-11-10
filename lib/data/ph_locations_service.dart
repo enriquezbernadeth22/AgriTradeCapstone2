@@ -54,6 +54,41 @@ class PhBarangay {
   const PhBarangay({required this.code, required this.name});
 }
 
+/// A city or municipality in Luzon (see
+/// [PhLocationsService.fetchLuzonCitiesMunicipalities]).
+class LuzonPlace {
+  final String name;
+  final String province;
+
+  /// The heading it is listed under: its province, or its region for a
+  /// city independent of any province.
+  final String group;
+
+  const LuzonPlace({
+    required this.name,
+    required this.province,
+    required this.group,
+  });
+}
+
+/// The first two digits of the PSGC region codes of Luzon: Ilocos (01),
+/// Cagayan Valley (02), Central Luzon (03), CALABARZON (04), Bicol (05),
+/// NCR (13), CAR (14) and MIMAROPA (17).
+const Set<String> kLuzonRegionPrefixes = {
+  '01',
+  '02',
+  '03',
+  '04',
+  '05',
+  '13',
+  '14',
+  '17',
+};
+
+/// Whether a PSGC region code is one of Luzon's.
+bool isLuzonRegionCode(String code) =>
+    code.length >= 2 && kLuzonRegionPrefixes.contains(code.substring(0, 2));
+
 class PhLocationsService {
   PhLocationsService._();
   static final PhLocationsService instance = PhLocationsService._();
@@ -186,6 +221,52 @@ class PhLocationsService {
       return (name: e['name'] as String, province: province);
     }).toList()..sort((a, b) => a.name.compareTo(b.name));
     _allCities = list;
+    return list;
+  }
+
+  List<LuzonPlace>? _luzonPlaces;
+
+  /// Every city/municipality in Luzon, for the farmer's delivery areas
+  /// (Luzon only for now: system testing, 2026-11-09). Luzon is the island
+  /// group's eight regions (PSGC codes 01-05, 13 NCR, 14 CAR, 17 MIMAROPA).
+  /// Each has its province ("Metro Manila" for NCR; empty for a city
+  /// independent of any province) and the group it is listed under: the
+  /// province, or for an independent city its region.
+  Future<List<LuzonPlace>> fetchLuzonCitiesMunicipalities() async {
+    if (_luzonPlaces != null) return _luzonPlaces!;
+    final regions = await _getJsonList('/regions/');
+    final regionNames = {
+      for (final r in regions) r['code'] as String: r['name'] as String,
+    };
+    final provinces = await _getJsonList('/provinces/');
+    final provinceNames = {
+      for (final p in provinces) p['code'] as String: p['name'] as String,
+    };
+    final raw = await _getJsonList('/cities-municipalities/');
+    final list = <LuzonPlace>[];
+    for (final e in raw) {
+      final regionCode = (e['regionCode'] ?? '').toString();
+      if (!isLuzonRegionCode(regionCode)) continue;
+      final provinceCode = e['provinceCode'];
+      final isNcr = regionCode.startsWith('13');
+      final province = provinceCode is String
+          ? (provinceNames[provinceCode] ?? '')
+          : (isNcr ? 'Metro Manila' : '');
+      list.add(
+        LuzonPlace(
+          name: e['name'] as String,
+          province: province,
+          group: province.isNotEmpty
+              ? province
+              : (regionNames[regionCode] ?? 'Independent cities'),
+        ),
+      );
+    }
+    list.sort((a, b) {
+      final byGroup = a.group.compareTo(b.group);
+      return byGroup != 0 ? byGroup : a.name.compareTo(b.name);
+    });
+    _luzonPlaces = list;
     return list;
   }
 

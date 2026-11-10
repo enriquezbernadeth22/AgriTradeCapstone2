@@ -233,8 +233,8 @@ class _GoogleCompleteProfileScreenState
     final profileError = await _authService.completeGoogleProfile(
       uid: widget.uid,
       fullName: _fullName,
-      firstName: tidyName(_firstNameController.text),
-      lastName: tidyName(_lastNameController.text),
+      firstName: formatPersonName(_firstNameController.text),
+      lastName: formatPersonName(_lastNameController.text),
       email: widget.email,
       role: _selectedRole,
       mobileNumber: mobileDigits.isEmpty ? null : phMobileE164(mobileDigits),
@@ -499,6 +499,7 @@ class _GoogleCompleteProfileScreenState
             controller: controller,
             style: const TextStyle(fontSize: 14),
             textCapitalization: TextCapitalization.words,
+            inputFormatters: kNameInputFormatters,
             onChanged: (_) => setState(() {}),
             decoration: AppTheme.inputBox(
               hint: hint,

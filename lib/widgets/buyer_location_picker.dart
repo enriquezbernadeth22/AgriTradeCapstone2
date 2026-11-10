@@ -44,9 +44,11 @@ class BuyerLocationResult {
 /// provinces, picking "Batangas" narrows it to Batangas's cities/
 /// municipalities, and so on down to barangay, which closes the sheet.
 ///
-/// A detected location that maps onto the list skips straight to its
-/// barangay list, under a compact "Location detected" summary; the full
-/// hierarchy is the fallback when detection or that mapping fails.
+/// A detected location whose barangay can be told is used at once: the
+/// popup closes with it, with no barangay left to confirm. One that maps
+/// only as far as its city skips straight to that city's barangays, under a
+/// compact "Location detected" summary; the full hierarchy is the fallback
+/// when detection or that mapping fails.
 ///
 /// [initial], when given (e.g. "Edit Location"), best-effort drills the
 /// list down to match the previous pick so the buyer doesn't have to
@@ -532,6 +534,18 @@ class _BuyerLocationPopupState extends State<_BuyerLocationPopup> {
             'We found your position but couldn\'t match it to an address. Please choose your location below.',
           ),
         );
+      } else {
+        // The address named the barangay too: that is the buyer's location,
+        // with nothing more to tap (the user, 2026-11-09). Only a barangay
+        // that could not be told is left for them to choose.
+        final code = _detectedBarangayCode;
+        final barangay = code == null
+            ? null
+            : _barangays.firstWhereOrNull((b) => b.code == code);
+        if (barangay != null) {
+          await _pickBarangay(barangay);
+          return;
+        }
       }
     } catch (_) {
       if (!mounted) return;

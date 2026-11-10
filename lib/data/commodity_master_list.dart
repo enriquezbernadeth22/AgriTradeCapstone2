@@ -265,6 +265,54 @@ enum SellingOption {
 bool isLivestockCategory(String? category) =>
     (category ?? '').trim().toLowerCase() == 'livestock';
 
+/// The units a farmer may sell a livestock listing by (system testing,
+/// 2026-11-09): Head and Piece, the animal counted, then the commodity's
+/// own unit when it is a weight (Swine and Chicken: kg liveweight, the unit
+/// of the Admin's reference prices).
+List<String> livestockUnitChoices(String commodityUnit) {
+  final own = commodityUnit.trim().toLowerCase();
+  return [
+    'head',
+    'piece',
+    if (own.isNotEmpty && !isCountBasedUnit(own)) own,
+  ];
+}
+
+/// The unit a new livestock listing starts with: the commodity's own when
+/// it counts animals (Cattle: head), otherwise Head, so a pig is sold per
+/// head unless the farmer picks otherwise.
+String defaultLivestockUnit(String commodityUnit) {
+  final own = commodityUnit.trim().toLowerCase();
+  return isCountBasedUnit(own) ? own : 'head';
+}
+
+/// "Head", "Piece", "kg liveweight": a unit as a choice on Add Product.
+String unitChoiceLabel(String unit) => switch (unit.trim().toLowerCase()) {
+  'head' => 'Head',
+  'piece' => 'Piece',
+  final other => other,
+};
+
+/// True for a livestock listing (or an order of one) sold by the animal,
+/// per head or per piece. Its buyers see "Available" instead of how many
+/// are left (the farmer still keeps the count, and orders are still held
+/// to it), and it has no wholesale price (system testing, 2026-11-09).
+bool isSoldPerAnimal(Map<String, dynamic>? data) {
+  if (data == null) return false;
+  final name = (data['commodity'] ?? data['name'] ?? data['productName'] ?? '')
+      .toString();
+  var category = listingCategory(data);
+  // A record without its category (a chat's product card): the
+  // commodity's own.
+  if (category.isEmpty) {
+    final commodity = matchSupportedCommodity(name);
+    category = commodity == null ? '' : categoryOfCommodity(commodity) ?? '';
+  }
+  if (!isLivestockCategory(category)) return false;
+  final saved = (data['unit'] ?? '').toString().trim();
+  return isCountBasedUnit(saved.isNotEmpty ? saved : unitForProductName(name));
+}
+
 /// The selling option saved on a listing or an order, or null when it has
 /// none (not livestock, a listing saved before the option existed, or an
 /// old slaughtered one — see [isSlaughtered]).

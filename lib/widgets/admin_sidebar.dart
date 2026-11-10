@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../screen/admin_filter_controls.dart' show adminFont;
-import '../theme/app_theme.dart';
 
 /// One page in the Admin Portal's navigation. A page with several views of
 /// its own lists them as [children], which the sidebar shows as a
@@ -23,23 +22,28 @@ class AdminSidebarEntry {
   });
 }
 
-/// The sidebar's colours.
+/// The sidebar's colours (the user's design, 2026-11-10): the mobile app's
+/// dark green bar, white text and icons, and the open page a solid golden
+/// yellow pill with dark green on it.
 class AdminSidebarColors {
   final Color background;
   // The text and icons of every page that isn't open.
   final Color foreground;
-  // The open page's row, and its icon and text.
+  // The open page's pill, and its icon and text.
   final Color activeBackground;
   final Color activeForeground;
   // The open submenu item's dot and text.
   final Color accent;
-  // The small group headings ("MAIN", "MODERATION"): dark green spaced
-  // capitals.
+  // The small group headings ("MAIN", "MODERATION").
   final Color sectionLabel;
-  // The line between the sidebar and the page, and between groups.
+  // The lines between groups and above the account.
   final Color edge;
-  // The "AgriTrade+" name at the top.
+  // The "AgriTrade" name at the top (its "+" is [accent]).
   final Color brand;
+  // The thin line along the upper part of the curved right edge.
+  final Color curveAccent;
+  // The page beside the sidebar, which shows where the edge curves in.
+  final Color page;
 
   const AdminSidebarColors._({
     required this.background,
@@ -50,36 +54,36 @@ class AdminSidebarColors {
     required this.sectionLabel,
     required this.edge,
     required this.brand,
+    required this.curveAccent,
+    required this.page,
   });
 
-  // White, with near-black text and icons (the portal's text colour), and
-  // the app's dark green — the same as the portal's main buttons — for the
-  // name at the top, the group headings, the open page's row and the open
-  // submenu item.
   static const light = AdminSidebarColors._(
-    background: Colors.white,
-    foreground: Color(0xFF1C1F23),
-    activeBackground: AppTheme.dark,
-    activeForeground: Colors.white,
-    accent: AppTheme.dark,
-    sectionLabel: AppTheme.dark,
-    // Separates the white sidebar from the near-white page beside it.
-    edge: Color(0xFFE2E5E9),
-    brand: AppTheme.dark,
+    background: Color(0xFF0B4225),
+    foreground: Colors.white,
+    activeBackground: Color(0xFFF5BB24),
+    activeForeground: Color(0xFF0B4225),
+    accent: Color(0xFFF5BB24),
+    sectionLabel: Color(0xE6FFFFFF),
+    edge: Color(0x26FFFFFF),
+    brand: Colors.white,
+    curveAccent: Color(0xFFF5BB24),
+    page: Color(0xFFFAF8F2),
   );
 
-  // Dark Mode: charcoal with light text and icons; the open page's row a
-  // green deep enough for white text on it; the name, the headings and
-  // the open submenu item a lighter green (dark green would not show).
+  // Dark Mode: a deeper forest green beside the charcoal page; the same
+  // white text and golden yellow.
   static const dark = AdminSidebarColors._(
-    background: Color(0xFF16181B),
-    foreground: Color(0xFFE6E8EB),
-    activeBackground: Color(0xFF2F7D45),
-    activeForeground: Colors.white,
-    accent: Color(0xFF5DBB74),
-    sectionLabel: Color(0xFFA5D6A7),
-    edge: Color(0xFF30353B),
-    brand: Color(0xFFA5D6A7),
+    background: Color(0xFF0A2E1B),
+    foreground: Colors.white,
+    activeBackground: Color(0xFFF5BB24),
+    activeForeground: Color(0xFF0B4225),
+    accent: Color(0xFFF5BB24),
+    sectionLabel: Color(0xCCFFFFFF),
+    edge: Color(0x1FFFFFFF),
+    brand: Colors.white,
+    curveAccent: Color(0xCCF5BB24),
+    page: Color(0xFF111315),
   );
 
   /// The colours for the portal's theme at [context]: light or dark.
@@ -125,6 +129,10 @@ class AdminSidebar extends StatefulWidget {
   /// The keyboard shortcut for [onToggleCollapsed], shown in its tooltip.
   final String? toggleShortcut;
 
+  /// The right edge flows in a shallow curve below the top (the user's
+  /// design, 2026-11-10). Off in the drawer, where it lies over the page.
+  final bool curved;
+
   const AdminSidebar({
     super.key,
     required this.entries,
@@ -136,9 +144,10 @@ class AdminSidebar extends StatefulWidget {
     this.collapsed = false,
     this.onToggleCollapsed,
     this.toggleShortcut,
+    this.curved = true,
   });
 
-  static const double expandedWidth = 248;
+  static const double expandedWidth = 256;
   static const double collapsedWidth = 72;
 
   @override
@@ -183,38 +192,52 @@ class _AdminSidebarState extends State<AdminSidebar> {
     final collapsed = widget.collapsed;
     final entries = widget.entries;
     final colors = AdminSidebarColors.of(context);
+    // How far the curved edge comes in: room the rows keep clear of.
+    final curve = !widget.curved ? 0.0 : (collapsed ? 5.0 : 10.0);
+    final top = MediaQuery.paddingOf(context).top + _brandHeight;
     return Material(
-      color: colors.background,
-      shape: Border(right: BorderSide(color: colors.edge)),
-      child: SizedBox(
-        width: collapsed
-            ? AdminSidebar.collapsedWidth
-            : AdminSidebar.expandedWidth,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _brand(),
-            // The pages scroll on their own if the window is too short
-            // for them; the brand above stays put.
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < entries.length; i++) ...[
-                      ..._sectionStart(i),
-                      ..._entry(i),
-                    ],
-                  ],
+      color: Colors.transparent,
+      child: CustomPaint(
+        painter: _SidebarShapePainter(colors: colors, top: top, curve: curve),
+        child: SizedBox(
+          width: collapsed
+              ? AdminSidebar.collapsedWidth
+              : AdminSidebar.expandedWidth,
+          child: Padding(
+            padding: EdgeInsets.only(right: curve),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _brand(),
+                // The pages scroll on their own if the window is too short
+                // for them; the brand above stays put.
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < entries.length; i++) ...[
+                          ..._sectionStart(i),
+                          ..._entry(i),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                if (widget.footer != null) ...[
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: colors.edge,
+                  ),
+                  SafeArea(top: false, child: widget.footer!),
+                ],
+              ],
             ),
-            if (widget.footer != null) ...[
-              Divider(height: 1, thickness: 1, color: colors.edge),
-              SafeArea(top: false, child: widget.footer!),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -314,7 +337,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
   bool _brandHovered = false;
 
   /// How tall the top of the sidebar, with the logo, is.
-  static const double _brandHeight = 68;
+  static const double _brandHeight = kAdminHeaderHeight;
 
   // The top of the sidebar, on its own white: the logo, "AgriTrade+" in
   // bold dark green with "Admin Panel" under it, and the sidebar button at
@@ -397,8 +420,16 @@ class _AdminSidebarState extends State<AdminSidebar> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'AgriTrade+',
+                              Text.rich(
+                                TextSpan(
+                                  text: 'AgriTrade',
+                                  children: [
+                                    TextSpan(
+                                      text: '+',
+                                      style: TextStyle(color: colors.accent),
+                                    ),
+                                  ],
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: adminFont(
@@ -582,7 +613,7 @@ class _AdminSidebarItem extends StatefulWidget {
 class _AdminSidebarItemState extends State<_AdminSidebarItem> {
   bool _hovered = false;
 
-  static const double _height = 40;
+  static const double _height = 42;
   static const double _iconSize = 19;
 
   @override
@@ -606,7 +637,7 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: adminFont(
-                    fontSize: 13.5,
+                    fontSize: 13,
                     fontWeight: widget.selected
                         ? FontWeight.w600
                         : FontWeight.w500,
@@ -666,7 +697,8 @@ class _AdminSidebarItemState extends State<_AdminSidebarItem> {
             decoration: BoxDecoration(
               color: widget.selected
                   ? colors.activeBackground
-                  : colors.foreground.withValues(alpha: _hovered ? 0.06 : 0),
+                  : colors.foreground.withValues(alpha: _hovered ? 0.08 : 0),
+              // The open page: a solid golden yellow pill.
               borderRadius: BorderRadius.circular(kAdminSidebarRowRadius),
             ),
             child: content,
@@ -740,7 +772,7 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
             margin: const EdgeInsets.only(left: 30, bottom: 1),
             padding: const EdgeInsets.only(left: 12, right: 10),
             decoration: BoxDecoration(
-              color: colors.foreground.withValues(alpha: _hovered ? 0.05 : 0),
+              color: colors.foreground.withValues(alpha: _hovered ? 0.08 : 0),
               borderRadius: BorderRadius.circular(kAdminSidebarRowRadius),
             ),
             child: Row(
@@ -783,5 +815,100 @@ class _AdminSidebarSubItemState extends State<_AdminSidebarSubItem> {
   }
 }
 
-/// How round a sidebar row's corners are (the open page's green block).
-const double kAdminSidebarRowRadius = 8;
+/// How round a sidebar row's corners are: pills (the open page's golden
+/// yellow pill, the user's design of 2026-11-10).
+const double kAdminSidebarRowRadius = 999;
+
+/// The height of the portal's dark green top bar, and of the sidebar's top
+/// beside it, so the two read as one band.
+const double kAdminHeaderHeight = 64;
+
+/// The sidebar's shape: dark green, its right edge straight beside the top
+/// bar and then flowing in a shallow curve down the side (the mobile app's
+/// header wave turned on its side), with a thin golden yellow line along
+/// the upper part of that curve only. Where the edge curves in, the page
+/// colour shows.
+class _SidebarShapePainter extends CustomPainter {
+  final AdminSidebarColors colors;
+  final double top;
+  final double curve;
+
+  const _SidebarShapePainter({
+    required this.colors,
+    required this.top,
+    required this.curve,
+  });
+
+  // The curved edge from (width, top) down to the bottom, added to [path]
+  // (which must already be at its start).
+  void _edge(Path path, Size size) {
+    final w = size.width;
+    final a = curve;
+    final h = size.height - top;
+    path
+      ..cubicTo(w, top + h * 0.12, w - a, top + h * 0.2, w - a, top + h * 0.34)
+      ..cubicTo(
+        w - a,
+        top + h * 0.48,
+        w - a * 0.25,
+        top + h * 0.56,
+        w - a * 0.25,
+        top + h * 0.7,
+      )
+      ..cubicTo(
+        w - a * 0.25,
+        top + h * 0.84,
+        w - a * 0.75,
+        top + h * 0.92,
+        w - a * 0.75,
+        size.height,
+      );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final green = Paint()..color = colors.background;
+    if (curve <= 0 || size.height <= top + 40) {
+      canvas.drawRect(Offset.zero & size, green);
+      return;
+    }
+    canvas.drawRect(Offset.zero & size, Paint()..color = colors.page);
+    final shape = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, top);
+    _edge(shape, size);
+    shape
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(shape, green);
+
+    // The golden line: the upper part of the curve, fading out.
+    final edge = Path()..moveTo(size.width, top);
+    _edge(edge, size);
+    final metric = edge.computeMetrics().first;
+    final part = metric.extractPath(0, metric.length * 0.5);
+    final end = top + (size.height - top) * 0.5;
+    canvas.drawPath(
+      part.shift(const Offset(-0.75, 0)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colors.curveAccent,
+            colors.curveAccent,
+            colors.curveAccent.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.65, 1],
+        ).createShader(Rect.fromLTRB(0, top, size.width, end)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SidebarShapePainter old) =>
+      old.colors != colors || old.top != top || old.curve != curve;
+}

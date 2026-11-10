@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/commodity_master_list.dart';
+import '../services/market_price_helpers.dart';
 import '../services/buyer_area_watcher.dart';
 import '../services/delivery_coverage.dart';
 import '../services/firebase_refs.dart';
@@ -833,11 +834,7 @@ class _BuyerSearchScreenState extends State<BuyerSearchScreen> {
         // Rows of two, each as tall as its cards need: a row where neither
         // listing sells wholesale leaves out the "Wholesale | Min" strip
         // (the user's picture, 2026-11-08).
-        bool wholesale(Map<String, dynamic> d) {
-          final price = (d['wholesalePrice'] as num?)?.toDouble();
-          return d['wholesaleEnabled'] == true ||
-              (d['wholesaleEnabled'] == null && price != null && price > 0);
-        }
+        bool wholesale(Map<String, dynamic> d) => listingHasWholesale(d);
 
         Widget card(QueryDocumentSnapshot<Map<String, dynamic>> doc, bool row) {
           final data = doc.data();

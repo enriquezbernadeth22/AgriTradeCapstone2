@@ -347,3 +347,25 @@ List<T> deliveringFirst<T>(
   }
   return [...near, ...rest];
 }
+
+/// [areas] under their provinces, for showing a coverage clearly (Add
+/// Product's summary, Product Details): provinces from A to Z, each with
+/// its towns from A to Z. A town saved with no province comes last, under
+/// an empty name.
+List<({String province, List<String> towns})> areasByProvince(
+  Iterable<DeliveryArea> areas,
+) {
+  final byProvince = <String, Set<String>>{};
+  for (final a in areas) {
+    byProvince.putIfAbsent(a.province.trim(), () => {}).add(a.name.trim());
+  }
+  final provinces = byProvince.keys.toList()
+    ..sort((a, b) {
+      if (a.isEmpty != b.isEmpty) return a.isEmpty ? 1 : -1;
+      return a.compareTo(b);
+    });
+  return [
+    for (final p in provinces)
+      (province: p, towns: byProvince[p]!.toList()..sort()),
+  ];
+}

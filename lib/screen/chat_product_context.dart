@@ -919,7 +919,13 @@ class _OrderOptionsMessageCardState extends State<OrderOptionsMessageCard> {
     final hasWholesale =
         data['wholesaleEnabled'] != false &&
         wholesalePrice != null &&
-        wholesalePrice > 0;
+        wholesalePrice > 0 &&
+        // Never for livestock sold by the animal, even in an older message.
+        !isSoldPerAnimal({
+          'productName': productName,
+          'unit': unit,
+          'category': data['category'],
+        });
     // Fulfillment as it was when sent; older messages didn't include it.
     final deliveryLine = data['deliveryLabel']?.toString();
     final pickupLine = data['pickupLabel']?.toString();

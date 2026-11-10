@@ -31,25 +31,19 @@ void main() {
     expect(existingAccountFromStatus('something else'), ExistingAccount.none);
   });
 
-  test('each case has its own title and message', () {
-    final pending = existingAccountCopy(ExistingAccount.farmerPending);
-    expect(pending.title, 'Application already submitted');
+  test('every case is "Account Already Exists", with its own message', () {
+    for (final account in ExistingAccount.values) {
+      expect(existingAccountCopy(account).title, 'Account Already Exists');
+    }
     expect(
-      pending.message,
-      'Your Farmer application is already under review. Please log in '
-      'to check your application status.',
+      existingAccountCopy(ExistingAccount.registered).message,
+      'An account with this email address is already registered with '
+      'AgriTrade+. Please log in to continue.',
     );
-    expect(pending.cancellable, isTrue);
-
-    final approved = existingAccountCopy(ExistingAccount.farmerApproved);
-    expect(approved.title, 'Account already registered');
     expect(
-      approved.message,
-      'This email is already registered as an approved Farmer. Please '
-      'log in to continue.',
+      existingAccountCopy(ExistingAccount.farmerPending).message,
+      contains('under review'),
     );
-    expect(approved.cancellable, isFalse);
-
     expect(
       existingAccountCopy(ExistingAccount.farmerRejected).message,
       contains('not approved'),
@@ -84,43 +78,21 @@ void main() {
     return choice;
   }
 
-  testWidgets('a pending farmer is offered Cancel and Back to Login', (
-    tester,
-  ) async {
-    expect(
-      await open(tester, ExistingAccount.farmerPending, tap: 'Cancel'),
-      ExistingAccountChoice.cancel,
-    );
-    expect(
-      await open(tester, ExistingAccount.farmerPending, tap: 'Back to Login'),
-      ExistingAccountChoice.login,
-    );
-  });
-
-  testWidgets('an approved farmer is offered only Back to Login', (
-    tester,
-  ) async {
-    ExistingAccountChoice? choice;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async => choice = await showExistingAccountDialog(
-              context,
-              ExistingAccount.farmerApproved,
-            ),
-            child: const Text('open'),
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-    expect(find.text('Account already registered'), findsOneWidget);
-    expect(find.text('Cancel'), findsNothing);
-    await tester.tap(find.text('Back to Login'));
-    await tester.pumpAndSettle();
-    expect(choice, ExistingAccountChoice.login);
+  testWidgets('the registration form offers Cancel and Log In', (tester) async {
+    for (final account in [
+      ExistingAccount.registered,
+      ExistingAccount.farmerApproved,
+      ExistingAccount.farmerPending,
+    ]) {
+      expect(
+        await open(tester, account, tap: 'Cancel'),
+        ExistingAccountChoice.cancel,
+      );
+      expect(
+        await open(tester, account, tap: 'Log In'),
+        ExistingAccountChoice.login,
+      );
+    }
   });
 
   testWidgets('someone else on the same phone can still register', (
@@ -137,7 +109,7 @@ void main() {
     );
   });
 
-  testWidgets('from Create account: Back to Login and Register a different '
+  testWidgets('from Create account: Log In and Register a different '
       'email, no Cancel', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -155,12 +127,13 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Back to Login'), findsOneWidget);
+    expect(find.text('Account Already Exists'), findsOneWidget);
+    expect(find.text('Log In'), findsOneWidget);
     expect(find.text('Register a different email'), findsOneWidget);
     expect(find.text('Cancel'), findsNothing);
-    // Back to Login on top.
+    // Log In on top.
     expect(
-      tester.getTopLeft(find.text('Back to Login')).dy,
+      tester.getTopLeft(find.text('Log In')).dy,
       lessThan(tester.getTopLeft(find.text('Register a different email')).dy),
     );
   });
